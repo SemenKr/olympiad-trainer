@@ -82,7 +82,7 @@ Attempts should be read together with hint and solution exposure.
 | Eventually correct after unchanged independent retries | Evidence of eventual success and persistence; later correctness may be stronger than the first failure alone. | That the learner could solve it efficiently or transfer the reasoning. |
 | Eventually correct after feedback or a hint | Supported success. The depth of support determines how much independence can be inferred. | Independent strategy selection if a strategy hint was needed. |
 | Answer changed after feedback | Responsiveness, error correction, or use of feedback may be observed. | That the corrected reasoning was independently generated. |
-| Abandoned or skipped | Insufficient evidence about correctness; may indicate time, confidence, interface, or motivation factors. | A negative mastery judgment. |
+| Abandoned or skipped | Insufficient evidence about correctness or capability; may indicate time, confidence, interface, motivation, or an interaction barrier. Visible work before stopping may still supply separately attributable evidence. | A negative capability or mastery judgment from abandonment alone. |
 
 Repeated attempts on the same problem can reveal recovery, but they also introduce memory and feedback effects. They should not be counted as independent replications of the original task.
 
@@ -215,7 +215,7 @@ Evidence strength is a qualitative interpretation of an observation in context. 
 | **Strong positive** | Correct or substantively valid work produced independently on a well-attributed transfer problem; repeated independent success across different stories strengthens the case. | Does not permanently establish mastery or prove every tag on a multi-skill problem. |
 | **Moderate positive** | Correct independent work on the same problem, correct work after a focus hint, or a valid partial argument that demonstrates a named action. | Support, repetition, or incomplete work limits the claim. |
 | **Weak positive** | Correct work after a strategy/next-step hint, successful delayed retry with clear provenance, or method execution after support. | Shows progress or supported capability, not independent selection. |
-| **Weak negative** | First-attempt incorrect response, abandoned problem, or a local error on an otherwise relevant attempt. | The cause may be arithmetic, reading, concept choice, execution, or the response format. |
+| **Weak negative** | First-attempt incorrect response or a local error on an otherwise relevant attempt. | The cause may be arithmetic, reading, concept choice, execution, or the response format. Abandonment alone is insufficient for negative capability evidence; separately attributable work before stopping may still be interpreted. |
 | **Stronger negative** | Repeated independent failures on clearly understood, well-attributed problems involving the same action, with no solution exposure and no competing explanation visible. | Still a hypothesis about a weakness, not proof that the skill is absent. |
 | **Insufficient / unresolved** | Solution-exposed success, unverifiable response, conditional source interpretation, or a multi-skill result with no attribution path. | Should not drive a confident mastery interpretation. |
 
