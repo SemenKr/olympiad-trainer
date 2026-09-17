@@ -59,7 +59,7 @@ flowchart TD
     start --> request[Request next useful problem]
     request --> available{Suitable problem available?}
     available -->|yes| practice[Core Practice Flow]
-    practice --> summary[Session summary]
+    practice -->|explicitly finish session| summary[Session summary]
     summary --> homeReturn[Home: recent session]
     homeReturn --> progress[Progress]
     available -->|no| unavailable[No appropriate task is available now]
@@ -87,12 +87,16 @@ For a first-time learner, Progress must not present empty analytics. If opened, 
 flowchart TD
     open[Open Olympiad Trainer] --> home[Home]
     home --> state{Current situation}
-    state -->|unfinished practice| resume[Resume practice]
+    state -->|unfinished and continuation blocked| recovery[Retry loading with session preserved]
+    state -->|unfinished and no suitable next task| unavailable[Keep session unfinished; offer explicit finish]
+    state -->|unfinished and can resume| resume[Resume practice]
     state -->|ready for a new task| start[Start practice]
     resume --> practice
     start --> practice
     practice -->|pause| home
     practice -->|finish session| summary[Session summary]
+    unavailable -->|explicitly finish session| summary
+    recovery -->|recovery outcome| state
     summary -->|continue later| home
     summary -->|see progress| progress[Progress]
     home <-->|View progress or go back to Home| progress
@@ -100,7 +104,7 @@ flowchart TD
 
 The names describe what the learner will get:
 
-- **Resume practice** (`Продолжить тренировку`) restores unfinished Practice, including the current problem and its context, without creating a new attempt.
+- **Resume practice** (`Продолжить тренировку`) restores unfinished Practice when it can actually resume, including the current problem and its context, without creating a new attempt. A blocking technical failure instead uses primary `Попробовать снова`; a known unavailable next task uses primary `Завершить тренировку`, with Progress secondary.
 - **Start practice** asks for a new useful problem only when no unfinished Practice takes precedence.
 - **Finish session** leads to the Session summary; it is distinct from pausing.
 - **Progress** shows history; returning to **Home** restores the current action rather than selecting a problem itself.
@@ -136,8 +140,8 @@ No. The Dashboard / Home action already starts or resumes practice based on the 
 | --- | --- | --- | --- |
 | **First visit** | Explain the activity briefly and offer Start practice. | If visited, show neutral “Not explored yet,” not empty charts or missing metrics. | Progress returns to Home; no setup loop is required. |
 | **No usable progress conclusion** | Keep the action focused on starting practice, not analysing missing history. | Explain that more usable work is needed; distinguish unassessed work from no attempts where relevant. | Do not turn absence of evidence into attention or remediation. |
-| **Unfinished practice** | Make Resume practice (`Продолжить тренировку`) the primary action. | Progress remains viewable, but must not replace or reset the active problem. | Resuming restores the same Core Practice episode. |
-| **No appropriate task available** | Explain the temporary condition and allow Progress, pausing/finishing the request, or returning later. | Existing history remains available. | Do not provide an unrelated substitute or call the learner inactive/weak. |
+| **Unfinished practice** | Primary: `Попробовать снова` for blocked continuation; `Завершить тренировку` for a known unavailable next task; otherwise `Продолжить тренировку` when resumption is possible. | Progress stays available without replacing or resetting the episode. | Only explicit finish enters Summary; recovery, navigation, and unavailability preserve unfinished work. |
+| **No appropriate task available** | With an unfinished session/request, primary `Завершить тренировку`, secondary Progress. Without one, show the calm Progress/return-later fallback. | Existing history remains available. | No automatic completion, unrelated substitute, or negative learner label. |
 | **Session summary with assessment pending** | On return, show that the session ended while a response awaits assessment. | Keep the response unclassified. | Do not display correct/incorrect/partial progress until assessment is available. |
 
 ## Cross-flow consistency
@@ -154,13 +158,13 @@ No. The Dashboard / Home action already starts or resumes practice based on the 
 | **Session summary** | See progress | **Progress** | Dashboard / Progress Flow presents qualitative history. |
 | **Home** | View Progress | **Progress** | Progress explains accumulated work without selecting a task. |
 | **Progress** | Go back to Home | **Home** | Home restores the current action; it does not reset the session. |
-| **Core Practice Flow** | Pause session | **Home with resumable session** | Core Practice retains the active episode; Home gives Resume practice priority. |
+| **Core Practice Flow** | Pause session | **Home with unfinished session** | Retain the episode; Home uses recovery for blocked continuation, explicit finish for a known unavailable next task, or Resume when continuation is possible. |
 | **Home / first visit** | No appropriate task available | **Understandable unavailable state** | Recommendation availability is shown without inventing a task or negative learner conclusion. |
 
 ### Continuity checks
 
 - There is no dead end after a completed session: the learner can go to Home, Progress, or leave and return later.
-- There is no dead end after unfinished work: Home makes resumption visible and retains the problem context.
+- There is no dead end after unfinished work: Home retains the context and offers recovery, explicit finish for known unavailability, or actual resumption.
 - There is no dead end after unavailable recommendation: the learner remains in an understandable Home state, can inspect Progress, or finish/pause the request.
 - Progress has a return path to Home and does not create a parallel practice flow.
 - First visit reaches the same Home and Core Practice path as later visits; it does not create a separate onboarding product.
@@ -172,7 +176,7 @@ No. The Dashboard / Home action already starts or resumes practice based on the 
 | --- | --- | --- |
 | **Learner leaves before starting the first task** | Return later to the same simple first-visit Home state. | Failed onboarding, an abandoned skill, or a missing profile. |
 | **Learner opens Progress on first visit** | Show neutral absence of usable work and a clear route to Home. | Empty analytics, zero mastery, or a required capability choice. |
-| **Learner opens Progress while Practice is unfinished** | Preserve the resumable session; Home still prioritises Resume practice afterward. | That viewing history completed, abandoned, or restarted the session. |
+| **Learner opens Progress while Practice is unfinished** | Preserve the session; Home applies blocked/unavailable/resumable precedence afterward. | That viewing history completed, abandoned, or restarted the session. |
 | **Reload while on an active problem** | Core Practice restores the active episode; if the learner leaves the problem, Home's resume action remains accurate. | A new first attempt or erased hint/solution context. |
 | **No appropriate task after Start practice** | Return to the understandable unavailable state with Progress, pause, finish, or later return as available actions. | Technical failure, learner weakness, or a substitute task chosen outside D.3. |
 | **Session ends with a skipped or solution-exposed problem** | Summary and Home record the navigation outcome with appropriate context. | Independent success, skill failure, or complete mastery. |
@@ -196,7 +200,7 @@ Home provides the immediate action, Progress provides qualitative history, and P
 
 1. **What is the minimum onboarding needed?** A brief explanation of independent practice, hints, and solution study shown alongside immediately available Start practice. No acknowledgement or profile questions are required.
 2. **What should happen on the very first visit?** Land on first-visit Home, offer Start practice, request one suitable task, and enter the Core Practice Flow. If no task is available, show an understandable temporary state without empty analytics or a substitute task.
-3. **What should the learner land on later?** Home, because it restores the current action: resume unfinished practice or start a useful new session.
+3. **What should the learner land on later?** Home, because it restores the current action: recover blocked continuation, explicitly finish an unavailable unfinished session, resume available unfinished practice, or start a useful new session when none is unfinished.
 4. **Which top-level destinations are actually needed for MVP?** Home and Progress. Practice and Session summary are contextual flows, not permanent destinations.
 5. **Is a separate Practice destination necessary if Dashboard already starts/resumes practice?** No. It duplicates the Home action without serving a separate MVP need.
 6. **What information should not be requested during onboarding?** Grade, subject, preparation goal, self-reported weak areas, confidence, history, and internal practice purposes unless a later adopted choice makes one change the available experience.

@@ -44,21 +44,21 @@ The Dashboard does not claim that its primary action is the globally best proble
 
 ### Primary action
 
-The primary Dashboard action is **Resume practice** (`Продолжить тренировку`) whenever unfinished Practice remains resumable. Otherwise it is **Start practice** (`Начать тренировку`) when a suitable problem is available. The current problem and its interaction state remain inside the Core Practice Flow; Home does not need a second action for them.
+For unfinished Practice, Home first handles a technical failure blocking continuation with primary `Попробовать снова`. If the next suitable task is known to be unavailable, primary `Завершить тренировку` offers explicit completion while Progress stays secondary. Otherwise, when the session can actually resume, primary `Продолжить тренировку` restores it. Without unfinished work, ready Home uses `Начать тренировку`; general task unavailability may offer Progress. The current problem and interaction state remain inside Practice.
 
-This is one action for the learner's current situation, not multiple competing calls to action. It opens or returns to the Core Practice Flow. A reason accompanies the action, but the Dashboard does not expose ranking, candidate comparison, or recommendation score.
+This is one action for the learner's current situation, not multiple competing calls to action. Start and Resume enter Practice; recovery retries the blocked interaction; explicit Finish enters Session Summary. A reason accompanies the action, but the Dashboard does not expose ranking, candidate comparison, or recommendation score.
 
 ### Dashboard states
 
-These are conceptual conditions, not implementation enums. More than one can describe the learner's history, but unfinished practice takes precedence for the primary action.
+These are conceptual conditions, not implementation enums. For unfinished practice, blocking recovery takes precedence over known task unavailability, then actual resumption. Unfinished work takes precedence over starting a new session.
 
 | Dashboard condition | What the learner needs to understand | Primary action and explanation | What must not be implied |
 | --- | --- | --- | --- |
 | **First visit** | No session or progress evidence exists yet. | **Start practice**: begin with a bounded problem so the system can learn what evidence is available. | That unobserved capabilities are weak, or that the first task is a diagnostic verdict. |
 | **Ready to practise** | No unfinished session blocks a new task; a suitable practice purpose and problem are available. | **Start practice** with a brief reason tied to the purpose and missing evidence. | That the learner has a single weakest skill or that the task is necessarily harder. |
-| **Unfinished practice** | The learner left an active Practice flow before explicitly completing the session; the work remains resumable. | **Resume practice** (`Продолжить тренировку`), with the current problem or awaiting-assessment context preserved. | That leaving was failure, abandonment evidence, session completion, or a new attempt. |
+| **Unfinished practice** | The learner left Practice without explicitly completing the session. | Blocking failure: `Попробовать снова`; known unavailable next task: `Завершить тренировку`; actual resumption available: `Продолжить тренировку`. Preserve the current context in every case. | That leaving, a failed load, or unavailable task completed the session or created a new attempt. |
 | **Session completed** | The learner has just ended a session and has a bounded record of what happened. | **View the session summary**, then offer the current appropriate action when the learner returns to Dashboard. | That every opened problem was solved or that a session count establishes mastery. |
-| **Recommendation temporarily unavailable** | There is no suitable problem for the requested practice context at present. | Explain that no appropriate task is available; allow viewing Progress, pausing the request, or finishing it. | Learner weakness, lack of progress, or permission to substitute an unrelated problem. |
+| **Recommendation temporarily unavailable** | There is no suitable problem for the requested practice context at present. | With an unfinished session/request, primary `Завершить тренировку` and secondary Progress. Without one, retain the calm Progress/return-later fallback. | Automatic completion, learner weakness, lack of progress, or an unrelated substitute problem. |
 | **A fresh check would help** | A previously supported capability has a current temporal/context gap, relevant contradiction, or dependency need. | **Start practice** with wording such as “Try this idea again in a fresh problem,” and state why that practice is useful now. | That the learner has forgotten or lost an established capability because time passed. |
 
 ### Recent work and current attention
@@ -152,16 +152,20 @@ The session summary closes the Core Practice Flow and explains the just-complete
 
 If assessment is still pending, the summary says that the response is awaiting assessment and does not describe it as correct, incorrect, or partially correct. If the learner viewed a solution after submitting an unassessed response, the summary preserves the earlier submission context and labels later reconstruction as solution-exposed.
 
+Supported success requires an actual assessed successful outcome after support. Hints, navigation, skipping, pending assessment, and solution viewing alone cannot establish it. A valid result assessed before later solution viewing retains its original outcome; later study is separate context.
+
 ## Navigation
 
 ```mermaid
 flowchart TD
     dashboard[Dashboard] -->|start practice or resume practice| practice[Core Practice Flow]
-    practice -->|session ends| summary[Session summary]
+    practice -->|explicitly finish session| summary[Session summary]
     summary -->|continue practising| dashboard
     summary -->|review progress| progress[Progress]
     dashboard <-->|view progress or return to practice| progress
     dashboard -->|no suitable problem| unavailable[Recommendation temporarily unavailable]
+    unavailable -->|unfinished session: explicitly finish| summary
+    unavailable -->|view progress without completing session| progress
     practice -->|pause session| dashboard
 ```
 
@@ -173,7 +177,7 @@ The Dashboard delegates problem selection to D.3 when it starts practice. The Co
 | --- | --- | --- |
 | **First-time learner** | Offer the first bounded practice opportunity and explain that its purpose is to begin gathering useful evidence. | Existing weakness, a blank progress score, or a required diagnosis. |
 | **No progress evidence yet** | Show “Not explored yet” or an equivalent neutral explanation; distinguish no evidence from unassessable/pending work. | A negative capability conclusion. |
-| **Unfinished practice with old dashboard information** | Give resume precedence and restore the active problem's context before offering a new practice action. | A fresh first attempt, a discarded hint/solution history, or a completed session. |
+| **Unfinished practice with old dashboard information** | Preserve the episode and use recovery, known unavailability, or actual resumption as appropriate before offering any new session. | A fresh first attempt, discarded help history, or completion caused by navigation/unavailability. |
 | **Session completed with assessment pending** | State that the response is awaiting assessment and preserve it in recent work; show only conclusions supported by already assessed evidence. | That the problem was solved, failed, or partially correct. |
 | **Solution viewed after a submitted response** | Show solution study separately from the earlier submission. | That later reproduction is independent; where possible, retain the original submission for later assessment. |
 | **No suitable recommendation** | Explain the temporary absence of an appropriate task; allow viewing Progress, pausing the request, or finishing it. | Learner weakness or a need to serve an unrelated task. |
@@ -197,7 +201,7 @@ The Dashboard gives one appropriate action and a concise reason. Progress suppli
 
 ## Answers to the task questions
 
-1. **What is the dashboard's primary action?** Resume unfinished Practice when it exists; otherwise start the next useful practice session. The current problem is restored inside the Core Practice Flow after `Продолжить тренировку`.
+1. **What is the dashboard's primary action?** For unfinished Practice: `Попробовать снова` when technically blocked, `Завершить тренировку` when the next task is known to be unavailable, otherwise `Продолжить тренировку` when resumption is possible. Without unfinished work, start a suitable new session or offer the general unavailable fallback.
 2. **What information belongs on Dashboard versus Progress?** Dashboard contains the immediate action, its reason, unfinished work, concise recent outcomes, and a small number of current attention reasons. Progress contains the capability overview, qualitative evidence sufficiency, scope, traceable recent changes, and unresolved evidence questions.
 3. **How should `unknown` appear without looking negative?** As “Not explored yet” with an explanation that there is not enough usable evidence. It must be visibly distinct from an attributable difficulty signal.
 4. **How should supported success differ from independent success in summaries?** Describe the observed support: independently solved only where the episode supports it; otherwise completed after help or with a qualified support boundary. Both can be positive evidence, but they support different conclusions.

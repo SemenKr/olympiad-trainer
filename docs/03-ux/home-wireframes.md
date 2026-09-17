@@ -2,7 +2,7 @@
 
 ## Purpose and handoff context
 
-- **Task ID:** OT-003.3; clarification: OT-003.3-FIX.
+- **Task ID:** OT-003.3; clarifications: OT-003.3-FIX and OT-003.6-FIX.
 - **Revision:** branch `docs/ot-003-wireframes`; inspected HEAD/base `68e4a93`; this document was the only untracked file before the clarification.
 - **Goal:** create concrete responsive wireframes for the student Home experience.
 - **Scope:** this document only; Home states, primary-action precedence, minimum supporting content, navigation, 360px/320px/desktop layouts, learner copy, and accessibility annotations.
@@ -17,7 +17,7 @@
 
 The accepted flows, with the OT-003.3-FIX clarification, establish these Home responsibilities:
 
-- show one situation-specific practice action: start or resume;
+- show one situation-specific action: recovery, explicit finish, resume, or start;
 - explain briefly why the action is useful;
 - give unfinished practice precedence over new practice;
 - keep recent work factual and compact;
@@ -30,7 +30,7 @@ The Foundations add an in-flow two-destination header, 320/360px review widths, 
 
 These are repository facts. The examples below are synthetic UX fixtures. They do not assert that a real learner completed the described work or that a recommendation engine can currently supply these reasons.
 
-**Clarified continuity rule:** leaving unfinished Practice and reaching Home makes that practice resumable/paused, including navigation through Progress. Home represents it once as `Тренировка не закончена`, with primary `Продолжить тренировку`. A current problem still exists within Practice and its context is retained. Leaving the screen does not finish practice; completing navigation through a problem is also distinct from finishing the practice session or solving that problem independently. No additional event, timeout, tab condition, or background state distinguishes two Home variants.
+**Clarified continuity rule:** leaving unfinished Practice and reaching Home retains the session, including navigation through Progress. Home represents it as `Тренировка не закончена`. Primary action follows the known continuation condition: blocking technical failure → `Попробовать снова`; no suitable next task → `Завершить тренировку`; actual resumption available → `Продолжить тренировку`. Existing problem/request context is retained. Leaving the screen and completing navigation through a problem do not finish the session. Only explicit finish enters Summary; there is no timeout, hidden routing condition, or automatic completion.
 
 ## Interpretation and recommendation
 
@@ -82,7 +82,7 @@ No separate “recommended task,” “paused session,” or “recent result”
 
 **Primary:** `Начать тренировку` requests a suitable problem and enters contextual Practice when one is available. It does not expose task ranking or promise the “best” task. While requesting, keep the button position and use `Подбираем задачу…`; do not create a second primary action.
 
-**Reason:** one concrete sentence sits immediately before the action. Show it only when the selected practice purpose can support it. If no honest specific reason is available, use `Готов продолжить тренировку?` rather than inventing a weak area, topic, or difficulty increase.
+**Reason:** one concrete sentence sits immediately before the action. Show it only when the selected practice purpose can support it. If no honest specific reason is available, use `Можно начать новую тренировку.` without inventing a weak area, topic, or difficulty increase.
 
 **Supporting content:** one short recent-session fact is enough to restore context. `Посмотреть итоги` is secondary and opens the existing Session summary context where available. Omit this whole region when no recent session exists. Detailed capability history and comparisons belong to Progress.
 
@@ -111,7 +111,7 @@ The explanation and action form one region; there is no acknowledgement, carouse
 
 The top-level Progress destination remains available. Its own future empty state must explain the absence of work neutrally; Home does not duplicate that empty content.
 
-### 3. Unfinished practice
+### 3. Unfinished practice — continuation available
 
 ```text
 Что сейчас?
@@ -130,11 +130,26 @@ The top-level Progress destination remains available. Its own future empty state
 [ Завершить тренировку ]
 ```
 
-Use this single state whenever the learner reaches Home with unfinished, resumable practice. `Продолжить тренировку` restores the same session and its retained problem, draft, attempts, hints, solution-viewing context, and assessment status. It does not select a replacement task, create another attempt, erase help, or claim renewed independent work. The copy does not call leaving an abandonment or failure.
+Use this state when unfinished practice can actually resume. `Продолжить тренировку` restores the same session and its retained problem, draft, attempts, hints, solution-viewing context, and assessment status. It does not create another attempt, erase help, or claim renewed independent work. If continuation is technically blocked or known to lead only to an unavailable next-task state, use the corresponding action-region replacement below.
 
 Show only known context: problem title/short identifier and a factual status such as `Ответ ещё не отправлен`, `Открыта одна подсказка`, or `Ответ отправлен, но пока не проверен`. Pending assessment changes this status text within the same Home state and keeps the same primary action. Do not display the full statement on Home.
 
-`Завершить тренировку` remains a secondary, explicit transition to Session summary. It does not silently turn a pending answer into correct, incorrect, or partial. Navigating to Home or Progress preserves unfinished practice; explicit finish ends the session and leads to its summary.
+`Завершить тренировку` is secondary in this resumable state. It never changes a pending answer into correct, incorrect, or partial. Navigation preserves unfinished practice; only explicit finish ends the session and leads to its summary.
+
+#### Continuation blocked by a recoverable technical failure
+
+```text
+Что сейчас?
+
+Тренировка не закончена
+Не удалось загрузить тренировку.
+Можно попробовать снова.
+
+[[ Попробовать снова          ]]
+[ Завершить тренировку ]
+```
+
+Recovery owns the primary action because continuation is blocked. Keep any available session context and secondary Progress navigation. Recovery reloads the failed interaction without creating an attempt, resubmitting a pending answer, or completing the session. A failure limited to recent-work content does not use this state.
 
 ### 4. Recently completed session
 
@@ -191,6 +206,24 @@ Use only the reason supported for the selected practice. Never expose `reconfirm
 
 ### 6. No suitable problem currently available
 
+With an unfinished session/request, replace the current-action region with:
+
+```text
+Что сейчас?
+
+Тренировка не закончена
+Сейчас нет подходящей задачи.
+Можно завершить тренировку
+или вернуться позже.
+
+[[ Завершить тренировку       ]]
+[ Посмотреть прогресс ]
+```
+
+The session remains unfinished until the learner activates `Завершить тренировку`, which enters Session Summary. Leaving for Progress or returning later preserves session context. Do not show `Продолжить тренировку` when it is known to lead only to the unavailable state. This is an expected availability condition, not a technical error; no retry, automatic finish, or unrelated substitute task follows.
+
+Without an unfinished session/request, retain the general calm fallback:
+
 ```text
 Что сейчас?
 
@@ -199,13 +232,9 @@ Use only the reason supported for the selected practice. Never expose `reconfirm
 или вернуться позже.
 
 [[ Посмотреть прогресс        ]]
-
-[ Завершить тренировку ]
 ```
 
-This is an expected availability state, not a loading/error state. It does not blame the learner, show a technical retry, claim all work is mastered, or substitute an unrelated task. `Посмотреть прогресс` is the one useful primary action and reaches the same Progress destination as navigation. Repeating it in the content makes the state actionable; there is still only one destination and no Practice navigation item.
-
-Show `Завершить тренировку` only when an active session/request exists and can be explicitly ended through Session summary. If no session exists, omit it and let “return later” require no button. If the request is resumable, explain that it can be continued later; do not invent polling or availability timing.
+There is no Finish action without an unfinished session. No polling or availability timing is implied.
 
 Recent work, when available, may remain below this region. It does not turn into a replacement recommendation.
 
@@ -229,18 +258,19 @@ Recent work, when available, may remain below this region. It does not turn into
 
 The start action remains the only primary action because Practice is available. Retry belongs to the failed secondary region, remains secondary, and reloads only that region. Do not disable or move the start action, replace the page with an error, or imply that the recommendation failed.
 
-If the main Home interaction itself cannot load, replace its action region with the concrete error `Не удалось подобрать задачу` and primary `Попробовать ещё раз`; keep available secondary content below. This blocking-error rule is an annotation, not an additional required full frame. Technical failure remains distinct from the non-error “no suitable problem” state.
+If the main Home interaction itself cannot load, recovery is primary: use `Попробовать снова`. For blocked unfinished work, use the continuation-failure frame above; without an unfinished session, use the concrete error `Не удалось подобрать задачу`. Keep available secondary content. Technical failure remains distinct from known task unavailability.
 
 ## State precedence and minimal supporting content
 
 When several conditions coexist, select the action in this order:
 
-1. **Unfinished practice:** `Продолжить тренировку`.
-2. **Main interaction blocked by a recoverable failure:** `Попробовать ещё раз`.
-3. **Suitable new practice:** `Начать тренировку`, with an evidence-supported reason where available.
-4. **No suitable problem:** `Посмотреть прогресс` as the available content action.
+1. **Main interaction blocked by a recoverable technical failure:** `Попробовать снова`, preserving any unfinished session.
+2. **Unfinished session/request, no suitable next task available:** `Завершить тренировку`; Progress is secondary. The session remains unfinished until this explicit action.
+3. **Unfinished session can actually resume:** `Продолжить тренировку`; Finish is secondary.
+4. **No unfinished session, suitable new practice:** `Начать тренировку`, with a supported reason where available.
+5. **No unfinished session, no suitable problem:** `Посмотреть прогресс` with the calm return-later explanation.
 
-This ordering prevents a recent session, progress link, secondary loading failure, or new recommendation from competing with unfinished work. Home has one unfinished-practice state and one resume action, including after a visit to Progress. The existing unavailable-request variation still applies when there is no suitable next problem; it does not create another current-versus-paused distinction.
+Apply these conditions to the same Home action region, including after a visit to Progress. They depend on known session and continuation availability, not hidden routing, timing, or tab state. Secondary-content failure never overrides a usable main action. No Start action competes with unfinished work.
 
 Supporting content earns space only when it answers one of these questions without requiring interpretation:
 
@@ -302,16 +332,16 @@ The header stack is the safe variant if two targets and their spacing do not fit
 
 The primary label fits on one line here; it may wrap to two and increase height under enlarged text. The retry remains visibly inside the supporting region. Spacing and the single `[[...]]` marker preserve hierarchy without relying on color.
 
-### No-suitable-task action
+### No-suitable-task action with unfinished session
 
 ```text
+Тренировка не закончена
 Сейчас нет подходящей задачи.
-Можно посмотреть прогресс
+Можно завершить тренировку
 или вернуться позже.
 
-[[ Посмотреть прогресс      ]]
-
-[ Завершить тренировку ]
+[[ Завершить тренировку    ]]
+[ Посмотреть прогресс ]
 ```
 
 | Stress item | Material response at 320px | Acceptance check for rendered wireframes |
@@ -320,7 +350,7 @@ The primary label fits on one line here; it may wrap to two and increase height 
 | Primary action | Full available width; label wraps and control grows vertically. | Exactly one primary marker; no clipping or overlap at 200% text size. |
 | Recommendation/reason | Wrap in normal flow; never truncate or line-clamp. | Plain language remains adjacent to its action. |
 | Recent outcomes | Stack outcome sentences and the summary link. | No table, horizontal carousel, or compressed analytics. |
-| Unfinished-practice context | Wrap title and status; retain one factual status. | `Продолжить тренировку` stays readable and reachable; finish remains secondary. |
+| Unfinished-practice context | Wrap title and status; retain one factual status. | Recovery, Finish, or Resume follows the same precedence at 320px. Every action label wraps without changing its meaning. |
 | Secondary retry | Remains within the failed supporting region. | It cannot visually replace or disable the available Practice action. |
 
 **Structural result:** every region has a wrap/stack path at 288px and no fixed-width content. This is an ASCII review, not proof of pixel fit, 44px geometry, keyboard behavior, or Russian text readability; those require rendered validation.
@@ -348,7 +378,7 @@ At a review width around 1280px, use a centered envelope around 960px. Keep the 
 
 The outline communicates grouping only; it is not a final card component or border style. The action region remains wider and first. The supporting column holds one recent session and one link. Do not add capability grids, charts, percentages, streaks, filters, task selection, or multiple recommendation cards because space is available.
 
-Unfinished-practice, first-visit, unavailable, and loading-failure states use the same substitutions as mobile. Unfinished practice always shows `Тренировка не закончена` and primary `Продолжить тренировку`, with the retained problem status and secondary finish action. A sparse first visit may remain a single bounded column rather than manufacture a second column. If content or zoom makes adjacent regions cramped, stack them in the mobile order. Tablet follows the same content-first rule and may remain stacked.
+Unfinished-practice, first-visit, unavailable, and loading-failure states use the same substitutions as mobile. Unfinished practice shows `Тренировка не закончена` and preserves available context. Primary is `Попробовать снова` when technically blocked, `Завершить тренировку` when no suitable next task is available, or `Продолжить тренировку` when resumption is possible. A sparse first visit may remain a single bounded column. If content or zoom makes adjacent regions cramped, stack them in mobile order. Tablet follows the same rule.
 
 Desktop provides a shorter line count, clearer grouping, and optional adjacency for supporting context. It does not provide materially more information than mobile.
 
@@ -375,27 +405,27 @@ These recommendations define a reviewable information arrangement. They do not c
 
 ## Explicit answers and next wireframe order
 
-1. **What should dominate Home?** The current-action region: a short answer to `Что сейчас?`, one reason/status, and one primary Start/Resume action.
+1. **What should dominate Home?** The current-action region: a short answer to `Что сейчас?`, one reason/status, and one primary action chosen by recovery, unavailability, resumption, or new-session readiness.
 2. **What supporting content is actually useful?** One recommendation reason, one factual unfinished-work status, and at most one compact recent-session preview. A progress preview is optional only when it adds a distinct supported change; detailed history stays in Progress.
 3. **How should first visit differ from returning Home?** First visit replaces history and recommendation detail with a brief explanation plus immediate start. It adds no setup step or empty analytics.
-4. **How should current versus paused practice differ?** They share one Home state: `Тренировка не закончена`, primary `Продолжить тренировку`, and secondary explicit finish. The current problem remains within Practice; leaving Practice makes the session resumable/paused without completing it. Draft, help, and pending-result details vary only the supporting status text.
+4. **How should current versus paused practice differ?** Home represents unfinished work once as `Тренировка не закончена`; it does not infer completion from leaving Practice. Its action depends on known continuation conditions: recovery, explicit finish for unavailable next work, or actual resumption. Draft, help, and pending-result context is retained.
 5. **How should “Needs another look” be explained?** State the retained success and the new opportunity: for example, `В прошлый раз получилось с подсказкой. Новая задача поможет попробовать ту же идею самому.` Never claim forgetting or invalidate earlier work.
-6. **What should Home show when no suitable problem exists?** A calm availability explanation, primary Progress path, optional session finish when applicable, retained recent work, and no unrelated substitute or technical retry.
+6. **What should Home show when no suitable problem exists?** With unfinished work, a calm explanation and primary `Завершить тренировку`, with Progress secondary. Without unfinished work, primary `Посмотреть прогресс`. Preserve available context; do not substitute another task or offer a technical retry for expected unavailability.
 7. **Does desktop need materially more information than mobile?** No. It may align one supporting preview beside the dominant action; content and state behavior remain the same.
 8. **What should OT-003.4 wireframe next?** Session summary: correct/partial/skipped/solution-viewed/pending outcomes, help context, qualitative change, and Home/Progress continuation. Then Progress can reuse the accepted language and summary handoff without forcing Home to become an analytics view.
 
 ## Verification gaps and open questions
 
-- Learner testing should verify that `Тренировка не закончена` and `Продолжить тренировку` clearly communicate resumption, and that `Завершить тренировку` is clearly secondary.
+- Learner testing should verify that `Тренировка не закончена` and `Продолжить тренировку` communicate resumption, and that Finish is distinct from leaving even when Finish is primary for an unavailable next task.
 - The amount of recent-session detail is a hypothesis. Test whether the two or three factual outcome lines help orientation or distract from the primary action.
-- The phrase `Посмотреть прогресс` as the primary available action when no task exists follows Foundations, but its duplication with top navigation should be tested for redundancy. No replacement task is justified.
+- The phrase `Посмотреть прогресс` as the primary available action when no task or unfinished session exists follows Foundations, but its duplication with top navigation should be tested for redundancy. No replacement task is justified.
 - Actual recommendation reasons require trustworthy upstream context. When unavailable, the neutral ready wording is safer than generating a specific claim.
 - ASCII frames cannot verify target geometry, text wrapping, focus appearance, announcements, zoom, or desktop reading order. Rendered validation remains required.
 
 ## Validation and completion
 
-The original eight requested situations are covered by seven Home states through one base composition and state substitutions. OT-003.3-FIX merges current/paused Home variants into one unfinished-practice state with primary `Продолжить тренировку`. Prose, 360px/320px frames, desktop substitutions, and precedence use the same transition rule; this document contains no Mermaid diagram. No new interaction or hidden condition was introduced. The wireframes retain the other states, responsive foundations, navigation, and accessibility. Research-task separates accepted constraints from synthetic examples and testing gaps; architecture-task compares the layout alternatives without adopting implementation architecture; implement-task applies the approved clarification only.
+The original Home composition and current/paused consolidation remain. OT-003.6-FIX, inspected at base `a6d49c3`, clarifies the same action region for technically blocked continuation, a known unavailable next task, and actual resumption. Prose, 360px/320px frames, desktop substitutions, and precedence use the same explicit conditions; no routing or timing rule is added. The responsive foundations, screen responsibilities, and supporting-content limits remain unchanged.
 
-Validation: `git diff --check` and an untracked-file whitespace check passed. Only `docs/03-ux/home-wireframes.md` was modified for this clarification; it remains untracked. No application, browser, assistive-technology, or learner tests were run.
+Validation for OT-003.6-FIX covers the affected UX documents and `git diff --check`. This is a repository consistency check; no application, browser, assistive-technology, or learner tests were run.
 
 **READY** — OT-003.3-FIX clarification prepared for review. No commit or publication performed.

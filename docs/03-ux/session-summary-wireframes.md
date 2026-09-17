@@ -15,12 +15,12 @@
 
 ## Observed facts
 
-The accepted Core Practice Flow defines a session summary as the handoff after an explicitly completed session or a natural endpoint where no suitable next problem is available. It records what happened without turning navigation completion into independent solving, mastery, or a numeric result.
+Session Summary is entered only after explicit `Завершить тренировку`. An unavailable next problem keeps the session unfinished and preserves its context until that choice. The summary records what happened without turning navigation completion into independent solving, mastery, or a numeric result.
 
 The accepted models and UX flows require the summary to preserve distinctions among:
 
 - an assessed correct response reached without meaningful help;
-- a useful completion after hints or other support;
+- an assessed successful outcome after hints or other support;
 - study or reconstruction after the learner explicitly viewed a full solution;
 - an explicit skip;
 - an answer whose assessment is still pending; and
@@ -118,13 +118,17 @@ Do not show every attempt, hint timestamp, raw answer, internal tag, or model ex
 | Internal result boundary | Learner-facing label | Optional plain-language note | Do not imply |
 | --- | --- | --- | --- |
 | Assessed correct with no meaningful support observed | `Решено самостоятельно` | Omit the note or say `Ответ принят.` | A universal ability, a score, or mastery of every related idea. |
-| Assessed correct or navigationally completed after meaningful hints/support | `Получилось с подсказкой` | `Подсказка помогла найти ход.` | Failure, penalty, or independent strategy selection. |
-| Full solution explicitly viewed and session navigation continued | `Посмотрено полное решение` | `Можно вернуться к этой задаче позже.` only if a later product path exists. | Independent solving of that episode or automatic failure. |
+| Actual assessed successful outcome after meaningful hints/support, before any full-solution-based reproduction | `Получилось с подсказкой` | `Подсказка помогла найти ход.` only when the observed work supports that explanation. | Success from hint use or navigation alone, failure, penalty, or independent strategy selection. |
+| Full solution explicitly viewed; subsequent work relies on that solution | `Посмотрено полное решение` | Keep any valid earlier assessed result or pending submission visible separately. | Independent solving from later reproduction, automatic failure, or replacement of a valid pre-viewing result. |
 | Explicit learner skip | `Задача пропущена` | `Можно вернуться к похожей задаче позже.` only when supported by a real next action. | A weak learner, an incorrect answer, or positive progress. |
 | Submitted response not yet safely assessed | `Ответ пока не проверен` | `Результат ещё неизвестен.` | Correctness, incorrectness, partial correctness, or permanent cancellation of assessment. |
 | Assessed valid component without a complete accepted answer | `Часть ответа верна` | `Часть решения получилась, осталась ещё одна часть.` | Full correctness, failure, or a capability diagnosis beyond the assessed part. |
 
-`Решено самостоятельно` is used only when the episode supports that wording. A correct response after support belongs in the supported group. `Посмотрено полное решение` preserves the earlier submitted work when one exists, but the summary does not present later reconstruction as independent solving. `Задача пропущена` is neutral. Pending and partial rows remain visibly different from both incorrect and complete outcomes through their text labels and explanatory notes.
+`Решено самостоятельно` requires an assessed successful outcome with the relevant independent-work context. `Получилось с подсказкой` requires an actual assessed successful outcome after support. Receiving hints, moving on, skipping, waiting for assessment, or viewing a full solution never suffices.
+
+Keep partial, pending, skipped, and full-solution-based work distinct even when hints were used earlier. A support note may accompany the actual outcome without changing its category. A valid result assessed before later solution viewing retains its original label; add `После этого открыто полное решение.` as context. A pending pre-viewing submission remains `Ответ пока не проверен` with `После отправки открыто полное решение.` Later reproduction cannot rewrite either record. This uses the existing result-plus-note pattern, without adding an attempt log.
+
+For example, an independently solved task later studied keeps `Решено самостоятельно`; an assessed partial response later studied keeps `Часть ответа верна`. If only solution-based work is available, use `Посмотрено полное решение` without inventing earlier success. An explicit skip is `Задача пропущена`; hint use before the skip does not make it supported success.
 
 ## State variants
 
@@ -176,7 +180,7 @@ This is a concise factual description of the recorded session. It does not add s
 [ Мой прогресс            ]
 ```
 
-The overview acknowledges useful work without converting support into independent success or judging the learner. If the session contains no assessed result, use the weak-evidence variant below instead of this wording.
+This fixture assumes actual assessed successful outcomes after support for the listed tasks. If help only enabled partial work, or the learner moved on pending assessment, skipped, or studied the full solution, use those actual outcome labels and a truthful overview instead. Useful participation alone does not establish supported success.
 
 ### Session with pending assessment
 
@@ -209,7 +213,8 @@ The summary does not promise when assessment will arrive. The original submissio
 
 Тренировка завершена
 
-Ты успел решить одну задачу.
+За эту тренировку ты решил
+одну задачу сам.
 
 Решено самостоятельно
 Задача 1 · Числа из карточек
@@ -218,7 +223,18 @@ The summary does not promise when assessment will arrive. The original submissio
 [ Мой прогресс            ]
 ```
 
-Do not fill the space with empty charts or claim a broad conclusion from one task. If the one task was supported, pending, partial, skipped, or solution-studied, replace the result label accordingly.
+The frame assumes an assessed independent success. For another single-task outcome, replace **both the overview and result label**, keeping the same layout and actions:
+
+| Actual outcome | Learner-facing overview | Result label |
+| --- | --- | --- |
+| Assessed independent success | `За эту тренировку ты решил одну задачу сам.` | `Решено самостоятельно` |
+| Assessed success after hints/support | `За эту тренировку ты решил одну задачу с подсказкой.` | `Получилось с подсказкой` |
+| Pending assessment | `Ты отправил ответ на одну задачу. Результат пока неизвестен.` | `Ответ пока не проверен` |
+| Assessed partial result | `В одной задаче часть ответа верна.` | `Часть ответа верна` |
+| Explicit skip | `В этой тренировке одна задача была пропущена.` | `Задача пропущена` |
+| Full-solution study without an earlier valid assessed result or pending submission to retain | `В одной задаче ты открыл полное решение.` | `Посмотрено полное решение` |
+
+For a valid assessed result before later solution viewing, keep its outcome-specific overview and label, and add the solution-study note described above. Pending pre-viewing work likewise retains its pending status. Do not claim that opening a solution proves understanding, or infer broader capability from a short session.
 
 ### Session ended after skips or little assessable work
 
@@ -266,7 +282,7 @@ This is an honest low-information state. It does not call the learner weak, show
 [ Мой прогресс            ]
 ```
 
-The primary action remains `На главную` because the completed-session summary and task result are still available. Retry is local to the failed secondary region. If the main result record itself cannot be shown, the product needs a separate blocking-error decision; this wireframe does not invent one.
+The primary action remains `На главную` because the completed-session summary and task result are still available. Retry belongs to the failed secondary region in both reading and keyboard order. The primary-record-failure frame is excluded from the initial low-fidelity Figma set. Its recovery action remains a separate product decision before that specific state is designed or implemented; it does not block normal Session Summary frames.
 
 ## Home and Progress relationship
 
@@ -371,7 +387,7 @@ The outlines communicate grouping only; they do not define cards, borders, or pr
 ## Shared patterns and accessibility
 
 - Use one semantic heading for `Итоги тренировки`, followed by a completion status heading and ordered outcome groups. Keep each task title with its result and support note.
-- Keyboard order is skip-to-content, Home, Progress, summary heading, completion status, overview, outcome groups, primary `На главную`, then secondary `Мой прогресс` and any local secondary retry. Desktop adjacency must not change this logical order.
+- Reading and keyboard order follow the rendered semantic regions: skip-to-content, Home, Progress, summary heading, completion status, overview, outcome groups, then the final Home/Progress actions. A local error and its Retry control stay together at their actual position. In the secondary-failure frame, Retry follows the error before the outcome groups; it is not moved after the final navigation. Desktop adjacency preserves this order.
 - Every action has a descriptive accessible name, visible focus, and a target of about 44 × 44px or larger. Long labels wrap; no icon is the only indication of an outcome.
 - Status meaning is carried by text such as `Решено самостоятельно`, `Получилось с подсказкой`, `Задача пропущена`, `Ответ пока не проверен`, and `Часть ответа верна`. Color, if added later, is supplementary.
 - Announce `Тренировка завершена` as the page status after navigation. A secondary-content failure is announced beside its region and does not steal focus from the primary continuation.
@@ -406,7 +422,7 @@ These are reviewable information choices. They do not select components, breakpo
 - Test whether `Посмотрено полное решение` is understood by grades 5–6 as study rather than independent solving; adjust wording only with evidence.
 - Confirm how much task-level grouping learners can scan at 320px before the summary feels long. Do not solve this by hiding status labels or using color-only compression.
 - Product/content work must define which answer types can produce a meaningful partial result and which remain awaiting assessment. These wireframes preserve the distinction without inventing grading rules.
-- A secondary summary-content failure is represented. A failure to load the primary result record still needs a later product decision; no recovery implementation is specified here.
+- A secondary summary-content failure is represented. Primary-record failure is excluded from the initial low-fi Figma frame set. Decide its recovery action separately before designing or implementing that specific variant; normal Summary frames may proceed without that decision. No recovery behavior is invented here.
 - ASCII wireframes cannot verify actual target geometry, focus visibility, announcements, zoom, or Russian text readability. Rendered validation remains required.
 
 ## Validation and completion
