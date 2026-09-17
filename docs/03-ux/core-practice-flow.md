@@ -63,8 +63,9 @@ flowchart TD
     correct --> completed[Problem completed for session]
     completed --> next{Continue session?}
     next -->|yes| request
-    next -->|no| summary[Session summary and updated qualitative progress]
-    unavailable --> dashboard
+    next -->|explicitly finish session| summary[Session summary and updated qualitative progress]
+    unavailable -->|return with unfinished session| dashboard
+    unavailable -->|explicitly finish session| summary
 ```
 
 `Request next useful problem` is a semantic request to D.3. This flow neither ranks problems nor defines why one skill should be selected over another.
@@ -110,7 +111,7 @@ The diagram represents permitted paths, not required UI controls or an automatic
 | --- | --- | --- |
 | **No active session** | Starting practice creates a session context and asks for a suitable next problem. | It does not assert why the selected problem is useful; D.3 supplies the purpose and rationale. |
 | **Active session is resumed** | Restore the active problem, entered but unsubmitted answer where available, attempts, hints, solution-exposure context, and completion status. | Reloading must not recreate an attempt or remove support/exposure provenance. |
-| **No suitable recommendation available** | Show that no task is currently available for the requested practice context; allow return to dashboard or session completion. | It is not a learner failure and must not silently substitute a problem with an unrelated purpose. |
+| **No suitable recommendation available** | Keep the session unfinished and preserve its context. Allow return to Home or explicit completion through `Завершить тренировку`. | Unavailability never opens Session Summary automatically and must not silently substitute an unrelated problem. |
 | **Problem reaches navigation completion** | The session may request another useful problem or the learner may end the session. | The next request is not necessarily a harder task, a new skill, or a retry of the same problem. |
 
 ## Problem states
@@ -174,9 +175,9 @@ Awaiting assessment is not silently converted into an assessed outcome. If it ca
 | **Awaiting assessment** | A submitted response cannot yet be assessed safely. The active problem retains the response and its assessment limit. | Wait, pause and resume, continue without assessment, or explicitly reveal the solution. |
 | **Paused session** | The learner leaves while the active session remains resumable. | Resume the same contextual episode or explicitly finish the session. Leaving is not abandonment-derived negative evidence. |
 | **No recommendation available** | No appropriate next problem is available for the session request. | Return to dashboard, end the session, or resume later when context changes. |
-| **Session summary** | The learner has chosen to end a session or no further suitable problem is offered. The recorded episodes can inform qualitative progress. | Review the summary, return to dashboard, start later practice, or resume a paused session. |
+| **Session summary** | The learner explicitly completed the session through `Завершить тренировку`. The recorded episodes can inform qualitative progress. | Review the summary, return to Home or Progress, and start future practice from Home. The completed session is not resumed. |
 
-Leaving an active problem without explicitly finishing the session moves to **Paused session**. Explicitly finishing the session moves to **Session summary**; it does not use "exit" as a second name for pausing. Session completion is an explicit end of the learner's active practice period, or a natural endpoint when no suitable next problem is available. It is not a claim that every opened problem was solved, every capability was assessed, or a fixed number of tasks was reached.
+Leaving an active problem without explicitly finishing the session moves to **Paused session**. Only explicit `Завершить тренировку` completes the session and enters **Session summary**. An unavailable next problem leaves the session unfinished with its existing context preserved; no timeout or availability change completes it. Completion is not a claim that every opened problem was solved, every capability was assessed, or a fixed number of tasks was reached.
 
 ### Progress shown at session completion
 
@@ -199,7 +200,7 @@ It must not manufacture mastery percentages, claim that unattempted capabilities
 | **Invalid answer format** | Explain the assessable format and return to answer entry before correctness is evaluated. | A learning failure or incorrect skill attempt merely from a formatting issue. |
 | **Problem cannot be evaluated automatically** | Move to **Awaiting assessment**; do not label the response partially correct unless valid partial progress has already been assessed. Permit waiting, pausing and resuming, continuing without assessment, or an explicit solution reveal. | Correctness, incorrectness, partial correctness, or capability evidence beyond what is visibly attributable. |
 | **Reload or resume** | Restore the active session and problem context, including attempts, hints, response state, and solution exposure. If an assessment was pending, preserve that status rather than resubmitting. | A new first attempt, renewed independence, or missing support. |
-| **Recommendation unavailable** | End or pause the practice request transparently; retain the completed session history. | Learner weakness, completed mastery, or a need to select an arbitrary substitute. |
+| **Recommendation unavailable** | Keep the session unfinished, preserve its recorded work, and offer explicit `Завершить тренировку` or return to Home. | Automatic session completion, learner weakness, completed mastery, or an arbitrary substitute task. |
 | **Opened problem becomes unavailable** | Preserve the episode to the point of unavailability, explain that it cannot continue, and allow return/end. Request a different task only through the normal next-problem boundary. | A skip, incorrect attempt, or completed learning result solely from unavailability. |
 | **Learner pauses or finishes mid-session** | Pause the session when possible and permit resumption with provenance intact; allow explicit completion through the session summary as well. | Negative capability evidence from abandonment alone. Visible submitted work remains separately interpretable. |
 | **Same problem appears later for review** | Label its review/reconstruction context conceptually and retain prior attempts, feedback, hints, and solution exposure. | A fresh independent replication or meaningful transfer merely because time passed. |
