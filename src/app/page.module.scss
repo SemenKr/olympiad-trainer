@@ -1,0 +1,17 @@
+.home {
+  width: min(100% - 2rem, 42rem);
+  margin: 0 auto;
+  padding: clamp(4rem, 12vh, 8rem) 0;
+
+  h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1.15;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+}
