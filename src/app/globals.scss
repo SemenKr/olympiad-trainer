@@ -1,10 +1,98 @@
+:root {
+  color-scheme: light;
+
+  --ot-color-canvas: #e9ecf2;
+  --ot-color-surface: #fff;
+  --ot-color-surface-soft: #f8f9fc;
+  --ot-color-text-primary: #171a2b;
+  --ot-color-text-secondary: #697386;
+  --ot-color-border-default: #dde2ea;
+  --ot-color-border-strong: #8993a4;
+  --ot-color-primary: #625bf6;
+  --ot-color-primary-soft: #efeeff;
+  --ot-color-text-on-primary: #fff;
+  --ot-font-family-ui: var(--font-onest), arial, helvetica, sans-serif;
+  --ot-font-size-heading: 1.625rem;
+  --ot-font-size-body: 1rem;
+  --ot-font-size-label: 0.9375rem;
+  --ot-font-size-caption: 0.875rem;
+  --ot-font-size-micro: 0.8125rem;
+  --ot-line-height-heading: 2rem;
+  --ot-line-height-body: 1.625rem;
+  --ot-line-height-label: 1.25rem;
+  --ot-line-height-caption: 1.25rem;
+  --ot-line-height-micro: 1.125rem;
+  --ot-space-4: 0.25rem;
+  --ot-space-6: 0.375rem;
+  --ot-space-8: 0.5rem;
+  --ot-space-10: 0.625rem;
+  --ot-space-12: 0.75rem;
+  --ot-space-16: 1rem;
+  --ot-space-20: 1.25rem;
+  --ot-space-24: 1.5rem;
+  --ot-space-28: 1.75rem;
+  --ot-space-32: 2rem;
+  --ot-radius-10: 0.625rem;
+  --ot-radius-12: 0.75rem;
+  --ot-radius-16: 1rem;
+  --ot-radius-20: 1.25rem;
+  --ot-border-width-default: 1px;
+  --ot-border-width-strong: 1.5px;
+  --ot-shadow-focus: 0 0 0 3px rgb(98 91 246 / 34%);
+  --ot-duration-fast: 120ms;
+  --ot-duration-base: 180ms;
+  --ot-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --ot-color-canvas: #0f1117;
+    --ot-color-surface: #171a22;
+    --ot-color-surface-soft: #1e222d;
+    --ot-color-text-primary: #f4f6fb;
+    --ot-color-text-secondary: #a9b0c0;
+    --ot-color-border-default: #343a47;
+    --ot-color-border-strong: #626d82;
+    --ot-color-primary: #8b83ff;
+    --ot-color-primary-soft: #292642;
+    --ot-color-text-on-primary: #0f1117;
+    --ot-shadow-focus: 0 0 0 3px rgb(139 131 255 / 42%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ot-duration-fast: 0ms;
+    --ot-duration-base: 0ms;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
+  min-width: 320px;
   margin: 0;
-  color: #172235;
-  background: #f7f9fc;
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ot-color-text-primary);
+  background: var(--ot-color-canvas);
+  font-family: var(--ot-font-family-ui);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }

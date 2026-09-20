@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
+import { Onest } from "next/font/google";
 import "./globals.scss";
+
+const onest = Onest({
+  subsets: ["cyrillic", "latin"],
+  variable: "--font-onest",
+  weight: ["400", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Олимпиадный тренажёр",
@@ -12,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html className={onest.variable} lang="ru">
       <body>{children}</body>
     </html>
   );
