@@ -1,0 +1,121 @@
+.shell {
+  display: flex;
+  width: min(100%, 680px);
+  flex-direction: column;
+  gap: var(--ot-space-20);
+  margin-inline: auto;
+  padding: var(--ot-space-20) var(--ot-space-16) var(--ot-space-24);
+  background: var(--ot-color-surface-soft);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-20);
+}
+
+.navigation {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ot-space-12);
+}
+
+.navigation-action {
+  min-width: 0;
+
+  :where(a, button) {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: var(--ot-space-12) var(--ot-space-8);
+    color: var(--ot-color-text-secondary);
+    background: transparent;
+    border: 0;
+    border-radius: var(--ot-radius-10);
+    font-size: var(--ot-font-size-caption);
+    line-height: var(--ot-line-height-caption);
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      color var(--ot-duration-base) var(--ot-ease-standard),
+      background-color var(--ot-duration-base) var(--ot-ease-standard),
+      transform var(--ot-duration-fast) var(--ot-ease-standard);
+  }
+
+  :where(a, button):hover {
+    color: var(--ot-color-text-primary);
+    background: var(--ot-color-surface);
+  }
+
+  :where(a, button):active {
+    transform: scale(0.98);
+  }
+
+  :where(a, button):focus-visible {
+    outline: 0;
+    box-shadow: var(--ot-shadow-focus);
+  }
+}
+
+.body,
+.content,
+.answer-rail {
+  min-width: 0;
+}
+
+.body,
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  gap: var(--ot-space-20);
+}
+
+.content {
+  gap: var(--ot-space-20);
+}
+
+.answer-rail {
+  padding-top: var(--ot-space-4);
+}
+
+@media (width >= 768px) {
+  .shell {
+    gap: var(--ot-space-24);
+    padding: var(--ot-space-24) var(--ot-space-24) var(--ot-space-32);
+  }
+
+  .body,
+  .content {
+    gap: var(--ot-space-24);
+  }
+}
+
+@media (width >= 1024px) {
+  .shell {
+    width: min(calc(100% - (var(--ot-space-24) * 2)), 1200px);
+    gap: var(--ot-space-28);
+    padding: var(--ot-space-28) var(--ot-space-32) var(--ot-space-32);
+  }
+
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 700px) 360px;
+    justify-content: space-between;
+    gap: var(--ot-space-32);
+  }
+
+  .content {
+    gap: var(--ot-space-20);
+  }
+
+  .answer-rail {
+    align-self: start;
+    padding: var(--ot-space-20);
+    background: var(--ot-color-surface);
+    border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+    border-radius: var(--ot-radius-16);
+  }
+}
