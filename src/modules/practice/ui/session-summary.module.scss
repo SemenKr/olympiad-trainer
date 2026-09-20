@@ -1,0 +1,125 @@
+.summary,
+.header,
+.section,
+.result,
+.actions {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.summary {
+  width: min(calc(100% - (var(--ot-space-16) * 2)), 680px);
+  gap: var(--ot-space-24);
+  margin-inline: auto;
+  padding: var(--ot-space-24) var(--ot-space-20);
+  background: var(--ot-color-surface-soft);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-20);
+}
+
+.header,
+.section,
+.result,
+.actions {
+  gap: var(--ot-space-10);
+}
+
+.header,
+.section,
+.result {
+  overflow-wrap: anywhere;
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+}
+
+.header h1 {
+  font-size: var(--ot-font-size-heading);
+  line-height: var(--ot-line-height-heading);
+}
+
+.header h1:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: var(--ot-border-width-strong) solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--ot-shadow-focus);
+}
+
+.eyebrow,
+.result h3 {
+  color: var(--ot-color-primary);
+  font-size: var(--ot-font-size-micro);
+  font-weight: 600;
+  line-height: var(--ot-line-height-micro);
+}
+
+.section h2 {
+  font-size: var(--ot-font-size-body);
+  line-height: var(--ot-line-height-body);
+}
+
+.section p,
+.result p {
+  color: var(--ot-color-text-secondary);
+  font-size: var(--ot-font-size-body);
+  line-height: var(--ot-line-height-body);
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ot-space-12) var(--ot-space-20);
+  border-radius: var(--ot-radius-12);
+  font-size: var(--ot-font-size-label);
+  font-weight: 600;
+  line-height: var(--ot-line-height-label);
+}
+
+.primary {
+  color: var(--ot-color-text-on-primary);
+  background: var(--ot-color-primary);
+  text-decoration: none;
+}
+
+.secondary {
+  color: var(--ot-color-text-secondary);
+  background: transparent;
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  cursor: default;
+  opacity: 0.72;
+}
+
+@media (forced-colors: active) {
+  .header h1:focus-visible,
+  .primary:focus-visible,
+  .secondary:focus-visible {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
+
+  .summary,
+  .secondary {
+    border-color: CanvasText;
+  }
+}
+
+@media (width >= 768px) {
+  .summary {
+    gap: var(--ot-space-28);
+    padding: var(--ot-space-32);
+  }
+
+  .actions {
+    width: min(100%, 360px);
+  }
+}

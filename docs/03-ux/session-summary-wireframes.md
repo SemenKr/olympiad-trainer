@@ -236,6 +236,20 @@ The frame assumes an assessed independent success. For another single-task outco
 
 For a valid assessed result before later solution viewing, keep its outcome-specific overview and label, and add the solution-study note described above. Pending pre-viewing work likewise retains its pending status. Do not claim that opening a solution proves understanding, or infer broader capability from a short session.
 
+### Accepted OT-006 one-task mapping
+
+For the current numeric Practice slice, explicit `Finish` completes the session; it is not Skip and never creates `Задача пропущена`. Only a future explicit Skip action may create that task outcome.
+
+The existing `PracticeSummary.outcome` values classify the finished session for presentation. They do not introduce new task-outcome categories:
+
+| Session summary value | Current presentation |
+| --- | --- |
+| `no-valid-submissions` | Show `Что осталось` with `В этой тренировке по задаче не было проверенного ответа.` No task outcome exists, so omit `Результаты задач`. |
+| `incorrect-only` | Preserve valid incorrect attempts as session history. Show `Что осталось` with `Были проверенные попытки, но правильный ответ в этой тренировке не был получен.` No task outcome exists, so omit `Результаты задач`. |
+| `eventually-correct` | In the current no-hints/no-solution slice, show the current task under `Результаты задач` as `Решено самостоятельно`. |
+
+An invalid submission is not an attempt. Incorrect submissions remain factual attempts, but neither they nor Finish create failure, unfinished, not-solved, or skipped task outcomes.
+
 ### Session ended after skips or little assessable work
 
 ```text

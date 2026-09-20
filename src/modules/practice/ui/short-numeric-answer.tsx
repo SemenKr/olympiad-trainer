@@ -1,15 +1,10 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 
-import { submitPracticeAnswer } from "@/app/practice/actions";
-
-import {
-  createShortNumericAnswerState,
-  editShortNumericAnswer,
-  runShortNumericAnswerSubmission,
-  type ShortNumericAnswerState,
-  type ShortNumericAnswerStatus,
+import type {
+  ShortNumericAnswerState,
+  ShortNumericAnswerStatus,
 } from "./short-numeric-answer-state";
 import styles from "./short-numeric-answer.module.scss";
 
@@ -63,15 +58,22 @@ function getSubmitLabel(status: ShortNumericAnswerStatus): string {
   }
 }
 
-export function ShortNumericAnswer() {
+type ShortNumericAnswerProps = Readonly<{
+  state: ShortNumericAnswerState;
+  onAnswerChange: (rawAnswer: string) => void;
+  onSubmit: () => void;
+}>;
+
+export function ShortNumericAnswer({
+  state,
+  onAnswerChange,
+  onSubmit,
+}: ShortNumericAnswerProps) {
   const formId = useId();
   const inputId = useId();
   const helperId = useId();
   const errorId = useId();
   const feedbackId = useId();
-  const [state, setState] = useState(createShortNumericAnswerState);
-  const stateRef = useRef(state);
-  const submissionGate = useRef(false);
   const feedback = getFeedback(state.status);
   const feedbackIsAlert =
     feedback?.tone === "error" || feedback?.tone === "system";
@@ -91,24 +93,9 @@ export function ShortNumericAnswer() {
     </div>
   ) : null;
 
-  function updateState(nextState: ShortNumericAnswerState) {
-    stateRef.current = nextState;
-    setState(nextState);
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    void runShortNumericAnswerSubmission({
-      state: stateRef.current,
-      gate: submissionGate,
-      submit: submitPracticeAnswer,
-      onPending: updateState,
-    }).then((nextState) => {
-      if (nextState) {
-        updateState(nextState);
-      }
-    });
+    onSubmit();
   }
 
   return (
@@ -135,14 +122,7 @@ export function ShortNumericAnswer() {
               id={inputId}
               inputMode="numeric"
               name="answer"
-              onChange={(event) => {
-                updateState(
-                  editShortNumericAnswer(
-                    stateRef.current,
-                    event.currentTarget.value,
-                  ),
-                );
-              }}
+              onChange={(event) => onAnswerChange(event.currentTarget.value)}
               placeholder="Введи ответ"
               readOnly={isLoading}
               type="text"
