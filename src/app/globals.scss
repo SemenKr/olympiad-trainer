@@ -11,6 +11,15 @@
   --ot-color-primary: #625bf6;
   --ot-color-primary-soft: #efeeff;
   --ot-color-text-on-primary: #fff;
+  --ot-color-success: #2f8f68;
+  --ot-color-success-soft: #f2faf5;
+  --ot-color-success-text: #237252;
+  --ot-color-error: #c45a58;
+  --ot-color-error-soft: #fff5f2;
+  --ot-color-error-text: #993f3e;
+  --ot-color-warning: #c57a1a;
+  --ot-color-warning-soft: #fff8ec;
+  --ot-color-warning-text: #8f520d;
   --ot-font-family-ui: var(--font-onest), arial, helvetica, sans-serif;
   --ot-font-size-heading: 1.625rem;
   --ot-font-size-body: 1rem;
@@ -41,6 +50,7 @@
   --ot-shadow-focus: 0 0 0 3px rgb(98 91 246 / 34%);
   --ot-duration-fast: 120ms;
   --ot-duration-base: 180ms;
+  --ot-duration-reveal: 260ms;
   --ot-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -58,6 +68,15 @@
     --ot-color-primary: #8b83ff;
     --ot-color-primary-soft: #292642;
     --ot-color-text-on-primary: #0f1117;
+    --ot-color-success: #55c995;
+    --ot-color-success-soft: #162c25;
+    --ot-color-success-text: #7addb0;
+    --ot-color-error: #e87976;
+    --ot-color-error-soft: #351d20;
+    --ot-color-error-text: #f29a97;
+    --ot-color-warning: #e0a14a;
+    --ot-color-warning-soft: #332817;
+    --ot-color-warning-text: #f1bd6b;
     --ot-shadow-focus: 0 0 0 3px rgb(139 131 255 / 42%);
   }
 }
@@ -66,6 +85,7 @@
   :root {
     --ot-duration-fast: 0ms;
     --ot-duration-base: 0ms;
+    --ot-duration-reveal: 0ms;
   }
 
   html {
