@@ -20,7 +20,11 @@ export function TaskShell({
   return (
     <main className={styles.shell}>
       <nav aria-label="Действия с тренировкой" className={styles.navigation}>
-        <div className={styles["navigation-action"]}>{backAction}</div>
+        <div
+          className={`${styles["navigation-action"]} ${styles["navigation-action-back"]}`}
+        >
+          {backAction}
+        </div>
         <div className={styles["navigation-action"]}>{finishAction}</div>
       </nav>
 
@@ -30,9 +34,9 @@ export function TaskShell({
           {children}
         </article>
 
-        <aside aria-label="Ответ на задачу" className={styles["answer-rail"]}>
+        <section aria-label="Ответ на задачу" className={styles["answer-rail"]}>
           {answerRail}
-        </aside>
+        </section>
       </div>
     </main>
   );

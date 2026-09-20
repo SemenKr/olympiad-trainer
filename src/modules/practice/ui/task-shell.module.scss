@@ -52,9 +52,14 @@
   }
 
   :where(a, button):focus-visible {
-    outline: 0;
+    outline: var(--ot-border-width-strong) solid transparent;
+    outline-offset: 2px;
     box-shadow: var(--ot-shadow-focus);
   }
+}
+
+.navigation-action-back :where(a, button) {
+  color: var(--ot-color-text-primary);
 }
 
 .body,
@@ -79,6 +84,19 @@
 
 .answer-rail {
   padding-top: var(--ot-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation-action :where(a, button):active {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .navigation-action :where(a, button):focus-visible {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
 }
 
 @media (width >= 768px) {
