@@ -132,6 +132,31 @@ describe("practice state", () => {
     expect(reopened).toBe(opened);
   });
 
+  it("records focus and strategy as separate support facts", () => {
+    const focusOpened = recordHintExposure(startPractice(), {
+      hintId: "focus-simultaneous-rules",
+      level: "focus",
+    });
+    const strategyOpened = recordHintExposure(focusOpened, {
+      hintId: "strategy-repeat-interval",
+      level: "strategy",
+    });
+
+    expect(strategyOpened.hintExposures).toEqual([
+      {
+        hintId: "focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "strategy-repeat-interval",
+        level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
+    expect(strategyOpened.submissions).toBe(focusOpened.submissions);
+  });
+
   it("does not mutate input state when recording or finishing", () => {
     const submissions = Object.freeze([
       { answer: "16", outcome: "incorrect" } as const,

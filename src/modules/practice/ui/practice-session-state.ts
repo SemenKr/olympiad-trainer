@@ -40,6 +40,41 @@ export function openFocusHint(
   };
 }
 
+export function isStrategyHintAvailable(
+  answerState: ShortNumericAnswerState,
+  focusHintId: string,
+  strategyHintId: string,
+): boolean {
+  const hintExposures = answerState.practice.hintExposures;
+
+  return (
+    answerState.status !== "loading" &&
+    hintExposures.some((exposure) => exposure.hintId === focusHintId) &&
+    !hintExposures.some((exposure) => exposure.hintId === strategyHintId) &&
+    !answerState.practice.submissions.some(
+      (submission) => submission.outcome === "correct",
+    )
+  );
+}
+
+export function openStrategyHint(
+  answerState: ShortNumericAnswerState,
+  focusHintId: string,
+  strategyHintId: string,
+): ShortNumericAnswerState {
+  if (!isStrategyHintAvailable(answerState, focusHintId, strategyHintId)) {
+    return answerState;
+  }
+
+  return {
+    ...answerState,
+    practice: recordHintExposure(answerState.practice, {
+      hintId: strategyHintId,
+      level: "strategy",
+    }),
+  };
+}
+
 export function requestPracticeFinish(
   answerState: ShortNumericAnswerState,
   confirmDiscard: ConfirmDiscard,
