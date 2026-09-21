@@ -4,12 +4,17 @@ import {
   finishPractice,
   getPracticeSummary,
   recordAnswerResult,
+  recordHintExposure,
   startPractice,
 } from "./practice-state";
 
 describe("practice state", () => {
   it("starts active without submissions", () => {
-    expect(startPractice()).toEqual({ status: "active", submissions: [] });
+    expect(startPractice()).toEqual({
+      status: "active",
+      submissions: [],
+      hintExposures: [],
+    });
   });
 
   it("does not record invalid input as a submission", () => {
@@ -57,6 +62,7 @@ describe("practice state", () => {
         { answer: "16", outcome: "incorrect" },
         { answer: "17", outcome: "correct" },
       ],
+      hintExposures: [],
     });
   });
 
@@ -73,6 +79,7 @@ describe("practice state", () => {
     expect(finishPractice(startPractice())).toEqual({
       status: "finished",
       submissions: [],
+      hintExposures: [],
     });
   });
 
@@ -87,19 +94,54 @@ describe("practice state", () => {
       "eventually-correct",
     ],
   ] as const)("derives a summary for %j", (submissions, outcome) => {
-    const finished = finishPractice({ status: "active", submissions });
+    const finished = finishPractice({
+      status: "active",
+      submissions,
+      hintExposures: [],
+    });
 
     expect(getPracticeSummary(finished)).toEqual({
       outcome,
       validSubmissionCount: submissions.length,
+      hintExposures: [],
     });
+  });
+
+  it("records one focus hint exposure with the valid submission count", () => {
+    const attempted = recordAnswerResult(startPractice(), {
+      status: "incorrect",
+      normalizedAnswer: "16",
+    });
+    const opened = recordHintExposure(attempted, {
+      hintId: "focus-simultaneous-rules",
+      level: "focus",
+    });
+    const reopened = recordHintExposure(opened, {
+      hintId: "focus-simultaneous-rules",
+      level: "focus",
+    });
+
+    expect(opened.hintExposures).toEqual([
+      {
+        hintId: "focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 1,
+      },
+    ]);
+    expect(opened.submissions).toBe(attempted.submissions);
+    expect(reopened).toBe(opened);
   });
 
   it("does not mutate input state when recording or finishing", () => {
     const submissions = Object.freeze([
       { answer: "16", outcome: "incorrect" } as const,
     ]);
-    const active = Object.freeze({ status: "active" as const, submissions });
+    const hintExposures = Object.freeze([]);
+    const active = Object.freeze({
+      status: "active" as const,
+      submissions,
+      hintExposures,
+    });
 
     const next = recordAnswerResult(active, {
       status: "correct",
@@ -112,5 +154,6 @@ describe("practice state", () => {
     ]);
     expect(next.submissions).toHaveLength(2);
     expect(finished.submissions).toEqual(active.submissions);
+    expect(finished.hintExposures).toBe(hintExposures);
   });
 });

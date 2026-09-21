@@ -5,14 +5,22 @@ export type PracticeSubmission = Readonly<{
   outcome: "correct" | "incorrect";
 }>;
 
+export type PracticeHintExposure = Readonly<{
+  hintId: string;
+  level: "focus";
+  validSubmissionCountAtOpen: number;
+}>;
+
 export type ActivePractice = Readonly<{
   status: "active";
   submissions: readonly PracticeSubmission[];
+  hintExposures: readonly PracticeHintExposure[];
 }>;
 
 export type FinishedPractice = Readonly<{
   status: "finished";
   submissions: readonly PracticeSubmission[];
+  hintExposures: readonly PracticeHintExposure[];
 }>;
 
 export type PracticeState = ActivePractice | FinishedPractice;
@@ -20,10 +28,31 @@ export type PracticeState = ActivePractice | FinishedPractice;
 export type PracticeSummary = Readonly<{
   outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct";
   validSubmissionCount: number;
+  hintExposures: readonly PracticeHintExposure[];
 }>;
 
 export function startPractice(): ActivePractice {
-  return { status: "active", submissions: [] };
+  return { status: "active", submissions: [], hintExposures: [] };
+}
+
+export function recordHintExposure(
+  state: ActivePractice,
+  hint: Readonly<{ hintId: string; level: "focus" }>,
+): ActivePractice {
+  if (state.hintExposures.some((exposure) => exposure.hintId === hint.hintId)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    hintExposures: [
+      ...state.hintExposures,
+      {
+        ...hint,
+        validSubmissionCountAtOpen: state.submissions.length,
+      },
+    ],
+  };
 }
 
 export function recordAnswerResult(
@@ -35,7 +64,7 @@ export function recordAnswerResult(
   }
 
   return {
-    status: "active",
+    ...state,
     submissions: [
       ...state.submissions,
       { answer: result.normalizedAnswer, outcome: result.status },
@@ -44,14 +73,22 @@ export function recordAnswerResult(
 }
 
 export function finishPractice(state: ActivePractice): FinishedPractice {
-  return { status: "finished", submissions: state.submissions };
+  return {
+    status: "finished",
+    submissions: state.submissions,
+    hintExposures: state.hintExposures,
+  };
 }
 
 export function getPracticeSummary(state: FinishedPractice): PracticeSummary {
   const validSubmissionCount = state.submissions.length;
 
   if (validSubmissionCount === 0) {
-    return { outcome: "no-valid-submissions", validSubmissionCount };
+    return {
+      outcome: "no-valid-submissions",
+      validSubmissionCount,
+      hintExposures: state.hintExposures,
+    };
   }
 
   return {
@@ -61,5 +98,6 @@ export function getPracticeSummary(state: FinishedPractice): PracticeSummary {
       ? "eventually-correct"
       : "incorrect-only",
     validSubmissionCount,
+    hintExposures: state.hintExposures,
   };
 }

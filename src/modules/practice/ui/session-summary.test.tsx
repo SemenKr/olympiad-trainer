@@ -6,11 +6,26 @@ import { SessionSummary } from "./session-summary";
 
 const problemTitle = "Совпадающие места";
 
-function renderSummary(outcome: PracticeSummary["outcome"]): string {
+function renderSummary(
+  outcome: PracticeSummary["outcome"],
+  withHint = false,
+): string {
   return renderToStaticMarkup(
     <SessionSummary
       problemTitle={problemTitle}
-      summary={{ outcome, validSubmissionCount: 0 }}
+      summary={{
+        outcome,
+        validSubmissionCount: 0,
+        hintExposures: withHint
+          ? [
+              {
+                hintId: "coinciding-seats-focus-simultaneous-rules",
+                level: "focus",
+                validSubmissionCountAtOpen: 0,
+              },
+            ]
+          : [],
+      }}
     />,
   );
 }
@@ -42,6 +57,27 @@ describe("SessionSummary", () => {
     expect(markup).toContain("Результаты задач");
     expect(markup).toContain("Решено самостоятельно");
     expect(markup).toContain(problemTitle);
+  });
+
+  it("shows supported success after a focus hint without a causal claim", () => {
+    const markup = renderSummary("eventually-correct", true);
+
+    expect(markup).toContain(
+      "За эту тренировку ты решил одну задачу с подсказкой.",
+    );
+    expect(markup).toContain("Получилось с подсказкой");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Подсказка помогла найти ход.");
+  });
+
+  it("keeps incorrect-only without a task outcome after a hint", () => {
+    const markup = renderSummary("incorrect-only", true);
+
+    expect(markup).toContain(
+      "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.",
+    );
+    expect(markup).not.toContain("Результаты задач");
+    expect(markup).not.toContain("Получилось с подсказкой");
   });
 
   it.each([
