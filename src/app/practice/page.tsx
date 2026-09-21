@@ -7,6 +7,7 @@ import styles from "./page.module.scss";
 export default function PracticePage() {
   return (
     <PracticeSession
+      focusHint={practiceProblem.focusHint}
       header={
         <header className={styles.header}>
           <p className={styles.eyebrow}>Тренировка</p>
