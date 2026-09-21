@@ -1,15 +1,22 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import { ShortNumericAnswer } from "./short-numeric-answer";
 
-vi.mock("@/app/practice/actions", () => ({
-  submitPracticeAnswer: vi.fn(),
-}));
+function renderAnswer() {
+  return renderToStaticMarkup(
+    <ShortNumericAnswer
+      onAnswerChange={() => undefined}
+      onSubmit={() => undefined}
+      state={createShortNumericAnswerState()}
+    />,
+  );
+}
 
 describe("ShortNumericAnswer accessibility structure", () => {
   it("mounts live regions outside the busy form before feedback occurs", () => {
-    const markup = renderToStaticMarkup(<ShortNumericAnswer />);
+    const markup = renderAnswer();
     const formEnd = markup.indexOf("</form>");
 
     expect(formEnd).toBeGreaterThan(-1);
@@ -20,7 +27,7 @@ describe("ShortNumericAnswer accessibility structure", () => {
   });
 
   it("associates a focusable submit control with the answer form", () => {
-    const markup = renderToStaticMarkup(<ShortNumericAnswer />);
+    const markup = renderAnswer();
     const formId = markup.match(/<form[^>]* id="([^"]+)"/)?.[1];
 
     expect(formId).toBeDefined();
