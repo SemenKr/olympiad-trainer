@@ -9,6 +9,11 @@ export const practiceProblem = {
     level: "focus",
     text: "Обрати внимание: место должно быть отмечено по обоим правилам одновременно.",
   },
+  strategyHint: {
+    id: "coinciding-seats-strategy-repeat-interval",
+    level: "strategy",
+    text: "Подумай, через сколько мест отметки по обоим правилам снова совпадут.",
+  },
 } as const;
 
 const expectedAnswer = "17";

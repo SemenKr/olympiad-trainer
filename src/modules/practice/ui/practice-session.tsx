@@ -7,7 +7,9 @@ import { submitPracticeAnswer } from "@/app/practice/actions";
 import type { PracticeSummary } from "../application/practice-state";
 import {
   isFocusHintAvailable,
+  isStrategyHintAvailable,
   openFocusHint,
+  openStrategyHint,
   requestPracticeFinish,
 } from "./practice-session-state";
 import styles from "./practice-session.module.scss";
@@ -28,6 +30,11 @@ type PracticeSessionProps = Readonly<{
     level: "focus";
     text: string;
   }>;
+  strategyHint: Readonly<{
+    id: string;
+    level: "strategy";
+    text: string;
+  }>;
   header: ReactNode;
   taskContent: ReactNode;
 }>;
@@ -38,6 +45,7 @@ const DIRTY_FINISH_MESSAGE =
 export function PracticeSession({
   problemTitle,
   focusHint,
+  strategyHint,
   header,
   taskContent,
 }: PracticeSessionProps) {
@@ -45,13 +53,22 @@ export function PracticeSession({
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
   const answerStateRef = useRef(answerState);
   const submissionGate = useRef(false);
-  const hintHeadingRef = useRef<HTMLHeadingElement>(null);
+  const focusHintHeadingRef = useRef<HTMLHeadingElement>(null);
+  const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
-  const hintExposure = answerState.practice.hintExposures.find(
+  const focusHintExposure = answerState.practice.hintExposures.find(
     (exposure) => exposure.hintId === focusHint.id,
   );
-  const canOpenHint = isFocusHintAvailable(answerState, focusHint.id);
+  const strategyHintExposure = answerState.practice.hintExposures.find(
+    (exposure) => exposure.hintId === strategyHint.id,
+  );
+  const canOpenFocusHint = isFocusHintAvailable(answerState, focusHint.id);
+  const canOpenStrategyHint = isStrategyHintAvailable(
+    answerState,
+    focusHint.id,
+    strategyHint.id,
+  );
 
   useEffect(() => {
     if (summary) {
@@ -60,10 +77,16 @@ export function PracticeSession({
   }, [summary]);
 
   useEffect(() => {
-    if (hintExposure) {
-      hintHeadingRef.current?.focus();
+    if (focusHintExposure) {
+      focusHintHeadingRef.current?.focus();
     }
-  }, [hintExposure]);
+  }, [focusHintExposure]);
+
+  useEffect(() => {
+    if (strategyHintExposure) {
+      strategyHintHeadingRef.current?.focus();
+    }
+  }, [strategyHintExposure]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
     answerStateRef.current = nextState;
@@ -99,8 +122,14 @@ export function PracticeSession({
     }
   }
 
-  function handleHintOpen() {
+  function handleFocusHintOpen() {
     updateAnswerState(openFocusHint(answerStateRef.current, focusHint.id));
+  }
+
+  function handleStrategyHintOpen() {
+    updateAnswerState(
+      openStrategyHint(answerStateRef.current, focusHint.id, strategyHint.id),
+    );
   }
 
   if (summary) {
@@ -123,21 +152,40 @@ export function PracticeSession({
             state={answerState}
           />
 
-          {hintExposure ? (
+          {focusHintExposure ? (
             <aside className={styles.hint}>
-              <h2 ref={hintHeadingRef} tabIndex={-1}>
-                Подсказка
+              <h2 ref={focusHintHeadingRef} tabIndex={-1}>
+                Подсказка 1
               </h2>
               <p>{focusHint.text}</p>
             </aside>
-          ) : canOpenHint ? (
+          ) : canOpenFocusHint ? (
             <button
               className={styles["hint-action"]}
-              onClick={handleHintOpen}
+              onClick={handleFocusHintOpen}
               type="button"
             >
               Подсказка
             </button>
+          ) : null}
+
+          {canOpenStrategyHint ? (
+            <button
+              className={styles["hint-action"]}
+              onClick={handleStrategyHintOpen}
+              type="button"
+            >
+              Следующая подсказка
+            </button>
+          ) : null}
+
+          {strategyHintExposure ? (
+            <aside className={styles.hint}>
+              <h2 ref={strategyHintHeadingRef} tabIndex={-1}>
+                Подсказка 2
+              </h2>
+              <p>{strategyHint.text}</p>
+            </aside>
           ) : null}
         </div>
       }

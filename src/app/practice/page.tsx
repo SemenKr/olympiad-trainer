@@ -15,6 +15,7 @@ export default function PracticePage() {
         </header>
       }
       problemTitle={practiceProblem.title}
+      strategyHint={practiceProblem.strategyHint}
       taskContent={
         <TaskBlockText title="Условие задачи">
           <p>{practiceProblem.statement}</p>

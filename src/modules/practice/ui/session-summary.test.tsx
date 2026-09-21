@@ -1,14 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { PracticeSummary } from "../application/practice-state";
+import type {
+  PracticeHintExposure,
+  PracticeSummary,
+} from "../application/practice-state";
 import { SessionSummary } from "./session-summary";
 
 const problemTitle = "Совпадающие места";
 
 function renderSummary(
   outcome: PracticeSummary["outcome"],
-  withHint = false,
+  hintExposures: readonly PracticeHintExposure[] = [],
 ): string {
   return renderToStaticMarkup(
     <SessionSummary
@@ -16,15 +19,7 @@ function renderSummary(
       summary={{
         outcome,
         validSubmissionCount: 0,
-        hintExposures: withHint
-          ? [
-              {
-                hintId: "coinciding-seats-focus-simultaneous-rules",
-                level: "focus",
-                validSubmissionCountAtOpen: 0,
-              },
-            ]
-          : [],
+        hintExposures,
       }}
     />,
   );
@@ -60,7 +55,13 @@ describe("SessionSummary", () => {
   });
 
   it("shows supported success after a focus hint without a causal claim", () => {
-    const markup = renderSummary("eventually-correct", true);
+    const markup = renderSummary("eventually-correct", [
+      {
+        hintId: "coinciding-seats-focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
 
     expect(markup).toContain(
       "За эту тренировку ты решил одну задачу с подсказкой.",
@@ -70,8 +71,42 @@ describe("SessionSummary", () => {
     expect(markup).not.toContain("Подсказка помогла найти ход.");
   });
 
-  it("keeps incorrect-only without a task outcome after a hint", () => {
-    const markup = renderSummary("incorrect-only", true);
+  it("keeps the same supported-success presentation after focus and strategy", () => {
+    const markup = renderSummary("eventually-correct", [
+      {
+        hintId: "coinciding-seats-focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "coinciding-seats-strategy-repeat-interval",
+        level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
+
+    expect(markup).toContain(
+      "За эту тренировку ты решил одну задачу с подсказкой.",
+    );
+    expect(markup).toContain("Получилось с подсказкой");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Подсказка помогла найти ход.");
+    expect(markup).not.toContain("strategy");
+  });
+
+  it("keeps incorrect-only without a task outcome after both hints", () => {
+    const markup = renderSummary("incorrect-only", [
+      {
+        hintId: "coinciding-seats-focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "coinciding-seats-strategy-repeat-interval",
+        level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
 
     expect(markup).toContain(
       "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.",

@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { recordAnswerResult } from "../application/practice-state";
 import {
   isFocusHintAvailable,
+  isStrategyHintAvailable,
   openFocusHint,
+  openStrategyHint,
   requestPracticeFinish,
 } from "./practice-session-state";
 import {
@@ -12,7 +14,8 @@ import {
   type ShortNumericAnswerState,
 } from "./short-numeric-answer-state";
 
-const hintId = "coinciding-seats-focus-simultaneous-rules";
+const focusHintId = "coinciding-seats-focus-simultaneous-rules";
+const strategyHintId = "coinciding-seats-strategy-repeat-interval";
 
 function withAnswerResult(
   state: ShortNumericAnswerState,
@@ -127,7 +130,7 @@ describe("practice session finish", () => {
 
   it("keeps an opened hint factual when only incorrect submissions exist", () => {
     const incorrect = withAnswerResult(
-      openFocusHint(createShortNumericAnswerState(), hintId),
+      openFocusHint(createShortNumericAnswerState(), focusHintId),
       "incorrect",
       "16",
     );
@@ -135,16 +138,16 @@ describe("practice session finish", () => {
     expect(requestPracticeFinish(incorrect, () => false)).toMatchObject({
       outcome: "incorrect-only",
       validSubmissionCount: 1,
-      hintExposures: [{ hintId, level: "focus" }],
+      hintExposures: [{ hintId: focusHintId, level: "focus" }],
     });
   });
 });
 
 describe("practice focus hint", () => {
   it("is available before the first valid submission", () => {
-    expect(isFocusHintAvailable(createShortNumericAnswerState(), hintId)).toBe(
-      true,
-    );
+    expect(
+      isFocusHintAvailable(createShortNumericAnswerState(), focusHintId),
+    ).toBe(true);
   });
 
   it("remains available after an invalid submission", () => {
@@ -154,7 +157,7 @@ describe("practice focus hint", () => {
       status: "invalid",
     };
 
-    expect(isFocusHintAvailable(invalid, hintId)).toBe(true);
+    expect(isFocusHintAvailable(invalid, focusHintId)).toBe(true);
   });
 
   it("remains available after an incorrect submission and later editing", () => {
@@ -165,8 +168,8 @@ describe("practice focus hint", () => {
     );
     const editing = editShortNumericAnswer(incorrect, "17");
 
-    expect(isFocusHintAvailable(incorrect, hintId)).toBe(true);
-    expect(isFocusHintAvailable(editing, hintId)).toBe(true);
+    expect(isFocusHintAvailable(incorrect, focusHintId)).toBe(true);
+    expect(isFocusHintAvailable(editing, focusHintId)).toBe(true);
   });
 
   it("is unavailable after a correct submission", () => {
@@ -176,7 +179,7 @@ describe("practice focus hint", () => {
       "17",
     );
 
-    expect(isFocusHintAvailable(correct, hintId)).toBe(false);
+    expect(isFocusHintAvailable(correct, focusHintId)).toBe(false);
   });
 
   it("cannot open while answer submission is pending", () => {
@@ -185,17 +188,17 @@ describe("practice focus hint", () => {
       status: "loading",
     };
 
-    expect(isFocusHintAvailable(pending, hintId)).toBe(false);
-    expect(openFocusHint(pending, hintId)).toBe(pending);
+    expect(isFocusHintAvailable(pending, focusHintId)).toBe(false);
+    expect(openFocusHint(pending, focusHintId)).toBe(pending);
   });
 
   it("records the first actual opening once without altering submissions", () => {
     const initial = createShortNumericAnswerState();
-    const opened = openFocusHint(initial, hintId);
-    const reopened = openFocusHint(opened, hintId);
+    const opened = openFocusHint(initial, focusHintId);
+    const reopened = openFocusHint(opened, focusHintId);
 
     expect(opened.practice.hintExposures).toEqual([
-      { hintId, level: "focus", validSubmissionCountAtOpen: 0 },
+      { hintId: focusHintId, level: "focus", validSubmissionCountAtOpen: 0 },
     ]);
     expect(opened.practice.submissions).toBe(initial.practice.submissions);
     expect(opened.status).toBe(initial.status);
@@ -209,8 +212,211 @@ describe("practice focus hint", () => {
       "16",
     );
 
-    expect(openFocusHint(incorrect, hintId).practice.hintExposures).toEqual([
-      { hintId, level: "focus", validSubmissionCountAtOpen: 1 },
+    expect(
+      openFocusHint(incorrect, focusHintId).practice.hintExposures,
+    ).toEqual([
+      {
+        hintId: focusHintId,
+        level: "focus",
+        validSubmissionCountAtOpen: 1,
+      },
     ]);
+  });
+});
+
+describe("practice strategy hint", () => {
+  it("is unavailable before focus exposure", () => {
+    const initial = createShortNumericAnswerState();
+
+    expect(isStrategyHintAvailable(initial, focusHintId, strategyHintId)).toBe(
+      false,
+    );
+    expect(openStrategyHint(initial, focusHintId, strategyHintId)).toBe(
+      initial,
+    );
+  });
+
+  it("is available immediately after focus with no valid attempt required", () => {
+    const focusOpened = openFocusHint(
+      createShortNumericAnswerState(),
+      focusHintId,
+    );
+
+    expect(
+      isStrategyHintAvailable(focusOpened, focusHintId, strategyHintId),
+    ).toBe(true);
+  });
+
+  it("records focus and strategy with zero submissions before an attempt", () => {
+    const initial = createShortNumericAnswerState();
+    const focusOpened = openFocusHint(initial, focusHintId);
+    const strategyOpened = openStrategyHint(
+      focusOpened,
+      focusHintId,
+      strategyHintId,
+    );
+
+    expect(strategyOpened.practice.hintExposures).toEqual([
+      {
+        hintId: focusHintId,
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: strategyHintId,
+        level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
+    expect(strategyOpened.practice.submissions).toBe(
+      initial.practice.submissions,
+    );
+    expect(strategyOpened.status).toBe(initial.status);
+  });
+
+  it("records strategy after one incorrect submission with count one", () => {
+    const incorrect = withAnswerResult(
+      createShortNumericAnswerState(),
+      "incorrect",
+      "16",
+    );
+    const focusOpened = openFocusHint(incorrect, focusHintId);
+    const strategyOpened = openStrategyHint(
+      focusOpened,
+      focusHintId,
+      strategyHintId,
+    );
+
+    expect(strategyOpened.practice.hintExposures).toEqual([
+      {
+        hintId: focusHintId,
+        level: "focus",
+        validSubmissionCountAtOpen: 1,
+      },
+      {
+        hintId: strategyHintId,
+        level: "strategy",
+        validSubmissionCountAtOpen: 1,
+      },
+    ]);
+  });
+
+  it("ignores invalid input for strategy eligibility and exposure count", () => {
+    const invalid: ShortNumericAnswerState = {
+      ...openFocusHint(createShortNumericAnswerState(), focusHintId),
+      rawAnswer: "12,5",
+      status: "invalid",
+    };
+    const strategyOpened = openStrategyHint(
+      invalid,
+      focusHintId,
+      strategyHintId,
+    );
+
+    expect(strategyOpened.practice.hintExposures[1]).toEqual({
+      hintId: strategyHintId,
+      level: "strategy",
+      validSubmissionCountAtOpen: 0,
+    });
+  });
+
+  it("cannot open while answer submission is pending", () => {
+    const focusOpened = openFocusHint(
+      editShortNumericAnswer(createShortNumericAnswerState(), "17"),
+      focusHintId,
+    );
+    const pending: ShortNumericAnswerState = {
+      ...focusOpened,
+      status: "loading",
+    };
+
+    expect(isStrategyHintAvailable(pending, focusHintId, strategyHintId)).toBe(
+      false,
+    );
+    expect(openStrategyHint(pending, focusHintId, strategyHintId)).toBe(
+      pending,
+    );
+  });
+
+  it("cannot open after a correct submission", () => {
+    const focusOpened = openFocusHint(
+      createShortNumericAnswerState(),
+      focusHintId,
+    );
+    const correct = withAnswerResult(focusOpened, "correct", "17");
+
+    expect(isStrategyHintAvailable(correct, focusHintId, strategyHintId)).toBe(
+      false,
+    );
+    expect(openStrategyHint(correct, focusHintId, strategyHintId)).toBe(
+      correct,
+    );
+  });
+
+  it("records strategy once and exposes no further strategy action", () => {
+    const focusOpened = openFocusHint(
+      createShortNumericAnswerState(),
+      focusHintId,
+    );
+    const strategyOpened = openStrategyHint(
+      focusOpened,
+      focusHintId,
+      strategyHintId,
+    );
+    const reopened = openStrategyHint(
+      strategyOpened,
+      focusHintId,
+      strategyHintId,
+    );
+
+    expect(strategyOpened.practice.hintExposures).toHaveLength(2);
+    expect(
+      isStrategyHintAvailable(strategyOpened, focusHintId, strategyHintId),
+    ).toBe(false);
+    expect(reopened).toBe(strategyOpened);
+  });
+
+  it("keeps both hint exposures through a later correct result and Finish", () => {
+    const focusOpened = openFocusHint(
+      createShortNumericAnswerState(),
+      focusHintId,
+    );
+    const strategyOpened = openStrategyHint(
+      focusOpened,
+      focusHintId,
+      strategyHintId,
+    );
+    const correct = withAnswerResult(strategyOpened, "correct", "17");
+
+    expect(requestPracticeFinish(correct, () => false)).toMatchObject({
+      outcome: "eventually-correct",
+      hintExposures: [
+        { hintId: focusHintId, level: "focus" },
+        { hintId: strategyHintId, level: "strategy" },
+      ],
+    });
+  });
+
+  it("keeps incorrect-only without a task outcome after both hints", () => {
+    const incorrect = withAnswerResult(
+      createShortNumericAnswerState(),
+      "incorrect",
+      "16",
+    );
+    const focusOpened = openFocusHint(incorrect, focusHintId);
+    const strategyOpened = openStrategyHint(
+      focusOpened,
+      focusHintId,
+      strategyHintId,
+    );
+
+    expect(requestPracticeFinish(strategyOpened, () => false)).toMatchObject({
+      outcome: "incorrect-only",
+      validSubmissionCount: 1,
+      hintExposures: [
+        { hintId: focusHintId, level: "focus" },
+        { hintId: strategyHintId, level: "strategy" },
+      ],
+    });
   });
 });
