@@ -29,6 +29,13 @@ export function SessionSummary({
   const remainingText = getRemainingText(summary.outcome);
   const isSolved = summary.outcome === "eventually-correct";
   const usedHint = summary.hintExposures.length > 0;
+  const viewedSolution = summary.solutionExposure !== null;
+  const showTaskResult = isSolved || viewedSolution;
+  const resultLabel = viewedSolution
+    ? "Посмотрено полное решение"
+    : usedHint
+      ? "Получилось с подсказкой"
+      : "Решено самостоятельно";
 
   return (
     <main className={styles.summary}>
@@ -44,7 +51,7 @@ export function SessionSummary({
           <h2>Что осталось</h2>
           <p>{remainingText}</p>
         </section>
-      ) : (
+      ) : !viewedSolution ? (
         <section className={styles.section}>
           <h2>Что получилось</h2>
           <p>
@@ -53,15 +60,13 @@ export function SessionSummary({
               : "В этой тренировке ты решил задачу самостоятельно."}
           </p>
         </section>
-      )}
+      ) : null}
 
-      {isSolved ? (
+      {showTaskResult ? (
         <section className={styles.section}>
           <h2>Результаты задач</h2>
           <div className={styles.result}>
-            <h3>
-              {usedHint ? "Получилось с подсказкой" : "Решено самостоятельно"}
-            </h3>
+            <h3>{resultLabel}</h3>
             <p>{problemTitle}</p>
           </div>
         </section>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   PracticeHintExposure,
+  PracticeSolutionExposure,
   PracticeSummary,
 } from "../application/practice-state";
 import { SessionSummary } from "./session-summary";
@@ -12,6 +13,7 @@ const problemTitle = "Совпадающие места";
 function renderSummary(
   outcome: PracticeSummary["outcome"],
   hintExposures: readonly PracticeHintExposure[] = [],
+  solutionExposure: PracticeSolutionExposure | null = null,
 ): string {
   return renderToStaticMarkup(
     <SessionSummary
@@ -20,6 +22,7 @@ function renderSummary(
         outcome,
         validSubmissionCount: 0,
         hintExposures,
+        solutionExposure,
       }}
     />,
   );
@@ -146,6 +149,46 @@ describe("SessionSummary", () => {
     );
     expect(markup).not.toContain("Результаты задач");
     expect(markup).not.toContain("Получилось с подсказкой");
+  });
+
+  it("shows full-solution study after incorrect attempts", () => {
+    const markup = renderSummary("incorrect-only", [], {
+      solutionId: "coinciding-seats-full-solution",
+      validSubmissionCountAtOpen: 1,
+    });
+
+    expect(markup).toContain(
+      "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.",
+    );
+    expect(markup).toContain("Результаты задач");
+    expect(markup).toContain("Посмотрено полное решение");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Получилось с подсказкой");
+  });
+
+  it("gives solution exposure precedence after a later correct answer", () => {
+    const markup = renderSummary(
+      "eventually-correct",
+      [
+        {
+          hintId: "coinciding-seats-focus-simultaneous-rules",
+          level: "focus",
+          validSubmissionCountAtOpen: 1,
+        },
+      ],
+      {
+        solutionId: "coinciding-seats-full-solution",
+        validSubmissionCountAtOpen: 1,
+      },
+    );
+
+    expect(markup).toContain("Посмотрено полное решение");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Получилось с подсказкой");
+    expect(markup).not.toContain(
+      "За эту тренировку ты решил одну задачу с подсказкой.",
+    );
+    expect(markup).not.toContain("Что получилось");
   });
 
   it.each([

@@ -3,10 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/practice/actions", () => ({
   revealPracticeHint: vi.fn(),
+  revealPracticeSolution: vi.fn(),
   submitPracticeAnswer: vi.fn(),
 }));
 
-import { PracticeHintRevealError } from "./practice-session";
+import { revealPracticeSolution } from "@/app/practice/actions";
+
+import {
+  PracticeHintRevealError,
+  PracticeSession,
+  PracticeSolutionRevealError,
+} from "./practice-session";
 
 describe("PracticeSession hint reveal error", () => {
   it("renders a visible, accessibly announced retry message", () => {
@@ -15,5 +22,49 @@ describe("PracticeSession hint reveal error", () => {
     expect(markup).toContain('role="alert"');
     expect(markup).toContain('aria-atomic="true"');
     expect(markup).toContain("Не удалось открыть подсказку. Попробуй ещё раз.");
+  });
+});
+
+describe("PracticeSession solution reveal", () => {
+  it("renders a visible, accessibly announced retry message", () => {
+    const markup = renderToStaticMarkup(<PracticeSolutionRevealError />);
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain('aria-atomic="true"');
+    expect(markup).toContain("Не удалось открыть решение. Попробуй ещё раз.");
+  });
+
+  it("does not reveal or request protected solution content initially", () => {
+    const markup = renderToStaticMarkup(
+      <PracticeSession
+        header={<h1>Совпадающие места</h1>}
+        problem={{
+          problemId: "coinciding-seats",
+          title: "Совпадающие места",
+          statement: "Learner statement",
+          hints: [
+            {
+              hintId: "coinciding-seats-focus-simultaneous-rules",
+              level: "focus",
+            },
+            {
+              hintId: "coinciding-seats-strategy-repeat-interval",
+              level: "strategy",
+            },
+            {
+              hintId: "coinciding-seats-next-step-list-common-seats",
+              level: "next-step",
+            },
+          ],
+          solution: { solutionId: "coinciding-seats-full-solution" },
+        }}
+        taskContent={<p>Learner statement</p>}
+      />,
+    );
+
+    expect(markup).not.toContain("Показать решение");
+    expect(markup).not.toContain("Решение открыто");
+    expect(markup).not.toContain("6 × 17");
+    expect(revealPracticeSolution).not.toHaveBeenCalled();
   });
 });

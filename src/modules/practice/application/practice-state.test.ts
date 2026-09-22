@@ -5,6 +5,7 @@ import {
   getPracticeSummary,
   recordAnswerResult,
   recordHintExposure,
+  recordSolutionExposure,
   startPractice,
 } from "./practice-state";
 
@@ -14,6 +15,7 @@ describe("practice state", () => {
       status: "active",
       submissions: [],
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -63,6 +65,7 @@ describe("practice state", () => {
         { answer: "17", outcome: "correct" },
       ],
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -80,6 +83,7 @@ describe("practice state", () => {
       status: "finished",
       submissions: [],
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -98,12 +102,14 @@ describe("practice state", () => {
       status: "active",
       submissions,
       hintExposures: [],
+      solutionExposure: null,
     });
 
     expect(getPracticeSummary(finished)).toEqual({
       outcome,
       validSubmissionCount: submissions.length,
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -166,6 +172,58 @@ describe("practice state", () => {
     expect(nextStepOpened.submissions).toBe(focusOpened.submissions);
   });
 
+  it("records one solution exposure without changing attempts or hints", () => {
+    const attempted = recordAnswerResult(startPractice(), {
+      status: "incorrect",
+      normalizedAnswer: "16",
+    });
+    const withHint = recordHintExposure(attempted, {
+      hintId: "focus-simultaneous-rules",
+      level: "focus",
+    });
+    const opened = recordSolutionExposure(withHint, {
+      solutionId: "coinciding-seats-full-solution",
+    });
+    const reopened = recordSolutionExposure(opened, {
+      solutionId: "different-solution",
+    });
+
+    expect(opened.solutionExposure).toEqual({
+      solutionId: "coinciding-seats-full-solution",
+      validSubmissionCountAtOpen: 1,
+    });
+    expect(opened.submissions).toBe(withHint.submissions);
+    expect(opened.hintExposures).toBe(withHint.hintExposures);
+    expect(reopened).toBe(opened);
+  });
+
+  it("keeps solution exposure and earlier attempts after a later correct result", () => {
+    const incorrect = recordAnswerResult(startPractice(), {
+      status: "incorrect",
+      normalizedAnswer: "16",
+    });
+    const solutionOpened = recordSolutionExposure(incorrect, {
+      solutionId: "coinciding-seats-full-solution",
+    });
+    const correct = recordAnswerResult(solutionOpened, {
+      status: "correct",
+      normalizedAnswer: "17",
+    });
+
+    expect(correct.submissions).toEqual([
+      { answer: "16", outcome: "incorrect" },
+      { answer: "17", outcome: "correct" },
+    ]);
+    expect(correct.solutionExposure).toBe(solutionOpened.solutionExposure);
+    expect(getPracticeSummary(finishPractice(correct))).toMatchObject({
+      outcome: "eventually-correct",
+      solutionExposure: {
+        solutionId: "coinciding-seats-full-solution",
+        validSubmissionCountAtOpen: 1,
+      },
+    });
+  });
+
   it("does not mutate input state when recording or finishing", () => {
     const submissions = Object.freeze([
       { answer: "16", outcome: "incorrect" } as const,
@@ -175,6 +233,7 @@ describe("practice state", () => {
       status: "active" as const,
       submissions,
       hintExposures,
+      solutionExposure: null,
     });
 
     const next = recordAnswerResult(active, {
@@ -189,5 +248,6 @@ describe("practice state", () => {
     expect(next.submissions).toHaveLength(2);
     expect(finished.submissions).toEqual(active.submissions);
     expect(finished.hintExposures).toBe(hintExposures);
+    expect(finished.solutionExposure).toBeNull();
   });
 });

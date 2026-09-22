@@ -1,6 +1,9 @@
 "use server";
 
-import type { RevealedPracticeHint } from "../../modules/practice/application/practice-problem-presentation";
+import type {
+  RevealedPracticeHint,
+  RevealedPracticeSolution,
+} from "../../modules/practice/application/practice-problem-presentation";
 import {
   checkNonnegativeIntegerAnswer,
   type NumericAnswerResult,
@@ -8,6 +11,7 @@ import {
 import {
   getProblemDefinition,
   getRevealedPracticeHint,
+  getRevealedPracticeSolution,
 } from "../../modules/practice/server/problem-catalog";
 
 function requireIdentifier(value: unknown, fieldName: string): string {
@@ -43,5 +47,15 @@ export async function revealPracticeHint(
   return getRevealedPracticeHint(
     requireIdentifier(problemId, "practice problem ID"),
     requireIdentifier(hintId, "hint ID"),
+  );
+}
+
+export async function revealPracticeSolution(
+  problemId: unknown,
+  solutionId: unknown,
+): Promise<RevealedPracticeSolution> {
+  return getRevealedPracticeSolution(
+    requireIdentifier(problemId, "practice problem ID"),
+    requireIdentifier(solutionId, "solution ID"),
   );
 }

@@ -14,6 +14,8 @@ const strategyText =
   "Подумай, через сколько мест отметки по обоим правилам снова совпадут.";
 const nextStepText =
   "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.";
+const solutionText =
+  "Подходят места, номер которых делится и на 2, и на 3. Такие места идут через 6: 6, 12, 18, …, 102. Число 102 равно 6 × 17, значит, совпадающих мест 17. Ответ: 17.";
 
 describe("practice problem catalog", () => {
   it("resolves the current problem by stable product ID", () => {
@@ -86,6 +88,27 @@ describe("practice problem catalog", () => {
   it("keeps next-step learner text bounded", () => {
     expect(nextStepText).not.toMatch(/\b(?:6|17)\b/);
   });
+
+  it("stores the approved full solution as a training adaptation", () => {
+    expect(getProblemDefinition(CURRENT_PRACTICE_PROBLEM_ID).solution).toEqual({
+      id: "coinciding-seats-full-solution",
+      kind: "training-adaptation",
+      text: solutionText,
+    });
+  });
+
+  it("keeps the training solution separate from official provenance", () => {
+    const problem = getProblemDefinition(CURRENT_PRACTICE_PROBLEM_ID);
+
+    expect(problem.solution.kind).toBe("training-adaptation");
+    expect(problem.solution).not.toHaveProperty("reference");
+    expect(problem.solution).not.toHaveProperty("url");
+    expect(problem.provenance.officialSolution).toEqual({
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 1,
+    });
+  });
 });
 
 describe("learner-safe practice problem projection", () => {
@@ -109,10 +132,13 @@ describe("learner-safe practice problem projection", () => {
           level: "next-step",
         },
       ],
+      solution: {
+        solutionId: "coinciding-seats-full-solution",
+      },
     });
   });
 
-  it("does not serialize assessment, expected answer, provenance, or hint text", () => {
+  it("does not serialize protected assessment, provenance, or support text", () => {
     const projection = getLearnerSafePracticeProblem(
       CURRENT_PRACTICE_PROBLEM_ID,
     );
@@ -123,6 +149,7 @@ describe("learner-safe practice problem projection", () => {
       "title",
       "statement",
       "hints",
+      "solution",
     ]);
     expect(serialized).not.toContain("assessment");
     expect(serialized).not.toContain("expectedAnswer");
@@ -131,5 +158,7 @@ describe("learner-safe practice problem projection", () => {
     expect(serialized).not.toContain(focusText);
     expect(serialized).not.toContain(strategyText);
     expect(serialized).not.toContain(nextStepText);
+    expect(serialized).not.toContain(solutionText);
+    expect(serialized).not.toContain("training-adaptation");
   });
 });

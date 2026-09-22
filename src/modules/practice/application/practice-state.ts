@@ -11,16 +11,23 @@ export type PracticeHintExposure = Readonly<{
   validSubmissionCountAtOpen: number;
 }>;
 
+export type PracticeSolutionExposure = Readonly<{
+  solutionId: string;
+  validSubmissionCountAtOpen: number;
+}>;
+
 export type ActivePractice = Readonly<{
   status: "active";
   submissions: readonly PracticeSubmission[];
   hintExposures: readonly PracticeHintExposure[];
+  solutionExposure: PracticeSolutionExposure | null;
 }>;
 
 export type FinishedPractice = Readonly<{
   status: "finished";
   submissions: readonly PracticeSubmission[];
   hintExposures: readonly PracticeHintExposure[];
+  solutionExposure: PracticeSolutionExposure | null;
 }>;
 
 export type PracticeState = ActivePractice | FinishedPractice;
@@ -29,10 +36,16 @@ export type PracticeSummary = Readonly<{
   outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct";
   validSubmissionCount: number;
   hintExposures: readonly PracticeHintExposure[];
+  solutionExposure: PracticeSolutionExposure | null;
 }>;
 
 export function startPractice(): ActivePractice {
-  return { status: "active", submissions: [], hintExposures: [] };
+  return {
+    status: "active",
+    submissions: [],
+    hintExposures: [],
+    solutionExposure: null,
+  };
 }
 
 export function recordHintExposure(
@@ -58,6 +71,23 @@ export function recordHintExposure(
   };
 }
 
+export function recordSolutionExposure(
+  state: ActivePractice,
+  solution: Readonly<{ solutionId: string }>,
+): ActivePractice {
+  if (state.solutionExposure) {
+    return state;
+  }
+
+  return {
+    ...state,
+    solutionExposure: {
+      solutionId: solution.solutionId,
+      validSubmissionCountAtOpen: state.submissions.length,
+    },
+  };
+}
+
 export function recordAnswerResult(
   state: ActivePractice,
   result: NumericAnswerResult,
@@ -80,6 +110,7 @@ export function finishPractice(state: ActivePractice): FinishedPractice {
     status: "finished",
     submissions: state.submissions,
     hintExposures: state.hintExposures,
+    solutionExposure: state.solutionExposure,
   };
 }
 
@@ -91,6 +122,7 @@ export function getPracticeSummary(state: FinishedPractice): PracticeSummary {
       outcome: "no-valid-submissions",
       validSubmissionCount,
       hintExposures: state.hintExposures,
+      solutionExposure: state.solutionExposure,
     };
   }
 
@@ -102,5 +134,6 @@ export function getPracticeSummary(state: FinishedPractice): PracticeSummary {
       : "incorrect-only",
     validSubmissionCount,
     hintExposures: state.hintExposures,
+    solutionExposure: state.solutionExposure,
   };
 }

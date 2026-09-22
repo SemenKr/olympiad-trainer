@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { revealPracticeHint, submitPracticeAnswer } from "./actions";
+import {
+  revealPracticeHint,
+  revealPracticeSolution,
+  submitPracticeAnswer,
+} from "./actions";
 
 const problemId = "coinciding-seats";
 
@@ -86,6 +90,32 @@ describe("practice hint reveal server boundary", () => {
     ).rejects.toThrow("Unknown practice problem");
     await expect(revealPracticeHint(problemId, "missing-hint")).rejects.toThrow(
       "Unknown hint for practice problem",
+    );
+  });
+});
+
+describe("practice solution reveal server boundary", () => {
+  it("reveals the exact approved training solution on explicit request", async () => {
+    await expect(
+      revealPracticeSolution(problemId, "coinciding-seats-full-solution"),
+    ).resolves.toEqual({
+      solutionId: "coinciding-seats-full-solution",
+      text: "Подходят места, номер которых делится и на 2, и на 3. Такие места идут через 6: 6, 12, 18, …, 102. Число 102 равно 6 × 17, значит, совпадающих мест 17. Ответ: 17.",
+    });
+  });
+
+  it("fails safely for unknown problem and solution IDs", async () => {
+    await expect(
+      revealPracticeSolution(
+        "missing-problem",
+        "coinciding-seats-full-solution",
+      ),
+    ).rejects.toThrow("Unknown practice problem");
+    await expect(
+      revealPracticeSolution(problemId, "missing-solution"),
+    ).rejects.toThrow("Unknown solution for practice problem");
+    await expect(revealPracticeSolution(problemId, null)).rejects.toThrow(
+      "Invalid solution ID",
     );
   });
 });

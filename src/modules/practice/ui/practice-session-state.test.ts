@@ -4,25 +4,31 @@ import { recordAnswerResult } from "../application/practice-state";
 import {
   isFocusHintAvailable,
   isNextStepHintAvailable,
+  isSolutionAvailable,
   isStrategyHintAvailable,
   openFocusHint,
   openNextStepHint,
+  openSolution,
   openStrategyHint,
   requestFocusHintReveal,
   requestNextStepHintReveal,
   requestPracticeFinish,
+  requestSolutionReveal,
   requestStrategyHintReveal,
   runPracticeHintReveal,
+  runPracticeSolutionReveal,
 } from "./practice-session-state";
 import {
   createShortNumericAnswerState,
   editShortNumericAnswer,
+  runShortNumericAnswerSubmission,
   type ShortNumericAnswerState,
 } from "./short-numeric-answer-state";
 
 const focusHintId = "coinciding-seats-focus-simultaneous-rules";
 const strategyHintId = "coinciding-seats-strategy-repeat-interval";
 const nextStepHintId = "coinciding-seats-next-step-list-common-seats";
+const solutionId = "coinciding-seats-full-solution";
 
 function withAnswerResult(
   state: ShortNumericAnswerState,
@@ -40,6 +46,19 @@ function withAnswerResult(
   };
 }
 
+function withAllHintExposures(
+  state: ShortNumericAnswerState = createShortNumericAnswerState(),
+): ShortNumericAnswerState {
+  const focusOpened = openFocusHint(state, focusHintId);
+  const strategyOpened = openStrategyHint(
+    focusOpened,
+    focusHintId,
+    strategyHintId,
+  );
+
+  return openNextStepHint(strategyOpened, strategyHintId, nextStepHintId);
+}
+
 describe("practice session finish", () => {
   it("finishes with no task outcome when there are no valid submissions", () => {
     const confirmDiscard = vi.fn(() => false);
@@ -50,6 +69,7 @@ describe("practice session finish", () => {
       outcome: "no-valid-submissions",
       validSubmissionCount: 0,
       hintExposures: [],
+      solutionExposure: null,
     });
     expect(confirmDiscard).not.toHaveBeenCalled();
   });
@@ -65,6 +85,7 @@ describe("practice session finish", () => {
       outcome: "no-valid-submissions",
       validSubmissionCount: 0,
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -80,6 +101,7 @@ describe("practice session finish", () => {
       outcome: "incorrect-only",
       validSubmissionCount: 2,
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -95,6 +117,7 @@ describe("practice session finish", () => {
       outcome: "eventually-correct",
       validSubmissionCount: 2,
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -121,6 +144,7 @@ describe("practice session finish", () => {
       status: "active",
       submissions: [],
       hintExposures: [],
+      solutionExposure: null,
     });
     expect(dirty.practice.submissions).toBe(submissionsBefore);
   });
@@ -132,6 +156,7 @@ describe("practice session finish", () => {
       outcome: "no-valid-submissions",
       validSubmissionCount: 0,
       hintExposures: [],
+      solutionExposure: null,
     });
   });
 
@@ -147,6 +172,19 @@ describe("practice session finish", () => {
       validSubmissionCount: 1,
       hintExposures: [{ hintId: focusHintId, level: "focus" }],
     });
+  });
+
+  it("does not finish while a support reveal request is pending", () => {
+    const active = withAnswerResult(
+      createShortNumericAnswerState(),
+      "incorrect",
+      "16",
+    );
+    const confirmDiscard = vi.fn(() => true);
+
+    expect(requestPracticeFinish(active, confirmDiscard, true)).toBeNull();
+    expect(confirmDiscard).not.toHaveBeenCalled();
+    expect(active.practice.status).toBe("active");
   });
 });
 
@@ -621,6 +659,365 @@ describe("practice next-step hint", () => {
         { hintId: nextStepHintId, level: "next-step" },
       ],
     });
+  });
+});
+
+describe("practice full-solution reveal", () => {
+  it("is unavailable until all hints and one valid incorrect submission exist", () => {
+    const initial = createShortNumericAnswerState();
+    const incorrect = withAnswerResult(initial, "incorrect", "16");
+    const focusOnly = openFocusHint(incorrect, focusHintId);
+    const strategyOpened = openStrategyHint(
+      focusOnly,
+      focusHintId,
+      strategyHintId,
+    );
+    const allHintsWithoutAttempt = withAllHintExposures(initial);
+    const invalid: ShortNumericAnswerState = {
+      ...allHintsWithoutAttempt,
+      rawAnswer: "12,5",
+      status: "invalid",
+    };
+
+    expect(
+      isSolutionAvailable(
+        strategyOpened,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+      ),
+    ).toBe(false);
+    expect(
+      isSolutionAvailable(
+        allHintsWithoutAttempt,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+      ),
+    ).toBe(false);
+    expect(
+      isSolutionAvailable(invalid, focusHintId, strategyHintId, nextStepHintId),
+    ).toBe(false);
+
+    const eligible = withAllHintExposures(incorrect);
+    expect(
+      isSolutionAvailable(
+        eligible,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+      ),
+    ).toBe(true);
+  });
+
+  it("is unavailable after correct or while answer submission is pending", () => {
+    const eligible = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    const correct = withAnswerResult(eligible, "correct", "17");
+    const pending: ShortNumericAnswerState = {
+      ...eligible,
+      status: "loading",
+    };
+
+    expect(
+      isSolutionAvailable(correct, focusHintId, strategyHintId, nextStepHintId),
+    ).toBe(false);
+    expect(
+      isSolutionAvailable(pending, focusHintId, strategyHintId, nextStepHintId),
+    ).toBe(false);
+  });
+
+  it("records one solution exposure at the current valid-submission count", () => {
+    const secondIncorrect = withAnswerResult(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "15"),
+      "incorrect",
+      "16",
+    );
+    const eligible = withAllHintExposures(secondIncorrect);
+    const submissionsBefore = eligible.practice.submissions;
+    const hintsBefore = eligible.practice.hintExposures;
+    const opened = openSolution(
+      eligible,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      solutionId,
+    );
+    const reopened = openSolution(
+      opened,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      "different-solution",
+    );
+
+    expect(opened.practice.solutionExposure).toEqual({
+      solutionId,
+      validSubmissionCountAtOpen: 2,
+    });
+    expect(opened.practice.submissions).toBe(submissionsBefore);
+    expect(opened.practice.hintExposures).toBe(hintsBefore);
+    expect(reopened).toBe(opened);
+  });
+
+  it("records exposure only after a successful matching reveal", async () => {
+    let current = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    let resolveReveal!: (value: { solutionId: string; text: string }) => void;
+    const reveal = new Promise<{ solutionId: string; text: string }>(
+      (resolve) => {
+        resolveReveal = resolve;
+      },
+    );
+    const request = requestSolutionReveal(
+      () => current,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      { solutionId },
+      () => reveal,
+    );
+
+    expect(current.practice.solutionExposure).toBeNull();
+    resolveReveal({ solutionId, text: "solution text" });
+
+    const result = await request;
+    current = result!.answerState;
+    expect(current.practice.solutionExposure).toEqual({
+      solutionId,
+      validSubmissionCountAtOpen: 1,
+    });
+    expect(result!.revealedSolution).toEqual({
+      solutionId,
+      text: "solution text",
+    });
+  });
+
+  it("records no exposure on failure or a mismatched solution ID", async () => {
+    const current = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+
+    await expect(
+      requestSolutionReveal(
+        () => current,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+        { solutionId },
+        async () => {
+          throw new Error("Reveal unavailable");
+        },
+      ),
+    ).rejects.toThrow("Reveal unavailable");
+    await expect(
+      requestSolutionReveal(
+        () => current,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+        { solutionId },
+        async () => ({
+          solutionId: "unexpected-solution",
+          text: "solution text",
+        }),
+      ),
+    ).rejects.toThrow("Revealed solution does not match");
+    expect(current.practice.solutionExposure).toBeNull();
+  });
+
+  it("discards a stale reveal when a correct answer arrives first", async () => {
+    let current = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    const request = requestSolutionReveal(
+      () => current,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      { solutionId },
+      async () => {
+        current = withAnswerResult(current, "correct", "17");
+        return { solutionId, text: "solution text" };
+      },
+    );
+
+    await expect(request).resolves.toBeNull();
+    expect(current.practice.solutionExposure).toBeNull();
+    expect(current.practice.submissions.at(-1)).toEqual({
+      answer: "17",
+      outcome: "correct",
+    });
+  });
+
+  it("does not request or replace an already exposed solution", async () => {
+    const eligible = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    const current = openSolution(
+      eligible,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      solutionId,
+    );
+    const reveal = vi.fn(async () => ({ solutionId, text: "solution text" }));
+
+    await expect(
+      requestSolutionReveal(
+        () => current,
+        focusHintId,
+        strategyHintId,
+        nextStepHintId,
+        { solutionId },
+        reveal,
+      ),
+    ).resolves.toBeNull();
+    expect(reveal).not.toHaveBeenCalled();
+    expect(current.practice.solutionExposure?.solutionId).toBe(solutionId);
+  });
+
+  it("keeps prior evidence when a later submission becomes correct", async () => {
+    const eligible = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    const solutionOpened = openSolution(
+      eligible,
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      solutionId,
+    );
+    let current = editShortNumericAnswer(solutionOpened, "17");
+
+    const result = await runShortNumericAnswerSubmission({
+      state: current,
+      gate: { current: false },
+      submit: async () => ({ status: "correct", normalizedAnswer: "17" }),
+      onPending: (pending) => {
+        current = pending;
+      },
+    });
+
+    expect(result).toMatchObject({
+      status: "correct",
+      practice: {
+        submissions: [
+          { answer: "16", outcome: "incorrect" },
+          { answer: "17", outcome: "correct" },
+        ],
+        solutionExposure: {
+          solutionId,
+          validSubmissionCountAtOpen: 1,
+        },
+      },
+    });
+    expect(result?.practice.hintExposures).toBe(
+      solutionOpened.practice.hintExposures,
+    );
+  });
+
+  it("gates duplicate requests and releases retry after a failure", async () => {
+    const gate = { current: false };
+    let resolveReveal!: (value: null) => void;
+    let errors = 0;
+    let starts = 0;
+    let settled = 0;
+    const first = runPracticeSolutionReveal({
+      gate,
+      requestReveal: () =>
+        new Promise((resolve) => {
+          resolveReveal = resolve;
+        }),
+      onStart: () => starts++,
+      onSuccess: () => undefined,
+      onError: () => errors++,
+      onSettled: () => settled++,
+    });
+
+    await runPracticeSolutionReveal({
+      gate,
+      requestReveal: async () => {
+        throw new Error("Duplicate request should not run");
+      },
+      onStart: () => starts++,
+      onSuccess: () => undefined,
+      onError: () => errors++,
+      onSettled: () => settled++,
+    });
+    expect(starts).toBe(1);
+    expect(errors).toBe(0);
+
+    resolveReveal(null);
+    await first;
+    expect(gate.current).toBe(false);
+
+    await runPracticeSolutionReveal({
+      gate,
+      requestReveal: async () => {
+        throw new Error("Reveal unavailable");
+      },
+      onStart: () => starts++,
+      onSuccess: () => undefined,
+      onError: () => errors++,
+      onSettled: () => settled++,
+    });
+    expect(starts).toBe(2);
+    expect(errors).toBe(1);
+    expect(settled).toBe(2);
+    expect(gate.current).toBe(false);
+  });
+
+  it("clears a reveal error when retry starts and after it succeeds", async () => {
+    let current = withAllHintExposures(
+      withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+    );
+    const gate = { current: false };
+    let errorVisible = false;
+    const runReveal = (
+      reveal: () => Promise<{ solutionId: string; text: string }>,
+    ) =>
+      runPracticeSolutionReveal({
+        gate,
+        requestReveal: () =>
+          requestSolutionReveal(
+            () => current,
+            focusHintId,
+            strategyHintId,
+            nextStepHintId,
+            { solutionId },
+            reveal,
+          ),
+        onStart: () => {
+          errorVisible = false;
+        },
+        onSuccess: (result) => {
+          errorVisible = false;
+          current = result.answerState;
+        },
+        onError: () => {
+          errorVisible = true;
+        },
+        onSettled: () => undefined,
+      });
+
+    await runReveal(async () => {
+      throw new Error("Reveal unavailable");
+    });
+    expect(errorVisible).toBe(true);
+    expect(current.practice.solutionExposure).toBeNull();
+
+    const retry = runReveal(async () => ({
+      solutionId,
+      text: "solution text",
+    }));
+    expect(errorVisible).toBe(false);
+    await retry;
+
+    expect(errorVisible).toBe(false);
+    expect(current.practice.solutionExposure?.solutionId).toBe(solutionId);
   });
 });
 
