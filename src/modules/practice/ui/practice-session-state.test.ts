@@ -6,7 +6,10 @@ import {
   isStrategyHintAvailable,
   openFocusHint,
   openStrategyHint,
+  requestFocusHintReveal,
   requestPracticeFinish,
+  requestStrategyHintReveal,
+  runPracticeHintReveal,
 } from "./practice-session-state";
 import {
   createShortNumericAnswerState,
@@ -418,5 +421,241 @@ describe("practice strategy hint", () => {
         { hintId: strategyHintId, level: "strategy" },
       ],
     });
+  });
+});
+
+describe("practice hint reveal timing", () => {
+  it("records focus exposure only after a successful reveal", async () => {
+    const initial = createShortNumericAnswerState();
+    let resolveReveal!: (value: {
+      hintId: string;
+      level: "focus";
+      text: string;
+    }) => void;
+    const reveal = new Promise<{
+      hintId: string;
+      level: "focus";
+      text: string;
+    }>((resolve) => {
+      resolveReveal = resolve;
+    });
+    const request = requestFocusHintReveal(
+      () => initial,
+      { hintId: focusHintId, level: "focus" },
+      () => reveal,
+    );
+
+    expect(initial.practice.hintExposures).toEqual([]);
+
+    resolveReveal({
+      hintId: focusHintId,
+      level: "focus",
+      text: "focus text",
+    });
+
+    await expect(request).resolves.toMatchObject({
+      answerState: {
+        practice: {
+          hintExposures: [
+            {
+              hintId: focusHintId,
+              level: "focus",
+              validSubmissionCountAtOpen: 0,
+            },
+          ],
+        },
+      },
+      revealedHint: { hintId: focusHintId, level: "focus" },
+    });
+  });
+
+  it("records no exposure when focus reveal fails", async () => {
+    const initial = createShortNumericAnswerState();
+    const submissionsBefore = initial.practice.submissions;
+
+    await expect(
+      requestFocusHintReveal(
+        () => initial,
+        { hintId: focusHintId, level: "focus" },
+        async () => {
+          throw new Error("Reveal unavailable");
+        },
+      ),
+    ).rejects.toThrow("Reveal unavailable");
+    expect(initial.practice.hintExposures).toEqual([]);
+    expect(initial.practice.submissions).toBe(submissionsBefore);
+    expect(initial.status).toBe("typing");
+  });
+
+  it("allows a failed reveal to be retried and clears its error on retry", async () => {
+    let current = createShortNumericAnswerState();
+    let errorVisible = false;
+    let pendingHintId: string | null = null;
+    const gate = { current: false };
+    const runReveal = (
+      requestReveal: () => ReturnType<typeof requestFocusHintReveal>,
+    ) =>
+      runPracticeHintReveal({
+        gate,
+        hintId: focusHintId,
+        requestReveal,
+        onStart: (hintId) => {
+          errorVisible = false;
+          pendingHintId = hintId;
+        },
+        onSuccess: (result) => {
+          errorVisible = false;
+          current = result.answerState;
+        },
+        onError: () => {
+          errorVisible = true;
+        },
+        onSettled: () => {
+          pendingHintId = null;
+        },
+      });
+
+    await runReveal(() =>
+      requestFocusHintReveal(
+        () => current,
+        { hintId: focusHintId, level: "focus" },
+        async () => {
+          throw new Error("Reveal unavailable");
+        },
+      ),
+    );
+
+    expect(errorVisible).toBe(true);
+    expect(pendingHintId).toBeNull();
+    expect(gate.current).toBe(false);
+    expect(current.practice.hintExposures).toEqual([]);
+    expect(current.practice.submissions).toEqual([]);
+
+    const retry = runReveal(() =>
+      requestFocusHintReveal(
+        () => current,
+        { hintId: focusHintId, level: "focus" },
+        async () => ({
+          hintId: focusHintId,
+          level: "focus",
+          text: "focus text",
+        }),
+      ),
+    );
+
+    expect(errorVisible).toBe(false);
+    expect(pendingHintId).toBe(focusHintId);
+
+    await retry;
+
+    expect(errorVisible).toBe(false);
+    expect(pendingHintId).toBeNull();
+    expect(current.practice.hintExposures).toEqual([
+      {
+        hintId: focusHintId,
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
+  });
+
+  it("does not request or duplicate an already exposed focus hint", async () => {
+    let current = createShortNumericAnswerState();
+    const firstReveal = vi.fn(async () => ({
+      hintId: focusHintId,
+      level: "focus" as const,
+      text: "focus text",
+    }));
+    const first = await requestFocusHintReveal(
+      () => current,
+      { hintId: focusHintId, level: "focus" },
+      firstReveal,
+    );
+    current = first!.answerState;
+    const duplicateReveal = vi.fn(async () => ({
+      hintId: focusHintId,
+      level: "focus" as const,
+      text: "focus text",
+    }));
+
+    await expect(
+      requestFocusHintReveal(
+        () => current,
+        { hintId: focusHintId, level: "focus" },
+        duplicateReveal,
+      ),
+    ).resolves.toBeNull();
+    expect(current.practice.hintExposures).toHaveLength(1);
+    expect(firstReveal).toHaveBeenCalledOnce();
+    expect(duplicateReveal).not.toHaveBeenCalled();
+  });
+
+  it("keeps strategy ordering and counts from current Practice history", async () => {
+    let current = withAnswerResult(
+      createShortNumericAnswerState(),
+      "incorrect",
+      "16",
+    );
+    const strategyReveal = vi.fn(async () => ({
+      hintId: strategyHintId,
+      level: "strategy" as const,
+      text: "strategy text",
+    }));
+
+    await expect(
+      requestStrategyHintReveal(
+        () => current,
+        focusHintId,
+        { hintId: strategyHintId, level: "strategy" },
+        strategyReveal,
+      ),
+    ).resolves.toBeNull();
+    expect(strategyReveal).not.toHaveBeenCalled();
+
+    current = openFocusHint(current, focusHintId);
+    const strategy = await requestStrategyHintReveal(
+      () => current,
+      focusHintId,
+      { hintId: strategyHintId, level: "strategy" },
+      strategyReveal,
+    );
+
+    expect(strategy?.answerState.practice.hintExposures).toEqual([
+      {
+        hintId: focusHintId,
+        level: "focus",
+        validSubmissionCountAtOpen: 1,
+      },
+      {
+        hintId: strategyHintId,
+        level: "strategy",
+        validSubmissionCountAtOpen: 1,
+      },
+    ]);
+    expect(strategy?.answerState.practice.submissions).toBe(
+      current.practice.submissions,
+    );
+  });
+
+  it("discards a successful reveal if correctness changes before it returns", async () => {
+    let current = createShortNumericAnswerState();
+    const request = requestFocusHintReveal(
+      () => current,
+      { hintId: focusHintId, level: "focus" },
+      async () => {
+        current = withAnswerResult(current, "correct", "17");
+        return {
+          hintId: focusHintId,
+          level: "focus",
+          text: "focus text",
+        };
+      },
+    );
+
+    await expect(request).resolves.toBeNull();
+    expect(current.practice.hintExposures).toEqual([]);
+    expect(current.practice.submissions).toEqual([
+      { answer: "17", outcome: "correct" },
+    ]);
   });
 });

@@ -14,4 +14,32 @@
     font-size: 1.125rem;
     line-height: 1.6;
   }
+
+  .primary {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--ot-space-24);
+    padding: var(--ot-space-12) var(--ot-space-20);
+    color: var(--ot-color-text-on-primary);
+    background: var(--ot-color-primary);
+    border-radius: var(--ot-radius-12);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .primary:focus-visible {
+    outline: var(--ot-border-width-strong) solid transparent;
+    outline-offset: 2px;
+    box-shadow: var(--ot-shadow-focus);
+  }
+}
+
+@media (forced-colors: active) {
+  .primary:focus-visible {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
 }

@@ -4,9 +4,45 @@ import {
   recordHintExposure,
   type PracticeSummary,
 } from "../application/practice-state";
+import type {
+  LearnerSafeFocusHintDescriptor,
+  LearnerSafeHintDescriptor,
+  LearnerSafeStrategyHintDescriptor,
+  RevealedPracticeHint,
+} from "../application/practice-problem-presentation";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
 
 type ConfirmDiscard = () => boolean;
+type GetAnswerState = () => ShortNumericAnswerState;
+type RevealHint = () => Promise<RevealedPracticeHint>;
+type HintRevealGate = { current: boolean };
+
+export type SuccessfulHintReveal = Readonly<{
+  answerState: ShortNumericAnswerState;
+  revealedHint: RevealedPracticeHint;
+}>;
+
+type RunHintRevealOptions = Readonly<{
+  gate: HintRevealGate;
+  hintId: string;
+  requestReveal: () => Promise<SuccessfulHintReveal | null>;
+  onStart: (hintId: string) => void;
+  onSuccess: (result: SuccessfulHintReveal) => void;
+  onError: () => void;
+  onSettled: () => void;
+}>;
+
+function assertMatchingReveal(
+  descriptor: LearnerSafeHintDescriptor,
+  revealedHint: RevealedPracticeHint,
+): void {
+  if (
+    descriptor.hintId !== revealedHint.hintId ||
+    descriptor.level !== revealedHint.level
+  ) {
+    throw new Error("Revealed hint does not match the requested hint.");
+  }
+}
 
 export function isFocusHintAvailable(
   answerState: ShortNumericAnswerState,
@@ -38,6 +74,28 @@ export function openFocusHint(
       level: "focus",
     }),
   };
+}
+
+export async function requestFocusHintReveal(
+  getAnswerState: GetAnswerState,
+  descriptor: LearnerSafeFocusHintDescriptor,
+  revealHint: RevealHint,
+): Promise<SuccessfulHintReveal | null> {
+  if (!isFocusHintAvailable(getAnswerState(), descriptor.hintId)) {
+    return null;
+  }
+
+  const revealedHint = await revealHint();
+  assertMatchingReveal(descriptor, revealedHint);
+
+  const currentState = getAnswerState();
+  const answerState = openFocusHint(currentState, descriptor.hintId);
+
+  if (answerState === currentState) {
+    return null;
+  }
+
+  return { answerState, revealedHint };
 }
 
 export function isStrategyHintAvailable(
@@ -73,6 +131,65 @@ export function openStrategyHint(
       level: "strategy",
     }),
   };
+}
+
+export async function requestStrategyHintReveal(
+  getAnswerState: GetAnswerState,
+  focusHintId: string,
+  descriptor: LearnerSafeStrategyHintDescriptor,
+  revealHint: RevealHint,
+): Promise<SuccessfulHintReveal | null> {
+  if (
+    !isStrategyHintAvailable(getAnswerState(), focusHintId, descriptor.hintId)
+  ) {
+    return null;
+  }
+
+  const revealedHint = await revealHint();
+  assertMatchingReveal(descriptor, revealedHint);
+
+  const currentState = getAnswerState();
+  const answerState = openStrategyHint(
+    currentState,
+    focusHintId,
+    descriptor.hintId,
+  );
+
+  if (answerState === currentState) {
+    return null;
+  }
+
+  return { answerState, revealedHint };
+}
+
+export async function runPracticeHintReveal({
+  gate,
+  hintId,
+  requestReveal,
+  onStart,
+  onSuccess,
+  onError,
+  onSettled,
+}: RunHintRevealOptions): Promise<void> {
+  if (gate.current) {
+    return;
+  }
+
+  gate.current = true;
+  onStart(hintId);
+
+  try {
+    const result = await requestReveal();
+
+    if (result) {
+      onSuccess(result);
+    }
+  } catch {
+    onError();
+  } finally {
+    gate.current = false;
+    onSettled();
+  }
 }
 
 export function requestPracticeFinish(
