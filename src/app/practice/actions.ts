@@ -1,17 +1,47 @@
 "use server";
 
+import type { RevealedPracticeHint } from "../../modules/practice/application/practice-problem-presentation";
 import {
   checkNonnegativeIntegerAnswer,
   type NumericAnswerResult,
-} from "@/modules/practice/domain/numeric-answer";
-import { getPracticeExpectedAnswer } from "@/modules/practice/server/practice-problem";
+} from "../../modules/practice/domain/numeric-answer";
+import {
+  getProblemDefinition,
+  getRevealedPracticeHint,
+} from "../../modules/practice/server/problem-catalog";
+
+function requireIdentifier(value: unknown, fieldName: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${fieldName}.`);
+  }
+
+  return value;
+}
 
 export async function submitPracticeAnswer(
-  input: unknown,
+  problemId: unknown,
+  rawAnswer: unknown,
 ): Promise<NumericAnswerResult> {
-  if (typeof input !== "string") {
+  const problem = getProblemDefinition(
+    requireIdentifier(problemId, "practice problem ID"),
+  );
+
+  if (typeof rawAnswer !== "string") {
     return { status: "invalid" };
   }
 
-  return checkNonnegativeIntegerAnswer(input, getPracticeExpectedAnswer());
+  return checkNonnegativeIntegerAnswer(
+    rawAnswer,
+    problem.assessment.expectedAnswer,
+  );
+}
+
+export async function revealPracticeHint(
+  problemId: unknown,
+  hintId: unknown,
+): Promise<RevealedPracticeHint> {
+  return getRevealedPracticeHint(
+    requireIdentifier(problemId, "practice problem ID"),
+    requireIdentifier(hintId, "hint ID"),
+  );
 }

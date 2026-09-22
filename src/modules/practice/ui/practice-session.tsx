@@ -2,15 +2,24 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { submitPracticeAnswer } from "@/app/practice/actions";
+import {
+  revealPracticeHint,
+  submitPracticeAnswer,
+} from "@/app/practice/actions";
 
+import type {
+  LearnerSafePracticeProblem,
+  RevealedPracticeHint,
+} from "../application/practice-problem-presentation";
 import type { PracticeSummary } from "../application/practice-state";
 import {
   isFocusHintAvailable,
   isStrategyHintAvailable,
-  openFocusHint,
-  openStrategyHint,
+  requestFocusHintReveal,
   requestPracticeFinish,
+  requestStrategyHintReveal,
+  runPracticeHintReveal,
+  type SuccessfulHintReveal,
 } from "./practice-session-state";
 import styles from "./practice-session.module.scss";
 import { SessionSummary } from "./session-summary";
@@ -24,50 +33,61 @@ import { ShortNumericAnswer } from "./short-numeric-answer";
 import { TaskShell } from "./task-shell";
 
 type PracticeSessionProps = Readonly<{
-  problemTitle: string;
-  focusHint: Readonly<{
-    id: string;
-    level: "focus";
-    text: string;
-  }>;
-  strategyHint: Readonly<{
-    id: string;
-    level: "strategy";
-    text: string;
-  }>;
+  problem: LearnerSafePracticeProblem;
   header: ReactNode;
   taskContent: ReactNode;
 }>;
 
 const DIRTY_FINISH_MESSAGE =
   "Ответ ещё не отправлен. Завершить тренировку и удалить его?";
+const HINT_REVEAL_ERROR_MESSAGE =
+  "Не удалось открыть подсказку. Попробуй ещё раз.";
+
+export function PracticeHintRevealError() {
+  return (
+    <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+      {HINT_REVEAL_ERROR_MESSAGE}
+    </p>
+  );
+}
 
 export function PracticeSession({
-  problemTitle,
-  focusHint,
-  strategyHint,
+  problem,
   header,
   taskContent,
 }: PracticeSessionProps) {
+  const [focusHint, strategyHint] = problem.hints;
   const [answerState, setAnswerState] = useState(createShortNumericAnswerState);
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
+  const [revealedHints, setRevealedHints] = useState<
+    readonly RevealedPracticeHint[]
+  >([]);
+  const [pendingHintId, setPendingHintId] = useState<string | null>(null);
+  const [hintRevealFailed, setHintRevealFailed] = useState(false);
   const answerStateRef = useRef(answerState);
   const submissionGate = useRef(false);
+  const hintRevealGate = useRef(false);
   const focusHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
+  const revealedFocusHint = revealedHints.find(
+    (hint) => hint.hintId === focusHint.hintId,
+  );
+  const revealedStrategyHint = revealedHints.find(
+    (hint) => hint.hintId === strategyHint.hintId,
+  );
   const focusHintExposure = answerState.practice.hintExposures.find(
-    (exposure) => exposure.hintId === focusHint.id,
+    (exposure) => exposure.hintId === focusHint.hintId,
   );
   const strategyHintExposure = answerState.practice.hintExposures.find(
-    (exposure) => exposure.hintId === strategyHint.id,
+    (exposure) => exposure.hintId === strategyHint.hintId,
   );
-  const canOpenFocusHint = isFocusHintAvailable(answerState, focusHint.id);
+  const canOpenFocusHint = isFocusHintAvailable(answerState, focusHint.hintId);
   const canOpenStrategyHint = isStrategyHintAvailable(
     answerState,
-    focusHint.id,
-    strategyHint.id,
+    focusHint.hintId,
+    strategyHint.hintId,
   );
 
   useEffect(() => {
@@ -77,16 +97,16 @@ export function PracticeSession({
   }, [summary]);
 
   useEffect(() => {
-    if (focusHintExposure) {
+    if (revealedFocusHint && focusHintExposure) {
       focusHintHeadingRef.current?.focus();
     }
-  }, [focusHintExposure]);
+  }, [focusHintExposure, revealedFocusHint]);
 
   useEffect(() => {
-    if (strategyHintExposure) {
+    if (revealedStrategyHint && strategyHintExposure) {
       strategyHintHeadingRef.current?.focus();
     }
-  }, [strategyHintExposure]);
+  }, [revealedStrategyHint, strategyHintExposure]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
     answerStateRef.current = nextState;
@@ -103,7 +123,7 @@ export function PracticeSession({
     void runShortNumericAnswerSubmission({
       state: answerStateRef.current,
       gate: submissionGate,
-      submit: submitPracticeAnswer,
+      submit: (rawAnswer) => submitPracticeAnswer(problem.problemId, rawAnswer),
       onPending: updateAnswerState,
     }).then((nextState) => {
       if (nextState) {
@@ -122,13 +142,56 @@ export function PracticeSession({
     }
   }
 
+  function storeSuccessfulHintReveal(result: SuccessfulHintReveal) {
+    setRevealedHints((current) =>
+      current.some((hint) => hint.hintId === result.revealedHint.hintId)
+        ? current
+        : [...current, result.revealedHint],
+    );
+    updateAnswerState(result.answerState);
+  }
+
+  async function runHintReveal(
+    hintId: string,
+    requestReveal: () => Promise<
+      Awaited<ReturnType<typeof requestFocusHintReveal>>
+    >,
+  ) {
+    await runPracticeHintReveal({
+      gate: hintRevealGate,
+      hintId,
+      requestReveal,
+      onStart: (pendingId) => {
+        setHintRevealFailed(false);
+        setPendingHintId(pendingId);
+      },
+      onSuccess: (result) => {
+        setHintRevealFailed(false);
+        storeSuccessfulHintReveal(result);
+      },
+      onError: () => setHintRevealFailed(true),
+      onSettled: () => setPendingHintId(null),
+    });
+  }
+
   function handleFocusHintOpen() {
-    updateAnswerState(openFocusHint(answerStateRef.current, focusHint.id));
+    void runHintReveal(focusHint.hintId, () =>
+      requestFocusHintReveal(
+        () => answerStateRef.current,
+        focusHint,
+        () => revealPracticeHint(problem.problemId, focusHint.hintId),
+      ),
+    );
   }
 
   function handleStrategyHintOpen() {
-    updateAnswerState(
-      openStrategyHint(answerStateRef.current, focusHint.id, strategyHint.id),
+    void runHintReveal(strategyHint.hintId, () =>
+      requestStrategyHintReveal(
+        () => answerStateRef.current,
+        focusHint.hintId,
+        strategyHint,
+        () => revealPracticeHint(problem.problemId, strategyHint.hintId),
+      ),
     );
   }
 
@@ -136,7 +199,7 @@ export function PracticeSession({
     return (
       <SessionSummary
         headingRef={summaryHeadingRef}
-        problemTitle={problemTitle}
+        problemTitle={problem.title}
         summary={summary}
       />
     );
@@ -152,16 +215,19 @@ export function PracticeSession({
             state={answerState}
           />
 
-          {focusHintExposure ? (
+          {hintRevealFailed ? <PracticeHintRevealError /> : null}
+
+          {revealedFocusHint ? (
             <aside className={styles.hint}>
               <h2 ref={focusHintHeadingRef} tabIndex={-1}>
                 Подсказка 1
               </h2>
-              <p>{focusHint.text}</p>
+              <p>{revealedFocusHint.text}</p>
             </aside>
           ) : canOpenFocusHint ? (
             <button
               className={styles["hint-action"]}
+              disabled={pendingHintId === focusHint.hintId}
               onClick={handleFocusHintOpen}
               type="button"
             >
@@ -172,6 +238,7 @@ export function PracticeSession({
           {canOpenStrategyHint ? (
             <button
               className={styles["hint-action"]}
+              disabled={pendingHintId === strategyHint.hintId}
               onClick={handleStrategyHintOpen}
               type="button"
             >
@@ -179,12 +246,12 @@ export function PracticeSession({
             </button>
           ) : null}
 
-          {strategyHintExposure ? (
+          {revealedStrategyHint ? (
             <aside className={styles.hint}>
               <h2 ref={strategyHintHeadingRef} tabIndex={-1}>
                 Подсказка 2
               </h2>
-              <p>{strategyHint.text}</p>
+              <p>{revealedStrategyHint.text}</p>
             </aside>
           ) : null}
         </div>
@@ -197,7 +264,7 @@ export function PracticeSession({
       finishAction={
         <button
           className={styles.finish}
-          disabled={isPending}
+          disabled={isPending || pendingHintId !== null}
           onClick={handleFinish}
           type="button"
         >
