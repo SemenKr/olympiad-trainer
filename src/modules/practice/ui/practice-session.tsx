@@ -4,24 +4,30 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   revealPracticeHint,
+  revealPracticeSolution,
   submitPracticeAnswer,
 } from "@/app/practice/actions";
 
 import type {
   LearnerSafePracticeProblem,
   RevealedPracticeHint,
+  RevealedPracticeSolution,
 } from "../application/practice-problem-presentation";
 import type { PracticeSummary } from "../application/practice-state";
 import {
   isFocusHintAvailable,
   isNextStepHintAvailable,
+  isSolutionAvailable,
   isStrategyHintAvailable,
   requestFocusHintReveal,
   requestNextStepHintReveal,
   requestPracticeFinish,
+  requestSolutionReveal,
   requestStrategyHintReveal,
   runPracticeHintReveal,
+  runPracticeSolutionReveal,
   type SuccessfulHintReveal,
+  type SuccessfulSolutionReveal,
 } from "./practice-session-state";
 import styles from "./practice-session.module.scss";
 import { SessionSummary } from "./session-summary";
@@ -44,11 +50,21 @@ const DIRTY_FINISH_MESSAGE =
   "Ответ ещё не отправлен. Завершить тренировку и удалить его?";
 const HINT_REVEAL_ERROR_MESSAGE =
   "Не удалось открыть подсказку. Попробуй ещё раз.";
+const SOLUTION_REVEAL_ERROR_MESSAGE =
+  "Не удалось открыть решение. Попробуй ещё раз.";
 
 export function PracticeHintRevealError() {
   return (
     <p aria-atomic="true" className={styles["hint-error"]} role="alert">
       {HINT_REVEAL_ERROR_MESSAGE}
+    </p>
+  );
+}
+
+export function PracticeSolutionRevealError() {
+  return (
+    <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+      {SOLUTION_REVEAL_ERROR_MESSAGE}
     </p>
   );
 }
@@ -64,14 +80,20 @@ export function PracticeSession({
   const [revealedHints, setRevealedHints] = useState<
     readonly RevealedPracticeHint[]
   >([]);
+  const [revealedSolution, setRevealedSolution] =
+    useState<RevealedPracticeSolution | null>(null);
   const [pendingHintId, setPendingHintId] = useState<string | null>(null);
+  const [isSolutionRevealPending, setIsSolutionRevealPending] = useState(false);
   const [hintRevealFailed, setHintRevealFailed] = useState(false);
+  const [solutionRevealFailed, setSolutionRevealFailed] = useState(false);
   const answerStateRef = useRef(answerState);
   const submissionGate = useRef(false);
   const hintRevealGate = useRef(false);
+  const solutionRevealGate = useRef(false);
   const focusHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const nextStepHintHeadingRef = useRef<HTMLHeadingElement>(null);
+  const solutionHeadingRef = useRef<HTMLHeadingElement>(null);
   const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
   const revealedFocusHint = revealedHints.find(
@@ -103,6 +125,12 @@ export function PracticeSession({
     strategyHint.hintId,
     nextStepHint.hintId,
   );
+  const canOpenSolution = isSolutionAvailable(
+    answerState,
+    focusHint.hintId,
+    strategyHint.hintId,
+    nextStepHint.hintId,
+  );
 
   useEffect(() => {
     if (summary) {
@@ -127,6 +155,12 @@ export function PracticeSession({
       nextStepHintHeadingRef.current?.focus();
     }
   }, [revealedNextStepHint, nextStepHintExposure]);
+
+  useEffect(() => {
+    if (revealedSolution && answerState.practice.solutionExposure) {
+      solutionHeadingRef.current?.focus();
+    }
+  }, [answerState.practice.solutionExposure, revealedSolution]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
     answerStateRef.current = nextState;
@@ -153,13 +187,20 @@ export function PracticeSession({
   }
 
   function handleFinish() {
-    const nextSummary = requestPracticeFinish(answerStateRef.current, () =>
-      window.confirm(DIRTY_FINISH_MESSAGE),
+    const nextSummary = requestPracticeFinish(
+      answerStateRef.current,
+      () => window.confirm(DIRTY_FINISH_MESSAGE),
+      hintRevealGate.current || solutionRevealGate.current,
     );
 
     if (nextSummary) {
       setSummary(nextSummary);
     }
+  }
+
+  function storeSuccessfulSolutionReveal(result: SuccessfulSolutionReveal) {
+    setRevealedSolution(result.revealedSolution);
+    updateAnswerState(result.answerState);
   }
 
   function storeSuccessfulHintReveal(result: SuccessfulHintReveal) {
@@ -224,6 +265,35 @@ export function PracticeSession({
         () => revealPracticeHint(problem.problemId, nextStepHint.hintId),
       ),
     );
+  }
+
+  function handleSolutionOpen() {
+    void runPracticeSolutionReveal({
+      gate: solutionRevealGate,
+      requestReveal: () =>
+        requestSolutionReveal(
+          () => answerStateRef.current,
+          focusHint.hintId,
+          strategyHint.hintId,
+          nextStepHint.hintId,
+          problem.solution,
+          () =>
+            revealPracticeSolution(
+              problem.problemId,
+              problem.solution.solutionId,
+            ),
+        ),
+      onStart: () => {
+        setSolutionRevealFailed(false);
+        setIsSolutionRevealPending(true);
+      },
+      onSuccess: (result) => {
+        setSolutionRevealFailed(false);
+        storeSuccessfulSolutionReveal(result);
+      },
+      onError: () => setSolutionRevealFailed(true),
+      onSettled: () => setIsSolutionRevealPending(false),
+    });
   }
 
   if (summary) {
@@ -305,6 +375,29 @@ export function PracticeSession({
               <p>{revealedNextStepHint.text}</p>
             </aside>
           ) : null}
+
+          {solutionRevealFailed ? <PracticeSolutionRevealError /> : null}
+
+          {canOpenSolution ? (
+            <button
+              aria-busy={isSolutionRevealPending}
+              className={styles["hint-action"]}
+              disabled={isSolutionRevealPending}
+              onClick={handleSolutionOpen}
+              type="button"
+            >
+              Показать решение
+            </button>
+          ) : null}
+
+          {revealedSolution ? (
+            <section className={styles.solution}>
+              <h2 ref={solutionHeadingRef} tabIndex={-1}>
+                Решение открыто
+              </h2>
+              <p>{revealedSolution.text}</p>
+            </section>
+          ) : null}
         </div>
       }
       backAction={
@@ -315,7 +408,9 @@ export function PracticeSession({
       finishAction={
         <button
           className={styles.finish}
-          disabled={isPending || pendingHintId !== null}
+          disabled={
+            isPending || pendingHintId !== null || isSolutionRevealPending
+          }
           onClick={handleFinish}
           type="button"
         >

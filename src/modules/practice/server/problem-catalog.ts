@@ -3,6 +3,7 @@ import "server-only";
 import type {
   LearnerSafePracticeProblem,
   RevealedPracticeHint,
+  RevealedPracticeSolution,
 } from "../application/practice-problem-presentation";
 
 type SourceReference = Readonly<{
@@ -43,6 +44,12 @@ type NextStepHintDefinition = Readonly<{
   text: string;
 }>;
 
+type TrainingSolutionDefinition = Readonly<{
+  id: string;
+  kind: "training-adaptation";
+  text: string;
+}>;
+
 export type ProblemDefinition = Readonly<{
   id: string;
   grade: 5;
@@ -59,6 +66,7 @@ export type ProblemDefinition = Readonly<{
     StrategyHintDefinition,
     NextStepHintDefinition,
   ];
+  solution: TrainingSolutionDefinition;
 }>;
 
 export const CURRENT_PRACTICE_PROBLEM_ID = "coinciding-seats";
@@ -112,6 +120,11 @@ const coincidingSeatsProblem = {
       text: "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.",
     },
   ],
+  solution: {
+    id: "coinciding-seats-full-solution",
+    kind: "training-adaptation",
+    text: "Подходят места, номер которых делится и на 2, и на 3. Такие места идут через 6: 6, 12, 18, …, 102. Число 102 равно 6 × 17, значит, совпадающих мест 17. Ответ: 17.",
+  },
 } as const satisfies ProblemDefinition;
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
@@ -147,6 +160,7 @@ export function getLearnerSafePracticeProblem(
       { hintId: strategyHint.id, level: strategyHint.level },
       { hintId: nextStepHint.id, level: nextStepHint.level },
     ],
+    solution: { solutionId: problem.solution.id },
   };
 }
 
@@ -162,4 +176,17 @@ export function getRevealedPracticeHint(
   }
 
   return { hintId: hint.id, level: hint.level, text: hint.text };
+}
+
+export function getRevealedPracticeSolution(
+  problemId: string,
+  solutionId: string,
+): RevealedPracticeSolution {
+  const problem = getProblemDefinition(problemId);
+
+  if (problem.solution.id !== solutionId) {
+    throw new Error(`Unknown solution for practice problem: ${solutionId}`);
+  }
+
+  return { solutionId: problem.solution.id, text: problem.solution.text };
 }

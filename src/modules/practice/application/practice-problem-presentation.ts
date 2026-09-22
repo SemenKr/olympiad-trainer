@@ -20,6 +20,10 @@ export type LearnerSafeHintDescriptor =
   | LearnerSafeStrategyHintDescriptor
   | LearnerSafeNextStepHintDescriptor;
 
+export type LearnerSafeSolutionDescriptor = Readonly<{
+  solutionId: string;
+}>;
+
 export type LearnerSafePracticeProblem = Readonly<{
   problemId: string;
   title: string;
@@ -29,10 +33,16 @@ export type LearnerSafePracticeProblem = Readonly<{
     LearnerSafeStrategyHintDescriptor,
     LearnerSafeNextStepHintDescriptor,
   ];
+  solution: LearnerSafeSolutionDescriptor;
 }>;
 
 export type RevealedPracticeHint = Readonly<{
   hintId: string;
   level: PracticeHintLevel;
+  text: string;
+}>;
+
+export type RevealedPracticeSolution = Readonly<{
+  solutionId: string;
   text: string;
 }>;
