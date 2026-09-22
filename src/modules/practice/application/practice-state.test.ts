@@ -132,7 +132,7 @@ describe("practice state", () => {
     expect(reopened).toBe(opened);
   });
 
-  it("records focus and strategy as separate support facts", () => {
+  it("records all three hint levels as separate support facts", () => {
     const focusOpened = recordHintExposure(startPractice(), {
       hintId: "focus-simultaneous-rules",
       level: "focus",
@@ -141,8 +141,12 @@ describe("practice state", () => {
       hintId: "strategy-repeat-interval",
       level: "strategy",
     });
+    const nextStepOpened = recordHintExposure(strategyOpened, {
+      hintId: "next-step-list-common-seats",
+      level: "next-step",
+    });
 
-    expect(strategyOpened.hintExposures).toEqual([
+    expect(nextStepOpened.hintExposures).toEqual([
       {
         hintId: "focus-simultaneous-rules",
         level: "focus",
@@ -153,8 +157,13 @@ describe("practice state", () => {
         level: "strategy",
         validSubmissionCountAtOpen: 0,
       },
+      {
+        hintId: "next-step-list-common-seats",
+        level: "next-step",
+        validSubmissionCountAtOpen: 0,
+      },
     ]);
-    expect(strategyOpened.submissions).toBe(focusOpened.submissions);
+    expect(nextStepOpened.submissions).toBe(focusOpened.submissions);
   });
 
   it("does not mutate input state when recording or finishing", () => {

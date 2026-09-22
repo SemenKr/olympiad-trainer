@@ -1,4 +1,4 @@
-export type PracticeHintLevel = "focus" | "strategy";
+export type PracticeHintLevel = "focus" | "strategy" | "next-step";
 
 export type LearnerSafeFocusHintDescriptor = Readonly<{
   hintId: string;
@@ -10,8 +10,15 @@ export type LearnerSafeStrategyHintDescriptor = Readonly<{
   level: "strategy";
 }>;
 
+export type LearnerSafeNextStepHintDescriptor = Readonly<{
+  hintId: string;
+  level: "next-step";
+}>;
+
 export type LearnerSafeHintDescriptor =
-  LearnerSafeFocusHintDescriptor | LearnerSafeStrategyHintDescriptor;
+  | LearnerSafeFocusHintDescriptor
+  | LearnerSafeStrategyHintDescriptor
+  | LearnerSafeNextStepHintDescriptor;
 
 export type LearnerSafePracticeProblem = Readonly<{
   problemId: string;
@@ -20,6 +27,7 @@ export type LearnerSafePracticeProblem = Readonly<{
   hints: readonly [
     LearnerSafeFocusHintDescriptor,
     LearnerSafeStrategyHintDescriptor,
+    LearnerSafeNextStepHintDescriptor,
   ];
 }>;
 

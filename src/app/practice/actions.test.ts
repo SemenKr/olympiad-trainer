@@ -67,6 +67,19 @@ describe("practice hint reveal server boundary", () => {
     });
   });
 
+  it("reveals the exact next-step hint on explicit request", async () => {
+    await expect(
+      revealPracticeHint(
+        problemId,
+        "coinciding-seats-next-step-list-common-seats",
+      ),
+    ).resolves.toEqual({
+      hintId: "coinciding-seats-next-step-list-common-seats",
+      level: "next-step",
+      text: "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.",
+    });
+  });
+
   it("fails safely for unknown problem and hint IDs", async () => {
     await expect(
       revealPracticeHint("missing-problem", "missing-hint"),

@@ -7,6 +7,7 @@ import {
 import type {
   LearnerSafeFocusHintDescriptor,
   LearnerSafeHintDescriptor,
+  LearnerSafeNextStepHintDescriptor,
   LearnerSafeStrategyHintDescriptor,
   RevealedPracticeHint,
 } from "../application/practice-problem-presentation";
@@ -152,6 +153,74 @@ export async function requestStrategyHintReveal(
   const answerState = openStrategyHint(
     currentState,
     focusHintId,
+    descriptor.hintId,
+  );
+
+  if (answerState === currentState) {
+    return null;
+  }
+
+  return { answerState, revealedHint };
+}
+
+export function isNextStepHintAvailable(
+  answerState: ShortNumericAnswerState,
+  strategyHintId: string,
+  nextStepHintId: string,
+): boolean {
+  const hintExposures = answerState.practice.hintExposures;
+
+  return (
+    answerState.status !== "loading" &&
+    hintExposures.some((exposure) => exposure.hintId === strategyHintId) &&
+    !hintExposures.some((exposure) => exposure.hintId === nextStepHintId) &&
+    !answerState.practice.submissions.some(
+      (submission) => submission.outcome === "correct",
+    )
+  );
+}
+
+export function openNextStepHint(
+  answerState: ShortNumericAnswerState,
+  strategyHintId: string,
+  nextStepHintId: string,
+): ShortNumericAnswerState {
+  if (!isNextStepHintAvailable(answerState, strategyHintId, nextStepHintId)) {
+    return answerState;
+  }
+
+  return {
+    ...answerState,
+    practice: recordHintExposure(answerState.practice, {
+      hintId: nextStepHintId,
+      level: "next-step",
+    }),
+  };
+}
+
+export async function requestNextStepHintReveal(
+  getAnswerState: GetAnswerState,
+  strategyHintId: string,
+  descriptor: LearnerSafeNextStepHintDescriptor,
+  revealHint: RevealHint,
+): Promise<SuccessfulHintReveal | null> {
+  if (
+    !isNextStepHintAvailable(
+      getAnswerState(),
+      strategyHintId,
+      descriptor.hintId,
+    )
+  ) {
+    return null;
+  }
+
+  const revealedHint = await revealHint();
+  assertMatchingReveal(descriptor, revealedHint);
+
+  const currentState = getAnswerState();
+  const answerState = openNextStepHint(
+    currentState,
+    strategyHintId,
     descriptor.hintId,
   );
 

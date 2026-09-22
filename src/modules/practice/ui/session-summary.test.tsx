@@ -94,7 +94,35 @@ describe("SessionSummary", () => {
     expect(markup).not.toContain("strategy");
   });
 
-  it("keeps incorrect-only without a task outcome after both hints", () => {
+  it("keeps the same supported-success presentation after all three hints", () => {
+    const markup = renderSummary("eventually-correct", [
+      {
+        hintId: "coinciding-seats-focus-simultaneous-rules",
+        level: "focus",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "coinciding-seats-strategy-repeat-interval",
+        level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "coinciding-seats-next-step-list-common-seats",
+        level: "next-step",
+        validSubmissionCountAtOpen: 0,
+      },
+    ]);
+
+    expect(markup).toContain(
+      "За эту тренировку ты решил одну задачу с подсказкой.",
+    );
+    expect(markup).toContain("Получилось с подсказкой");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Подсказка помогла найти ход.");
+    expect(markup).not.toContain("next-step");
+  });
+
+  it("keeps incorrect-only without a task outcome after all hints", () => {
     const markup = renderSummary("incorrect-only", [
       {
         hintId: "coinciding-seats-focus-simultaneous-rules",
@@ -104,6 +132,11 @@ describe("SessionSummary", () => {
       {
         hintId: "coinciding-seats-strategy-repeat-interval",
         level: "strategy",
+        validSubmissionCountAtOpen: 0,
+      },
+      {
+        hintId: "coinciding-seats-next-step-list-common-seats",
+        level: "next-step",
         validSubmissionCountAtOpen: 0,
       },
     ]);

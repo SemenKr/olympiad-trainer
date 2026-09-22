@@ -37,6 +37,12 @@ type StrategyHintDefinition = Readonly<{
   text: string;
 }>;
 
+type NextStepHintDefinition = Readonly<{
+  id: string;
+  level: "next-step";
+  text: string;
+}>;
+
 export type ProblemDefinition = Readonly<{
   id: string;
   grade: 5;
@@ -48,7 +54,11 @@ export type ProblemDefinition = Readonly<{
     kind: "nonnegative-integer";
     expectedAnswer: string;
   }>;
-  hints: readonly [FocusHintDefinition, StrategyHintDefinition];
+  hints: readonly [
+    FocusHintDefinition,
+    StrategyHintDefinition,
+    NextStepHintDefinition,
+  ];
 }>;
 
 export const CURRENT_PRACTICE_PROBLEM_ID = "coinciding-seats";
@@ -96,6 +106,11 @@ const coincidingSeatsProblem = {
       level: "strategy",
       text: "Подумай, через сколько мест отметки по обоим правилам снова совпадут.",
     },
+    {
+      id: "coinciding-seats-next-step-list-common-seats",
+      level: "next-step",
+      text: "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.",
+    },
   ],
 } as const satisfies ProblemDefinition;
 
@@ -121,7 +136,7 @@ export function getLearnerSafePracticeProblem(
   problemId: string,
 ): LearnerSafePracticeProblem {
   const problem = getProblemDefinition(problemId);
-  const [focusHint, strategyHint] = problem.hints;
+  const [focusHint, strategyHint, nextStepHint] = problem.hints;
 
   return {
     problemId: problem.id,
@@ -130,6 +145,7 @@ export function getLearnerSafePracticeProblem(
     hints: [
       { hintId: focusHint.id, level: focusHint.level },
       { hintId: strategyHint.id, level: strategyHint.level },
+      { hintId: nextStepHint.id, level: nextStepHint.level },
     ],
   };
 }
