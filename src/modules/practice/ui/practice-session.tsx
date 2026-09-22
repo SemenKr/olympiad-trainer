@@ -14,8 +14,10 @@ import type {
 import type { PracticeSummary } from "../application/practice-state";
 import {
   isFocusHintAvailable,
+  isNextStepHintAvailable,
   isStrategyHintAvailable,
   requestFocusHintReveal,
+  requestNextStepHintReveal,
   requestPracticeFinish,
   requestStrategyHintReveal,
   runPracticeHintReveal,
@@ -56,7 +58,7 @@ export function PracticeSession({
   header,
   taskContent,
 }: PracticeSessionProps) {
-  const [focusHint, strategyHint] = problem.hints;
+  const [focusHint, strategyHint, nextStepHint] = problem.hints;
   const [answerState, setAnswerState] = useState(createShortNumericAnswerState);
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
   const [revealedHints, setRevealedHints] = useState<
@@ -69,6 +71,7 @@ export function PracticeSession({
   const hintRevealGate = useRef(false);
   const focusHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
+  const nextStepHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
   const revealedFocusHint = revealedHints.find(
@@ -77,17 +80,28 @@ export function PracticeSession({
   const revealedStrategyHint = revealedHints.find(
     (hint) => hint.hintId === strategyHint.hintId,
   );
+  const revealedNextStepHint = revealedHints.find(
+    (hint) => hint.hintId === nextStepHint.hintId,
+  );
   const focusHintExposure = answerState.practice.hintExposures.find(
     (exposure) => exposure.hintId === focusHint.hintId,
   );
   const strategyHintExposure = answerState.practice.hintExposures.find(
     (exposure) => exposure.hintId === strategyHint.hintId,
   );
+  const nextStepHintExposure = answerState.practice.hintExposures.find(
+    (exposure) => exposure.hintId === nextStepHint.hintId,
+  );
   const canOpenFocusHint = isFocusHintAvailable(answerState, focusHint.hintId);
   const canOpenStrategyHint = isStrategyHintAvailable(
     answerState,
     focusHint.hintId,
     strategyHint.hintId,
+  );
+  const canOpenNextStepHint = isNextStepHintAvailable(
+    answerState,
+    strategyHint.hintId,
+    nextStepHint.hintId,
   );
 
   useEffect(() => {
@@ -107,6 +121,12 @@ export function PracticeSession({
       strategyHintHeadingRef.current?.focus();
     }
   }, [revealedStrategyHint, strategyHintExposure]);
+
+  useEffect(() => {
+    if (revealedNextStepHint && nextStepHintExposure) {
+      nextStepHintHeadingRef.current?.focus();
+    }
+  }, [revealedNextStepHint, nextStepHintExposure]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
     answerStateRef.current = nextState;
@@ -195,6 +215,17 @@ export function PracticeSession({
     );
   }
 
+  function handleNextStepHintOpen() {
+    void runHintReveal(nextStepHint.hintId, () =>
+      requestNextStepHintReveal(
+        () => answerStateRef.current,
+        strategyHint.hintId,
+        nextStepHint,
+        () => revealPracticeHint(problem.problemId, nextStepHint.hintId),
+      ),
+    );
+  }
+
   if (summary) {
     return (
       <SessionSummary
@@ -252,6 +283,26 @@ export function PracticeSession({
                 Подсказка 2
               </h2>
               <p>{revealedStrategyHint.text}</p>
+            </aside>
+          ) : null}
+
+          {canOpenNextStepHint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={pendingHintId === nextStepHint.hintId}
+              onClick={handleNextStepHintOpen}
+              type="button"
+            >
+              Следующая подсказка
+            </button>
+          ) : null}
+
+          {revealedNextStepHint ? (
+            <aside className={styles.hint}>
+              <h2 ref={nextStepHintHeadingRef} tabIndex={-1}>
+                Подсказка 3
+              </h2>
+              <p>{revealedNextStepHint.text}</p>
             </aside>
           ) : null}
         </div>

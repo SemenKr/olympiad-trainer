@@ -7,7 +7,7 @@ export type PracticeSubmission = Readonly<{
 
 export type PracticeHintExposure = Readonly<{
   hintId: string;
-  level: "focus" | "strategy";
+  level: "focus" | "strategy" | "next-step";
   validSubmissionCountAtOpen: number;
 }>;
 
@@ -37,7 +37,10 @@ export function startPractice(): ActivePractice {
 
 export function recordHintExposure(
   state: ActivePractice,
-  hint: Readonly<{ hintId: string; level: "focus" | "strategy" }>,
+  hint: Readonly<{
+    hintId: string;
+    level: "focus" | "strategy" | "next-step";
+  }>,
 ): ActivePractice {
   if (state.hintExposures.some((exposure) => exposure.hintId === hint.hintId)) {
     return state;

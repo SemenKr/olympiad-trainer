@@ -12,6 +12,8 @@ const focusText =
   "Обрати внимание: место должно быть отмечено по обоим правилам одновременно.";
 const strategyText =
   "Подумай, через сколько мест отметки по обоим правилам снова совпадут.";
+const nextStepText =
+  "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.";
 
 describe("practice problem catalog", () => {
   it("resolves the current problem by stable product ID", () => {
@@ -61,7 +63,7 @@ describe("practice problem catalog", () => {
     });
   });
 
-  it("preserves the reviewed focus and strategy hints in order", () => {
+  it("preserves the reviewed focus and strategy hints before next-step", () => {
     expect(getProblemDefinition(CURRENT_PRACTICE_PROBLEM_ID).hints).toEqual([
       {
         id: "coinciding-seats-focus-simultaneous-rules",
@@ -73,7 +75,16 @@ describe("practice problem catalog", () => {
         level: "strategy",
         text: strategyText,
       },
+      {
+        id: "coinciding-seats-next-step-list-common-seats",
+        level: "next-step",
+        text: nextStepText,
+      },
     ]);
+  });
+
+  it("keeps next-step learner text bounded", () => {
+    expect(nextStepText).not.toMatch(/\b(?:6|17)\b/);
   });
 });
 
@@ -92,6 +103,10 @@ describe("learner-safe practice problem projection", () => {
         {
           hintId: "coinciding-seats-strategy-repeat-interval",
           level: "strategy",
+        },
+        {
+          hintId: "coinciding-seats-next-step-list-common-seats",
+          level: "next-step",
         },
       ],
     });
@@ -115,5 +130,6 @@ describe("learner-safe practice problem projection", () => {
     expect(serialized).not.toContain("provenance");
     expect(serialized).not.toContain(focusText);
     expect(serialized).not.toContain(strategyText);
+    expect(serialized).not.toContain(nextStepText);
   });
 });
