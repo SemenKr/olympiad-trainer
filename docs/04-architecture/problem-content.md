@@ -14,9 +14,9 @@ Answer submission sends the product problem ID and raw answer to a Server Action
 
 Hint text is protected content and is returned only after an explicit reveal request containing the product problem ID and hint ID. The server resolves both IDs and returns only that hint's ID, level, and text. Failed resolution reveals no content.
 
-Full-solution text is likewise protected server-only content. It crosses the boundary only after an explicit reveal request containing the product problem ID and solution ID. A learner-facing solution may be a verified training adaptation of the sourced task. `provenance.officialSolution` identifies the factual official solution reference; it does not claim that the learner-facing training text is verbatim from that document.
+Full-solution text is likewise protected server-only content. It crosses the boundary only after an explicit reveal request containing the product problem ID and solution ID. Learner-facing problem statements and solutions may be verified training adaptations of sourced official tasks. Source provenance identifies the factual official task and solution references; it does not claim that adapted learner-facing text is verbatim from those documents.
 
-The current `coinciding-seats` content is a training adaptation of official I-01: the official task uses 105 holes, while Practice uses 102 seats and the corresponding expected answer 17. Its learner-facing solution explains this adapted task; the retained IS reference remains provenance for the official source rather than authorship of the adaptation text.
+For example, `coinciding-seats` adapts official I-01 from 105 holes to 102 seats while preserving the corresponding answer 17. Its learner-facing statement and solution explain the adapted task; the retained I and IS references remain provenance for the official source rather than authorship of the adaptation text. The same distinction applies to other catalog problems whose learner-facing presentation is adapted for training.
 
 ## Episode state and hint ordering
 

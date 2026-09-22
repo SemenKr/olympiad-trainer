@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   revealPracticeHint,
@@ -38,16 +38,33 @@ import {
   type ShortNumericAnswerState,
 } from "./short-numeric-answer-state";
 import { ShortNumericAnswer } from "./short-numeric-answer";
+import { TaskBlockText } from "./task-block";
 import { TaskShell } from "./task-shell";
+import {
+  advanceTwoProblemSession,
+  createPracticeSessionResult,
+  finishTwoProblemSession,
+  isPracticeProblemNavigationComplete,
+  startTwoProblemSession,
+  type PracticeSessionResult,
+} from "./two-problem-session-state";
 
 type PracticeSessionProps = Readonly<{
+  problems: readonly [LearnerSafePracticeProblem, LearnerSafePracticeProblem];
+}>;
+
+type PracticeProblemEpisodeProps = Readonly<{
   problem: LearnerSafePracticeProblem;
-  header: ReactNode;
-  taskContent: ReactNode;
+  hasNextProblem: boolean;
+  focusHeadingOnMount: boolean;
+  onFinish: (summary: PracticeSummary) => void;
+  onNextProblem: (summary: PracticeSummary) => void;
 }>;
 
 const DIRTY_FINISH_MESSAGE =
   "Ответ ещё не отправлен. Завершить тренировку и удалить его?";
+const DIRTY_NEXT_MESSAGE =
+  "Ответ ещё не отправлен. Перейти к следующей задаче и удалить его?";
 const HINT_REVEAL_ERROR_MESSAGE =
   "Не удалось открыть подсказку. Попробуй ещё раз.";
 const SOLUTION_REVEAL_ERROR_MESSAGE =
@@ -69,14 +86,61 @@ export function PracticeSolutionRevealError() {
   );
 }
 
-export function PracticeSession({
+export function PracticeSession({ problems }: PracticeSessionProps) {
+  const [sessionState, setSessionState] = useState(startTwoProblemSession);
+  const [sessionResults, setSessionResults] = useState<
+    readonly PracticeSessionResult[] | null
+  >(null);
+  const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const activeProblem = problems[sessionState.activeProblemIndex];
+
+  useEffect(() => {
+    if (sessionResults) {
+      summaryHeadingRef.current?.focus();
+    }
+  }, [sessionResults]);
+
+  if (sessionResults) {
+    return (
+      <SessionSummary headingRef={summaryHeadingRef} results={sessionResults} />
+    );
+  }
+
+  function handleNextProblem(summary: PracticeSummary) {
+    const result = createPracticeSessionResult(activeProblem, summary);
+    const nextSession = advanceTwoProblemSession(sessionState, result);
+
+    if (nextSession) {
+      setSessionState(nextSession);
+    }
+  }
+
+  function handleFinish(summary: PracticeSummary) {
+    const result = createPracticeSessionResult(activeProblem, summary);
+    setSessionResults(finishTwoProblemSession(sessionState, result));
+  }
+
+  return (
+    <PracticeProblemEpisode
+      focusHeadingOnMount={sessionState.activeProblemIndex > 0}
+      hasNextProblem={sessionState.activeProblemIndex === 0}
+      key={activeProblem.problemId}
+      onFinish={handleFinish}
+      onNextProblem={handleNextProblem}
+      problem={activeProblem}
+    />
+  );
+}
+
+function PracticeProblemEpisode({
   problem,
-  header,
-  taskContent,
-}: PracticeSessionProps) {
+  hasNextProblem,
+  focusHeadingOnMount,
+  onFinish,
+  onNextProblem,
+}: PracticeProblemEpisodeProps) {
   const [focusHint, strategyHint, nextStepHint] = problem.hints;
   const [answerState, setAnswerState] = useState(createShortNumericAnswerState);
-  const [summary, setSummary] = useState<PracticeSummary | null>(null);
   const [revealedHints, setRevealedHints] = useState<
     readonly RevealedPracticeHint[]
   >([]);
@@ -94,7 +158,7 @@ export function PracticeSession({
   const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const nextStepHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const solutionHeadingRef = useRef<HTMLHeadingElement>(null);
-  const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const problemHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
   const revealedFocusHint = revealedHints.find(
     (hint) => hint.hintId === focusHint.hintId,
@@ -131,12 +195,17 @@ export function PracticeSession({
     strategyHint.hintId,
     nextStepHint.hintId,
   );
+  const navigationComplete = isPracticeProblemNavigationComplete(answerState);
+  const supportRevealPending =
+    pendingHintId !== null || isSolutionRevealPending;
+  const canOpenNextProblem =
+    hasNextProblem && navigationComplete && !supportRevealPending;
 
   useEffect(() => {
-    if (summary) {
-      summaryHeadingRef.current?.focus();
+    if (focusHeadingOnMount) {
+      problemHeadingRef.current?.focus();
     }
-  }, [summary]);
+  }, [focusHeadingOnMount]);
 
   useEffect(() => {
     if (revealedFocusHint && focusHintExposure) {
@@ -194,7 +263,22 @@ export function PracticeSession({
     );
 
     if (nextSummary) {
-      setSummary(nextSummary);
+      onFinish(nextSummary);
+    }
+  }
+
+  function handleNextProblem() {
+    const nextSummary = requestPracticeFinish(
+      answerStateRef.current,
+      () => window.confirm(DIRTY_NEXT_MESSAGE),
+      hintRevealGate.current || solutionRevealGate.current,
+    );
+
+    if (
+      nextSummary &&
+      isPracticeProblemNavigationComplete(answerStateRef.current)
+    ) {
+      onNextProblem(nextSummary);
     }
   }
 
@@ -296,16 +380,6 @@ export function PracticeSession({
     });
   }
 
-  if (summary) {
-    return (
-      <SessionSummary
-        headingRef={summaryHeadingRef}
-        problemTitle={problem.title}
-        summary={summary}
-      />
-    );
-  }
-
   return (
     <TaskShell
       answerRail={
@@ -398,6 +472,16 @@ export function PracticeSession({
               <p>{revealedSolution.text}</p>
             </section>
           ) : null}
+
+          {canOpenNextProblem ? (
+            <button
+              className={styles["next-action"]}
+              onClick={handleNextProblem}
+              type="button"
+            >
+              Следующая задача
+            </button>
+          ) : null}
         </div>
       }
       backAction={
@@ -417,9 +501,18 @@ export function PracticeSession({
           Завершить
         </button>
       }
-      header={header}
+      header={
+        <header className={styles.header}>
+          <p className={styles.eyebrow}>Тренировка</p>
+          <h1 ref={problemHeadingRef} tabIndex={-1}>
+            {problem.title}
+          </h1>
+        </header>
+      }
     >
-      {taskContent}
+      <TaskBlockText title="Условие задачи">
+        <p>{problem.statement}</p>
+      </TaskBlockText>
     </TaskShell>
   );
 }

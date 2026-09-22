@@ -1,6 +1,7 @@
 .summary,
 .header,
 .section,
+.results,
 .result,
 .actions {
   display: flex;
@@ -20,9 +21,16 @@
 
 .header,
 .section,
-.result,
 .actions {
   gap: var(--ot-space-10);
+}
+
+.results {
+  gap: var(--ot-space-16);
+}
+
+.result {
+  gap: var(--ot-space-6);
 }
 
 .header,

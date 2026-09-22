@@ -17,13 +17,18 @@ function renderSummary(
 ): string {
   return renderToStaticMarkup(
     <SessionSummary
-      problemTitle={problemTitle}
-      summary={{
-        outcome,
-        validSubmissionCount: 0,
-        hintExposures,
-        solutionExposure,
-      }}
+      results={[
+        {
+          problemId: "coinciding-seats",
+          problemTitle,
+          summary: {
+            outcome,
+            validSubmissionCount: 0,
+            hintExposures,
+            solutionExposure,
+          },
+        },
+      ]}
     />,
   );
 }
@@ -207,5 +212,156 @@ describe("SessionSummary", () => {
     expect(markup).toMatch(
       /<button[^>]*disabled=""[^>]*>Мой прогресс<\/button>/,
     );
+  });
+
+  it("renders two ordered independent results", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            problemId: "coinciding-seats",
+            problemTitle: "Совпадающие места",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+          {
+            problemId: "guaranteed-sock-pair",
+            problemTitle: "Носки в пакете",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain(
+      "Все задачи этой тренировки решены самостоятельно.",
+    );
+    expect(markup.indexOf("Совпадающие места")).toBeLessThan(
+      markup.indexOf("Носки в пакете"),
+    );
+    expect(markup.match(/Решено самостоятельно/g)).toHaveLength(2);
+  });
+
+  it("keeps per-problem support and solution labels distinct", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            problemId: "coinciding-seats",
+            problemTitle: "Совпадающие места",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 1,
+              hintExposures: [
+                {
+                  hintId: "focus",
+                  level: "focus",
+                  validSubmissionCountAtOpen: 0,
+                },
+              ],
+              solutionExposure: null,
+            },
+          },
+          {
+            problemId: "guaranteed-sock-pair",
+            problemTitle: "Носки в пакете",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 2,
+              hintExposures: [],
+              solutionExposure: {
+                solutionId: "guaranteed-sock-pair-full-solution",
+                validSubmissionCountAtOpen: 1,
+              },
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("Получилось с подсказкой");
+    expect(markup).toContain("Посмотрено полное решение");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup.indexOf("Совпадающие места")).toBeLessThan(
+      markup.indexOf("Носки в пакете"),
+    );
+  });
+
+  it("renders independent and supported successes as separate ordered rows", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            problemId: "coinciding-seats",
+            problemTitle: "Совпадающие места",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+          {
+            problemId: "guaranteed-sock-pair",
+            problemTitle: "Носки в пакете",
+            summary: {
+              outcome: "eventually-correct",
+              validSubmissionCount: 2,
+              hintExposures: [
+                {
+                  hintId: "guaranteed-sock-pair-focus-guarantee",
+                  level: "focus",
+                  validSubmissionCountAtOpen: 1,
+                },
+              ],
+              solutionExposure: null,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("Одну задачу ты решил сам.");
+    expect(markup).toContain("В одной задаче получилось с подсказкой.");
+    expect(markup).toContain("Решено самостоятельно");
+    expect(markup).toContain("Получилось с подсказкой");
+    expect(markup.indexOf("Совпадающие места")).toBeLessThan(
+      markup.indexOf("Носки в пакете"),
+    );
+  });
+
+  it("keeps an early unfinished problem factual without inventing an outcome", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            problemId: "coinciding-seats",
+            problemTitle: "Совпадающие места",
+            summary: {
+              outcome: "incorrect-only",
+              validSubmissionCount: 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain(
+      "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.",
+    );
+    expect(markup).not.toContain("Результаты задач");
+    expect(markup).not.toContain("Решено самостоятельно");
+    expect(markup).not.toContain("Получилось с подсказкой");
   });
 });

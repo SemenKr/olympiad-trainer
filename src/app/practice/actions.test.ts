@@ -9,6 +9,9 @@ import {
 } from "./actions";
 
 const problemId = "coinciding-seats";
+const sockProblemId = "guaranteed-sock-pair";
+const sockSolutionText =
+  "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.";
 
 describe("practice answer server boundary", () => {
   it("checks a correct answer through the catalog", async () => {
@@ -117,5 +120,69 @@ describe("practice solution reveal server boundary", () => {
     await expect(revealPracticeSolution(problemId, null)).rejects.toThrow(
       "Invalid solution ID",
     );
+  });
+});
+
+describe("sock problem server boundaries", () => {
+  it("checks correct, incorrect, and invalid numeric answers", async () => {
+    await expect(submitPracticeAnswer(sockProblemId, " 007 ")).resolves.toEqual(
+      {
+        status: "correct",
+        normalizedAnswer: "7",
+      },
+    );
+    await expect(submitPracticeAnswer(sockProblemId, "6")).resolves.toEqual({
+      status: "incorrect",
+      normalizedAnswer: "6",
+    });
+    await expect(submitPracticeAnswer(sockProblemId, "семь")).resolves.toEqual({
+      status: "invalid",
+    });
+  });
+
+  it.each([
+    {
+      hintId: "guaranteed-sock-pair-focus-guarantee",
+      level: "focus",
+      text: "Обрати внимание на слово «наверняка»: нужная пара должна получиться при любом возможном наборе вынутых носков.",
+    },
+    {
+      hintId: "guaranteed-sock-pair-strategy-worst-case",
+      level: "strategy",
+      text: "Рассмотри самый неудачный случай: сколько носков можно вынуть и всё ещё остаться без двух целых носков одного цвета?",
+    },
+    {
+      hintId: "guaranteed-sock-pair-next-step-bound-without-pair",
+      level: "next-step",
+      text: "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Учти ещё три дырявых носка и проверь, можно ли такой предельный набор действительно составить.",
+    },
+  ] as const)("reveals the protected $level hint", async (hint) => {
+    await expect(
+      revealPracticeHint(sockProblemId, hint.hintId),
+    ).resolves.toEqual(hint);
+  });
+
+  it("does not resolve another problem's hint through the sock problem", async () => {
+    await expect(
+      revealPracticeHint(
+        sockProblemId,
+        "coinciding-seats-focus-simultaneous-rules",
+      ),
+    ).rejects.toThrow("Unknown hint for practice problem");
+  });
+
+  it("reveals only the matching protected sock solution", async () => {
+    await expect(
+      revealPracticeSolution(
+        sockProblemId,
+        "guaranteed-sock-pair-full-solution",
+      ),
+    ).resolves.toEqual({
+      solutionId: "guaranteed-sock-pair-full-solution",
+      text: sockSolutionText,
+    });
+    await expect(
+      revealPracticeSolution(sockProblemId, "coinciding-seats-full-solution"),
+    ).rejects.toThrow("Unknown solution for practice problem");
   });
 });
