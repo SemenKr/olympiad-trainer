@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LearnerSafePracticeProblem } from "../application/practice-problem-presentation";
 import {
@@ -16,6 +16,8 @@ import {
   createPracticeSessionResult,
   finishTwoProblemSession,
   isPracticeProblemNavigationComplete,
+  isPracticeProblemSkipAvailable,
+  requestPracticeSkip,
   startTwoProblemSession,
 } from "./two-problem-session-state";
 
@@ -103,6 +105,177 @@ describe("fixed two-problem session", () => {
         status: "invalid",
       }),
     ).toBe(false);
+  });
+
+  it("offers Skip only for an unfinished problem with a next problem", () => {
+    const initial = createShortNumericAnswerState();
+    const invalid = {
+      ...initial,
+      rawAnswer: "seven",
+      status: "invalid",
+    } as const;
+    const incorrect = withResult(initial, "incorrect");
+    const hinted: ShortNumericAnswerState = {
+      ...incorrect,
+      practice: recordHintExposure(incorrect.practice, {
+        hintId: "focus",
+        level: "focus",
+      }),
+    };
+    const correct = withResult(hinted, "correct");
+    const solutionExposed: ShortNumericAnswerState = {
+      ...hinted,
+      practice: recordSolutionExposure(hinted.practice, {
+        solutionId: "solution",
+      }),
+    };
+
+    expect(isPracticeProblemSkipAvailable(initial, true)).toBe(true);
+    expect(isPracticeProblemSkipAvailable(invalid, true)).toBe(true);
+    expect(isPracticeProblemSkipAvailable(incorrect, true)).toBe(true);
+    expect(isPracticeProblemSkipAvailable(hinted, true)).toBe(true);
+    expect(
+      isPracticeProblemSkipAvailable({ ...initial, status: "loading" }, true),
+    ).toBe(false);
+    expect(isPracticeProblemSkipAvailable(initial, true, true)).toBe(false);
+    expect(isPracticeProblemSkipAvailable(correct, true)).toBe(false);
+    expect(isPracticeProblemSkipAvailable(solutionExposed, true)).toBe(false);
+    expect(isPracticeProblemSkipAvailable(initial, false)).toBe(false);
+  });
+
+  it("creates a factual summary when skipping untouched, invalid, incorrect, or hinted work", () => {
+    const initial = createShortNumericAnswerState();
+    const invalid = {
+      ...initial,
+      rawAnswer: "seven",
+      status: "invalid",
+    } as const;
+    const incorrect = withResult(initial, "incorrect");
+    const hinted: ShortNumericAnswerState = {
+      ...initial,
+      practice: recordHintExposure(initial.practice, {
+        hintId: "focus",
+        level: "focus",
+      }),
+    };
+
+    expect(requestPracticeSkip(initial, true, () => true)).toMatchObject({
+      outcome: "no-valid-submissions",
+      validSubmissionCount: 0,
+      hintExposures: [],
+    });
+    expect(requestPracticeSkip(invalid, true, () => true)).toMatchObject({
+      outcome: "no-valid-submissions",
+      validSubmissionCount: 0,
+    });
+    expect(requestPracticeSkip(incorrect, true, () => true)).toMatchObject({
+      outcome: "incorrect-only",
+      validSubmissionCount: 1,
+    });
+    expect(requestPracticeSkip(hinted, true, () => true)).toMatchObject({
+      outcome: "no-valid-submissions",
+      hintExposures: [{ hintId: "focus", level: "focus" }],
+    });
+  });
+
+  it("blocks Skip during pending work, after completion, and on problem 2", () => {
+    const initial = createShortNumericAnswerState();
+    const incorrect = withResult(initial, "incorrect");
+    const correct = withResult(initial, "correct");
+    const solutionExposed: ShortNumericAnswerState = {
+      ...incorrect,
+      practice: recordSolutionExposure(incorrect.practice, {
+        solutionId: "solution",
+      }),
+    };
+    const confirmDiscard = vi.fn(() => true);
+
+    expect(
+      requestPracticeSkip(
+        { ...initial, status: "loading" },
+        true,
+        confirmDiscard,
+      ),
+    ).toBeNull();
+    expect(requestPracticeSkip(initial, true, confirmDiscard, true)).toBeNull();
+    expect(requestPracticeSkip(correct, true, confirmDiscard)).toBeNull();
+    expect(
+      requestPracticeSkip(solutionExposed, true, confirmDiscard),
+    ).toBeNull();
+    expect(requestPracticeSkip(initial, false, confirmDiscard)).toBeNull();
+    expect(confirmDiscard).not.toHaveBeenCalled();
+  });
+
+  it("keeps a dirty draft and episode when Skip is cancelled", () => {
+    const incorrect = withResult(createShortNumericAnswerState(), "incorrect");
+    const hinted: ShortNumericAnswerState = {
+      ...incorrect,
+      practice: recordHintExposure(incorrect.practice, {
+        hintId: "focus",
+        level: "focus",
+      }),
+    };
+    const dirty = editShortNumericAnswer(hinted, "draft");
+    const confirmDiscard = vi.fn(() => false);
+
+    expect(requestPracticeSkip(dirty, true, confirmDiscard)).toBeNull();
+    expect(confirmDiscard).toHaveBeenCalledOnce();
+    expect(dirty.rawAnswer).toBe("draft");
+    expect(dirty.practice.submissions).toEqual([
+      { answer: "16", outcome: "incorrect" },
+    ]);
+    expect(dirty.practice.hintExposures).toHaveLength(1);
+  });
+
+  it("confirms a dirty Skip and preserves factual episode evidence", () => {
+    const incorrect = withResult(createShortNumericAnswerState(), "incorrect");
+    const hinted: ShortNumericAnswerState = {
+      ...incorrect,
+      practice: recordHintExposure(incorrect.practice, {
+        hintId: "focus",
+        level: "focus",
+      }),
+    };
+    const dirty = editShortNumericAnswer(hinted, "draft");
+    const summary = requestPracticeSkip(dirty, true, () => true);
+
+    expect(summary).toMatchObject({
+      outcome: "incorrect-only",
+      validSubmissionCount: 1,
+      hintExposures: [{ hintId: "focus", level: "focus" }],
+      solutionExposure: null,
+    });
+
+    const skippedResult = createPracticeSessionResult(
+      problem(problems[0]),
+      summary!,
+      "skipped",
+    );
+    const advanced = advanceTwoProblemSession(
+      startTwoProblemSession(),
+      skippedResult,
+    );
+
+    expect(advanced).toEqual({
+      activeProblemIndex: 1,
+      completedResults: [skippedResult],
+    });
+    expect(skippedResult.taskOutcome).toBe("skipped");
+  });
+
+  it("does not infer Skip from a result without correctness", () => {
+    const summary = requestPracticeSkip(
+      createShortNumericAnswerState(),
+      true,
+      () => true,
+    )!;
+
+    expect(
+      createPracticeSessionResult(problem(problems[0]), summary),
+    ).not.toHaveProperty("taskOutcome");
+    expect(
+      createPracticeSessionResult(problem(problems[0]), summary, "skipped"),
+    ).toHaveProperty("taskOutcome", "skipped");
   });
 
   it("preserves problem 1 result and advances exactly once", () => {

@@ -45,6 +45,8 @@ import {
   createPracticeSessionResult,
   finishTwoProblemSession,
   isPracticeProblemNavigationComplete,
+  isPracticeProblemSkipAvailable,
+  requestPracticeSkip,
   startTwoProblemSession,
   type PracticeSessionResult,
 } from "./two-problem-session-state";
@@ -59,12 +61,15 @@ type PracticeProblemEpisodeProps = Readonly<{
   focusHeadingOnMount: boolean;
   onFinish: (summary: PracticeSummary) => void;
   onNextProblem: (summary: PracticeSummary) => void;
+  onSkip: (summary: PracticeSummary) => void;
 }>;
 
 const DIRTY_FINISH_MESSAGE =
   "Ответ ещё не отправлен. Завершить тренировку и удалить его?";
 const DIRTY_NEXT_MESSAGE =
   "Ответ ещё не отправлен. Перейти к следующей задаче и удалить его?";
+const DIRTY_SKIP_MESSAGE =
+  "Ответ ещё не отправлен. Пропустить задачу и удалить его?";
 const HINT_REVEAL_ERROR_MESSAGE =
   "Не удалось открыть подсказку. Попробуй ещё раз.";
 const SOLUTION_REVEAL_ERROR_MESSAGE =
@@ -120,6 +125,19 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     setSessionResults(finishTwoProblemSession(sessionState, result));
   }
 
+  function handleSkip(summary: PracticeSummary) {
+    const result = createPracticeSessionResult(
+      activeProblem,
+      summary,
+      "skipped",
+    );
+    const nextSession = advanceTwoProblemSession(sessionState, result);
+
+    if (nextSession) {
+      setSessionState(nextSession);
+    }
+  }
+
   return (
     <PracticeProblemEpisode
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
@@ -127,6 +145,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       key={activeProblem.problemId}
       onFinish={handleFinish}
       onNextProblem={handleNextProblem}
+      onSkip={handleSkip}
       problem={activeProblem}
     />
   );
@@ -138,6 +157,7 @@ function PracticeProblemEpisode({
   focusHeadingOnMount,
   onFinish,
   onNextProblem,
+  onSkip,
 }: PracticeProblemEpisodeProps) {
   const [focusHint, strategyHint, nextStepHint] = problem.hints;
   const [answerState, setAnswerState] = useState(createShortNumericAnswerState);
@@ -200,6 +220,11 @@ function PracticeProblemEpisode({
     pendingHintId !== null || isSolutionRevealPending;
   const canOpenNextProblem =
     hasNextProblem && navigationComplete && !supportRevealPending;
+  const canSkipProblem = isPracticeProblemSkipAvailable(
+    answerState,
+    hasNextProblem,
+    supportRevealPending,
+  );
 
   useEffect(() => {
     if (focusHeadingOnMount) {
@@ -279,6 +304,19 @@ function PracticeProblemEpisode({
       isPracticeProblemNavigationComplete(answerStateRef.current)
     ) {
       onNextProblem(nextSummary);
+    }
+  }
+
+  function handleSkip() {
+    const nextSummary = requestPracticeSkip(
+      answerStateRef.current,
+      hasNextProblem,
+      () => window.confirm(DIRTY_SKIP_MESSAGE),
+      hintRevealGate.current || solutionRevealGate.current,
+    );
+
+    if (nextSummary) {
+      onSkip(nextSummary);
     }
   }
 
@@ -471,6 +509,16 @@ function PracticeProblemEpisode({
               </h2>
               <p>{revealedSolution.text}</p>
             </section>
+          ) : null}
+
+          {canSkipProblem ? (
+            <button
+              className={styles["hint-action"]}
+              onClick={handleSkip}
+              type="button"
+            >
+              Пропустить задачу
+            </button>
           ) : null}
 
           {canOpenNextProblem ? (
