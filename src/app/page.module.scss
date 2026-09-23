@@ -41,10 +41,44 @@
     outline-offset: 2px;
     box-shadow: var(--ot-shadow-focus);
   }
+
+  .latest {
+    margin-top: var(--ot-space-32);
+    padding-top: var(--ot-space-24);
+    border-top: var(--ot-border-width-default) solid
+      var(--ot-color-border-default);
+
+    ol {
+      display: grid;
+      gap: var(--ot-space-12);
+      padding-left: var(--ot-space-20);
+    }
+
+    li span {
+      display: block;
+      color: var(--ot-color-text-secondary);
+    }
+  }
+
+  .secondary {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    margin-top: var(--ot-space-12);
+    color: var(--ot-color-primary);
+    font-weight: 600;
+  }
+
+  .secondary:focus-visible {
+    outline: var(--ot-border-width-strong) solid transparent;
+    outline-offset: 2px;
+    box-shadow: var(--ot-shadow-focus);
+  }
 }
 
 @media (forced-colors: active) {
-  .primary:focus-visible {
+  .primary:focus-visible,
+  .secondary:focus-visible {
     outline-color: Highlight;
     box-shadow: none;
   }

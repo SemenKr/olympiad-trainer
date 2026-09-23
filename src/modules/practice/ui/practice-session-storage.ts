@@ -10,6 +10,8 @@ import type {
 } from "./two-problem-session-state";
 
 export const PRACTICE_SESSION_STORAGE_KEY = "olympiad-trainer:practice-session";
+export const PRACTICE_LATEST_COMPLETED_STORAGE_KEY =
+  "olympiad-trainer:practice-latest-completed";
 
 const problems = [
   {
@@ -145,8 +147,11 @@ function validSummary(
   );
 }
 
-function validResult(value: unknown): value is PracticeSessionResult {
-  const problem = problems[0];
+function validResult(
+  value: unknown,
+  problem: (typeof problems)[number],
+  isFinal: boolean,
+): value is PracticeSessionResult {
   if (
     !record(value) ||
     !exactKeys(
@@ -164,6 +169,7 @@ function validResult(value: unknown): value is PracticeSessionResult {
 
   if (value.taskOutcome === "skipped") {
     return (
+      !isFinal &&
       value.summary.outcome !== "eventually-correct" &&
       value.summary.solutionExposure === null
     );
@@ -171,9 +177,26 @@ function validResult(value: unknown): value is PracticeSessionResult {
 
   return (
     value.taskOutcome === undefined &&
-    (value.summary.outcome === "eventually-correct" ||
+    (isFinal ||
+      value.summary.outcome === "eventually-correct" ||
       value.summary.solutionExposure !== null)
   );
+}
+
+export function validateLatestCompletedResults(
+  value: unknown,
+): readonly PracticeSessionResult[] | null {
+  if (
+    !Array.isArray(value) ||
+    (value.length !== 1 && value.length !== problems.length) ||
+    !value.every((result, index) =>
+      validResult(result, problems[index], index === value.length - 1),
+    )
+  ) {
+    return null;
+  }
+
+  return value as readonly PracticeSessionResult[];
 }
 
 function validActivePractice(
@@ -252,7 +275,7 @@ export function validatePracticeSessionSnapshot(
     !Array.isArray(value.completedResults) ||
     value.completedResults.length !== value.activeProblemIndex ||
     (value.activeProblemIndex === 1 &&
-      !validResult(value.completedResults[0])) ||
+      !validResult(value.completedResults[0], problems[0], false)) ||
     !validActivePractice(
       value.activePractice,
       problems[value.activeProblemIndex],
@@ -310,6 +333,50 @@ export function clearPracticeSessionSnapshot(storage?: Storage): boolean {
   } catch {
     return false;
   }
+}
+
+export function readLatestCompletedResults(
+  storage?: Storage,
+): readonly PracticeSessionResult[] | null {
+  try {
+    const store = storage ?? window.localStorage;
+    const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+    if (raw === null) return null;
+    const results = validateLatestCompletedResults(JSON.parse(raw));
+    if (!results) store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+    return results;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLatestCompletedResults(
+  results: readonly PracticeSessionResult[],
+  storage?: Storage,
+): boolean {
+  if (!validateLatestCompletedResults(results)) return false;
+  try {
+    (storage ?? window.localStorage).setItem(
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      JSON.stringify(results),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function completePracticeSession(
+  session: TwoProblemSessionState,
+  answer: ShortNumericAnswerState,
+  results: readonly PracticeSessionResult[],
+  storage?: Storage,
+): boolean {
+  if (!validateLatestCompletedResults(results)) return false;
+  if (!clearPracticeSessionSnapshot(storage)) return false;
+  if (saveLatestCompletedResults(results, storage)) return true;
+  savePracticeSessionSnapshot(session, answer, storage);
+  return false;
 }
 
 export function restoreAnswerState(
