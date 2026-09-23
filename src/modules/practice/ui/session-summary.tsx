@@ -30,7 +30,12 @@ function getRemainingText(
 
 export function getPracticeResultLabel(
   summary: PracticeSummary,
+  taskOutcome?: PracticeSessionResult["taskOutcome"],
 ): string | null {
+  if (taskOutcome === "skipped") {
+    return "Задача пропущена";
+  }
+
   if (summary.solutionExposure) {
     return "Посмотрено полное решение";
   }
@@ -46,7 +51,7 @@ export function getPracticeResultLabel(
 
 function getSuccessOverview(results: readonly PracticeSessionResult[]) {
   const labels = results.map((result) =>
-    getPracticeResultLabel(result.summary),
+    getPracticeResultLabel(result.summary, result.taskOutcome),
   );
   const independentCount = labels.filter(
     (label) => label === "Решено самостоятельно",
@@ -71,12 +76,14 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
 
 export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
-    const label = getPracticeResultLabel(result.summary);
+    const label = getPracticeResultLabel(result.summary, result.taskOutcome);
 
     return label ? [{ ...result, label }] : [];
   });
   const remainingResults = results.filter(
-    (result) => result.summary.outcome !== "eventually-correct",
+    (result) =>
+      result.taskOutcome !== "skipped" &&
+      result.summary.outcome !== "eventually-correct",
   );
   const successOverview = getSuccessOverview(results);
 
@@ -92,7 +99,7 @@ export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
 
   const singleResult = results.length === 1 ? results[0] : null;
   const singleLabel = singleResult
-    ? getPracticeResultLabel(singleResult.summary)
+    ? getPracticeResultLabel(singleResult.summary, singleResult.taskOutcome)
     : null;
   const singleOverview =
     singleLabel === "Решено самостоятельно"

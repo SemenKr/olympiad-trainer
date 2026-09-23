@@ -1,11 +1,13 @@
 import type { LearnerSafePracticeProblem } from "../application/practice-problem-presentation";
 import type { PracticeSummary } from "../application/practice-state";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
+import { requestPracticeFinish } from "./practice-session-state";
 
 export type PracticeSessionResult = Readonly<{
   problemId: string;
   problemTitle: string;
   summary: PracticeSummary;
+  taskOutcome?: "skipped";
 }>;
 
 export type TwoProblemSessionState = Readonly<{
@@ -29,14 +31,52 @@ export function isPracticeProblemNavigationComplete(
   );
 }
 
+export function isPracticeProblemSkipAvailable(
+  answerState: ShortNumericAnswerState,
+  hasNextProblem: boolean,
+  supportRevealPending = false,
+): boolean {
+  return (
+    hasNextProblem &&
+    !supportRevealPending &&
+    !isPracticeProblemNavigationComplete(answerState) &&
+    answerState.status !== "loading"
+  );
+}
+
+export function requestPracticeSkip(
+  answerState: ShortNumericAnswerState,
+  hasNextProblem: boolean,
+  confirmDiscard: () => boolean,
+  supportRevealPending = false,
+): PracticeSummary | null {
+  if (
+    !isPracticeProblemSkipAvailable(
+      answerState,
+      hasNextProblem,
+      supportRevealPending,
+    )
+  ) {
+    return null;
+  }
+
+  return requestPracticeFinish(
+    answerState,
+    confirmDiscard,
+    supportRevealPending,
+  );
+}
+
 export function createPracticeSessionResult(
   problem: LearnerSafePracticeProblem,
   summary: PracticeSummary,
+  taskOutcome?: "skipped",
 ): PracticeSessionResult {
   return {
     problemId: problem.problemId,
     problemTitle: problem.title,
     summary,
+    ...(taskOutcome ? { taskOutcome } : {}),
   };
 }
 

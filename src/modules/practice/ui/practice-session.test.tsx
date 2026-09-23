@@ -88,6 +88,7 @@ describe("PracticeSession solution reveal", () => {
     expect(markup).not.toContain("Learner statement 2");
     expect(markup).not.toContain("Показать решение");
     expect(markup).not.toContain("Следующая задача");
+    expect(markup).toContain("Пропустить задачу");
     expect(markup).not.toContain("Решение открыто");
     expect(markup).not.toContain("6 × 17");
     expect(revealPracticeSolution).not.toHaveBeenCalled();
