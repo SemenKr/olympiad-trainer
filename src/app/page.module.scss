@@ -9,6 +9,12 @@
     line-height: 1.15;
   }
 
+  h2 {
+    margin: var(--ot-space-24) 0 var(--ot-space-12);
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    line-height: 1.2;
+  }
+
   p {
     margin: 0;
     font-size: 1.125rem;

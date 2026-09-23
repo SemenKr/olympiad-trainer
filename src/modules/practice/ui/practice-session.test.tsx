@@ -1,6 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("@/app/practice/actions", () => ({
   revealPracticeHint: vi.fn(),
   revealPracticeSolution: vi.fn(),
@@ -77,18 +81,20 @@ describe("PracticeSession solution reveal", () => {
     expect(markup).toContain("Не удалось открыть решение. Попробуй ещё раз.");
   });
 
-  it("does not reveal or request protected solution content initially", () => {
+  it("gates the episode until browser storage has been checked", () => {
     const markup = renderToStaticMarkup(
       <PracticeSession problems={problems} />,
     );
 
-    expect(markup).toContain("Совпадающие места");
-    expect(markup).toContain("Learner statement 1");
+    expect(markup).toContain("Загружаем тренировку");
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).not.toContain("Совпадающие места");
+    expect(markup).not.toContain("Learner statement 1");
     expect(markup).not.toContain("Носки в пакете");
     expect(markup).not.toContain("Learner statement 2");
     expect(markup).not.toContain("Показать решение");
     expect(markup).not.toContain("Следующая задача");
-    expect(markup).toContain("Пропустить задачу");
+    expect(markup).not.toContain("Пропустить задачу");
     expect(markup).not.toContain("Решение открыто");
     expect(markup).not.toContain("6 × 17");
     expect(revealPracticeSolution).not.toHaveBeenCalled();
