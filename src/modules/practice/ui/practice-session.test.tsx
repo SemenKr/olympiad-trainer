@@ -15,6 +15,49 @@ import {
   PracticeSolutionRevealError,
 } from "./practice-session";
 
+const problems = [
+  {
+    problemId: "coinciding-seats",
+    title: "Совпадающие места",
+    statement: "Learner statement 1",
+    hints: [
+      {
+        hintId: "coinciding-seats-focus-simultaneous-rules",
+        level: "focus",
+      },
+      {
+        hintId: "coinciding-seats-strategy-repeat-interval",
+        level: "strategy",
+      },
+      {
+        hintId: "coinciding-seats-next-step-list-common-seats",
+        level: "next-step",
+      },
+    ],
+    solution: { solutionId: "coinciding-seats-full-solution" },
+  },
+  {
+    problemId: "guaranteed-sock-pair",
+    title: "Носки в пакете",
+    statement: "Learner statement 2",
+    hints: [
+      {
+        hintId: "guaranteed-sock-pair-focus-guarantee",
+        level: "focus",
+      },
+      {
+        hintId: "guaranteed-sock-pair-strategy-worst-case",
+        level: "strategy",
+      },
+      {
+        hintId: "guaranteed-sock-pair-next-step-bound-without-pair",
+        level: "next-step",
+      },
+    ],
+    solution: { solutionId: "guaranteed-sock-pair-full-solution" },
+  },
+] as const;
+
 describe("PracticeSession hint reveal error", () => {
   it("renders a visible, accessibly announced retry message", () => {
     const markup = renderToStaticMarkup(<PracticeHintRevealError />);
@@ -36,33 +79,15 @@ describe("PracticeSession solution reveal", () => {
 
   it("does not reveal or request protected solution content initially", () => {
     const markup = renderToStaticMarkup(
-      <PracticeSession
-        header={<h1>Совпадающие места</h1>}
-        problem={{
-          problemId: "coinciding-seats",
-          title: "Совпадающие места",
-          statement: "Learner statement",
-          hints: [
-            {
-              hintId: "coinciding-seats-focus-simultaneous-rules",
-              level: "focus",
-            },
-            {
-              hintId: "coinciding-seats-strategy-repeat-interval",
-              level: "strategy",
-            },
-            {
-              hintId: "coinciding-seats-next-step-list-common-seats",
-              level: "next-step",
-            },
-          ],
-          solution: { solutionId: "coinciding-seats-full-solution" },
-        }}
-        taskContent={<p>Learner statement</p>}
-      />,
+      <PracticeSession problems={problems} />,
     );
 
+    expect(markup).toContain("Совпадающие места");
+    expect(markup).toContain("Learner statement 1");
+    expect(markup).not.toContain("Носки в пакете");
+    expect(markup).not.toContain("Learner statement 2");
     expect(markup).not.toContain("Показать решение");
+    expect(markup).not.toContain("Следующая задача");
     expect(markup).not.toContain("Решение открыто");
     expect(markup).not.toContain("6 × 17");
     expect(revealPracticeSolution).not.toHaveBeenCalled();

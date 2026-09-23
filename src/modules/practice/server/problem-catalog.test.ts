@@ -6,6 +6,7 @@ import {
   CURRENT_PRACTICE_PROBLEM_ID,
   getLearnerSafePracticeProblem,
   getProblemDefinition,
+  PRACTICE_SESSION_PROBLEM_IDS,
 } from "./problem-catalog";
 
 const focusText =
@@ -16,6 +17,17 @@ const nextStepText =
   "Выпиши первые несколько мест, которые отмечены по обоим правилам. Затем продолжай тот же шаг, пока номер места не превысит 102.";
 const solutionText =
   "Подходят места, номер которых делится и на 2, и на 3. Такие места идут через 6: 6, 12, 18, …, 102. Число 102 равно 6 × 17, значит, совпадающих мест 17. Ответ: 17.";
+const sockProblemId = "guaranteed-sock-pair";
+const sockStatement =
+  "В пакете лежат 4 красных, 3 синих и 5 жёлтых носков. Ровно три из них дырявые. Какое наименьшее число носков нужно достать не глядя, чтобы среди вынутых наверняка нашлись два целых носка одного цвета?";
+const sockFocusText =
+  "Обрати внимание на слово «наверняка»: нужная пара должна получиться при любом возможном наборе вынутых носков.";
+const sockStrategyText =
+  "Рассмотри самый неудачный случай: сколько носков можно вынуть и всё ещё остаться без двух целых носков одного цвета?";
+const sockNextStepText =
+  "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Учти ещё три дырявых носка и проверь, можно ли такой предельный набор действительно составить.";
+const sockSolutionText =
+  "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.";
 
 describe("practice problem catalog", () => {
   it("resolves the current problem by stable product ID", () => {
@@ -109,6 +121,70 @@ describe("practice problem catalog", () => {
       page: 1,
     });
   });
+
+  it("resolves the audited sock problem with exact content and provenance", () => {
+    expect(getProblemDefinition(sockProblemId)).toEqual({
+      id: sockProblemId,
+      grade: 5,
+      subject: "mathematics",
+      title: "Носки в пакете",
+      statement: sockStatement,
+      provenance: {
+        olympiad: "Всероссийская олимпиада школьников",
+        subject: "mathematics",
+        academicYear: "2025/26",
+        stage: "invitational",
+        region: "Moscow",
+        sourceArchive: "vos.olimpiada.ru",
+        grade: 5,
+        problemNumber: 5,
+        variant: 1,
+        originalSource: {
+          reference: "I",
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+          page: 4,
+        },
+        officialSolution: {
+          reference: "IS",
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+          page: 4,
+        },
+      },
+      assessment: {
+        kind: "nonnegative-integer",
+        expectedAnswer: "7",
+      },
+      hints: [
+        {
+          id: "guaranteed-sock-pair-focus-guarantee",
+          level: "focus",
+          text: sockFocusText,
+        },
+        {
+          id: "guaranteed-sock-pair-strategy-worst-case",
+          level: "strategy",
+          text: sockStrategyText,
+        },
+        {
+          id: "guaranteed-sock-pair-next-step-bound-without-pair",
+          level: "next-step",
+          text: sockNextStepText,
+        },
+      ],
+      solution: {
+        id: "guaranteed-sock-pair-full-solution",
+        kind: "training-adaptation",
+        text: sockSolutionText,
+      },
+    });
+  });
+
+  it("defines the fixed production session order", () => {
+    expect(PRACTICE_SESSION_PROBLEM_IDS).toEqual([
+      "coinciding-seats",
+      "guaranteed-sock-pair",
+    ]);
+  });
 });
 
 describe("learner-safe practice problem projection", () => {
@@ -160,5 +236,39 @@ describe("learner-safe practice problem projection", () => {
     expect(serialized).not.toContain(nextStepText);
     expect(serialized).not.toContain(solutionText);
     expect(serialized).not.toContain("training-adaptation");
+  });
+
+  it("projects only learner-safe sock problem data", () => {
+    const projection = getLearnerSafePracticeProblem(sockProblemId);
+    const serialized = JSON.stringify(projection);
+
+    expect(projection).toEqual({
+      problemId: sockProblemId,
+      title: "Носки в пакете",
+      statement: sockStatement,
+      hints: [
+        {
+          hintId: "guaranteed-sock-pair-focus-guarantee",
+          level: "focus",
+        },
+        {
+          hintId: "guaranteed-sock-pair-strategy-worst-case",
+          level: "strategy",
+        },
+        {
+          hintId: "guaranteed-sock-pair-next-step-bound-without-pair",
+          level: "next-step",
+        },
+      ],
+      solution: { solutionId: "guaranteed-sock-pair-full-solution" },
+    });
+    expect(serialized).not.toContain("assessment");
+    expect(serialized).not.toContain("expectedAnswer");
+    expect(serialized).not.toContain(sockFocusText);
+    expect(serialized).not.toContain(sockStrategyText);
+    expect(serialized).not.toContain(sockNextStepText);
+    expect(serialized).not.toContain(sockSolutionText);
+    expect(serialized).not.toContain("training-adaptation");
+    expect(serialized).not.toContain("provenance");
   });
 });

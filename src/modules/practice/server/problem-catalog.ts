@@ -20,7 +20,7 @@ type ProblemProvenance = Readonly<{
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
   grade: 5;
-  problemNumber: 1;
+  problemNumber: number;
   variant: 1;
   originalSource: SourceReference;
   officialSolution: SourceReference;
@@ -70,6 +70,10 @@ export type ProblemDefinition = Readonly<{
 }>;
 
 export const CURRENT_PRACTICE_PROBLEM_ID = "coinciding-seats";
+export const PRACTICE_SESSION_PROBLEM_IDS = [
+  CURRENT_PRACTICE_PROBLEM_ID,
+  "guaranteed-sock-pair",
+] as const;
 
 const coincidingSeatsProblem = {
   id: CURRENT_PRACTICE_PROBLEM_ID,
@@ -127,8 +131,65 @@ const coincidingSeatsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const guaranteedSockPairProblem = {
+  id: "guaranteed-sock-pair",
+  grade: 5,
+  subject: "mathematics",
+  title: "Носки в пакете",
+  statement:
+    "В пакете лежат 4 красных, 3 синих и 5 жёлтых носков. Ровно три из них дырявые. Какое наименьшее число носков нужно достать не глядя, чтобы среди вынутых наверняка нашлись два целых носка одного цвета?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+      page: 4,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 4,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "7",
+  },
+  hints: [
+    {
+      id: "guaranteed-sock-pair-focus-guarantee",
+      level: "focus",
+      text: "Обрати внимание на слово «наверняка»: нужная пара должна получиться при любом возможном наборе вынутых носков.",
+    },
+    {
+      id: "guaranteed-sock-pair-strategy-worst-case",
+      level: "strategy",
+      text: "Рассмотри самый неудачный случай: сколько носков можно вынуть и всё ещё остаться без двух целых носков одного цвета?",
+    },
+    {
+      id: "guaranteed-sock-pair-next-step-bound-without-pair",
+      level: "next-step",
+      text: "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Учти ещё три дырявых носка и проверь, можно ли такой предельный набор действительно составить.",
+    },
+  ],
+  solution: {
+    id: "guaranteed-sock-pair-full-solution",
+    kind: "training-adaptation",
+    text: "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
+  [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {

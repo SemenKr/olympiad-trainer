@@ -1,29 +1,14 @@
 import {
-  CURRENT_PRACTICE_PROBLEM_ID,
   getLearnerSafePracticeProblem,
+  PRACTICE_SESSION_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
-import { TaskBlockText } from "@/modules/practice/ui/task-block";
-
-import styles from "./page.module.scss";
 
 export default function PracticePage() {
-  const problem = getLearnerSafePracticeProblem(CURRENT_PRACTICE_PROBLEM_ID);
+  const problems = [
+    getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[0]),
+    getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[1]),
+  ] as const;
 
-  return (
-    <PracticeSession
-      header={
-        <header className={styles.header}>
-          <p className={styles.eyebrow}>Тренировка</p>
-          <h1>{problem.title}</h1>
-        </header>
-      }
-      problem={problem}
-      taskContent={
-        <TaskBlockText title="Условие задачи">
-          <p>{problem.statement}</p>
-        </TaskBlockText>
-      }
-    />
-  );
+  return <PracticeSession problems={problems} />;
 }
