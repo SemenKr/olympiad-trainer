@@ -10,7 +10,7 @@ type SessionSummaryProps = Readonly<{
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }>;
 
-function getRemainingText(
+export function getPracticeRemainingText(
   outcome: PracticeSummary["outcome"],
   problemTitle?: string,
 ): string | null {
@@ -89,7 +89,7 @@ export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
 
   const remainingText = remainingResults
     .map((result) =>
-      getRemainingText(
+      getPracticeRemainingText(
         result.summary.outcome,
         results.length > 1 ? result.problemTitle : undefined,
       ),

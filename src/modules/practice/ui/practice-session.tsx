@@ -35,12 +35,11 @@ import {
 } from "./practice-session-state";
 import styles from "./practice-session.module.scss";
 import {
-  clearPracticeSessionSnapshot,
+  completePracticeSession,
   readPracticeSessionSnapshot,
   restoreAnswerState,
   savePracticeSessionSnapshot,
 } from "./practice-session-storage";
-import { SessionSummary } from "./session-summary";
 import {
   createShortNumericAnswerState,
   editShortNumericAnswer,
@@ -70,7 +69,11 @@ type PracticeProblemEpisodeProps = Readonly<{
   problem: LearnerSafePracticeProblem;
   hasNextProblem: boolean;
   focusHeadingOnMount: boolean;
-  onFinish: (summary: PracticeSummary) => boolean;
+  completionLatch: { current: boolean };
+  onFinish: (
+    summary: PracticeSummary,
+    answer: ShortNumericAnswerState,
+  ) => boolean;
   onNextProblem: (summary: PracticeSummary) => void;
   onSkip: (summary: PracticeSummary) => void;
   onPause: (answer: ShortNumericAnswerState) => boolean;
@@ -105,16 +108,41 @@ export function PracticeSolutionRevealError() {
   );
 }
 
+export function savePracticeSessionWhileActive(
+  completionLatch: { current: boolean },
+  session: TwoProblemSessionState,
+  answer: ShortNumericAnswerState,
+  storage?: Storage,
+): boolean {
+  return (
+    !completionLatch.current &&
+    savePracticeSessionSnapshot(session, answer, storage)
+  );
+}
+
+export function finishPracticeSessionAndNavigate(
+  completionLatch: { current: boolean },
+  session: TwoProblemSessionState,
+  answer: ShortNumericAnswerState,
+  results: readonly PracticeSessionResult[],
+  navigate: () => void,
+  storage?: Storage,
+): boolean {
+  if (completionLatch.current) return false;
+  if (!completePracticeSession(session, answer, results, storage)) return false;
+  completionLatch.current = true;
+  navigate();
+  return true;
+}
+
 export function PracticeSession({ problems }: PracticeSessionProps) {
   const router = useRouter();
+  const completionLatch = useRef(false);
+  const [completionPending, setCompletionPending] = useState(false);
   const [loaded, setLoaded] = useState<{
     session: TwoProblemSessionState;
     answer: ShortNumericAnswerState;
   } | null>(null);
-  const [sessionResults, setSessionResults] = useState<
-    readonly PracticeSessionResult[] | null
-  >(null);
-  const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -138,26 +166,23 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (sessionResults) {
-      summaryHeadingRef.current?.focus();
-    }
-  }, [sessionResults]);
-
-  if (sessionResults) {
-    return (
-      <SessionSummary headingRef={summaryHeadingRef} results={sessionResults} />
-    );
-  }
-
   if (!loaded) {
     return <main aria-busy="true">Загружаем тренировку…</main>;
+  }
+
+  if (completionPending) {
+    return (
+      <main aria-busy="true" role="status">
+        Открываем итоги тренировки…
+      </main>
+    );
   }
 
   const { session: sessionState } = loaded;
   const activeProblem = problems[sessionState.activeProblemIndex];
 
   function handleNextProblem(summary: PracticeSummary) {
+    if (completionLatch.current) return;
     const result = createPracticeSessionResult(activeProblem, summary);
     const nextSession = advanceTwoProblemSession(sessionState, result);
 
@@ -168,14 +193,26 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     }
   }
 
-  function handleFinish(summary: PracticeSummary) {
-    if (!clearPracticeSessionSnapshot()) return false;
+  function handleFinish(
+    summary: PracticeSummary,
+    answer: ShortNumericAnswerState,
+  ) {
     const result = createPracticeSessionResult(activeProblem, summary);
-    setSessionResults(finishTwoProblemSession(sessionState, result));
-    return true;
+    const results = finishTwoProblemSession(sessionState, result);
+    return finishPracticeSessionAndNavigate(
+      completionLatch,
+      sessionState,
+      answer,
+      results,
+      () => {
+        setCompletionPending(true);
+        router.push("/practice/summary");
+      },
+    );
   }
 
   function handleSkip(summary: PracticeSummary) {
+    if (completionLatch.current) return;
     const result = createPracticeSessionResult(
       activeProblem,
       summary,
@@ -191,13 +228,15 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   }
 
   function handlePause(answer: ShortNumericAnswerState) {
-    if (!savePracticeSessionSnapshot(sessionState, answer)) return false;
+    if (!savePracticeSessionWhileActive(completionLatch, sessionState, answer))
+      return false;
     router.push("/");
     return true;
   }
 
   return (
     <PracticeProblemEpisode
+      completionLatch={completionLatch}
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
       hasNextProblem={sessionState.activeProblemIndex === 0}
       key={activeProblem.problemId}
@@ -207,7 +246,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       onPause={handlePause}
       onSkip={handleSkip}
       onStableChange={(answer) =>
-        savePracticeSessionSnapshot(sessionState, answer)
+        savePracticeSessionWhileActive(completionLatch, sessionState, answer)
       }
       problem={activeProblem}
     />
@@ -218,6 +257,7 @@ function PracticeProblemEpisode({
   problem,
   hasNextProblem,
   focusHeadingOnMount,
+  completionLatch,
   onFinish,
   onNextProblem,
   onSkip,
@@ -398,6 +438,7 @@ function PracticeProblemEpisode({
   }, [answerState.practice.solutionExposure, revealedSolution]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
+    if (completionLatch.current) return;
     answerStateRef.current = nextState;
     setAnswerState(nextState);
     onStableChange(nextState);
@@ -405,6 +446,7 @@ function PracticeProblemEpisode({
 
   function handlePause() {
     if (
+      completionLatch.current ||
       submissionGate.current ||
       answerStateRef.current.status === "loading" ||
       hintRevealGate.current ||
@@ -422,6 +464,7 @@ function PracticeProblemEpisode({
   }
 
   function handleAnswerSubmit() {
+    if (completionLatch.current) return;
     void runShortNumericAnswerSubmission({
       state: answerStateRef.current,
       gate: submissionGate,
@@ -435,7 +478,7 @@ function PracticeProblemEpisode({
   }
 
   function handleFinish() {
-    if (restorePendingRef.current) return;
+    if (completionLatch.current || restorePendingRef.current) return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_FINISH_MESSAGE),
@@ -443,12 +486,13 @@ function PracticeProblemEpisode({
     );
 
     if (nextSummary) {
-      if (!onFinish(nextSummary)) setStorageError("finish");
+      if (!onFinish(nextSummary, answerStateRef.current))
+        setStorageError("finish");
     }
   }
 
   function handleNextProblem() {
-    if (restorePendingRef.current) return;
+    if (completionLatch.current || restorePendingRef.current) return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_NEXT_MESSAGE),
@@ -464,7 +508,7 @@ function PracticeProblemEpisode({
   }
 
   function handleSkip() {
-    if (restorePendingRef.current) return;
+    if (completionLatch.current || restorePendingRef.current) return;
     const nextSummary = requestPracticeSkip(
       answerStateRef.current,
       hasNextProblem,
@@ -497,6 +541,7 @@ function PracticeProblemEpisode({
       Awaited<ReturnType<typeof requestFocusHintReveal>>
     >,
   ) {
+    if (completionLatch.current) return;
     await runPracticeHintReveal({
       gate: hintRevealGate,
       hintId,
@@ -547,6 +592,7 @@ function PracticeProblemEpisode({
   }
 
   function handleSolutionOpen() {
+    if (completionLatch.current) return;
     void runPracticeSolutionReveal({
       gate: solutionRevealGate,
       requestReveal: () =>
@@ -605,6 +651,7 @@ function PracticeProblemEpisode({
               <button
                 className={styles["hint-action"]}
                 onClick={() => {
+                  if (completionLatch.current) return;
                   restorePendingRef.current = true;
                   setRestorePending(true);
                   setRestoreFailed(false);
