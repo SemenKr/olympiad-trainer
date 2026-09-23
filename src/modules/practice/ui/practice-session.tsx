@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -19,17 +20,26 @@ import {
   isNextStepHintAvailable,
   isSolutionAvailable,
   isStrategyHintAvailable,
+  keepNewerPracticeSolution,
+  mergeRestoredPracticeHints,
   requestFocusHintReveal,
   requestNextStepHintReveal,
   requestPracticeFinish,
   requestSolutionReveal,
   requestStrategyHintReveal,
+  restorePracticePresentation,
   runPracticeHintReveal,
   runPracticeSolutionReveal,
   type SuccessfulHintReveal,
   type SuccessfulSolutionReveal,
 } from "./practice-session-state";
 import styles from "./practice-session.module.scss";
+import {
+  clearPracticeSessionSnapshot,
+  readPracticeSessionSnapshot,
+  restoreAnswerState,
+  savePracticeSessionSnapshot,
+} from "./practice-session-storage";
 import { SessionSummary } from "./session-summary";
 import {
   createShortNumericAnswerState,
@@ -49,6 +59,7 @@ import {
   requestPracticeSkip,
   startTwoProblemSession,
   type PracticeSessionResult,
+  type TwoProblemSessionState,
 } from "./two-problem-session-state";
 
 type PracticeSessionProps = Readonly<{
@@ -59,9 +70,12 @@ type PracticeProblemEpisodeProps = Readonly<{
   problem: LearnerSafePracticeProblem;
   hasNextProblem: boolean;
   focusHeadingOnMount: boolean;
-  onFinish: (summary: PracticeSummary) => void;
+  onFinish: (summary: PracticeSummary) => boolean;
   onNextProblem: (summary: PracticeSummary) => void;
   onSkip: (summary: PracticeSummary) => void;
+  onPause: (answer: ShortNumericAnswerState) => boolean;
+  onStableChange: (answer: ShortNumericAnswerState) => void;
+  initialAnswerState: ShortNumericAnswerState;
 }>;
 
 const DIRTY_FINISH_MESSAGE =
@@ -92,12 +106,37 @@ export function PracticeSolutionRevealError() {
 }
 
 export function PracticeSession({ problems }: PracticeSessionProps) {
-  const [sessionState, setSessionState] = useState(startTwoProblemSession);
+  const router = useRouter();
+  const [loaded, setLoaded] = useState<{
+    session: TwoProblemSessionState;
+    answer: ShortNumericAnswerState;
+  } | null>(null);
   const [sessionResults, setSessionResults] = useState<
     readonly PracticeSessionResult[] | null
   >(null);
   const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
-  const activeProblem = problems[sessionState.activeProblemIndex];
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const snapshot = readPracticeSessionSnapshot();
+      const session = snapshot
+        ? {
+            activeProblemIndex: snapshot.activeProblemIndex,
+            completedResults: snapshot.completedResults,
+          }
+        : startTwoProblemSession();
+      const answer = snapshot
+        ? restoreAnswerState(snapshot)
+        : createShortNumericAnswerState();
+      setLoaded({ session, answer });
+      if (!snapshot) savePracticeSessionSnapshot(session, answer);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (sessionResults) {
@@ -111,18 +150,29 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     );
   }
 
+  if (!loaded) {
+    return <main aria-busy="true">Загружаем тренировку…</main>;
+  }
+
+  const { session: sessionState } = loaded;
+  const activeProblem = problems[sessionState.activeProblemIndex];
+
   function handleNextProblem(summary: PracticeSummary) {
     const result = createPracticeSessionResult(activeProblem, summary);
     const nextSession = advanceTwoProblemSession(sessionState, result);
 
     if (nextSession) {
-      setSessionState(nextSession);
+      const answer = createShortNumericAnswerState();
+      savePracticeSessionSnapshot(nextSession, answer);
+      setLoaded({ session: nextSession, answer });
     }
   }
 
   function handleFinish(summary: PracticeSummary) {
+    if (!clearPracticeSessionSnapshot()) return false;
     const result = createPracticeSessionResult(activeProblem, summary);
     setSessionResults(finishTwoProblemSession(sessionState, result));
+    return true;
   }
 
   function handleSkip(summary: PracticeSummary) {
@@ -134,8 +184,16 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     const nextSession = advanceTwoProblemSession(sessionState, result);
 
     if (nextSession) {
-      setSessionState(nextSession);
+      const answer = createShortNumericAnswerState();
+      savePracticeSessionSnapshot(nextSession, answer);
+      setLoaded({ session: nextSession, answer });
     }
+  }
+
+  function handlePause(answer: ShortNumericAnswerState) {
+    if (!savePracticeSessionSnapshot(sessionState, answer)) return false;
+    router.push("/");
+    return true;
   }
 
   return (
@@ -143,9 +201,14 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
       hasNextProblem={sessionState.activeProblemIndex === 0}
       key={activeProblem.problemId}
+      initialAnswerState={loaded.answer}
       onFinish={handleFinish}
       onNextProblem={handleNextProblem}
+      onPause={handlePause}
       onSkip={handleSkip}
+      onStableChange={(answer) =>
+        savePracticeSessionSnapshot(sessionState, answer)
+      }
       problem={activeProblem}
     />
   );
@@ -158,9 +221,12 @@ function PracticeProblemEpisode({
   onFinish,
   onNextProblem,
   onSkip,
+  onPause,
+  onStableChange,
+  initialAnswerState,
 }: PracticeProblemEpisodeProps) {
   const [focusHint, strategyHint, nextStepHint] = problem.hints;
-  const [answerState, setAnswerState] = useState(createShortNumericAnswerState);
+  const [answerState, setAnswerState] = useState(() => initialAnswerState);
   const [revealedHints, setRevealedHints] = useState<
     readonly RevealedPracticeHint[]
   >([]);
@@ -170,6 +236,26 @@ function PracticeProblemEpisode({
   const [isSolutionRevealPending, setIsSolutionRevealPending] = useState(false);
   const [hintRevealFailed, setHintRevealFailed] = useState(false);
   const [solutionRevealFailed, setSolutionRevealFailed] = useState(false);
+  const [storageError, setStorageError] = useState<"pause" | "finish" | null>(
+    null,
+  );
+  const [restorePending, setRestorePending] = useState(
+    initialAnswerState.practice.hintExposures.length > 0 ||
+      initialAnswerState.practice.solutionExposure !== null,
+  );
+  const [restoreFailed, setRestoreFailed] = useState(false);
+  const [restoreRetry, setRestoreRetry] = useState(0);
+  const restorePendingRef = useRef(restorePending);
+  const restoredHintIdsRef = useRef(
+    new Set(
+      initialAnswerState.practice.hintExposures.map(
+        (exposure) => exposure.hintId,
+      ),
+    ),
+  );
+  const restoredSolutionRef = useRef(
+    initialAnswerState.practice.solutionExposure !== null,
+  );
   const answerStateRef = useRef(answerState);
   const submissionGate = useRef(false);
   const hintRevealGate = useRef(false);
@@ -219,12 +305,51 @@ function PracticeProblemEpisode({
   const supportRevealPending =
     pendingHintId !== null || isSolutionRevealPending;
   const canOpenNextProblem =
-    hasNextProblem && navigationComplete && !supportRevealPending;
+    hasNextProblem &&
+    navigationComplete &&
+    !supportRevealPending &&
+    !restorePending;
   const canSkipProblem = isPracticeProblemSkipAvailable(
     answerState,
     hasNextProblem,
-    supportRevealPending,
+    supportRevealPending || restorePending,
   );
+
+  useEffect(() => {
+    const exposures = initialAnswerState.practice.hintExposures;
+    const solution = initialAnswerState.practice.solutionExposure;
+    if (exposures.length === 0 && !solution) return;
+
+    let active = true;
+    restorePendingRef.current = true;
+    void restorePracticePresentation(
+      problem,
+      initialAnswerState.practice,
+      revealPracticeHint,
+      revealPracticeSolution,
+    )
+      .then(({ hints, solution: revealed }) => {
+        if (!active) return;
+        setRevealedHints((current) =>
+          mergeRestoredPracticeHints(current, hints),
+        );
+        setRevealedSolution((current) =>
+          keepNewerPracticeSolution(current, revealed),
+        );
+      })
+      .catch(() => {
+        if (active) setRestoreFailed(true);
+      })
+      .finally(() => {
+        if (active) {
+          restorePendingRef.current = false;
+          setRestorePending(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialAnswerState, problem, restoreRetry]);
 
   useEffect(() => {
     if (focusHeadingOnMount) {
@@ -233,25 +358,41 @@ function PracticeProblemEpisode({
   }, [focusHeadingOnMount]);
 
   useEffect(() => {
-    if (revealedFocusHint && focusHintExposure) {
+    if (
+      revealedFocusHint &&
+      focusHintExposure &&
+      !restoredHintIdsRef.current.has(focusHint.hintId)
+    ) {
       focusHintHeadingRef.current?.focus();
     }
-  }, [focusHintExposure, revealedFocusHint]);
+  }, [focusHint.hintId, focusHintExposure, revealedFocusHint]);
 
   useEffect(() => {
-    if (revealedStrategyHint && strategyHintExposure) {
+    if (
+      revealedStrategyHint &&
+      strategyHintExposure &&
+      !restoredHintIdsRef.current.has(strategyHint.hintId)
+    ) {
       strategyHintHeadingRef.current?.focus();
     }
-  }, [revealedStrategyHint, strategyHintExposure]);
+  }, [revealedStrategyHint, strategyHint.hintId, strategyHintExposure]);
 
   useEffect(() => {
-    if (revealedNextStepHint && nextStepHintExposure) {
+    if (
+      revealedNextStepHint &&
+      nextStepHintExposure &&
+      !restoredHintIdsRef.current.has(nextStepHint.hintId)
+    ) {
       nextStepHintHeadingRef.current?.focus();
     }
-  }, [revealedNextStepHint, nextStepHintExposure]);
+  }, [revealedNextStepHint, nextStepHint.hintId, nextStepHintExposure]);
 
   useEffect(() => {
-    if (revealedSolution && answerState.practice.solutionExposure) {
+    if (
+      revealedSolution &&
+      answerState.practice.solutionExposure &&
+      !restoredSolutionRef.current
+    ) {
       solutionHeadingRef.current?.focus();
     }
   }, [answerState.practice.solutionExposure, revealedSolution]);
@@ -259,6 +400,19 @@ function PracticeProblemEpisode({
   function updateAnswerState(nextState: ShortNumericAnswerState) {
     answerStateRef.current = nextState;
     setAnswerState(nextState);
+    onStableChange(nextState);
+  }
+
+  function handlePause() {
+    if (
+      submissionGate.current ||
+      answerStateRef.current.status === "loading" ||
+      hintRevealGate.current ||
+      solutionRevealGate.current ||
+      restorePendingRef.current
+    )
+      return;
+    if (!onPause(answerStateRef.current)) setStorageError("pause");
   }
 
   function handleAnswerChange(rawAnswer: string) {
@@ -281,6 +435,7 @@ function PracticeProblemEpisode({
   }
 
   function handleFinish() {
+    if (restorePendingRef.current) return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_FINISH_MESSAGE),
@@ -288,11 +443,12 @@ function PracticeProblemEpisode({
     );
 
     if (nextSummary) {
-      onFinish(nextSummary);
+      if (!onFinish(nextSummary)) setStorageError("finish");
     }
   }
 
   function handleNextProblem() {
+    if (restorePendingRef.current) return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_NEXT_MESSAGE),
@@ -308,6 +464,7 @@ function PracticeProblemEpisode({
   }
 
   function handleSkip() {
+    if (restorePendingRef.current) return;
     const nextSummary = requestPracticeSkip(
       answerStateRef.current,
       hasNextProblem,
@@ -428,7 +585,37 @@ function PracticeProblemEpisode({
             state={answerState}
           />
 
+          {storageError ? (
+            <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+              {storageError === "pause"
+                ? "Не удалось сохранить тренировку. Попробуй ещё раз."
+                : "Не удалось завершить тренировку. Попробуй ещё раз."}
+            </p>
+          ) : null}
+
           {hintRevealFailed ? <PracticeHintRevealError /> : null}
+          {restorePending ? (
+            <p role="status">Восстанавливаем открытые подсказки и решение…</p>
+          ) : null}
+          {restoreFailed ? (
+            <div>
+              <p role="alert">
+                Не удалось загрузить открытые подсказки или решение.
+              </p>
+              <button
+                className={styles["hint-action"]}
+                onClick={() => {
+                  restorePendingRef.current = true;
+                  setRestorePending(true);
+                  setRestoreFailed(false);
+                  setRestoreRetry((value) => value + 1);
+                }}
+                type="button"
+              >
+                Повторить загрузку
+              </button>
+            </div>
+          ) : null}
 
           {revealedFocusHint ? (
             <aside className={styles.hint}>
@@ -533,16 +720,18 @@ function PracticeProblemEpisode({
         </div>
       }
       backAction={
-        <button disabled type="button">
-          ← Назад
+        <button
+          disabled={isPending || supportRevealPending || restorePending}
+          onClick={handlePause}
+          type="button"
+        >
+          ← На главную
         </button>
       }
       finishAction={
         <button
           className={styles.finish}
-          disabled={
-            isPending || pendingHintId !== null || isSolutionRevealPending
-          }
+          disabled={isPending || supportRevealPending || restorePending}
           onClick={handleFinish}
           type="button"
         >

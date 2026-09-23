@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { recordAnswerResult } from "../application/practice-state";
 import {
+  keepNewerPracticeSolution,
+  mergeRestoredPracticeHints,
   isFocusHintAvailable,
   isNextStepHintAvailable,
   isSolutionAvailable,
@@ -15,6 +17,7 @@ import {
   requestPracticeFinish,
   requestSolutionReveal,
   requestStrategyHintReveal,
+  restorePracticePresentation,
   runPracticeHintReveal,
   runPracticeSolutionReveal,
 } from "./practice-session-state";
@@ -29,6 +32,112 @@ const focusHintId = "coinciding-seats-focus-simultaneous-rules";
 const strategyHintId = "coinciding-seats-strategy-repeat-interval";
 const nextStepHintId = "coinciding-seats-next-step-list-common-seats";
 const solutionId = "coinciding-seats-full-solution";
+
+const restoreProblem = {
+  problemId: "coinciding-seats",
+  title: "Совпадающие места",
+  statement: "Learner statement",
+  hints: [
+    { hintId: focusHintId, level: "focus" },
+    { hintId: strategyHintId, level: "strategy" },
+    { hintId: nextStepHintId, level: "next-step" },
+  ],
+  solution: { solutionId },
+} as const;
+
+describe("restored protected presentation", () => {
+  it("keeps later reveals and their text when an older restore retry completes", () => {
+    const newerStrategy = {
+      hintId: strategyHintId,
+      level: "strategy" as const,
+      text: "newer strategy text",
+    };
+    const newerFocus = {
+      hintId: focusHintId,
+      level: "focus" as const,
+      text: "newer focus text",
+    };
+    const restoredFocus = {
+      hintId: focusHintId,
+      level: "focus" as const,
+      text: "restored focus text",
+    };
+
+    const afterRetry = mergeRestoredPracticeHints(
+      [newerStrategy, newerFocus],
+      [restoredFocus],
+    );
+    expect(afterRetry).toEqual([newerStrategy, newerFocus]);
+    expect(
+      mergeRestoredPracticeHints([newerStrategy], [restoredFocus]),
+    ).toEqual([newerStrategy, restoredFocus]);
+    const newerSolution = {
+      solutionId,
+      text: "newer solution text",
+    };
+    expect(keepNewerPracticeSolution(newerSolution, null)).toBe(newerSolution);
+    expect(
+      keepNewerPracticeSolution(newerSolution, {
+        solutionId,
+        text: "older restored solution text",
+      }),
+    ).toBe(newerSolution);
+  });
+
+  it("refetches exposed hints and solution without changing evidence or counts", async () => {
+    const exposed = openSolution(
+      withAllHintExposures(
+        withAnswerResult(createShortNumericAnswerState(), "incorrect", "16"),
+      ),
+      focusHintId,
+      strategyHintId,
+      nextStepHintId,
+      solutionId,
+    );
+    const practice = exposed.practice;
+    const revealHint = vi.fn(async (_problemId: string, hintId: string) => ({
+      hintId,
+      level: restoreProblem.hints.find((hint) => hint.hintId === hintId)!.level,
+      text: "protected hint",
+    }));
+    const revealSolution = vi.fn(async () => ({
+      solutionId,
+      text: "protected solution",
+    }));
+
+    const presentation = await restorePracticePresentation(
+      restoreProblem,
+      practice,
+      revealHint,
+      revealSolution,
+    );
+
+    expect(presentation.hints).toHaveLength(3);
+    expect(presentation.solution?.text).toBe("protected solution");
+    expect(revealHint).toHaveBeenCalledTimes(3);
+    expect(revealSolution).toHaveBeenCalledOnce();
+    expect(exposed.practice).toBe(practice);
+    expect(
+      practice.hintExposures.map(
+        (exposure) => exposure.validSubmissionCountAtOpen,
+      ),
+    ).toEqual([1, 1, 1]);
+    expect(practice.solutionExposure?.validSubmissionCountAtOpen).toBe(1);
+  });
+
+  it("rejects mismatched reveal data without editing recorded exposures", async () => {
+    const exposed = openFocusHint(createShortNumericAnswerState(), focusHintId);
+    await expect(
+      restorePracticePresentation(
+        restoreProblem,
+        exposed.practice,
+        async () => ({ hintId: "wrong", level: "focus", text: "wrong" }),
+        async () => ({ solutionId, text: "unused" }),
+      ),
+    ).rejects.toThrow("Restored hint does not match");
+    expect(exposed.practice.hintExposures).toHaveLength(1);
+  });
+});
 
 function withAnswerResult(
   state: ShortNumericAnswerState,

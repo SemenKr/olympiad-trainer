@@ -6,6 +6,7 @@ import {
   type PracticeSummary,
 } from "../application/practice-state";
 import type {
+  LearnerSafePracticeProblem,
   LearnerSafeFocusHintDescriptor,
   LearnerSafeHintDescriptor,
   LearnerSafeNextStepHintDescriptor,
@@ -14,12 +15,84 @@ import type {
   RevealedPracticeHint,
   RevealedPracticeSolution,
 } from "../application/practice-problem-presentation";
+import type { ActivePractice } from "../application/practice-state";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
 
 type ConfirmDiscard = () => boolean;
 type GetAnswerState = () => ShortNumericAnswerState;
 type RevealHint = () => Promise<RevealedPracticeHint>;
 type RevealSolution = () => Promise<RevealedPracticeSolution>;
+
+export function mergeRestoredPracticeHints(
+  current: readonly RevealedPracticeHint[],
+  restored: readonly RevealedPracticeHint[],
+): readonly RevealedPracticeHint[] {
+  const ids = new Set(current.map((hint) => hint.hintId));
+  return [
+    ...current,
+    ...restored.filter((hint) => {
+      if (ids.has(hint.hintId)) return false;
+      ids.add(hint.hintId);
+      return true;
+    }),
+  ];
+}
+
+export function keepNewerPracticeSolution(
+  current: RevealedPracticeSolution | null,
+  restored: RevealedPracticeSolution | null,
+): RevealedPracticeSolution | null {
+  return current ?? restored;
+}
+
+export async function restorePracticePresentation(
+  problem: LearnerSafePracticeProblem,
+  practice: ActivePractice,
+  revealHint: (
+    problemId: string,
+    hintId: string,
+  ) => Promise<RevealedPracticeHint>,
+  revealSolution: (
+    problemId: string,
+    solutionId: string,
+  ) => Promise<RevealedPracticeSolution>,
+): Promise<
+  Readonly<{
+    hints: readonly RevealedPracticeHint[];
+    solution: RevealedPracticeSolution | null;
+  }>
+> {
+  const [hints, solution] = await Promise.all([
+    Promise.all(
+      practice.hintExposures.map(async (exposure) => {
+        const revealed = await revealHint(problem.problemId, exposure.hintId);
+        if (
+          revealed.hintId !== exposure.hintId ||
+          revealed.level !== exposure.level ||
+          typeof revealed.text !== "string"
+        ) {
+          throw new Error("Restored hint does not match its exposure.");
+        }
+        return revealed;
+      }),
+    ),
+    practice.solutionExposure
+      ? revealSolution(
+          problem.problemId,
+          practice.solutionExposure.solutionId,
+        ).then((revealed) => {
+          if (
+            revealed.solutionId !== practice.solutionExposure?.solutionId ||
+            typeof revealed.text !== "string"
+          ) {
+            throw new Error("Restored solution does not match its exposure.");
+          }
+          return revealed;
+        })
+      : Promise.resolve(null),
+  ]);
+  return { hints, solution };
+}
 type HintRevealGate = { current: boolean };
 type SolutionRevealGate = { current: boolean };
 
