@@ -10,12 +10,19 @@ type SessionSummaryProps = Readonly<{
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }>;
 
-function getRemainingText(outcome: PracticeSummary["outcome"]): string | null {
+function getRemainingText(
+  outcome: PracticeSummary["outcome"],
+  problemTitle?: string,
+): string | null {
   switch (outcome) {
     case "no-valid-submissions":
-      return "В этой тренировке по задаче не было проверенного ответа.";
+      return problemTitle
+        ? `По задаче «${problemTitle}» не было проверенного ответа.`
+        : "В этой тренировке по задаче не было проверенного ответа.";
     case "incorrect-only":
-      return "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.";
+      return problemTitle
+        ? `По задаче «${problemTitle}» были проверенные попытки, но правильный ответ не был получен.`
+        : "Были проверенные попытки, но правильный ответ в этой тренировке не был получен.";
     case "eventually-correct":
       return null;
   }
@@ -74,7 +81,12 @@ export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
   const successOverview = getSuccessOverview(results);
 
   const remainingText = remainingResults
-    .map((result) => getRemainingText(result.summary.outcome))
+    .map((result) =>
+      getRemainingText(
+        result.summary.outcome,
+        results.length > 1 ? result.problemTitle : undefined,
+      ),
+    )
     .filter(Boolean)
     .join(" ");
 

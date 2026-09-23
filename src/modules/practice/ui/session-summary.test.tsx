@@ -364,4 +364,56 @@ describe("SessionSummary", () => {
     expect(markup).not.toContain("Решено самостоятельно");
     expect(markup).not.toContain("Получилось с подсказкой");
   });
+
+  it.each([
+    {
+      outcome: "incorrect-only",
+      remainingText:
+        "По задаче «Носки в пакете» были проверенные попытки, но правильный ответ не был получен.",
+    },
+    {
+      outcome: "no-valid-submissions",
+      remainingText: "По задаче «Носки в пакете» не было проверенного ответа.",
+    },
+  ] as const)(
+    "scopes problem 2 remaining work after problem 1 succeeds: $outcome",
+    ({ outcome, remainingText }) => {
+      const markup = renderToStaticMarkup(
+        <SessionSummary
+          results={[
+            {
+              problemId: "coinciding-seats",
+              problemTitle: "Совпадающие места",
+              summary: {
+                outcome: "eventually-correct",
+                validSubmissionCount: 1,
+                hintExposures: [],
+                solutionExposure: null,
+              },
+            },
+            {
+              problemId: "guaranteed-sock-pair",
+              problemTitle: "Носки в пакете",
+              summary: {
+                outcome,
+                validSubmissionCount: outcome === "incorrect-only" ? 1 : 0,
+                hintExposures: [],
+                solutionExposure: null,
+              },
+            },
+          ]}
+        />,
+      );
+
+      expect(markup).toContain("Одну задачу ты решил сам.");
+      expect(markup).toContain(remainingText);
+      expect(markup).not.toContain(
+        "правильный ответ в этой тренировке не был получен",
+      );
+      const resultsSection = markup.split("Результаты задач")[1];
+      expect(resultsSection).toContain("Совпадающие места");
+      expect(resultsSection).not.toContain("Носки в пакете");
+      expect(markup.match(/Решено самостоятельно/g)).toHaveLength(1);
+    },
+  );
 });
