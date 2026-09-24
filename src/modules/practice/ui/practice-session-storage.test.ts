@@ -18,7 +18,9 @@ import {
   PRACTICE_SESSION_STORAGE_KEY,
   readPracticeSessionSnapshot,
   restoreAnswerState,
+  saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
+  type PracticeSessionSnapshot,
   validatePracticeSessionSnapshot,
 } from "./practice-session-storage";
 import {
@@ -72,10 +74,50 @@ function initialSnapshot() {
   };
 }
 
+function readActiveSnapshot(storage: Storage): PracticeSessionSnapshot {
+  const snapshot = readPracticeSessionSnapshot(storage);
+  if (!snapshot || "status" in snapshot)
+    throw new Error("Expected an active Practice snapshot");
+  return snapshot;
+}
+
+function noNextSession() {
+  const firstPractice = recordAnswerResult(startPractice(), {
+    status: "correct",
+    normalizedAnswer: "17",
+  });
+  const secondPractice = recordHintExposure(
+    recordAnswerResult(startPractice(), {
+      status: "incorrect",
+      normalizedAnswer: "16",
+    }),
+    {
+      hintId: "guaranteed-sock-pair-focus-guarantee",
+      level: "focus",
+    },
+  );
+  return {
+    status: "no-next" as const,
+    completedResults: [
+      {
+        problemId: first.id,
+        problemTitle: first.title,
+        summary: getPracticeSummary(finishPractice(firstPractice)),
+      },
+      {
+        problemId: second.id,
+        problemTitle: second.title,
+        summary: getPracticeSummary(finishPractice(secondPractice)),
+        taskOutcome: "skipped" as const,
+      },
+    ] as const,
+  };
+}
+
 describe("unfinished Practice storage", () => {
   it("saves an untouched session and restores the same active problem", () => {
     const { storage } = initialSnapshot();
-    const snapshot = readPracticeSessionSnapshot(storage)!;
+    const snapshot = readActiveSnapshot(storage);
 
     expect(snapshot.activeProblemIndex).toBe(0);
     expect(snapshot.completedResults).toEqual([]);
@@ -102,7 +144,7 @@ describe("unfinished Practice storage", () => {
       ),
       storage,
     );
-    const snapshot = readPracticeSessionSnapshot(storage)!;
+    const snapshot = readActiveSnapshot(storage);
 
     expect(snapshot.rawAnswer).toBe("18");
     expect(snapshot.activePractice.submissions).toEqual([
@@ -131,7 +173,7 @@ describe("unfinished Practice storage", () => {
       storage,
     );
 
-    const restored = readPracticeSessionSnapshot(storage)!;
+    const restored = readActiveSnapshot(storage);
     expect(restored.activePractice.submissions).toEqual([
       { answer: "17", outcome: "correct" },
       { answer: "16", outcome: "incorrect" },
@@ -159,7 +201,7 @@ describe("unfinished Practice storage", () => {
       storage,
     );
     const raw = storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!;
-    const restored = readPracticeSessionSnapshot(storage)!;
+    const restored = readActiveSnapshot(storage);
 
     expect(restored.activePractice).toEqual(practice);
     expect(restored.activePractice.hintExposures).toHaveLength(3);
@@ -191,7 +233,7 @@ describe("unfinished Practice storage", () => {
       editShortNumericAnswer(createShortNumericAnswerState(), "6"),
       storage,
     );
-    const restored = readPracticeSessionSnapshot(storage)!;
+    const restored = readActiveSnapshot(storage);
 
     expect(restored.activeProblemIndex).toBe(1);
     expect(restored.completedResults).toEqual([
@@ -435,7 +477,7 @@ describe("unfinished Practice storage", () => {
         { rawAnswer: "16", status, practice: startPractice() },
         storage,
       );
-      const restored = readPracticeSessionSnapshot(storage)!;
+      const restored = readActiveSnapshot(storage);
       expect(restoreAnswerState(restored).status).toBe("typing");
       expect(restored.activePractice.submissions).toEqual([]);
       expect(restored.activePractice.hintExposures).toEqual([]);
@@ -470,12 +512,104 @@ describe("unfinished Practice storage", () => {
     expect(
       savePracticeSessionSnapshot(session, newAnswer, failingStorage),
     ).toBe(false);
-    expect(readPracticeSessionSnapshot(storage)?.rawAnswer).toBe("old");
+    expect(readActiveSnapshot(storage).rawAnswer).toBe("old");
     expect(clearPracticeSessionSnapshot(failingStorage)).toBe(false);
     expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
     expect(savePracticeSessionSnapshot(session, newAnswer, storage)).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)?.rawAnswer).toBe("new draft");
+    expect(readActiveSnapshot(storage).rawAnswer).toBe("new draft");
     expect(clearPracticeSessionSnapshot(storage)).toBe(true);
     expect(readPracticeSessionSnapshot(storage)).toBeNull();
+  });
+
+  it("persists and reloads no-next without an active episode or protected text", () => {
+    const storage = memoryStorage();
+    const session = noNextSession();
+
+    expect(saveNoNextPracticeSessionSnapshot(session, storage)).toBe(true);
+    expect(readPracticeSessionSnapshot(storage)).toEqual(session);
+    const raw = storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!;
+    expect(JSON.parse(raw)).toEqual(session);
+    expect(raw).not.toContain("activeProblemIndex");
+    expect(raw).not.toContain("activePractice");
+    expect(raw).not.toContain("rawAnswer");
+    expect(raw).not.toContain("text");
+    expect(raw).not.toContain("expectedAnswer");
+  });
+
+  it("rejects malformed or impossible no-next snapshots and removes them", () => {
+    const session = noNextSession();
+    const [firstResult, secondResult] = session.completedResults;
+    const invalid = [
+      { ...session, activeProblemIndex: 1 },
+      { ...session, completedResults: [secondResult, firstResult] },
+      { ...session, completedResults: [firstResult] },
+      {
+        ...session,
+        completedResults: [
+          firstResult,
+          { ...secondResult, taskOutcome: undefined },
+        ],
+      },
+      {
+        ...session,
+        completedResults: [
+          {
+            ...firstResult,
+            summary: { ...firstResult.summary, outcome: "incorrect-only" },
+          },
+          secondResult,
+        ],
+      },
+      {
+        ...session,
+        completedResults: [
+          firstResult,
+          { ...secondResult, problemTitle: "Wrong" },
+        ],
+      },
+      {
+        ...session,
+        completedResults: [
+          firstResult,
+          {
+            ...secondResult,
+            summary: {
+              ...secondResult.summary,
+              hintExposures: [
+                {
+                  hintId: "unknown",
+                  level: "focus",
+                  validSubmissionCountAtOpen: 1,
+                },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        ...session,
+        completedResults: [
+          firstResult,
+          {
+            ...secondResult,
+            summary: {
+              ...secondResult.summary,
+              solutionExposure: {
+                solutionId: "guaranteed-sock-pair-full-solution",
+                validSubmissionCountAtOpen: 1,
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    for (const value of invalid) {
+      expect(validatePracticeSessionSnapshot(value)).toBeNull();
+      const storage = memoryStorage();
+      storage.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(value));
+      expect(readPracticeSessionSnapshot(storage)).toBeNull();
+      expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    }
   });
 });

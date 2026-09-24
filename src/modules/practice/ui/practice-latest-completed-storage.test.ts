@@ -24,6 +24,7 @@ import {
   readLatestCompletedResults,
   readPracticeSessionSnapshot,
   saveLatestCompletedResults,
+  saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
   validateLatestCompletedResults,
 } from "./practice-session-storage";
@@ -34,6 +35,7 @@ import {
 import {
   advanceTwoProblemSession,
   startTwoProblemSession,
+  type NoNextTwoProblemSessionState,
   type PracticeSessionResult,
 } from "./two-problem-session-state";
 
@@ -257,6 +259,12 @@ describe("latest completed Practice storage", () => {
     expect(
       validateLatestCompletedResults([result(0, "incorrect-only", true)]),
     ).toBeNull();
+    expect(
+      validateLatestCompletedResults([
+        result(0, "eventually-correct"),
+        result(1, "incorrect-only", true),
+      ]),
+    ).not.toBeNull();
   });
 
   it("fails closed for malformed, stale, protected, and impossible completed data", () => {
@@ -367,5 +375,133 @@ describe("latest completed Practice storage", () => {
     expect(readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(newResults);
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("finishes no-next explicitly, preserving the prior completion through failed transitions", () => {
+    const storage = memoryStorage();
+    const previous = [result(0, "eventually-correct")];
+    const session: NoNextTwoProblemSessionState = {
+      status: "no-next",
+      completedResults: [
+        result(0, "eventually-correct"),
+        result(1, "incorrect-only", true),
+      ],
+    };
+    const completionLatch = { current: false };
+    const navigate = vi.fn();
+    expect(saveLatestCompletedResults(previous, storage)).toBe(true);
+    expect(saveNoNextPracticeSessionSnapshot(session, storage)).toBe(true);
+    const originalNoNext = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+
+    const failedClear = {
+      ...storage,
+      removeItem: () => {
+        throw new Error("SecurityError");
+      },
+    };
+    expect(
+      finishPracticeSessionAndNavigate(
+        completionLatch,
+        session,
+        null,
+        session.completedResults,
+        navigate,
+        failedClear,
+      ),
+    ).toBe(false);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(originalNoNext);
+    expect(readLatestCompletedResults(storage)).toEqual(previous);
+
+    const failedCompletedWrite = {
+      ...storage,
+      setItem: (key: string, value: string) => {
+        if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY)
+          throw new Error("QuotaExceededError");
+        storage.setItem(key, value);
+      },
+    };
+    expect(
+      finishPracticeSessionAndNavigate(
+        completionLatch,
+        session,
+        null,
+        session.completedResults,
+        navigate,
+        failedCompletedWrite,
+      ),
+    ).toBe(false);
+    expect(completionLatch.current).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(originalNoNext);
+    expect(readLatestCompletedResults(storage)).toEqual(previous);
+
+    expect(
+      finishPracticeSessionAndNavigate(
+        completionLatch,
+        session,
+        null,
+        session.completedResults,
+        navigate,
+        storage,
+      ),
+    ).toBe(true);
+    expect(completionLatch.current).toBe(true);
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(readLatestCompletedResults(storage)).toEqual(
+      session.completedResults,
+    );
+  });
+
+  it("keeps no-next Finish retryable in memory even if rollback storage also fails", () => {
+    const storage = memoryStorage();
+    const previous = [result(0, "eventually-correct")];
+    const session: NoNextTwoProblemSessionState = {
+      status: "no-next",
+      completedResults: [
+        result(0, "eventually-correct"),
+        result(1, "no-valid-submissions", true),
+      ],
+    };
+    const latch = { current: false };
+    const navigate = vi.fn();
+    saveLatestCompletedResults(previous, storage);
+    saveNoNextPracticeSessionSnapshot(session, storage);
+    const failedWrites = {
+      ...storage,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
+
+    expect(
+      finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        null,
+        session.completedResults,
+        navigate,
+        failedWrites,
+      ),
+    ).toBe(false);
+    expect(latch.current).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(readLatestCompletedResults(storage)).toEqual(previous);
+    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+
+    expect(
+      finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        null,
+        session.completedResults,
+        navigate,
+        storage,
+      ),
+    ).toBe(true);
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(readLatestCompletedResults(storage)).toEqual(
+      session.completedResults,
+    );
   });
 });

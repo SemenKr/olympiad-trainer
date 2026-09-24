@@ -5,6 +5,7 @@ import type {
 } from "../application/practice-state";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
 import type {
+  NoNextTwoProblemSessionState,
   PracticeSessionResult,
   TwoProblemSessionState,
 } from "./two-problem-session-state";
@@ -43,6 +44,10 @@ export type PracticeSessionSnapshot = Readonly<{
   activePractice: ActivePractice;
   rawAnswer: string;
 }>;
+
+export type NoNextPracticeSessionSnapshot = NoNextTwoProblemSessionState;
+export type UnfinishedPracticeSessionSnapshot =
+  PracticeSessionSnapshot | NoNextPracticeSessionSnapshot;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -151,6 +156,7 @@ function validResult(
   value: unknown,
   problem: (typeof problems)[number],
   isFinal: boolean,
+  allowFinalSkip = false,
 ): value is PracticeSessionResult {
   if (
     !record(value) ||
@@ -169,7 +175,7 @@ function validResult(
 
   if (value.taskOutcome === "skipped") {
     return (
-      !isFinal &&
+      (!isFinal || allowFinalSkip) &&
       value.summary.outcome !== "eventually-correct" &&
       value.summary.solutionExposure === null
     );
@@ -190,7 +196,12 @@ export function validateLatestCompletedResults(
     !Array.isArray(value) ||
     (value.length !== 1 && value.length !== problems.length) ||
     !value.every((result, index) =>
-      validResult(result, problems[index], index === value.length - 1),
+      validResult(
+        result,
+        problems[index],
+        index === value.length - 1,
+        value.length === problems.length && index === 1,
+      ),
     )
   ) {
     return null;
@@ -257,7 +268,19 @@ function validActivePractice(
 
 export function validatePracticeSessionSnapshot(
   value: unknown,
-): PracticeSessionSnapshot | null {
+): UnfinishedPracticeSessionSnapshot | null {
+  if (record(value) && value.status === "no-next") {
+    return exactKeys(value, ["status", "completedResults"]) &&
+      Array.isArray(value.completedResults) &&
+      value.completedResults.length === problems.length &&
+      validResult(value.completedResults[0], problems[0], false) &&
+      record(value.completedResults[1]) &&
+      value.completedResults[1].taskOutcome === "skipped" &&
+      validResult(value.completedResults[1], problems[1], true, true)
+      ? (value as NoNextPracticeSessionSnapshot)
+      : null;
+  }
+
   if (
     !record(value) ||
     !exactKeys(value, [
@@ -290,7 +313,7 @@ export function validatePracticeSessionSnapshot(
 
 export function readPracticeSessionSnapshot(
   storage?: Storage,
-): PracticeSessionSnapshot | null {
+): UnfinishedPracticeSessionSnapshot | null {
   try {
     const store = storage ?? window.localStorage;
     const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
@@ -319,6 +342,23 @@ export function savePracticeSessionSnapshot(
     (storage ?? window.localStorage).setItem(
       PRACTICE_SESSION_STORAGE_KEY,
       JSON.stringify(snapshot),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function saveNoNextPracticeSessionSnapshot(
+  session: NoNextTwoProblemSessionState,
+  storage?: Storage,
+): boolean {
+  const validated = validatePracticeSessionSnapshot(session);
+  if (!validated || !("status" in validated)) return false;
+  try {
+    (storage ?? window.localStorage).setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
     );
     return true;
   } catch {
@@ -371,11 +411,30 @@ export function completePracticeSession(
   answer: ShortNumericAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
+): boolean;
+export function completePracticeSession(
+  session: NoNextTwoProblemSessionState,
+  answer: null,
+  results: readonly PracticeSessionResult[],
+  storage?: Storage,
+): boolean;
+export function completePracticeSession(
+  session: TwoProblemSessionState | NoNextTwoProblemSessionState,
+  answer: ShortNumericAnswerState | null,
+  results: readonly PracticeSessionResult[],
+  storage?: Storage,
 ): boolean {
   if (!validateLatestCompletedResults(results)) return false;
+  if ("status" in session && !validatePracticeSessionSnapshot(session))
+    return false;
+  if (!("status" in session) && !answer) return false;
   if (!clearPracticeSessionSnapshot(storage)) return false;
   if (saveLatestCompletedResults(results, storage)) return true;
-  savePracticeSessionSnapshot(session, answer, storage);
+  if ("status" in session) {
+    saveNoNextPracticeSessionSnapshot(session, storage);
+  } else if (answer) {
+    savePracticeSessionSnapshot(session, answer, storage);
+  }
   return false;
 }
 
