@@ -43,6 +43,42 @@
   gap: var(--ot-space-16);
 }
 
+.checkpoint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-12);
+  padding: var(--ot-space-16);
+  background: var(--ot-color-surface-soft);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-12);
+
+  h2,
+  p,
+  fieldset {
+    margin: 0;
+  }
+
+  fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ot-space-12);
+    padding: 0;
+    border: 0;
+  }
+
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ot-space-10);
+    cursor: pointer;
+  }
+
+  input {
+    flex: none;
+    margin-top: 0.25em;
+  }
+}
+
 .hint-action {
   min-width: 44px;
   min-height: 44px;
@@ -113,6 +149,7 @@
 .no-next h1:focus-visible,
 .header h1:focus-visible,
 .hint h2:focus-visible,
+.checkpoint h2:focus-visible,
 .solution h2:focus-visible {
   outline: var(--ot-border-width-strong) solid transparent;
   outline-offset: 2px;
@@ -172,6 +209,7 @@
   .no-next h1:focus-visible,
   .header h1:focus-visible,
   .hint h2:focus-visible,
+  .checkpoint h2:focus-visible,
   .solution h2:focus-visible {
     outline-color: Highlight;
     box-shadow: none;

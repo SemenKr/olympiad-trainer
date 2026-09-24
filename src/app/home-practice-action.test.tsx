@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/app/practice/actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
+
 vi.mock("@/modules/practice/ui/practice-session-storage", () => ({
   getStoredProblemTitle: () => "Совпадающие места",
-  readLatestCompletedResults: vi.fn(),
-  readPracticeSessionSnapshot: vi.fn(),
+  readVerifiedLatestCompletedResults: vi.fn(),
+  readVerifiedPracticeSessionSnapshot: vi.fn(),
 }));
 
 vi.mock("@/modules/practice/ui/session-summary", () => ({

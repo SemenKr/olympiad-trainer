@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  revealReasoningCheckpoint,
   revealPracticeHint,
   revealPracticeSolution,
+  submitReasoningCheckpointOption,
+  verifyPersistedReasoningCheckpointObservation,
   submitPracticeAnswer,
 } from "./actions";
 
@@ -12,6 +15,99 @@ const problemId = "coinciding-seats";
 const sockProblemId = "guaranteed-sock-pair";
 const sockSolutionText =
   "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.";
+const checkpointId = "guaranteed-sock-pair-guarantee-argument";
+const correctSummary = {
+  outcome: "eventually-correct",
+  validSubmissionCount: 1,
+  hintExposures: [],
+  solutionExposure: null,
+};
+
+describe("reasoning checkpoint server boundary", () => {
+  it("reveals prompt and options only on request, without the correct option", async () => {
+    const revealed = await revealReasoningCheckpoint(
+      sockProblemId,
+      checkpointId,
+    );
+    expect(revealed).toMatchObject({
+      checkpointId,
+      heading: "Проверь рассуждение",
+      question: "Почему 7 носков уже гарантируют нужную пару?",
+    });
+    expect(revealed.options.map((option) => option.id)).toEqual([
+      "A",
+      "B",
+      "C",
+    ]);
+    expect(JSON.stringify(revealed)).not.toContain("correctOptionId");
+    await expect(
+      revealReasoningCheckpoint(problemId, checkpointId),
+    ).rejects.toThrow();
+  });
+
+  it("returns only a safe outcome for A, B, and C", async () => {
+    await expect(
+      submitReasoningCheckpointOption(
+        sockProblemId,
+        checkpointId,
+        "A",
+        correctSummary,
+      ),
+    ).resolves.toMatchObject({ outcome: "correct" });
+    await expect(
+      submitReasoningCheckpointOption(
+        sockProblemId,
+        checkpointId,
+        "B",
+        correctSummary,
+      ),
+    ).resolves.toMatchObject({ outcome: "incorrect" });
+    await expect(
+      submitReasoningCheckpointOption(
+        sockProblemId,
+        checkpointId,
+        "C",
+        correctSummary,
+      ),
+    ).resolves.toMatchObject({ outcome: "incorrect" });
+    await expect(
+      submitReasoningCheckpointOption(
+        sockProblemId,
+        checkpointId,
+        "D",
+        correctSummary,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      submitReasoningCheckpointOption(sockProblemId, null, "A", correctSummary),
+    ).rejects.toThrow();
+  });
+
+  it.each([
+    ["A", "correct", true],
+    ["B", "incorrect", true],
+    ["C", "incorrect", true],
+    ["A", "incorrect", false],
+    ["B", "correct", false],
+    ["C", "correct", false],
+  ] as const)(
+    "reconciles stored %s + %s as %s",
+    async (selectedOptionId, outcome, valid) => {
+      const verified = await verifyPersistedReasoningCheckpointObservation(
+        sockProblemId,
+        {
+          checkpointId,
+          selectedOptionId,
+          outcome,
+          validSubmissionCountAtSubmit: 1,
+        },
+        correctSummary,
+      );
+      expect(verified.valid).toBe(valid);
+      if (!valid) expect(verified).not.toHaveProperty("interpretation");
+    },
+  );
+});
 
 describe("practice answer server boundary", () => {
   it("checks a correct answer through the catalog", async () => {

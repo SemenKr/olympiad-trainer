@@ -45,6 +45,8 @@ The smallest complete loop is:
 
 This is complete even when the learner skips or studies a solution: those outcomes complete navigation through the session, but they do not claim independent solution or positive mastery.
 
+For the sock-pair task, a correct numeric answer may open one optional reasoning checkpoint. The learner can continue or finish without answering it. Its assessed option and outcome are recorded separately from numeric submissions, hint exposures, and solution exposure; recognition of a valid guarantee argument does not establish independent proof construction or transfer.
+
 ### Happy path
 
 ```mermaid

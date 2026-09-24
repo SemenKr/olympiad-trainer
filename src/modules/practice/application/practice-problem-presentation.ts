@@ -24,6 +24,10 @@ export type LearnerSafeSolutionDescriptor = Readonly<{
   solutionId: string;
 }>;
 
+export type LearnerSafeReasoningCheckpointDescriptor = Readonly<{
+  checkpointId: string;
+}>;
+
 export type LearnerSafePracticeProblem = Readonly<{
   problemId: string;
   title: string;
@@ -34,6 +38,7 @@ export type LearnerSafePracticeProblem = Readonly<{
     LearnerSafeNextStepHintDescriptor,
   ];
   solution: LearnerSafeSolutionDescriptor;
+  reasoningCheckpoint?: LearnerSafeReasoningCheckpointDescriptor;
 }>;
 
 export type RevealedPracticeHint = Readonly<{
@@ -45,4 +50,11 @@ export type RevealedPracticeHint = Readonly<{
 export type RevealedPracticeSolution = Readonly<{
   solutionId: string;
   text: string;
+}>;
+
+export type RevealedReasoningCheckpoint = Readonly<{
+  checkpointId: string;
+  heading: string;
+  question: string;
+  options: readonly Readonly<{ id: "A" | "B" | "C"; text: string }>[];
 }>;

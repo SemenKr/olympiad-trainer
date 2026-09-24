@@ -1,5 +1,6 @@
 import type { LearnerSafePracticeProblem } from "../application/practice-problem-presentation";
 import type { PracticeSummary } from "../application/practice-state";
+import type { ReasoningCheckpointObservation } from "../application/reasoning-checkpoint";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
 import { requestPracticeFinish } from "./practice-session-state";
 
@@ -8,6 +9,8 @@ export type PracticeSessionResult = Readonly<{
   problemTitle: string;
   summary: PracticeSummary;
   taskOutcome?: "skipped";
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation;
+  firstCorrectSubmissionCount?: number;
 }>;
 
 export type TwoProblemSessionState = Readonly<{
@@ -67,12 +70,17 @@ export function createPracticeSessionResult(
   problem: LearnerSafePracticeProblem,
   summary: PracticeSummary,
   taskOutcome?: "skipped",
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation,
+  firstCorrectSubmissionCount?: number,
 ): PracticeSessionResult {
   return {
     problemId: problem.problemId,
     problemTitle: problem.title,
     summary,
     ...(taskOutcome ? { taskOutcome } : {}),
+    ...(reasoningCheckpointObservation
+      ? { reasoningCheckpointObservation, firstCorrectSubmissionCount }
+      : {}),
   };
 }
 

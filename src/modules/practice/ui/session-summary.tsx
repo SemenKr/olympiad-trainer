@@ -2,11 +2,13 @@ import Link from "next/link";
 import type { RefObject } from "react";
 
 import type { PracticeSummary } from "../application/practice-state";
+import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
 
 type SessionSummaryProps = Readonly<{
   results: readonly PracticeSessionResult[];
+  reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }>;
 
@@ -74,7 +76,11 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
     .join(" ");
 }
 
-export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
+export function SessionSummary({
+  results,
+  reasoningInterpretation,
+  headingRef,
+}: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
     const label = getPracticeResultLabel(result.summary, result.taskOutcome);
 
@@ -110,6 +116,16 @@ export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
   const overview = singleResult ? singleOverview : successOverview;
 
   const showSuccessOverview = overview.length > 0;
+  const sockResult = results.find(
+    (result) => result.problemId === "guaranteed-sock-pair",
+  );
+  const reasoning = sockResult
+    ? (reasoningInterpretation ?? {
+        learnerLabel: "Как гарантировать результат",
+        progressGroup: null,
+        conclusion: "Пока рано сказать",
+      })
+    : null;
 
   return (
     <main className={styles.summary}>
@@ -145,6 +161,14 @@ export function SessionSummary({ results, headingRef }: SessionSummaryProps) {
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {reasoning ? (
+        <section className={styles.section}>
+          <h2>{reasoning.learnerLabel}</h2>
+          {reasoning.progressGroup ? <p>{reasoning.progressGroup}</p> : null}
+          <p>{reasoning.conclusion}</p>
         </section>
       ) : null}
 

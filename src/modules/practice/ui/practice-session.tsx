@@ -1,20 +1,36 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 import {
+  revealReasoningCheckpoint,
   revealPracticeHint,
   revealPracticeSolution,
+  submitReasoningCheckpointOption,
   submitPracticeAnswer,
+  verifyPersistedReasoningCheckpointObservation,
 } from "@/app/practice/actions";
 
 import type {
   LearnerSafePracticeProblem,
   RevealedPracticeHint,
   RevealedPracticeSolution,
+  RevealedReasoningCheckpoint,
 } from "../application/practice-problem-presentation";
-import type { PracticeSummary } from "../application/practice-state";
+import {
+  finishPractice,
+  getPracticeSummary,
+  type PracticeSummary,
+} from "../application/practice-state";
+import {
+  canAttemptReasoningCheckpoint,
+  SOCK_REASONING_CHECKPOINT_ID,
+  type ReasoningCheckpointInterpretation,
+  type ReasoningCheckpointObservation,
+  type ReasoningCheckpointOptionId,
+} from "../application/reasoning-checkpoint";
 import {
   isFocusHintAvailable,
   isNextStepHintAvailable,
@@ -36,7 +52,7 @@ import {
 import styles from "./practice-session.module.scss";
 import {
   completePracticeSession,
-  readPracticeSessionSnapshot,
+  readVerifiedPracticeSessionSnapshot,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
@@ -76,12 +92,29 @@ type PracticeProblemEpisodeProps = Readonly<{
   onFinish: (
     summary: PracticeSummary,
     answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
   ) => boolean;
-  onNextProblem: (summary: PracticeSummary) => void;
+  onNextProblem: (
+    summary: PracticeSummary,
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
+  ) => void;
   onSkip: (summary: PracticeSummary) => boolean;
-  onPause: (answer: ShortNumericAnswerState) => boolean;
-  onStableChange: (answer: ShortNumericAnswerState) => void;
+  onPause: (
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
+  ) => boolean;
+  onStableChange: (
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
+  ) => void;
+  onCheckpointAssessed: (
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation,
+  ) => boolean;
   initialAnswerState: ShortNumericAnswerState;
+  initialCheckpointObservation: ReasoningCheckpointObservation | null;
+  initialCheckpointInterpretation: ReasoningCheckpointInterpretation | null;
 }>;
 
 const DIRTY_FINISH_MESSAGE =
@@ -116,10 +149,16 @@ export function savePracticeSessionWhileActive(
   session: TwoProblemSessionState,
   answer: ShortNumericAnswerState,
   storage?: Storage,
+  observation?: ReasoningCheckpointObservation | null,
 ): boolean {
   return (
     !completionLatch.current &&
-    savePracticeSessionSnapshot(session, answer, storage)
+    savePracticeSessionSnapshot(
+      session,
+      answer,
+      storage,
+      observation ?? undefined,
+    )
   );
 }
 
@@ -148,8 +187,15 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   const completionLatch = useRef(false);
   const [completionPending, setCompletionPending] = useState(false);
   const [noNextStorageError, setNoNextStorageError] = useState(false);
+  const [restoreError, setRestoreError] = useState(false);
+  const [restoreRetry, setRestoreRetry] = useState(0);
   const [loaded, setLoaded] = useState<
-    | { session: TwoProblemSessionState; answer: ShortNumericAnswerState }
+    | {
+        session: TwoProblemSessionState;
+        answer: ShortNumericAnswerState;
+        observation: ReasoningCheckpointObservation | null;
+        interpretation: ReasoningCheckpointInterpretation | null;
+      }
     | { session: NoNextTwoProblemSessionState }
     | null
   >(null);
@@ -158,27 +204,58 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      const snapshot = readPracticeSessionSnapshot();
-      if (snapshot && "status" in snapshot) {
-        setLoaded({ session: snapshot });
-        return;
-      }
-      const session = snapshot
-        ? {
-            activeProblemIndex: snapshot.activeProblemIndex,
-            completedResults: snapshot.completedResults,
+      void readVerifiedPracticeSessionSnapshot(
+        verifyPersistedReasoningCheckpointObservation,
+      )
+        .then(({ value: snapshot, interpretation }) => {
+          if (!active) return;
+          if (snapshot && "status" in snapshot) {
+            setLoaded({ session: snapshot });
+            return;
           }
-        : startTwoProblemSession();
-      const answer = snapshot
-        ? restoreAnswerState(snapshot)
-        : createShortNumericAnswerState();
-      setLoaded({ session, answer });
-      if (!snapshot) savePracticeSessionSnapshot(session, answer);
+          const session = snapshot
+            ? {
+                activeProblemIndex: snapshot.activeProblemIndex,
+                completedResults: snapshot.completedResults,
+              }
+            : startTwoProblemSession();
+          const answer = snapshot
+            ? restoreAnswerState(snapshot)
+            : createShortNumericAnswerState();
+          setLoaded({
+            session,
+            answer,
+            observation: snapshot?.reasoningCheckpointObservation ?? null,
+            interpretation,
+          });
+          if (!snapshot) savePracticeSessionSnapshot(session, answer);
+        })
+        .catch(() => {
+          if (active) setRestoreError(true);
+        });
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [restoreRetry]);
+
+  if (restoreError) {
+    return (
+      <main>
+        <p role="alert">Не удалось проверить сохранённую тренировку.</p>
+        <button
+          onClick={() => {
+            setRestoreError(false);
+            setRestoreRetry((value) => value + 1);
+          }}
+          type="button"
+        >
+          Повторить
+        </button>
+        <Link href="/">На главную</Link>
+      </main>
+    );
+  }
 
   if (!loaded) {
     return <main aria-busy="true">Загружаем тренировку…</main>;
@@ -228,23 +305,55 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   const { session: sessionState } = loaded;
   const activeProblem = problems[sessionState.activeProblemIndex];
 
-  function handleNextProblem(summary: PracticeSummary) {
+  function handleNextProblem(
+    summary: PracticeSummary,
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
+  ) {
     if (completionLatch.current) return;
-    const result = createPracticeSessionResult(activeProblem, summary);
+    const firstCorrectSubmissionCount = observation
+      ? answer.practice.submissions.findIndex(
+          (submission) => submission.outcome === "correct",
+        ) + 1
+      : undefined;
+    const result = createPracticeSessionResult(
+      activeProblem,
+      summary,
+      undefined,
+      observation ?? undefined,
+      firstCorrectSubmissionCount,
+    );
     const nextSession = advanceTwoProblemSession(sessionState, result);
 
     if (nextSession) {
       const answer = createShortNumericAnswerState();
       savePracticeSessionSnapshot(nextSession, answer);
-      setLoaded({ session: nextSession, answer });
+      setLoaded({
+        session: nextSession,
+        answer,
+        observation: null,
+        interpretation: null,
+      });
     }
   }
 
   function handleFinish(
     summary: PracticeSummary,
     answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
   ) {
-    const result = createPracticeSessionResult(activeProblem, summary);
+    const firstCorrectSubmissionCount = observation
+      ? answer.practice.submissions.findIndex(
+          (submission) => submission.outcome === "correct",
+        ) + 1
+      : undefined;
+    const result = createPracticeSessionResult(
+      activeProblem,
+      summary,
+      undefined,
+      observation ?? undefined,
+      firstCorrectSubmissionCount,
+    );
     const results = finishTwoProblemSession(sessionState, result);
     return finishPracticeSessionAndNavigate(
       completionLatch,
@@ -270,7 +379,12 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     if (nextSession) {
       const answer = createShortNumericAnswerState();
       if (!savePracticeSessionSnapshot(nextSession, answer)) return false;
-      setLoaded({ session: nextSession, answer });
+      setLoaded({
+        session: nextSession,
+        answer,
+        observation: null,
+        interpretation: null,
+      });
       return true;
     }
 
@@ -281,8 +395,19 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     return true;
   }
 
-  function handlePause(answer: ShortNumericAnswerState) {
-    if (!savePracticeSessionWhileActive(completionLatch, sessionState, answer))
+  function handlePause(
+    answer: ShortNumericAnswerState,
+    observation: ReasoningCheckpointObservation | null,
+  ) {
+    if (
+      !savePracticeSessionWhileActive(
+        completionLatch,
+        sessionState,
+        answer,
+        undefined,
+        observation,
+      )
+    )
       return false;
     router.push("/");
     return true;
@@ -295,12 +420,29 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       hasNextProblem={sessionState.activeProblemIndex === 0}
       key={activeProblem.problemId}
       initialAnswerState={loaded.answer}
+      initialCheckpointObservation={loaded.observation}
+      initialCheckpointInterpretation={loaded.interpretation}
+      onCheckpointAssessed={(answer, observation) =>
+        savePracticeSessionWhileActive(
+          completionLatch,
+          sessionState,
+          answer,
+          undefined,
+          observation,
+        )
+      }
       onFinish={handleFinish}
       onNextProblem={handleNextProblem}
       onPause={handlePause}
       onSkip={handleSkip}
-      onStableChange={(answer) =>
-        savePracticeSessionWhileActive(completionLatch, sessionState, answer)
+      onStableChange={(answer, observation) =>
+        savePracticeSessionWhileActive(
+          completionLatch,
+          sessionState,
+          answer,
+          undefined,
+          observation,
+        )
       }
       problem={activeProblem}
     />
@@ -370,7 +512,10 @@ function PracticeProblemEpisode({
   onSkip,
   onPause,
   onStableChange,
+  onCheckpointAssessed,
   initialAnswerState,
+  initialCheckpointObservation,
+  initialCheckpointInterpretation,
 }: PracticeProblemEpisodeProps) {
   const [focusHint, strategyHint, nextStepHint] = problem.hints;
   const [answerState, setAnswerState] = useState(() => initialAnswerState);
@@ -384,8 +529,22 @@ function PracticeProblemEpisode({
   const [hintRevealFailed, setHintRevealFailed] = useState(false);
   const [solutionRevealFailed, setSolutionRevealFailed] = useState(false);
   const [storageError, setStorageError] = useState<
-    "pause" | "finish" | "skip" | null
+    "pause" | "finish" | "skip" | "checkpoint" | null
   >(null);
+  const [checkpointObservation, setCheckpointObservation] = useState(
+    initialCheckpointObservation,
+  );
+  const [checkpointInterpretation, setCheckpointInterpretation] = useState(
+    initialCheckpointInterpretation,
+  );
+  const [revealedCheckpoint, setRevealedCheckpoint] =
+    useState<RevealedReasoningCheckpoint | null>(null);
+  const [selectedOptionId, setSelectedOptionId] =
+    useState<ReasoningCheckpointOptionId | null>(null);
+  const [checkpointRevealPending, setCheckpointRevealPending] = useState(false);
+  const [checkpointAssessmentPending, setCheckpointAssessmentPending] =
+    useState(false);
+  const [checkpointError, setCheckpointError] = useState(false);
   const [restorePending, setRestorePending] = useState(
     initialAnswerState.practice.hintExposures.length > 0 ||
       initialAnswerState.practice.solutionExposure !== null,
@@ -404,6 +563,10 @@ function PracticeProblemEpisode({
     initialAnswerState.practice.solutionExposure !== null,
   );
   const answerStateRef = useRef(answerState);
+  const checkpointObservationRef = useRef(checkpointObservation);
+  const checkpointRevealGate = useRef(false);
+  const checkpointAssessmentGate = useRef(false);
+  const episodeActiveRef = useRef(true);
   const submissionGate = useRef(false);
   const hintRevealGate = useRef(false);
   const solutionRevealGate = useRef(false);
@@ -411,6 +574,8 @@ function PracticeProblemEpisode({
   const strategyHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const nextStepHintHeadingRef = useRef<HTMLHeadingElement>(null);
   const solutionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const checkpointHeadingRef = useRef<HTMLHeadingElement>(null);
+  const checkpointInterpretationHeadingRef = useRef<HTMLHeadingElement>(null);
   const problemHeadingRef = useRef<HTMLHeadingElement>(null);
   const isPending = answerState.status === "loading";
   const revealedFocusHint = revealedHints.find(
@@ -460,6 +625,21 @@ function PracticeProblemEpisode({
     answerState,
     supportRevealPending || restorePending,
   );
+  const canOpenCheckpoint =
+    problem.reasoningCheckpoint !== undefined &&
+    canAttemptReasoningCheckpoint(
+      answerState.practice,
+      checkpointObservation,
+    ) &&
+    !isPending &&
+    !restorePending;
+
+  useEffect(() => {
+    episodeActiveRef.current = true;
+    return () => {
+      episodeActiveRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const exposures = initialAnswerState.practice.hintExposures;
@@ -543,34 +723,50 @@ function PracticeProblemEpisode({
     }
   }, [answerState.practice.solutionExposure, revealedSolution]);
 
+  useEffect(() => {
+    if (revealedCheckpoint) checkpointHeadingRef.current?.focus();
+  }, [revealedCheckpoint]);
+
+  useEffect(() => {
+    if (checkpointObservation)
+      checkpointInterpretationHeadingRef.current?.focus();
+  }, [checkpointObservation]);
+
   function updateAnswerState(nextState: ShortNumericAnswerState) {
-    if (completionLatch.current) return;
+    if (completionLatch.current || !episodeActiveRef.current) return;
     answerStateRef.current = nextState;
     setAnswerState(nextState);
-    onStableChange(nextState);
+    onStableChange(nextState, checkpointObservationRef.current);
   }
 
   function handlePause() {
     if (
       completionLatch.current ||
+      !episodeActiveRef.current ||
       submissionGate.current ||
       answerStateRef.current.status === "loading" ||
       hintRevealGate.current ||
       solutionRevealGate.current ||
+      checkpointAssessmentGate.current ||
       restorePendingRef.current
     )
       return;
-    if (!onPause(answerStateRef.current)) setStorageError("pause");
+    if (!onPause(answerStateRef.current, checkpointObservationRef.current)) {
+      setStorageError("pause");
+    } else {
+      episodeActiveRef.current = false;
+    }
   }
 
   function handleAnswerChange(rawAnswer: string) {
+    if (checkpointAssessmentGate.current) return;
     updateAnswerState(
       editShortNumericAnswer(answerStateRef.current, rawAnswer),
     );
   }
 
   function handleAnswerSubmit() {
-    if (completionLatch.current) return;
+    if (completionLatch.current || checkpointAssessmentGate.current) return;
     void runShortNumericAnswerSubmission({
       state: answerStateRef.current,
       gate: submissionGate,
@@ -584,7 +780,13 @@ function PracticeProblemEpisode({
   }
 
   function handleFinish() {
-    if (completionLatch.current || restorePendingRef.current) return;
+    if (
+      completionLatch.current ||
+      !episodeActiveRef.current ||
+      restorePendingRef.current ||
+      checkpointAssessmentGate.current
+    )
+      return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_FINISH_MESSAGE),
@@ -592,13 +794,26 @@ function PracticeProblemEpisode({
     );
 
     if (nextSummary) {
-      if (!onFinish(nextSummary, answerStateRef.current))
+      if (
+        !onFinish(
+          nextSummary,
+          answerStateRef.current,
+          checkpointObservationRef.current,
+        )
+      )
         setStorageError("finish");
+      else episodeActiveRef.current = false;
     }
   }
 
   function handleNextProblem() {
-    if (completionLatch.current || restorePendingRef.current) return;
+    if (
+      completionLatch.current ||
+      !episodeActiveRef.current ||
+      restorePendingRef.current ||
+      checkpointAssessmentGate.current
+    )
+      return;
     const nextSummary = requestPracticeFinish(
       answerStateRef.current,
       () => window.confirm(DIRTY_NEXT_MESSAGE),
@@ -609,12 +824,23 @@ function PracticeProblemEpisode({
       nextSummary &&
       isPracticeProblemNavigationComplete(answerStateRef.current)
     ) {
-      onNextProblem(nextSummary);
+      episodeActiveRef.current = false;
+      onNextProblem(
+        nextSummary,
+        answerStateRef.current,
+        checkpointObservationRef.current,
+      );
     }
   }
 
   function handleSkip() {
-    if (completionLatch.current || restorePendingRef.current) return;
+    if (
+      completionLatch.current ||
+      !episodeActiveRef.current ||
+      restorePendingRef.current ||
+      checkpointAssessmentGate.current
+    )
+      return;
     const nextSummary = requestPracticeSkip(
       answerStateRef.current,
       () => window.confirm(DIRTY_SKIP_MESSAGE),
@@ -726,6 +952,104 @@ function PracticeProblemEpisode({
     });
   }
 
+  async function handleCheckpointReveal() {
+    const descriptor = problem.reasoningCheckpoint;
+    if (
+      !descriptor ||
+      descriptor.checkpointId !== SOCK_REASONING_CHECKPOINT_ID ||
+      !episodeActiveRef.current ||
+      completionLatch.current ||
+      checkpointRevealGate.current ||
+      checkpointAssessmentGate.current ||
+      submissionGate.current ||
+      hintRevealGate.current ||
+      solutionRevealGate.current ||
+      checkpointObservationRef.current ||
+      answerStateRef.current.status === "loading" ||
+      restorePendingRef.current ||
+      !canAttemptReasoningCheckpoint(
+        answerStateRef.current.practice,
+        checkpointObservationRef.current,
+      )
+    )
+      return;
+
+    checkpointRevealGate.current = true;
+    setCheckpointError(false);
+    setCheckpointRevealPending(true);
+    try {
+      const revealed = await revealReasoningCheckpoint(
+        problem.problemId,
+        descriptor.checkpointId,
+      );
+      if (revealed.checkpointId !== descriptor.checkpointId)
+        throw new Error("Revealed checkpoint does not match the request.");
+      if (episodeActiveRef.current && !completionLatch.current)
+        setRevealedCheckpoint(revealed);
+    } catch {
+      if (episodeActiveRef.current) setCheckpointError(true);
+    } finally {
+      checkpointRevealGate.current = false;
+      if (episodeActiveRef.current) setCheckpointRevealPending(false);
+    }
+  }
+
+  async function handleCheckpointSubmit() {
+    const descriptor = problem.reasoningCheckpoint;
+    if (
+      !descriptor ||
+      descriptor.checkpointId !== SOCK_REASONING_CHECKPOINT_ID ||
+      !revealedCheckpoint ||
+      !selectedOptionId ||
+      !episodeActiveRef.current ||
+      completionLatch.current ||
+      checkpointAssessmentGate.current ||
+      submissionGate.current ||
+      hintRevealGate.current ||
+      solutionRevealGate.current ||
+      restorePendingRef.current ||
+      answerStateRef.current.status === "loading" ||
+      checkpointObservationRef.current ||
+      !canAttemptReasoningCheckpoint(
+        answerStateRef.current.practice,
+        checkpointObservationRef.current,
+      )
+    )
+      return;
+
+    const validSubmissionCountAtSubmit =
+      answerStateRef.current.practice.submissions.length;
+    checkpointAssessmentGate.current = true;
+    setCheckpointError(false);
+    setCheckpointAssessmentPending(true);
+    try {
+      const assessed = await submitReasoningCheckpointOption(
+        problem.problemId,
+        descriptor.checkpointId,
+        selectedOptionId,
+        getPracticeSummary(finishPractice(answerStateRef.current.practice)),
+      );
+      if (!episodeActiveRef.current || completionLatch.current) return;
+      const observation: ReasoningCheckpointObservation = {
+        checkpointId: SOCK_REASONING_CHECKPOINT_ID,
+        selectedOptionId,
+        outcome: assessed.outcome,
+        validSubmissionCountAtSubmit,
+      };
+      checkpointObservationRef.current = observation;
+      setCheckpointObservation(observation);
+      setCheckpointInterpretation(assessed.interpretation);
+      setRevealedCheckpoint(null);
+      if (!onCheckpointAssessed(answerStateRef.current, observation))
+        setStorageError("checkpoint");
+    } catch {
+      if (episodeActiveRef.current) setCheckpointError(true);
+    } finally {
+      checkpointAssessmentGate.current = false;
+      if (episodeActiveRef.current) setCheckpointAssessmentPending(false);
+    }
+  }
+
   return (
     <TaskShell
       answerRail={
@@ -734,6 +1058,7 @@ function PracticeProblemEpisode({
             onAnswerChange={handleAnswerChange}
             onSubmit={handleAnswerSubmit}
             state={answerState}
+            locked={checkpointAssessmentPending}
           />
 
           {storageError ? (
@@ -742,7 +1067,9 @@ function PracticeProblemEpisode({
                 ? "Не удалось сохранить тренировку. Попробуй ещё раз."
                 : storageError === "skip"
                   ? "Не удалось пропустить задачу. Попробуй ещё раз."
-                  : "Не удалось завершить тренировку. Попробуй ещё раз."}
+                  : storageError === "checkpoint"
+                    ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
+                    : "Не удалось завершить тренировку. Попробуй ещё раз."}
             </p>
           ) : null}
 
@@ -852,6 +1179,69 @@ function PracticeProblemEpisode({
             </section>
           ) : null}
 
+          {canOpenCheckpoint && !revealedCheckpoint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={checkpointRevealPending}
+              onClick={() => void handleCheckpointReveal()}
+              type="button"
+            >
+              Дополнительный вопрос
+            </button>
+          ) : null}
+
+          {canOpenCheckpoint && revealedCheckpoint ? (
+            <section className={styles.checkpoint}>
+              <h2 ref={checkpointHeadingRef} tabIndex={-1}>
+                {revealedCheckpoint.heading}
+              </h2>
+              <fieldset disabled={checkpointAssessmentPending}>
+                <legend>{revealedCheckpoint.question}</legend>
+                {revealedCheckpoint.options.map((option) => (
+                  <label key={option.id}>
+                    <input
+                      checked={selectedOptionId === option.id}
+                      name={`checkpoint-${revealedCheckpoint.checkpointId}`}
+                      onChange={() => setSelectedOptionId(option.id)}
+                      type="radio"
+                      value={option.id}
+                    />
+                    {option.text}
+                  </label>
+                ))}
+              </fieldset>
+              <button
+                className={styles["hint-action"]}
+                disabled={!selectedOptionId || checkpointAssessmentPending}
+                onClick={() => void handleCheckpointSubmit()}
+                type="button"
+              >
+                Проверить рассуждение
+              </button>
+            </section>
+          ) : null}
+
+          {checkpointError ? (
+            <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+              Не удалось проверить рассуждение. Попробуй ещё раз.
+            </p>
+          ) : null}
+          {checkpointRevealPending || checkpointAssessmentPending ? (
+            <p role="status">Проверяем рассуждение…</p>
+          ) : null}
+
+          {checkpointInterpretation ? (
+            <section className={styles.checkpoint}>
+              <h2 ref={checkpointInterpretationHeadingRef} tabIndex={-1}>
+                {checkpointInterpretation.learnerLabel}
+              </h2>
+              {checkpointInterpretation.progressGroup ? (
+                <p>{checkpointInterpretation.progressGroup}</p>
+              ) : null}
+              <p>{checkpointInterpretation.conclusion}</p>
+            </section>
+          ) : null}
+
           {canSkipProblem ? (
             <button
               className={styles["hint-action"]}
@@ -865,6 +1255,7 @@ function PracticeProblemEpisode({
           {canOpenNextProblem ? (
             <button
               className={styles["next-action"]}
+              disabled={checkpointAssessmentPending}
               onClick={handleNextProblem}
               type="button"
             >
@@ -875,7 +1266,12 @@ function PracticeProblemEpisode({
       }
       backAction={
         <button
-          disabled={isPending || supportRevealPending || restorePending}
+          disabled={
+            isPending ||
+            supportRevealPending ||
+            restorePending ||
+            checkpointAssessmentPending
+          }
           onClick={handlePause}
           type="button"
         >
@@ -885,7 +1281,12 @@ function PracticeProblemEpisode({
       finishAction={
         <button
           className={styles.finish}
-          disabled={isPending || supportRevealPending || restorePending}
+          disabled={
+            isPending ||
+            supportRevealPending ||
+            restorePending ||
+            checkpointAssessmentPending
+          }
           onClick={handleFinish}
           type="button"
         >

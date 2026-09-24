@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
 import {
   getStoredProblemTitle,
-  readLatestCompletedResults,
-  readPracticeSessionSnapshot,
+  readVerifiedLatestCompletedResults,
+  readVerifiedPracticeSessionSnapshot,
   type UnfinishedPracticeSessionSnapshot,
 } from "@/modules/practice/ui/practice-session-storage";
 import {
@@ -24,20 +25,53 @@ type StoredPractice = Readonly<{
 
 export function HomePracticeAction() {
   const [stored, setStored] = useState<StoredPractice | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loadRetry, setLoadRetry] = useState(0);
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active)
-        setStored({
-          unfinished: readPracticeSessionSnapshot(),
-          completed: readLatestCompletedResults(),
+      if (!active) return;
+      void Promise.all([
+        readVerifiedPracticeSessionSnapshot(
+          verifyPersistedReasoningCheckpointObservation,
+        ),
+        readVerifiedLatestCompletedResults(
+          verifyPersistedReasoningCheckpointObservation,
+        ),
+      ])
+        .then(([unfinished, completed]) => {
+          if (active)
+            setStored({
+              unfinished: unfinished.value,
+              completed: completed.value,
+            });
+        })
+        .catch(() => {
+          if (active) setLoadError(true);
         });
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadRetry]);
+
+  if (loadError) {
+    return (
+      <div>
+        <p role="alert">Не удалось проверить сохранённую тренировку.</p>
+        <button
+          onClick={() => {
+            setLoadError(false);
+            setLoadRetry((value) => value + 1);
+          }}
+          type="button"
+        >
+          Повторить
+        </button>
+      </div>
+    );
+  }
 
   if (!stored) {
     return <p role="status">Проверяем, есть ли незаконченная тренировка…</p>;

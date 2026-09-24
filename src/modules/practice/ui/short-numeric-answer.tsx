@@ -62,12 +62,14 @@ type ShortNumericAnswerProps = Readonly<{
   state: ShortNumericAnswerState;
   onAnswerChange: (rawAnswer: string) => void;
   onSubmit: () => void;
+  locked?: boolean;
 }>;
 
 export function ShortNumericAnswer({
   state,
   onAnswerChange,
   onSubmit,
+  locked = false,
 }: ShortNumericAnswerProps) {
   const formId = useId();
   const inputId = useId();
@@ -124,7 +126,7 @@ export function ShortNumericAnswer({
               name="answer"
               onChange={(event) => onAnswerChange(event.currentTarget.value)}
               placeholder="Введи ответ"
-              readOnly={isLoading}
+              readOnly={isLoading || locked}
               type="text"
               value={state.rawAnswer}
             />
@@ -146,7 +148,7 @@ export function ShortNumericAnswer({
       </div>
 
       <button
-        aria-disabled={isLoading || state.status === "correct"}
+        aria-disabled={isLoading || locked || state.status === "correct"}
         className={styles.submit}
         form={formId}
         type="submit"

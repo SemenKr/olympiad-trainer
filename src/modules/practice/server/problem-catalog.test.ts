@@ -4,8 +4,10 @@ vi.mock("server-only", () => ({}));
 
 import {
   CURRENT_PRACTICE_PROBLEM_ID,
+  assessReasoningCheckpointOption,
   getLearnerSafePracticeProblem,
   getProblemDefinition,
+  getRevealedReasoningCheckpoint,
   PRACTICE_SESSION_PROBLEM_IDS,
 } from "./problem-catalog";
 
@@ -28,6 +30,21 @@ const sockNextStepText =
   "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Учти ещё три дырявых носка и проверь, можно ли такой предельный набор действительно составить.";
 const sockSolutionText =
   "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.";
+const checkpointId = "guaranteed-sock-pair-guarantee-argument";
+const checkpointOptions = [
+  {
+    id: "A",
+    text: "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Значит, целых носков не больше 3, а вместе с тремя дырявыми можно вынуть не больше 6.",
+  },
+  {
+    id: "B",
+    text: "Среди любых 7 носков обязательно найдутся два носка одного цвета.",
+  },
+  {
+    id: "C",
+    text: "Дырявых носков всего три, значит остальные четыре обязательно будут одного цвета.",
+  },
+];
 
 describe("practice problem catalog", () => {
   it("resolves the current problem by stable product ID", () => {
@@ -176,6 +193,13 @@ describe("practice problem catalog", () => {
         kind: "training-adaptation",
         text: sockSolutionText,
       },
+      reasoningCheckpoint: {
+        id: checkpointId,
+        heading: "Проверь рассуждение",
+        question: "Почему 7 носков уже гарантируют нужную пару?",
+        options: checkpointOptions,
+        correctOptionId: "A",
+      },
     });
   });
 
@@ -184,6 +208,38 @@ describe("practice problem catalog", () => {
       "coinciding-seats",
       "guaranteed-sock-pair",
     ]);
+  });
+
+  it("reveals only the sock checkpoint and assesses each option on the server", () => {
+    expect(
+      getProblemDefinition(CURRENT_PRACTICE_PROBLEM_ID),
+    ).not.toHaveProperty("reasoningCheckpoint");
+    expect(getRevealedReasoningCheckpoint(sockProblemId, checkpointId)).toEqual(
+      {
+        checkpointId,
+        heading: "Проверь рассуждение",
+        question: "Почему 7 носков уже гарантируют нужную пару?",
+        options: checkpointOptions,
+      },
+    );
+    expect(
+      getRevealedReasoningCheckpoint(sockProblemId, checkpointId),
+    ).not.toHaveProperty("correctOptionId");
+    expect(
+      assessReasoningCheckpointOption(sockProblemId, checkpointId, "A"),
+    ).toEqual({ outcome: "correct" });
+    expect(
+      assessReasoningCheckpointOption(sockProblemId, checkpointId, "B"),
+    ).toEqual({ outcome: "incorrect" });
+    expect(
+      assessReasoningCheckpointOption(sockProblemId, checkpointId, "C"),
+    ).toEqual({ outcome: "incorrect" });
+    expect(() =>
+      getRevealedReasoningCheckpoint(CURRENT_PRACTICE_PROBLEM_ID, checkpointId),
+    ).toThrow();
+    expect(() =>
+      assessReasoningCheckpointOption(sockProblemId, checkpointId, "D"),
+    ).toThrow();
   });
 });
 
@@ -261,6 +317,7 @@ describe("learner-safe practice problem projection", () => {
         },
       ],
       solution: { solutionId: "guaranteed-sock-pair-full-solution" },
+      reasoningCheckpoint: { checkpointId },
     });
     expect(serialized).not.toContain("assessment");
     expect(serialized).not.toContain("expectedAnswer");
@@ -270,5 +327,9 @@ describe("learner-safe practice problem projection", () => {
     expect(serialized).not.toContain(sockSolutionText);
     expect(serialized).not.toContain("training-adaptation");
     expect(serialized).not.toContain("provenance");
+    expect(serialized).not.toContain("Почему 7 носков");
+    expect(serialized).not.toContain("Если нужной пары нет");
+    expect(serialized).not.toContain("correctOptionId");
+    expect(serialized).not.toContain('"options"');
   });
 });

@@ -3,6 +3,16 @@ import type {
   PracticeHintExposure,
   PracticeSummary,
 } from "../application/practice-state";
+import {
+  finishPractice,
+  getPracticeSummary,
+} from "../application/practice-state";
+import {
+  SOCK_REASONING_CHECKPOINT_ID,
+  type ReasoningCheckpointInterpretation,
+  type ReasoningCheckpointObservation,
+  type ReasoningCheckpointVerification,
+} from "../application/reasoning-checkpoint";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
 import type {
   NoNextTwoProblemSessionState,
@@ -43,11 +53,23 @@ export type PracticeSessionSnapshot = Readonly<{
   completedResults: readonly PracticeSessionResult[];
   activePractice: ActivePractice;
   rawAnswer: string;
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation;
 }>;
 
 export type NoNextPracticeSessionSnapshot = NoNextTwoProblemSessionState;
 export type UnfinishedPracticeSessionSnapshot =
   PracticeSessionSnapshot | NoNextPracticeSessionSnapshot;
+
+type VerifyCheckpoint = (
+  problemId: string,
+  observation: ReasoningCheckpointObservation,
+  summary: PracticeSummary,
+) => Promise<ReasoningCheckpointVerification>;
+
+type VerifiedCheckpointData<T> = Readonly<{
+  value: T;
+  interpretation: ReasoningCheckpointInterpretation | null;
+}>;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -152,23 +174,75 @@ function validSummary(
   );
 }
 
+function validReasoningCheckpointObservation(
+  value: unknown,
+  problem: (typeof problems)[number],
+  submissionCount: number,
+  firstCorrectSubmissionCount: number,
+): value is ReasoningCheckpointObservation {
+  return (
+    problem.id === "guaranteed-sock-pair" &&
+    record(value) &&
+    exactKeys(value, [
+      "checkpointId",
+      "selectedOptionId",
+      "outcome",
+      "validSubmissionCountAtSubmit",
+    ]) &&
+    value.checkpointId === SOCK_REASONING_CHECKPOINT_ID &&
+    (value.selectedOptionId === "A" ||
+      value.selectedOptionId === "B" ||
+      value.selectedOptionId === "C") &&
+    (value.outcome === "correct" || value.outcome === "incorrect") &&
+    validCount(value.validSubmissionCountAtSubmit, submissionCount) &&
+    firstCorrectSubmissionCount > 0 &&
+    value.validSubmissionCountAtSubmit >= firstCorrectSubmissionCount
+  );
+}
+
 function validResult(
   value: unknown,
   problem: (typeof problems)[number],
   isFinal: boolean,
   allowFinalSkip = false,
 ): value is PracticeSessionResult {
+  if (!record(value)) return false;
+  const hasCheckpoint = Object.hasOwn(value, "reasoningCheckpointObservation");
+  const keys = ["problemId", "problemTitle", "summary"];
+  if (Object.hasOwn(value, "taskOutcome")) keys.push("taskOutcome");
+  if (hasCheckpoint) {
+    keys.push("reasoningCheckpointObservation", "firstCorrectSubmissionCount");
+  }
   if (
-    !record(value) ||
-    !exactKeys(
-      value,
-      value.taskOutcome === undefined
-        ? ["problemId", "problemTitle", "summary"]
-        : ["problemId", "problemTitle", "summary", "taskOutcome"],
-    ) ||
+    !exactKeys(value, keys) ||
     value.problemId !== problem.id ||
     value.problemTitle !== problem.title ||
     !validSummary(value.summary, problem)
+  ) {
+    return false;
+  }
+
+  const firstCorrectSubmissionCount = value.firstCorrectSubmissionCount;
+
+  if (
+    hasCheckpoint &&
+    (value.taskOutcome !== undefined ||
+      value.summary.outcome !== "eventually-correct" ||
+      value.summary.solutionExposure !== null ||
+      !validCount(
+        firstCorrectSubmissionCount,
+        value.summary.validSubmissionCount,
+      ) ||
+      value.summary.hintExposures.some(
+        (exposure: PracticeHintExposure) =>
+          exposure.validSubmissionCountAtOpen >= firstCorrectSubmissionCount,
+      ) ||
+      !validReasoningCheckpointObservation(
+        value.reasoningCheckpointObservation,
+        problem,
+        value.summary.validSubmissionCount,
+        firstCorrectSubmissionCount,
+      ))
   ) {
     return false;
   }
@@ -283,13 +357,25 @@ export function validatePracticeSessionSnapshot(
 
   if (
     !record(value) ||
-    !exactKeys(value, [
-      "problemIds",
-      "activeProblemIndex",
-      "completedResults",
-      "activePractice",
-      "rawAnswer",
-    ]) ||
+    !exactKeys(
+      value,
+      Object.hasOwn(value, "reasoningCheckpointObservation")
+        ? [
+            "problemIds",
+            "activeProblemIndex",
+            "completedResults",
+            "activePractice",
+            "rawAnswer",
+            "reasoningCheckpointObservation",
+          ]
+        : [
+            "problemIds",
+            "activeProblemIndex",
+            "completedResults",
+            "activePractice",
+            "rawAnswer",
+          ],
+    ) ||
     !Array.isArray(value.problemIds) ||
     value.problemIds.length !== 2 ||
     value.problemIds[0] !== problems[0].id ||
@@ -303,6 +389,17 @@ export function validatePracticeSessionSnapshot(
       value.activePractice,
       problems[value.activeProblemIndex],
     ) ||
+    (Object.hasOwn(value, "reasoningCheckpointObservation") &&
+      (value.activePractice.solutionExposure !== null ||
+        !validReasoningCheckpointObservation(
+          value.reasoningCheckpointObservation,
+          problems[value.activeProblemIndex],
+          value.activePractice.submissions.length,
+          value.activePractice.submissions.findIndex(
+            (submission: { outcome: string }) =>
+              submission.outcome === "correct",
+          ) + 1,
+        ))) ||
     typeof value.rawAnswer !== "string"
   ) {
     return null;
@@ -326,10 +423,67 @@ export function readPracticeSessionSnapshot(
   }
 }
 
+async function verifyResultObservations(
+  results: readonly PracticeSessionResult[],
+  verifyCheckpoint: VerifyCheckpoint,
+): Promise<ReasoningCheckpointVerification | null> {
+  for (const result of results) {
+    if (result.reasoningCheckpointObservation) {
+      return verifyCheckpoint(
+        result.problemId,
+        result.reasoningCheckpointObservation,
+        result.summary,
+      );
+    }
+  }
+  return null;
+}
+
+export async function readVerifiedPracticeSessionSnapshot(
+  verifyCheckpoint: VerifyCheckpoint,
+  storage?: Storage,
+): Promise<VerifiedCheckpointData<UnfinishedPracticeSessionSnapshot | null>> {
+  const store = storage ?? window.localStorage;
+  const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
+  const snapshot = readPracticeSessionSnapshot(store);
+  if (!snapshot) return { value: null, interpretation: null };
+
+  const resultVerification = await verifyResultObservations(
+    snapshot.completedResults,
+    verifyCheckpoint,
+  );
+  const activeVerification =
+    "status" in snapshot || !snapshot.reasoningCheckpointObservation
+      ? null
+      : await verifyCheckpoint(
+          problems[snapshot.activeProblemIndex].id,
+          snapshot.reasoningCheckpointObservation,
+          getPracticeSummary(finishPractice(snapshot.activePractice)),
+        );
+  if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
+    throw new Error("Practice snapshot changed during verification.");
+  if (
+    resultVerification?.valid === false ||
+    activeVerification?.valid === false
+  ) {
+    store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    return { value: null, interpretation: null };
+  }
+  return {
+    value: snapshot,
+    interpretation: activeVerification?.valid
+      ? activeVerification.interpretation
+      : resultVerification?.valid
+        ? resultVerification.interpretation
+        : null,
+  };
+}
+
 export function savePracticeSessionSnapshot(
   session: TwoProblemSessionState,
   answer: ShortNumericAnswerState,
   storage?: Storage,
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): boolean {
   const snapshot: PracticeSessionSnapshot = {
     problemIds: [problems[0].id, problems[1].id],
@@ -337,6 +491,9 @@ export function savePracticeSessionSnapshot(
     completedResults: session.completedResults,
     activePractice: answer.practice,
     rawAnswer: answer.rawAnswer,
+    ...(reasoningCheckpointObservation
+      ? { reasoningCheckpointObservation }
+      : {}),
   };
   try {
     (storage ?? window.localStorage).setItem(
@@ -390,6 +547,31 @@ export function readLatestCompletedResults(
   }
 }
 
+export async function readVerifiedLatestCompletedResults(
+  verifyCheckpoint: VerifyCheckpoint,
+  storage?: Storage,
+): Promise<VerifiedCheckpointData<readonly PracticeSessionResult[] | null>> {
+  const store = storage ?? window.localStorage;
+  const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+  const results = readLatestCompletedResults(store);
+  if (!results) return { value: null, interpretation: null };
+
+  const verification = await verifyResultObservations(
+    results,
+    verifyCheckpoint,
+  );
+  if (store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !== raw)
+    throw new Error("Completed Practice results changed during verification.");
+  if (verification?.valid === false) {
+    store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+    return { value: null, interpretation: null };
+  }
+  return {
+    value: results,
+    interpretation: verification?.valid ? verification.interpretation : null,
+  };
+}
+
 export function saveLatestCompletedResults(
   results: readonly PracticeSessionResult[],
   storage?: Storage,
@@ -433,7 +615,12 @@ export function completePracticeSession(
   if ("status" in session) {
     saveNoNextPracticeSessionSnapshot(session, storage);
   } else if (answer) {
-    savePracticeSessionSnapshot(session, answer, storage);
+    savePracticeSessionSnapshot(
+      session,
+      answer,
+      storage,
+      results.at(-1)?.reasoningCheckpointObservation,
+    );
   }
   return false;
 }
