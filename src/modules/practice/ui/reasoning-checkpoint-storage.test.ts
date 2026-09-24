@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 
 vi.mock("server-only", () => ({}));
 
@@ -17,6 +18,7 @@ import {
 } from "../application/reasoning-checkpoint";
 import {
   completePracticeSession,
+  createPracticeSessionSnapshot,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
   readLatestCompletedResults,
@@ -28,11 +30,14 @@ import {
   validateLatestCompletedResults,
   validatePracticeSessionSnapshot,
 } from "./practice-session-storage";
+import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import {
   advanceTwoProblemSession,
   createPracticeSessionResult,
   startTwoProblemSession,
 } from "./two-problem-session-state";
+
+beforeEach(installImmediatePracticeSessionLock);
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -50,6 +55,29 @@ function memoryStorage(): Storage {
       values.set(key, value);
     },
   };
+}
+
+async function seedCheckpointSnapshot(
+  storage: Storage,
+  evidence: ReasoningCheckpointObservation,
+): Promise<boolean> {
+  return (
+    (await createPracticeSessionSnapshot(
+      {
+        sessionId: secondSession.sessionId,
+        activeProblemIndex: 0,
+        completedResults: [],
+      },
+      createShortNumericAnswerState(),
+      storage,
+    )) &&
+    (await savePracticeSessionSnapshot(
+      secondSession,
+      answer,
+      storage,
+      evidence,
+    ))
+  );
 }
 
 const firstProblem = {
@@ -139,7 +167,7 @@ describe("reasoning checkpoint persistence", () => {
         ...secondResult,
         reasoningCheckpointObservation: evidence,
       };
-      savePracticeSessionSnapshot(secondSession, answer, storage, evidence);
+      expect(await seedCheckpointSnapshot(storage, evidence)).toBe(true);
       expect(
         validatePracticeSessionSnapshot(
           JSON.parse(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
@@ -180,7 +208,7 @@ describe("reasoning checkpoint persistence", () => {
 
   it("keeps a valid snapshot for retry when server verification is unavailable", async () => {
     const storage = memoryStorage();
-    savePracticeSessionSnapshot(secondSession, answer, storage, observation);
+    expect(await seedCheckpointSnapshot(storage, observation)).toBe(true);
     const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
     await expect(
       readVerifiedPracticeSessionSnapshot(async () => {
@@ -192,20 +220,21 @@ describe("reasoning checkpoint persistence", () => {
 
   it("does not let stale verification delete a newer unfinished episode", async () => {
     const storage = memoryStorage();
-    savePracticeSessionSnapshot(secondSession, answer, storage, {
-      ...observation,
-      selectedOptionId: "B",
-      outcome: "correct",
-    });
+    expect(
+      await seedCheckpointSnapshot(storage, {
+        ...observation,
+        selectedOptionId: "B",
+        outcome: "correct",
+      }),
+    ).toBe(true);
     let resolveVerification!: (value: { valid: false }) => void;
     const verification = new Promise<{ valid: false }>((resolve) => {
       resolveVerification = resolve;
     });
-    const pending = readVerifiedPracticeSessionSnapshot(
-      () => verification,
-      storage,
-    );
+    const verify = vi.fn(() => verification);
+    const pending = readVerifiedPracticeSessionSnapshot(verify, storage);
     const replacement = JSON.stringify({
+      sessionId: crypto.randomUUID(),
       problemIds: ["coinciding-seats", "guaranteed-sock-pair"],
       activeProblemIndex: 0,
       completedResults: [],
@@ -214,13 +243,18 @@ describe("reasoning checkpoint persistence", () => {
     });
     storage.setItem(PRACTICE_SESSION_STORAGE_KEY, replacement);
     resolveVerification({ valid: false });
-    await expect(pending).rejects.toThrow("changed during verification");
+    expect(await pending).toEqual({
+      value: JSON.parse(replacement),
+      interpretation: null,
+    });
+    expect(verify).not.toHaveBeenCalled();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(replacement);
   });
 
   it("rejects checkpoint evidence attached to no-next Skip before server verification", async () => {
     const storage = memoryStorage();
     const noNext = {
+      sessionId: crypto.randomUUID(),
       status: "no-next",
       completedResults: [
         firstResult,
@@ -242,13 +276,11 @@ describe("reasoning checkpoint persistence", () => {
     expect(verify).not.toHaveBeenCalled();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
   });
-  it("restores one factual observation without protected content or a renewed attempt", () => {
+  it("restores one factual observation without protected content or a renewed attempt", async () => {
     const storage = memoryStorage();
-    expect(
-      savePracticeSessionSnapshot(secondSession, answer, storage, observation),
-    ).toBe(true);
+    expect(await seedCheckpointSnapshot(storage, observation)).toBe(true);
     const raw = storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!;
-    const restored = readPracticeSessionSnapshot(storage);
+    const restored = await readPracticeSessionSnapshot(storage);
     expect(restored).toMatchObject({
       activeProblemIndex: 1,
       reasoningCheckpointObservation: observation,
@@ -260,14 +292,14 @@ describe("reasoning checkpoint persistence", () => {
     expect(raw).not.toContain("expectedAnswer");
   });
 
-  it("transitions the observation to ordered completed results", () => {
+  it("transitions the observation to ordered completed results", async () => {
     const storage = memoryStorage();
     const results = [firstResult, secondResult];
-    savePracticeSessionSnapshot(secondSession, answer, storage, observation);
+    expect(await seedCheckpointSnapshot(storage, observation)).toBe(true);
     expect(
-      completePracticeSession(secondSession, answer, results, storage),
+      await completePracticeSession(secondSession, answer, results, storage),
     ).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(results);
     const raw = storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!;
     expect(raw).not.toContain("rawAnswer");
@@ -275,11 +307,11 @@ describe("reasoning checkpoint persistence", () => {
     expect(raw).not.toContain("correctOptionId");
   });
 
-  it("restores checkpoint evidence and preserves the previous Summary when Finish write fails", () => {
+  it("restores checkpoint evidence and preserves the previous Summary when Finish write fails", async () => {
     const storage = memoryStorage();
     const prior = [firstResult];
     expect(saveLatestCompletedResults(prior, storage)).toBe(true);
-    savePracticeSessionSnapshot(secondSession, answer, storage, observation);
+    expect(await seedCheckpointSnapshot(storage, observation)).toBe(true);
     const failingStorage = {
       ...storage,
       setItem: (key: string, value: string) => {
@@ -289,20 +321,20 @@ describe("reasoning checkpoint persistence", () => {
       },
     } as Storage;
     expect(
-      completePracticeSession(
+      await completePracticeSession(
         secondSession,
         answer,
         [firstResult, secondResult],
         failingStorage,
       ),
     ).toBe(false);
-    expect(readPracticeSessionSnapshot(storage)).toMatchObject({
+    expect(await readPracticeSessionSnapshot(storage)).toMatchObject({
       activeProblemIndex: 1,
       reasoningCheckpointObservation: observation,
     });
     expect(readLatestCompletedResults(storage)).toEqual(prior);
     expect(
-      completePracticeSession(
+      await completePracticeSession(
         secondSession,
         answer,
         [firstResult, secondResult],
@@ -315,9 +347,9 @@ describe("reasoning checkpoint persistence", () => {
     ]);
   });
 
-  it("fails closed for forged, repeated, premature, or misplaced evidence", () => {
+  it("fails closed for forged, repeated, premature, or misplaced evidence", async () => {
     const storage = memoryStorage();
-    savePracticeSessionSnapshot(secondSession, answer, storage, observation);
+    expect(await seedCheckpointSnapshot(storage, observation)).toBe(true);
     const active = JSON.parse(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!);
     const completed = [firstResult, secondResult];
     const badObservation = [

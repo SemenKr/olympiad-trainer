@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 
 import {
   finishPractice,
@@ -14,9 +15,12 @@ import {
 } from "./short-numeric-answer-state";
 import {
   clearPracticeSessionSnapshot,
+  completePracticeSession,
+  createPracticeSessionSnapshot,
   getStoredProblemTitle,
   PRACTICE_SESSION_STORAGE_KEY,
   readPracticeSessionSnapshot,
+  readVerifiedPracticeSessionSnapshot,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
@@ -27,6 +31,8 @@ import {
   advanceTwoProblemSession,
   startTwoProblemSession,
 } from "./two-problem-session-state";
+
+beforeEach(installImmediatePracticeSessionLock);
 
 const first = {
   id: "coinciding-seats",
@@ -61,9 +67,9 @@ function memoryStorage(): Storage {
   };
 }
 
-function initialSnapshot() {
+async function initialSnapshot() {
   const storage = memoryStorage();
-  savePracticeSessionSnapshot(
+  await createPracticeSessionSnapshot(
     startTwoProblemSession(),
     createShortNumericAnswerState(),
     storage,
@@ -74,8 +80,31 @@ function initialSnapshot() {
   };
 }
 
-function readActiveSnapshot(storage: Storage): PracticeSessionSnapshot {
-  const snapshot = readPracticeSessionSnapshot(storage);
+async function seedActiveSnapshot(
+  session: Parameters<typeof savePracticeSessionSnapshot>[0],
+  answer: Parameters<typeof savePracticeSessionSnapshot>[1],
+  storage: Storage,
+) {
+  expect(
+    await createPracticeSessionSnapshot(
+      {
+        sessionId: session.sessionId,
+        activeProblemIndex: 0,
+        completedResults: [],
+      },
+      createShortNumericAnswerState(),
+      storage,
+    ),
+  ).toBe(true);
+  expect(await savePracticeSessionSnapshot(session, answer, storage)).toBe(
+    true,
+  );
+}
+
+async function readActiveSnapshot(
+  storage: Storage,
+): Promise<PracticeSessionSnapshot> {
+  const snapshot = await readPracticeSessionSnapshot(storage);
   if (!snapshot || "status" in snapshot)
     throw new Error("Expected an active Practice snapshot");
   return snapshot;
@@ -97,6 +126,7 @@ function noNextSession() {
     },
   );
   return {
+    sessionId: crypto.randomUUID(),
     status: "no-next" as const,
     completedResults: [
       {
@@ -115,10 +145,11 @@ function noNextSession() {
 }
 
 describe("unfinished Practice storage", () => {
-  it("saves an untouched session and restores the same active problem", () => {
-    const { storage } = initialSnapshot();
-    const snapshot = readActiveSnapshot(storage);
+  it("saves an untouched session and restores the same active problem", async () => {
+    const { storage } = await initialSnapshot();
+    const snapshot = await readActiveSnapshot(storage);
 
+    expect(snapshot.sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(snapshot.activeProblemIndex).toBe(0);
     expect(snapshot.completedResults).toEqual([]);
     expect(snapshot.activePractice).toEqual(startPractice());
@@ -126,13 +157,60 @@ describe("unfinished Practice storage", () => {
     expect(restoreAnswerState(snapshot).status).toBe("typing");
   });
 
-  it("retains a dirty draft and factual incorrect submission without inventing an attempt", () => {
+  it("assigns and persists one session ID when restoring valid legacy active and no-next snapshots", async () => {
+    for (const source of [
+      (await initialSnapshot()).snapshot,
+      noNextSession(),
+    ]) {
+      const storage = memoryStorage();
+      const { sessionId: _priorId, ...legacy } = source;
+      expect(_priorId).toBeDefined();
+      storage.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(legacy));
+
+      const migrated = (
+        await readVerifiedPracticeSessionSnapshot(async () => {
+          throw new Error("No checkpoint verification expected");
+        }, storage)
+      ).value;
+      expect(migrated?.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(
+        JSON.stringify(migrated),
+      );
+      expect(await readPracticeSessionSnapshot(storage)).toEqual(migrated);
+    }
+  });
+
+  it("does not continue a legacy restore until its session ID is persisted", async () => {
+    const storage = memoryStorage();
+    const { sessionId: _priorId, ...legacy } = noNextSession();
+    expect(_priorId).toBeDefined();
+    const original = JSON.stringify(legacy);
+    storage.setItem(PRACTICE_SESSION_STORAGE_KEY, original);
+    const failedMigration = {
+      ...storage,
+      setItem: () => {
+        throw new Error("Storage write failed");
+      },
+    } as Storage;
+
+    await expect(
+      readVerifiedPracticeSessionSnapshot(async () => {
+        throw new Error("No checkpoint verification expected");
+      }, failedMigration),
+    ).rejects.toThrow("Storage write failed");
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(original);
+    expect((await readPracticeSessionSnapshot(storage))?.sessionId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
+  });
+
+  it("retains a dirty draft and factual incorrect submission without inventing an attempt", async () => {
     const storage = memoryStorage();
     const incorrect = recordAnswerResult(startPractice(), {
       status: "incorrect",
       normalizedAnswer: "16",
     });
-    savePracticeSessionSnapshot(
+    await seedActiveSnapshot(
       startTwoProblemSession(),
       editShortNumericAnswer(
         {
@@ -144,7 +222,7 @@ describe("unfinished Practice storage", () => {
       ),
       storage,
     );
-    const snapshot = readActiveSnapshot(storage);
+    const snapshot = await readActiveSnapshot(storage);
 
     expect(snapshot.rawAnswer).toBe("18");
     expect(snapshot.activePractice.submissions).toEqual([
@@ -157,7 +235,7 @@ describe("unfinished Practice storage", () => {
     expect(restoreAnswerState(snapshot).practice.submissions).toHaveLength(1);
   });
 
-  it("keeps later submissions after a correct answer without erasing the earlier success", () => {
+  it("keeps later submissions after a correct answer without erasing the earlier success", async () => {
     const storage = memoryStorage();
     const correct = recordAnswerResult(startPractice(), {
       status: "correct",
@@ -167,13 +245,13 @@ describe("unfinished Practice storage", () => {
       status: "incorrect",
       normalizedAnswer: "16",
     });
-    savePracticeSessionSnapshot(
+    await seedActiveSnapshot(
       startTwoProblemSession(),
       { rawAnswer: "16", status: "incorrect", practice: later },
       storage,
     );
 
-    const restored = readActiveSnapshot(storage);
+    const restored = await readActiveSnapshot(storage);
     expect(restored.activePractice.submissions).toEqual([
       { answer: "17", outcome: "correct" },
       { answer: "16", outcome: "incorrect" },
@@ -181,7 +259,7 @@ describe("unfinished Practice storage", () => {
     expect(restoreAnswerState(restored).status).toBe("incorrect");
   });
 
-  it("retains hint and solution evidence once without storing protected text", () => {
+  it("retains hint and solution evidence once without storing protected text", async () => {
     const storage = memoryStorage();
     let practice = recordAnswerResult(startPractice(), {
       status: "incorrect",
@@ -195,13 +273,13 @@ describe("unfinished Practice storage", () => {
       });
     }
     practice = recordSolutionExposure(practice, { solutionId: first.solution });
-    savePracticeSessionSnapshot(
+    await seedActiveSnapshot(
       startTwoProblemSession(),
       { rawAnswer: "16", status: "incorrect", practice },
       storage,
     );
     const raw = storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!;
-    const restored = readActiveSnapshot(storage);
+    const restored = await readActiveSnapshot(storage);
 
     expect(restored.activePractice).toEqual(practice);
     expect(restored.activePractice.hintExposures).toHaveLength(3);
@@ -215,7 +293,7 @@ describe("unfinished Practice storage", () => {
     expect(raw).not.toContain("loading");
   });
 
-  it("restores skipped problem 1 and a separate active problem 2 in order", () => {
+  it("restores skipped problem 1 and a separate active problem 2 in order", async () => {
     const storage = memoryStorage();
     const firstPractice = recordHintExposure(startPractice(), {
       hintId: first.hints[0],
@@ -228,12 +306,12 @@ describe("unfinished Practice storage", () => {
       summary,
       taskOutcome: "skipped",
     })!;
-    savePracticeSessionSnapshot(
+    await seedActiveSnapshot(
       session,
       editShortNumericAnswer(createShortNumericAnswerState(), "6"),
       storage,
     );
-    const restored = readActiveSnapshot(storage);
+    const restored = await readActiveSnapshot(storage);
 
     expect(restored.activeProblemIndex).toBe(1);
     expect(restored.completedResults).toEqual([
@@ -249,9 +327,10 @@ describe("unfinished Practice storage", () => {
     expect(getStoredProblemTitle(restored)).toBe(second.title);
   });
 
-  it("rejects malformed, stale, impossible, and protected-content snapshots", () => {
-    const { snapshot } = initialSnapshot();
+  it("rejects malformed, stale, impossible, and protected-content snapshots", async () => {
+    const { snapshot } = await initialSnapshot();
     const invalid = [
+      { ...snapshot, sessionId: "not-a-uuid" },
       { ...snapshot, problemIds: ["unknown", second.id] },
       { ...snapshot, activeProblemIndex: 1 },
       { ...snapshot, rawAnswer: 4 },
@@ -297,12 +376,12 @@ describe("unfinished Practice storage", () => {
     }
     const storage = memoryStorage();
     storage.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(invalid[0]));
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
   });
 
-  it("accepts reachable completed evidence and explicit Skip", () => {
-    const { snapshot } = initialSnapshot();
+  it("accepts reachable completed evidence and explicit Skip", async () => {
+    const { snapshot } = await initialSnapshot();
     const withResult = (summary: unknown, taskOutcome?: "skipped") => ({
       ...snapshot,
       activeProblemIndex: 1,
@@ -364,8 +443,8 @@ describe("unfinished Practice storage", () => {
     ).not.toBeNull();
   });
 
-  it("rejects unreachable completed-result exposure histories", () => {
-    const { snapshot } = initialSnapshot();
+  it("rejects unreachable completed-result exposure histories", async () => {
+    const { snapshot } = await initialSnapshot();
     const withResult = (summary: unknown, taskOutcome?: "skipped") => ({
       ...snapshot,
       activeProblemIndex: 1,
@@ -469,28 +548,28 @@ describe("unfinished Practice storage", () => {
     }
   });
 
-  it("does not persist transient loading or system states as evidence", () => {
-    const storage = memoryStorage();
+  it("does not persist transient loading or system states as evidence", async () => {
     for (const status of ["loading", "system"] as const) {
-      savePracticeSessionSnapshot(
+      const storage = memoryStorage();
+      await seedActiveSnapshot(
         startTwoProblemSession(),
         { rawAnswer: "16", status, practice: startPractice() },
         storage,
       );
-      const restored = readActiveSnapshot(storage);
+      const restored = await readActiveSnapshot(storage);
       expect(restoreAnswerState(restored).status).toBe("typing");
       expect(restored.activePractice.submissions).toEqual([]);
       expect(restored.activePractice.hintExposures).toEqual([]);
     }
   });
 
-  it("clears the unfinished snapshot after explicit Finish", () => {
-    const { storage } = initialSnapshot();
-    expect(clearPracticeSessionSnapshot(storage)).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+  it("clears the unfinished snapshot after explicit Finish", async () => {
+    const { storage } = await initialSnapshot();
+    expect(await clearPracticeSessionSnapshot(storage)).toBe(true);
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
   });
 
-  it("reports failed writes and removals so Pause and Finish can be retried", () => {
+  it("reports failed writes and removals so Pause and Finish can be retried", async () => {
     const storage = memoryStorage();
     const session = startTwoProblemSession();
     const oldAnswer = editShortNumericAnswer(
@@ -498,7 +577,7 @@ describe("unfinished Practice storage", () => {
       "old",
     );
     const newAnswer = editShortNumericAnswer(oldAnswer, "new draft");
-    expect(savePracticeSessionSnapshot(session, oldAnswer, storage)).toBe(true);
+    await seedActiveSnapshot(session, oldAnswer, storage);
     const failingStorage = {
       ...storage,
       setItem: () => {
@@ -510,23 +589,131 @@ describe("unfinished Practice storage", () => {
     };
 
     expect(
-      savePracticeSessionSnapshot(session, newAnswer, failingStorage),
+      await savePracticeSessionSnapshot(session, newAnswer, failingStorage),
     ).toBe(false);
-    expect(readActiveSnapshot(storage).rawAnswer).toBe("old");
-    expect(clearPracticeSessionSnapshot(failingStorage)).toBe(false);
-    expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
-    expect(savePracticeSessionSnapshot(session, newAnswer, storage)).toBe(true);
-    expect(readActiveSnapshot(storage).rawAnswer).toBe("new draft");
-    expect(clearPracticeSessionSnapshot(storage)).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect((await readActiveSnapshot(storage)).rawAnswer).toBe("old");
+    expect(await clearPracticeSessionSnapshot(failingStorage)).toBe(false);
+    expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
+    expect(await savePracticeSessionSnapshot(session, newAnswer, storage)).toBe(
+      true,
+    );
+    expect((await readActiveSnapshot(storage)).rawAnswer).toBe("new draft");
+    expect(await clearPracticeSessionSnapshot(storage)).toBe(true);
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
   });
 
-  it("persists and reloads no-next without an active episode or protected text", () => {
+  it("rechecks ownership inside the lock after another tab replaces the session", async () => {
+    const storage = memoryStorage();
+    const firstSession = startTwoProblemSession();
+    const secondSession = startTwoProblemSession();
+    const answer = createShortNumericAnswerState();
+    await seedActiveSnapshot(firstSession, answer, storage);
+    const secondRaw = JSON.stringify({
+      ...JSON.parse(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+      sessionId: secondSession.sessionId,
+    });
+    let enterOtherTab!: () => void;
+    let releaseOtherTab!: () => void;
+    const otherTabEntered = new Promise<void>((resolve) => {
+      enterOtherTab = resolve;
+    });
+    const otherTabHeld = new Promise<void>((resolve) => {
+      releaseOtherTab = resolve;
+    });
+    let queue: Promise<unknown> = Promise.resolve();
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: (
+          name: string,
+          options: LockOptions,
+          operation: () => unknown,
+        ) => {
+          expect(name).toBe("olympiad-trainer:practice-session-mutation");
+          expect(options.mode).toBe("exclusive");
+          const result = queue.then(operation);
+          queue = result.then(
+            () => undefined,
+            () => undefined,
+          );
+          return result;
+        },
+      },
+    });
+
+    const otherTabWrite = navigator.locks.request(
+      "olympiad-trainer:practice-session-mutation",
+      { mode: "exclusive" },
+      async () => {
+        enterOtherTab();
+        await otherTabHeld;
+        storage.setItem(PRACTICE_SESSION_STORAGE_KEY, secondRaw);
+      },
+    );
+    await otherTabEntered;
+    const staleWrite = savePracticeSessionSnapshot(
+      firstSession,
+      editShortNumericAnswer(answer, "7"),
+      storage,
+    );
+    releaseOtherTab();
+    await otherTabWrite;
+    expect(await staleWrite).toBe(false);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(secondRaw);
+  });
+
+  it("fails closed when the Practice lock is unavailable", async () => {
+    const storage = memoryStorage();
+    const session = noNextSession();
+    expect(
+      await createPracticeSessionSnapshot(
+        {
+          sessionId: session.sessionId,
+          activeProblemIndex: 0,
+          completedResults: [],
+        },
+        createShortNumericAnswerState(),
+        storage,
+      ),
+    ).toBe(true);
+    expect(await saveNoNextPracticeSessionSnapshot(session, storage)).toBe(
+      true,
+    );
+    const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+    vi.stubGlobal("navigator", {});
+
+    expect(await saveNoNextPracticeSessionSnapshot(session, storage)).toBe(
+      false,
+    );
+    expect(
+      await completePracticeSession(
+        session,
+        null,
+        session.completedResults,
+        storage,
+      ),
+    ).toBe(false);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+  });
+
+  it("persists and reloads no-next without an active episode or protected text", async () => {
     const storage = memoryStorage();
     const session = noNextSession();
 
-    expect(saveNoNextPracticeSessionSnapshot(session, storage)).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)).toEqual(session);
+    expect(
+      await createPracticeSessionSnapshot(
+        {
+          sessionId: session.sessionId,
+          activeProblemIndex: 0,
+          completedResults: [],
+        },
+        createShortNumericAnswerState(),
+        storage,
+      ),
+    ).toBe(true);
+    expect(await saveNoNextPracticeSessionSnapshot(session, storage)).toBe(
+      true,
+    );
+    expect(await readPracticeSessionSnapshot(storage)).toEqual(session);
     const raw = storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!;
     expect(JSON.parse(raw)).toEqual(session);
     expect(raw).not.toContain("activeProblemIndex");
@@ -536,10 +723,11 @@ describe("unfinished Practice storage", () => {
     expect(raw).not.toContain("expectedAnswer");
   });
 
-  it("rejects malformed or impossible no-next snapshots and removes them", () => {
+  it("rejects malformed or impossible no-next snapshots and removes them", async () => {
     const session = noNextSession();
     const [firstResult, secondResult] = session.completedResults;
     const invalid = [
+      { ...session, sessionId: "not-a-uuid" },
       { ...session, activeProblemIndex: 1 },
       { ...session, completedResults: [secondResult, firstResult] },
       { ...session, completedResults: [firstResult] },
@@ -608,7 +796,7 @@ describe("unfinished Practice storage", () => {
       expect(validatePracticeSessionSnapshot(value)).toBeNull();
       const storage = memoryStorage();
       storage.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(value));
-      expect(readPracticeSessionSnapshot(storage)).toBeNull();
+      expect(await readPracticeSessionSnapshot(storage)).toBeNull();
       expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     }
   });

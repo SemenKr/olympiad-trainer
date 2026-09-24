@@ -14,17 +14,23 @@ export type PracticeSessionResult = Readonly<{
 }>;
 
 export type TwoProblemSessionState = Readonly<{
+  sessionId: string;
   activeProblemIndex: 0 | 1;
   completedResults: readonly PracticeSessionResult[];
 }>;
 
 export type NoNextTwoProblemSessionState = Readonly<{
+  sessionId: string;
   status: "no-next";
   completedResults: readonly [PracticeSessionResult, PracticeSessionResult];
 }>;
 
 export function startTwoProblemSession(): TwoProblemSessionState {
-  return { activeProblemIndex: 0, completedResults: [] };
+  return {
+    sessionId: crypto.randomUUID(),
+    activeProblemIndex: 0,
+    completedResults: [],
+  };
 }
 
 export function isPracticeProblemNavigationComplete(
@@ -93,6 +99,7 @@ export function advanceTwoProblemSession(
   }
 
   return {
+    sessionId: state.sessionId,
     activeProblemIndex: 1,
     completedResults: [...state.completedResults, result],
   };
@@ -118,6 +125,7 @@ export function skipFinalTwoProblemSession(
   }
 
   return {
+    sessionId: state.sessionId,
     status: "no-next",
     completedResults: [state.completedResults[0], result],
   };
