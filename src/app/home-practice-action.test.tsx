@@ -35,6 +35,25 @@ const unfinished = {
   activePractice: startPractice(),
   rawAnswer: "",
 };
+const noNext = {
+  status: "no-next" as const,
+  completedResults: [
+    {
+      ...completed[0],
+      summary: {
+        ...completed[0].summary,
+        outcome: "eventually-correct" as const,
+        validSubmissionCount: 1,
+      },
+    },
+    {
+      problemId: "guaranteed-sock-pair",
+      problemTitle: "Носки в пакете",
+      summary: completed[0].summary,
+      taskOutcome: "skipped" as const,
+    },
+  ] as const,
+};
 
 describe("Home Practice precedence", () => {
   it("keeps Resume primary with the previous completion secondary", () => {
@@ -58,6 +77,19 @@ describe("Home Practice precedence", () => {
 
     expect(markup).toContain("Начать тренировку");
     expect(markup).not.toContain("Продолжить тренировку");
+    expect(markup).toContain("Последняя тренировка");
+    expect(markup).toContain("Посмотреть итоги");
+  });
+
+  it("shows Finish primary for no-next while retaining the previous Summary", () => {
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent stored={{ unfinished: noNext, completed }} />,
+    );
+
+    expect(markup).toContain("Завершить тренировку");
+    expect(markup).toContain('href="/practice"');
+    expect(markup).not.toContain("Продолжить тренировку");
+    expect(markup).not.toContain("Начать тренировку");
     expect(markup).toContain("Последняя тренировка");
     expect(markup).toContain("Посмотреть итоги");
   });

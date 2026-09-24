@@ -15,6 +15,7 @@ import { revealPracticeSolution } from "@/app/practice/actions";
 
 import {
   PracticeHintRevealError,
+  NoNextPracticeSurface,
   PracticeSession,
   PracticeSolutionRevealError,
 } from "./practice-session";
@@ -98,5 +99,31 @@ describe("PracticeSession solution reveal", () => {
     expect(markup).not.toContain("Решение открыто");
     expect(markup).not.toContain("6 × 17");
     expect(revealPracticeSolution).not.toHaveBeenCalled();
+  });
+});
+
+describe("Practice no-next surface", () => {
+  it("offers explicit Finish and Home without an active answer or reveal control", () => {
+    const markup = renderToStaticMarkup(
+      <NoNextPracticeSurface
+        onFinish={vi.fn()}
+        onPause={vi.fn()}
+        storageError={false}
+      />,
+    );
+
+    expect(markup).toContain("Сейчас больше нет задач в этой тренировке.");
+    const descriptionId = markup.match(
+      /<h1[^>]*aria-describedby="([^"]+)"/,
+    )?.[1];
+    expect(descriptionId).toBeDefined();
+    expect(markup).toMatch(/<h1[^>]*tabindex="-1"/);
+    expect(markup).toContain(`<p id="${descriptionId}">`);
+    expect(markup).toContain("Завершить тренировку");
+    expect(markup).toContain("На главную");
+    expect(markup).not.toContain("Ответ на задачу");
+    expect(markup).not.toContain("Подсказка");
+    expect(markup).not.toContain("Показать решение");
+    expect(markup).not.toContain("Пропустить задачу");
   });
 });

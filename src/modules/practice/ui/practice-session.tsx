@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
   revealPracticeHint,
@@ -38,6 +38,7 @@ import {
   completePracticeSession,
   readPracticeSessionSnapshot,
   restoreAnswerState,
+  saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
 } from "./practice-session-storage";
 import {
@@ -56,7 +57,9 @@ import {
   isPracticeProblemNavigationComplete,
   isPracticeProblemSkipAvailable,
   requestPracticeSkip,
+  skipFinalTwoProblemSession,
   startTwoProblemSession,
+  type NoNextTwoProblemSessionState,
   type PracticeSessionResult,
   type TwoProblemSessionState,
 } from "./two-problem-session-state";
@@ -75,7 +78,7 @@ type PracticeProblemEpisodeProps = Readonly<{
     answer: ShortNumericAnswerState,
   ) => boolean;
   onNextProblem: (summary: PracticeSummary) => void;
-  onSkip: (summary: PracticeSummary) => void;
+  onSkip: (summary: PracticeSummary) => boolean;
   onPause: (answer: ShortNumericAnswerState) => boolean;
   onStableChange: (answer: ShortNumericAnswerState) => void;
   initialAnswerState: ShortNumericAnswerState;
@@ -122,14 +125,19 @@ export function savePracticeSessionWhileActive(
 
 export function finishPracticeSessionAndNavigate(
   completionLatch: { current: boolean },
-  session: TwoProblemSessionState,
-  answer: ShortNumericAnswerState,
+  session: TwoProblemSessionState | NoNextTwoProblemSessionState,
+  answer: ShortNumericAnswerState | null,
   results: readonly PracticeSessionResult[],
   navigate: () => void,
   storage?: Storage,
 ): boolean {
   if (completionLatch.current) return false;
-  if (!completePracticeSession(session, answer, results, storage)) return false;
+  const completed =
+    "status" in session
+      ? completePracticeSession(session, null, results, storage)
+      : answer !== null &&
+        completePracticeSession(session, answer, results, storage);
+  if (!completed) return false;
   completionLatch.current = true;
   navigate();
   return true;
@@ -139,16 +147,22 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   const router = useRouter();
   const completionLatch = useRef(false);
   const [completionPending, setCompletionPending] = useState(false);
-  const [loaded, setLoaded] = useState<{
-    session: TwoProblemSessionState;
-    answer: ShortNumericAnswerState;
-  } | null>(null);
+  const [noNextStorageError, setNoNextStorageError] = useState(false);
+  const [loaded, setLoaded] = useState<
+    | { session: TwoProblemSessionState; answer: ShortNumericAnswerState }
+    | { session: NoNextTwoProblemSessionState }
+    | null
+  >(null);
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
       const snapshot = readPracticeSessionSnapshot();
+      if (snapshot && "status" in snapshot) {
+        setLoaded({ session: snapshot });
+        return;
+      }
       const session = snapshot
         ? {
             activeProblemIndex: snapshot.activeProblemIndex,
@@ -175,6 +189,39 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       <main aria-busy="true" role="status">
         Открываем итоги тренировки…
       </main>
+    );
+  }
+
+  if (!("answer" in loaded)) {
+    const noNextSession = loaded.session;
+    return (
+      <NoNextPracticeSurface
+        onFinish={() => {
+          if (completionLatch.current) return;
+          if (
+            !finishPracticeSessionAndNavigate(
+              completionLatch,
+              noNextSession,
+              null,
+              noNextSession.completedResults,
+              () => {
+                setCompletionPending(true);
+                router.push("/practice/summary");
+              },
+            )
+          )
+            setNoNextStorageError(true);
+        }}
+        onPause={() => {
+          if (completionLatch.current) return;
+          if (!saveNoNextPracticeSessionSnapshot(noNextSession)) {
+            setNoNextStorageError(true);
+            return;
+          }
+          router.push("/");
+        }}
+        storageError={noNextStorageError}
+      />
     );
   }
 
@@ -211,8 +258,8 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     );
   }
 
-  function handleSkip(summary: PracticeSummary) {
-    if (completionLatch.current) return;
+  function handleSkip(summary: PracticeSummary): boolean {
+    if (completionLatch.current) return false;
     const result = createPracticeSessionResult(
       activeProblem,
       summary,
@@ -222,9 +269,16 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
 
     if (nextSession) {
       const answer = createShortNumericAnswerState();
-      savePracticeSessionSnapshot(nextSession, answer);
+      if (!savePracticeSessionSnapshot(nextSession, answer)) return false;
       setLoaded({ session: nextSession, answer });
+      return true;
     }
+
+    const noNextSession = skipFinalTwoProblemSession(sessionState, result);
+    if (!noNextSession || !saveNoNextPracticeSessionSnapshot(noNextSession))
+      return false;
+    setLoaded({ session: noNextSession });
+    return true;
   }
 
   function handlePause(answer: ShortNumericAnswerState) {
@@ -253,6 +307,59 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   );
 }
 
+export function NoNextPracticeSurface({
+  onFinish,
+  onPause,
+  storageError,
+}: {
+  onFinish: () => void;
+  onPause: () => void;
+  storageError: boolean;
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const descriptionId = useId();
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    if (focusedRef.current) return;
+    focusedRef.current = true;
+    headingRef.current?.focus();
+  }, []);
+
+  return (
+    <main className={styles["no-next"]}>
+      <h1 aria-describedby={descriptionId} ref={headingRef} tabIndex={-1}>
+        Тренировка
+      </h1>
+      <p id={descriptionId}>
+        Сейчас больше нет задач в этой тренировке. Можно завершить тренировку и
+        посмотреть итоги или вернуться на главную.
+      </p>
+      {storageError ? (
+        <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+          Не удалось сохранить тренировку. Попробуй ещё раз.
+        </p>
+      ) : null}
+      <div className={styles["no-next-actions"]}>
+        <button
+          className={styles["next-action"]}
+          onClick={onFinish}
+          type="button"
+        >
+          Завершить тренировку
+        </button>
+        <button
+          className={styles["hint-action"]}
+          onClick={onPause}
+          type="button"
+        >
+          На главную
+        </button>
+      </div>
+    </main>
+  );
+}
+
 function PracticeProblemEpisode({
   problem,
   hasNextProblem,
@@ -276,9 +383,9 @@ function PracticeProblemEpisode({
   const [isSolutionRevealPending, setIsSolutionRevealPending] = useState(false);
   const [hintRevealFailed, setHintRevealFailed] = useState(false);
   const [solutionRevealFailed, setSolutionRevealFailed] = useState(false);
-  const [storageError, setStorageError] = useState<"pause" | "finish" | null>(
-    null,
-  );
+  const [storageError, setStorageError] = useState<
+    "pause" | "finish" | "skip" | null
+  >(null);
   const [restorePending, setRestorePending] = useState(
     initialAnswerState.practice.hintExposures.length > 0 ||
       initialAnswerState.practice.solutionExposure !== null,
@@ -351,7 +458,6 @@ function PracticeProblemEpisode({
     !restorePending;
   const canSkipProblem = isPracticeProblemSkipAvailable(
     answerState,
-    hasNextProblem,
     supportRevealPending || restorePending,
   );
 
@@ -511,13 +617,12 @@ function PracticeProblemEpisode({
     if (completionLatch.current || restorePendingRef.current) return;
     const nextSummary = requestPracticeSkip(
       answerStateRef.current,
-      hasNextProblem,
       () => window.confirm(DIRTY_SKIP_MESSAGE),
       hintRevealGate.current || solutionRevealGate.current,
     );
 
     if (nextSummary) {
-      onSkip(nextSummary);
+      if (!onSkip(nextSummary)) setStorageError("skip");
     }
   }
 
@@ -635,7 +740,9 @@ function PracticeProblemEpisode({
             <p aria-atomic="true" className={styles["hint-error"]} role="alert">
               {storageError === "pause"
                 ? "Не удалось сохранить тренировку. Попробуй ещё раз."
-                : "Не удалось завершить тренировку. Попробуй ещё раз."}
+                : storageError === "skip"
+                  ? "Не удалось пропустить задачу. Попробуй ещё раз."
+                  : "Не удалось завершить тренировку. Попробуй ещё раз."}
             </p>
           ) : null}
 

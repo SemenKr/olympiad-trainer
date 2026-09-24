@@ -7,7 +7,7 @@ import {
   getStoredProblemTitle,
   readLatestCompletedResults,
   readPracticeSessionSnapshot,
-  type PracticeSessionSnapshot,
+  type UnfinishedPracticeSessionSnapshot,
 } from "@/modules/practice/ui/practice-session-storage";
 import {
   getPracticeRemainingText,
@@ -18,7 +18,7 @@ import type { PracticeSessionResult } from "@/modules/practice/ui/two-problem-se
 import styles from "./page.module.scss";
 
 type StoredPractice = Readonly<{
-  unfinished: PracticeSessionSnapshot | null;
+  unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
 }>;
 
@@ -52,10 +52,18 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
       {stored.unfinished ? (
         <section aria-label="Текущая тренировка">
           <h2>Тренировка не закончена</h2>
-          <p>Можно продолжить с того же места.</p>
-          <p>{getStoredProblemTitle(stored.unfinished)}</p>
+          {"status" in stored.unfinished ? (
+            <p>Можно завершить тренировку и посмотреть итоги.</p>
+          ) : (
+            <>
+              <p>Можно продолжить с того же места.</p>
+              <p>{getStoredProblemTitle(stored.unfinished)}</p>
+            </>
+          )}
           <Link className={styles.primary} href="/practice">
-            Продолжить тренировку
+            {"status" in stored.unfinished
+              ? "Завершить тренировку"
+              : "Продолжить тренировку"}
           </Link>
         </section>
       ) : (

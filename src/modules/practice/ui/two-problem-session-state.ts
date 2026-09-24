@@ -15,6 +15,11 @@ export type TwoProblemSessionState = Readonly<{
   completedResults: readonly PracticeSessionResult[];
 }>;
 
+export type NoNextTwoProblemSessionState = Readonly<{
+  status: "no-next";
+  completedResults: readonly [PracticeSessionResult, PracticeSessionResult];
+}>;
+
 export function startTwoProblemSession(): TwoProblemSessionState {
   return { activeProblemIndex: 0, completedResults: [] };
 }
@@ -33,11 +38,9 @@ export function isPracticeProblemNavigationComplete(
 
 export function isPracticeProblemSkipAvailable(
   answerState: ShortNumericAnswerState,
-  hasNextProblem: boolean,
   supportRevealPending = false,
 ): boolean {
   return (
-    hasNextProblem &&
     !supportRevealPending &&
     !isPracticeProblemNavigationComplete(answerState) &&
     answerState.status !== "loading"
@@ -46,17 +49,10 @@ export function isPracticeProblemSkipAvailable(
 
 export function requestPracticeSkip(
   answerState: ShortNumericAnswerState,
-  hasNextProblem: boolean,
   confirmDiscard: () => boolean,
   supportRevealPending = false,
 ): PracticeSummary | null {
-  if (
-    !isPracticeProblemSkipAvailable(
-      answerState,
-      hasNextProblem,
-      supportRevealPending,
-    )
-  ) {
+  if (!isPracticeProblemSkipAvailable(answerState, supportRevealPending)) {
     return null;
   }
 
@@ -99,4 +95,22 @@ export function finishTwoProblemSession(
   currentResult: PracticeSessionResult,
 ): readonly PracticeSessionResult[] {
   return [...state.completedResults, currentResult];
+}
+
+export function skipFinalTwoProblemSession(
+  state: TwoProblemSessionState,
+  result: PracticeSessionResult,
+): NoNextTwoProblemSessionState | null {
+  if (
+    state.activeProblemIndex !== 1 ||
+    state.completedResults.length !== 1 ||
+    result.taskOutcome !== "skipped"
+  ) {
+    return null;
+  }
+
+  return {
+    status: "no-next",
+    completedResults: [state.completedResults[0], result],
+  };
 }
