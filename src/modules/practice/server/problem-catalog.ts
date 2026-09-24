@@ -4,7 +4,9 @@ import type {
   LearnerSafePracticeProblem,
   RevealedPracticeHint,
   RevealedPracticeSolution,
+  RevealedReasoningCheckpoint,
 } from "../application/practice-problem-presentation";
+import type { ReasoningCheckpointOptionId } from "../application/reasoning-checkpoint";
 
 type SourceReference = Readonly<{
   reference: "I" | "IS";
@@ -50,6 +52,17 @@ type TrainingSolutionDefinition = Readonly<{
   text: string;
 }>;
 
+type ReasoningCheckpointDefinition = Readonly<{
+  id: string;
+  heading: string;
+  question: string;
+  options: readonly Readonly<{
+    id: ReasoningCheckpointOptionId;
+    text: string;
+  }>[];
+  correctOptionId: ReasoningCheckpointOptionId;
+}>;
+
 export type ProblemDefinition = Readonly<{
   id: string;
   grade: 5;
@@ -67,6 +80,7 @@ export type ProblemDefinition = Readonly<{
     NextStepHintDefinition,
   ];
   solution: TrainingSolutionDefinition;
+  reasoningCheckpoint?: ReasoningCheckpointDefinition;
 }>;
 
 export const CURRENT_PRACTICE_PROBLEM_ID = "coinciding-seats";
@@ -185,6 +199,26 @@ const guaranteedSockPairProblem = {
     kind: "training-adaptation",
     text: "Шесть носков ещё недостаточно: можно вынуть по два носка каждого цвета, причём по одному носку каждого цвета окажется дырявым. Тогда целых носков одного цвета будет не больше одного. Теперь рассмотрим семь вынутых носков. Если бы среди них не было двух целых носков одного цвета, то целых носков было бы не больше трёх — по одному каждого цвета. Дырявых носков всего три, значит, всего можно было бы вынуть не больше шести носков. Противоречие. Поэтому семь носков гарантируют нужную пару, а шесть — нет. Ответ: 7.",
   },
+  reasoningCheckpoint: {
+    id: "guaranteed-sock-pair-guarantee-argument",
+    heading: "Проверь рассуждение",
+    question: "Почему 7 носков уже гарантируют нужную пару?",
+    options: [
+      {
+        id: "A",
+        text: "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Значит, целых носков не больше 3, а вместе с тремя дырявыми можно вынуть не больше 6.",
+      },
+      {
+        id: "B",
+        text: "Среди любых 7 носков обязательно найдутся два носка одного цвета.",
+      },
+      {
+        id: "C",
+        text: "Дырявых носков всего три, значит остальные четыре обязательно будут одного цвета.",
+      },
+    ],
+    correctOptionId: "A",
+  },
 } as const satisfies ProblemDefinition;
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
@@ -222,6 +256,50 @@ export function getLearnerSafePracticeProblem(
       { hintId: nextStepHint.id, level: nextStepHint.level },
     ],
     solution: { solutionId: problem.solution.id },
+    ...(problem.reasoningCheckpoint
+      ? {
+          reasoningCheckpoint: { checkpointId: problem.reasoningCheckpoint.id },
+        }
+      : {}),
+  };
+}
+
+function getReasoningCheckpointDefinition(
+  problemId: string,
+  checkpointId: string,
+): ReasoningCheckpointDefinition {
+  const checkpoint = getProblemDefinition(problemId).reasoningCheckpoint;
+  if (!checkpoint || checkpoint.id !== checkpointId) {
+    throw new Error(`Unknown reasoning checkpoint: ${checkpointId}`);
+  }
+  return checkpoint;
+}
+
+export function getRevealedReasoningCheckpoint(
+  problemId: string,
+  checkpointId: string,
+): RevealedReasoningCheckpoint {
+  const checkpoint = getReasoningCheckpointDefinition(problemId, checkpointId);
+  return {
+    checkpointId: checkpoint.id,
+    heading: checkpoint.heading,
+    question: checkpoint.question,
+    options: checkpoint.options.map(({ id, text }) => ({ id, text })),
+  };
+}
+
+export function assessReasoningCheckpointOption(
+  problemId: string,
+  checkpointId: string,
+  selectedOptionId: string,
+): { outcome: "correct" | "incorrect" } {
+  const checkpoint = getReasoningCheckpointDefinition(problemId, checkpointId);
+  if (!checkpoint.options.some((option) => option.id === selectedOptionId)) {
+    throw new Error(`Unknown reasoning option: ${selectedOptionId}`);
+  }
+  return {
+    outcome:
+      checkpoint.correctOptionId === selectedOptionId ? "correct" : "incorrect",
   };
 }
 

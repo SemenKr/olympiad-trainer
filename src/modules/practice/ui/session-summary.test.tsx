@@ -6,6 +6,7 @@ import type {
   PracticeSolutionExposure,
   PracticeSummary,
 } from "../application/practice-state";
+import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
 import { SessionSummary } from "./session-summary";
 
 const problemTitle = "Совпадающие места";
@@ -34,6 +35,68 @@ function renderSummary(
 }
 
 describe("SessionSummary", () => {
+  it("shows bounded checkpoint interpretation separately from numeric success", () => {
+    const result = {
+      problemId: "guaranteed-sock-pair",
+      problemTitle: "Носки в пакете",
+      summary: {
+        outcome: "eventually-correct" as const,
+        validSubmissionCount: 1,
+        hintExposures: [],
+        solutionExposure: null,
+      },
+    };
+    const observation = {
+      checkpointId: SOCK_REASONING_CHECKPOINT_ID,
+      selectedOptionId: "A" as const,
+      outcome: "correct" as const,
+      validSubmissionCountAtSubmit: 1,
+    };
+    const positive = renderToStaticMarkup(
+      <SessionSummary
+        reasoningInterpretation={{
+          capability:
+            "Обосновывать гарантированный результат при неблагоприятном выборе",
+          learnerLabel: "Как гарантировать результат",
+          progressGroup: "Начинаю разбираться",
+          conclusion:
+            "Ты сам верно выбрал объяснение, почему 7 носков уже гарантируют нужную пару. Пока рано сказать, сможешь ли ты сам построить такое доказательство в новой задаче.",
+        }}
+        results={[
+          {
+            ...result,
+            reasoningCheckpointObservation: observation,
+            firstCorrectSubmissionCount: 1,
+          },
+        ]}
+      />,
+    );
+    expect(positive).toContain("Как гарантировать результат");
+    expect(positive).toContain("Начинаю разбираться");
+    expect(positive).toContain("Ты сам верно выбрал объяснение");
+    expect(positive).toContain("Решено самостоятельно");
+    const absent = renderToStaticMarkup(<SessionSummary results={[result]} />);
+    const incorrect = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            ...result,
+            reasoningCheckpointObservation: {
+              ...observation,
+              selectedOptionId: "B",
+              outcome: "incorrect",
+            },
+            firstCorrectSubmissionCount: 1,
+          },
+        ]}
+      />,
+    );
+    for (const markup of [absent, incorrect]) {
+      expect(markup).toContain("Пока рано сказать");
+      expect(markup).not.toContain("Начинаю разбираться");
+      expect(markup).not.toContain("слаб");
+    }
+  });
   it("omits task results when there are no valid submissions", () => {
     const markup = renderSummary("no-valid-submissions");
 

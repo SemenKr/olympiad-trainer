@@ -16,6 +16,10 @@ Hint text is protected content and is returned only after an explicit reveal req
 
 Full-solution text is likewise protected server-only content. It crosses the boundary only after an explicit reveal request containing the product problem ID and solution ID. Learner-facing problem statements and solutions may be verified training adaptations of sourced official tasks. Source provenance identifies the factual official task and solution references; it does not claim that adapted learner-facing text is verbatim from those documents.
 
+An optional reasoning checkpoint stays in the server-only problem definition. The initial projection carries only its stable ID; its heading, question, options, and correct option are excluded. After a correct numeric answer, the client may explicitly request the checkpoint content. A separate server action checks the selected option and returns its learner-safe outcome and bounded interpretation. The client controls episode eligibility from local evidence; these actions do not claim server-authoritative session progression.
+
+Browser-local checkpoint observations undergo structural validation before a server action reconciles their selected option and recorded outcome against the canonical checker. Practice, Home, and completed Summary wait for this check before using restored evidence. A mismatch invalidates the affected snapshot; an unavailable check keeps it stored for retry. Learner-facing checkpoint interpretation text is returned from the server only after assessment or restored-evidence verification.
+
 For example, `coinciding-seats` adapts official I-01 from 105 holes to 102 seats while preserving the corresponding answer 17. Its learner-facing statement and solution explain the adapted task; the retained I and IS references remain provenance for the official source rather than authorship of the adaptation text. The same distinction applies to other catalog problems whose learner-facing presentation is adapted for training.
 
 ## Episode state and hint ordering
