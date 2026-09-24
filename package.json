@@ -15,7 +15,8 @@
     "test": "vitest run --passWithNoTests",
     "format": "prettier --write \"src/**/*.{ts,tsx,scss}\" \"*.{json,mjs}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,scss}\" \"*.{json,mjs}\"",
-    "stylelint": "stylelint \"src/**/*.scss\""
+    "stylelint": "stylelint \"src/**/*.scss\"",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "next": "^16.3.5",
