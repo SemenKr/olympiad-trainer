@@ -140,6 +140,12 @@ function noNextSession() {
         summary: getPracticeSummary(finishPractice(secondPractice)),
         taskOutcome: "skipped" as const,
       },
+      {
+        problemId: "table-impossible-sums",
+        problemTitle: "Невозможные суммы",
+        summary: getPracticeSummary(finishPractice(startPractice())),
+        taskOutcome: "skipped" as const,
+      },
     ] as const,
   };
 }
@@ -725,17 +731,21 @@ describe("unfinished Practice storage", () => {
 
   it("rejects malformed or impossible no-next snapshots and removes them", async () => {
     const session = noNextSession();
-    const [firstResult, secondResult] = session.completedResults;
+    const [firstResult, secondResult, thirdResult] = session.completedResults;
     const invalid = [
       { ...session, sessionId: "not-a-uuid" },
       { ...session, activeProblemIndex: 1 },
-      { ...session, completedResults: [secondResult, firstResult] },
+      {
+        ...session,
+        completedResults: [secondResult, firstResult, thirdResult],
+      },
       { ...session, completedResults: [firstResult] },
       {
         ...session,
         completedResults: [
           firstResult,
           { ...secondResult, taskOutcome: undefined },
+          thirdResult,
         ],
       },
       {
@@ -746,6 +756,7 @@ describe("unfinished Practice storage", () => {
             summary: { ...firstResult.summary, outcome: "incorrect-only" },
           },
           secondResult,
+          thirdResult,
         ],
       },
       {
@@ -753,6 +764,7 @@ describe("unfinished Practice storage", () => {
         completedResults: [
           firstResult,
           { ...secondResult, problemTitle: "Wrong" },
+          thirdResult,
         ],
       },
       {
@@ -772,6 +784,7 @@ describe("unfinished Practice storage", () => {
               ],
             },
           },
+          thirdResult,
         ],
       },
       {
@@ -788,6 +801,7 @@ describe("unfinished Practice storage", () => {
               },
             },
           },
+          thirdResult,
         ],
       },
     ];

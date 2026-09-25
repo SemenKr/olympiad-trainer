@@ -3,16 +3,22 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { verifyPersistedGuaranteeEvidenceFacts } from "@/app/practice/actions";
+import { verifyPersistedPracticeProgressEvidenceFacts } from "@/app/practice/actions";
 
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
-import { readVerifiedGuaranteeProgressEvidence } from "./progress-evidence-storage";
+import { readVerifiedPracticeProgressEvidence } from "./progress-evidence-storage";
 import styles from "./progress-overview.module.scss";
 
 type ProgressLoad =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; interpretation: ReasoningCheckpointInterpretation };
+  | {
+      status: "ready";
+      interpretations: readonly [
+        ReasoningCheckpointInterpretation,
+        ReasoningCheckpointInterpretation,
+      ];
+    };
 
 export function ProgressOverview() {
   const [load, setLoad] = useState<ProgressLoad>({ status: "loading" });
@@ -23,11 +29,11 @@ export function ProgressOverview() {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      void readVerifiedGuaranteeProgressEvidence(
-        verifyPersistedGuaranteeEvidenceFacts,
+      void readVerifiedPracticeProgressEvidence(
+        verifyPersistedPracticeProgressEvidenceFacts,
       )
-        .then(({ interpretation }) => {
-          if (active) setLoad({ status: "ready", interpretation });
+        .then(({ interpretations }) => {
+          if (active) setLoad({ status: "ready", interpretations });
         })
         .catch(() => {
           if (active) setLoad({ status: "error" });
@@ -71,7 +77,14 @@ export function ProgressOverview() {
           </button>
         </div>
       ) : (
-        <ProgressEvidenceContent interpretation={load.interpretation} />
+        <>
+          {load.interpretations.map((interpretation) => (
+            <ProgressEvidenceContent
+              interpretation={interpretation}
+              key={interpretation.learnerLabel}
+            />
+          ))}
+        </>
       )}
 
       <Link className={styles.secondary} href="/">

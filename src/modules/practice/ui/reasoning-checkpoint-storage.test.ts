@@ -82,6 +82,7 @@ async function seedCheckpointSnapshot(
 
 const firstProblem = {
   problemId: "coinciding-seats",
+  response: { kind: "short-numeric" },
   title: "Совпадающие места",
   statement: "First problem",
   hints: [
@@ -96,6 +97,7 @@ const firstProblem = {
 } as const;
 const secondProblem = {
   problemId: "guaranteed-sock-pair",
+  response: { kind: "short-numeric" },
   title: "Носки в пакете",
   statement: "Second problem",
   hints: [
@@ -233,7 +235,11 @@ describe("reasoning checkpoint persistence", () => {
     const pending = readVerifiedPracticeSessionSnapshot(verify, storage);
     const replacement = JSON.stringify({
       sessionId: crypto.randomUUID(),
-      problemIds: ["coinciding-seats", "guaranteed-sock-pair"],
+      problemIds: [
+        "coinciding-seats",
+        "guaranteed-sock-pair",
+        "table-impossible-sums",
+      ],
       activeProblemIndex: 0,
       completedResults: [],
       activePractice: startPractice(),

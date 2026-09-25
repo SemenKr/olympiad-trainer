@@ -6,7 +6,24 @@ import type { ReasoningCheckpointInterpretation } from "../application/reasoning
 export function getReasoningCheckpointInterpretation(
   summary: PracticeSummary,
   outcome: "correct" | "incorrect",
+  problemId: string = "guaranteed-sock-pair",
 ): ReasoningCheckpointInterpretation {
+  if (problemId === "table-impossible-sums") {
+    const base = {
+      capability: "Доказывать глобальную невозможность через ограничения",
+      learnerLabel: "Доказывать, что что-то невозможно",
+    };
+    if (outcome !== "correct" || summary.solutionExposure !== null)
+      return { ...base, progressGroup: null, conclusion: "Пока рано сказать" };
+    return {
+      ...base,
+      progressGroup: "Начинаю разбираться",
+      conclusion:
+        summary.hintExposures.length === 0
+          ? "Без открытых подсказок ты верно выбрал рассуждение, которое показывает, почему сумма 20 невозможна. Пока это показывает распознавание готового доказательства, а не самостоятельное построение."
+          : "После открытых подсказок ты верно выбрал рассуждение, которое показывает, почему сумма 20 невозможна. Самостоятельное построение такого доказательства пока не проверено.",
+    };
+  }
   const capability =
     "Обосновывать гарантированный результат при неблагоприятном выборе";
   const learnerLabel = "Как гарантировать результат";

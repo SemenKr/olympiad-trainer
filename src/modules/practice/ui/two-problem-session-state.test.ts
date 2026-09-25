@@ -37,6 +37,7 @@ function problem(value: (typeof problems)[number]): LearnerSafePracticeProblem {
   return {
     ...value,
     statement: "statement",
+    response: { kind: "short-numeric" },
     hints: [
       { hintId: `${value.problemId}-focus`, level: "focus" },
       { hintId: `${value.problemId}-strategy`, level: "strategy" },

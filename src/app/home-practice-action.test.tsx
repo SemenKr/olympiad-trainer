@@ -35,7 +35,11 @@ const completed = [
 ];
 const unfinished = {
   sessionId: "00000000-0000-4000-8000-000000000065",
-  problemIds: ["coinciding-seats", "guaranteed-sock-pair"] as const,
+  problemIds: [
+    "coinciding-seats",
+    "guaranteed-sock-pair",
+    "table-impossible-sums",
+  ] as const,
   activeProblemIndex: 0 as const,
   completedResults: [],
   activePractice: startPractice(),
@@ -56,6 +60,11 @@ const noNext = {
     {
       problemId: "guaranteed-sock-pair",
       problemTitle: "Носки в пакете",
+      summary: completed[0].summary,
+    },
+    {
+      problemId: "table-impossible-sums",
+      problemTitle: "Невозможные суммы",
       summary: completed[0].summary,
       taskOutcome: "skipped" as const,
     },

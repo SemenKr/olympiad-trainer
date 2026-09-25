@@ -15,6 +15,7 @@ import { ProgressEvidenceContent } from "./progress-overview";
 import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
+  readVerifiedPracticeProgressEvidence,
 } from "./progress-evidence-storage";
 
 function memoryStorage(): Storage {
@@ -87,6 +88,65 @@ async function renderEvidence(evidence?: GuaranteeProgressEvidenceV0) {
 }
 
 describe("Progress overview", () => {
+  it("renders both derived capabilities without exposing raw facts and retries verified reads", async () => {
+    const storage = memoryStorage();
+    const evidence = {
+      version: 2,
+      guarantee: {
+        ...emptyGuaranteeProgressEvidence(),
+        nextSequence: 2,
+        latestCorrectWithoutHints: fact(1, "A", "correct"),
+      },
+      impossibility: {
+        version: 1,
+        nextSequence: 2,
+        latestCorrectWithoutHints: {
+          sequence: 1,
+          problemId: "table-impossible-sums",
+          observation: {
+            checkpointId: "table-impossible-sums-impossibility-argument",
+            selectedOptionId: "A",
+            outcome: "correct",
+            validSubmissionCountAtSubmit: 1,
+          },
+          hintLevelsExposedBeforeCheckpoint: [],
+          solutionExposedBeforeCheckpoint: false,
+        },
+        latestCorrectWithHints: null,
+        latestIncorrect: null,
+      },
+    };
+    const raw = JSON.stringify(evidence);
+    storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, raw);
+    const verify = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Network unavailable"))
+      .mockResolvedValueOnce(true);
+    await expect(
+      readVerifiedPracticeProgressEvidence(verify, storage),
+    ).rejects.toThrow("Network unavailable");
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(raw);
+    const retried = await readVerifiedPracticeProgressEvidence(verify, storage);
+    expect(verify).toHaveBeenCalledTimes(2);
+    const markup = renderToStaticMarkup(
+      <>
+        {retried.interpretations.map((interpretation) => (
+          <ProgressEvidenceContent
+            interpretation={interpretation}
+            key={interpretation.learnerLabel}
+          />
+        ))}
+      </>,
+    );
+    expect(markup).toContain("Как гарантировать результат");
+    expect(markup).toContain("Доказывать, что что-то невозможно");
+    expect(markup.match(/Начинаю разбираться/g)).toHaveLength(2);
+    expect(markup).not.toContain("selectedOptionId");
+    expect(markup).not.toContain("sum-20");
+    expect(markup).not.toContain("sequence");
+    expect(markup).not.toContain("Уже получается");
+  });
+
   it("keeps a verification failure distinct from empty evidence and re-verifies on retry", async () => {
     const storage = memoryStorage();
     const evidence = {

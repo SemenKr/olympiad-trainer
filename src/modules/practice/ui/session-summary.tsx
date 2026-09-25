@@ -9,6 +9,7 @@ import type { PracticeSessionResult } from "./two-problem-session-state";
 type SessionSummaryProps = Readonly<{
   results: readonly PracticeSessionResult[];
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
+  tableInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }>;
 
@@ -71,6 +72,7 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
     supportedCount === 1 ? "В одной задаче получилось с подсказкой." : null,
     independentCount === 2 ? "Две задачи ты решил самостоятельно." : null,
     supportedCount === 2 ? "В двух задачах получилось с подсказкой." : null,
+    supportedCount === 3 ? "В трёх задачах получилось с подсказкой." : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -79,6 +81,7 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
 export function SessionSummary({
   results,
   reasoningInterpretation,
+  tableInterpretation,
   headingRef,
 }: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
@@ -126,6 +129,16 @@ export function SessionSummary({
         conclusion: "Пока рано сказать",
       })
     : null;
+  const tableResult = results.find(
+    (result) => result.problemId === "table-impossible-sums",
+  );
+  const tableReasoning = tableResult
+    ? (tableInterpretation ?? {
+        learnerLabel: "Доказывать, что что-то невозможно",
+        progressGroup: null,
+        conclusion: "Пока рано сказать",
+      })
+    : null;
 
   return (
     <main className={styles.summary}>
@@ -169,6 +182,15 @@ export function SessionSummary({
           <h2>{reasoning.learnerLabel}</h2>
           {reasoning.progressGroup ? <p>{reasoning.progressGroup}</p> : null}
           <p>{reasoning.conclusion}</p>
+        </section>
+      ) : null}
+      {tableReasoning ? (
+        <section className={styles.section}>
+          <h2>{tableReasoning.learnerLabel}</h2>
+          {tableReasoning.progressGroup ? (
+            <p>{tableReasoning.progressGroup}</p>
+          ) : null}
+          <p>{tableReasoning.conclusion}</p>
         </section>
       ) : null}
 

@@ -25,6 +25,7 @@ const problems = [
     problemId: "coinciding-seats",
     title: "Совпадающие места",
     statement: "Learner statement 1",
+    response: { kind: "short-numeric" },
     hints: [
       {
         hintId: "coinciding-seats-focus-simultaneous-rules",
@@ -45,6 +46,7 @@ const problems = [
     problemId: "guaranteed-sock-pair",
     title: "Носки в пакете",
     statement: "Learner statement 2",
+    response: { kind: "short-numeric" },
     hints: [
       {
         hintId: "guaranteed-sock-pair-focus-guarantee",
@@ -60,6 +62,21 @@ const problems = [
       },
     ],
     solution: { solutionId: "guaranteed-sock-pair-full-solution" },
+  },
+  {
+    problemId: "table-impossible-sums",
+    title: "Невозможные суммы",
+    statement: "Learner statement 3",
+    response: {
+      kind: "multiple-choice-set",
+      options: [{ id: "sum-20", label: "20" }],
+    },
+    hints: [
+      { hintId: "table-impossible-sums-focus-constraints", level: "focus" },
+      { hintId: "table-impossible-sums-strategy-minimum", level: "strategy" },
+      { hintId: "table-impossible-sums-next-step-fives", level: "next-step" },
+    ],
+    solution: { solutionId: "table-impossible-sums-full-solution" },
   },
 ] as const;
 

@@ -70,10 +70,13 @@ export type ProblemDefinition = Readonly<{
   title: string;
   statement: string;
   provenance: ProblemProvenance;
-  assessment: Readonly<{
-    kind: "nonnegative-integer";
-    expectedAnswer: string;
-  }>;
+  assessment:
+    | Readonly<{ kind: "nonnegative-integer"; expectedAnswer: string }>
+    | Readonly<{
+        kind: "multiple-choice-set";
+        options: readonly Readonly<{ id: string; label: string }>[];
+        expectedOptionIds: readonly string[];
+      }>;
   hints: readonly [
     FocusHintDefinition,
     StrategyHintDefinition,
@@ -87,6 +90,7 @@ export const CURRENT_PRACTICE_PROBLEM_ID = "coinciding-seats";
 export const PRACTICE_SESSION_PROBLEM_IDS = [
   CURRENT_PRACTICE_PROBLEM_ID,
   "guaranteed-sock-pair",
+  "table-impossible-sums",
 ] as const;
 
 const coincidingSeatsProblem = {
@@ -221,9 +225,94 @@ const guaranteedSockPairProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const tableImpossibleSumsProblem = {
+  id: "table-impossible-sums",
+  grade: 5,
+  subject: "mathematics",
+  title: "Невозможные суммы",
+  statement:
+    "Петя заполнил таблицу 4 × 5 числами от 1 до 5. В каждой строке все пять чисел различны, и в каждом столбце числа тоже не повторяются. Затем он сложил все числа из первого и последнего столбцов. Какие из сумм он не сможет получить? Выбери все подходящие варианты: 20, 21, 23, 25, 26.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+      page: 5,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 7,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    options: [
+      { id: "sum-20", label: "20" },
+      { id: "sum-21", label: "21" },
+      { id: "sum-23", label: "23" },
+      { id: "sum-25", label: "25" },
+      { id: "sum-26", label: "26" },
+    ],
+    expectedOptionIds: ["sum-20"],
+  },
+  hints: [
+    {
+      id: "table-impossible-sums-focus-constraints",
+      level: "focus",
+      text: "Обрати внимание: в каждой строке стоят все числа от 1 до 5 по одному разу. Ограничения строк и столбцов нужно учитывать вместе.",
+    },
+    {
+      id: "table-impossible-sums-strategy-minimum",
+      level: "strategy",
+      text: "Начни с самой маленькой из предложенных сумм. Подумай, какие четыре разных числа должны стоять в каждом крайнем столбце, чтобы получить её.",
+    },
+    {
+      id: "table-impossible-sums-next-step-fives",
+      level: "next-step",
+      text: "Если в обоих крайних столбцах нет числа 5, все четыре пятёрки должны оказаться в трёх средних столбцах. Проверь, возможно ли это без повторения числа в одном столбце.",
+    },
+  ],
+  solution: {
+    id: "table-impossible-sums-full-solution",
+    kind: "training-adaptation",
+    text: "Минимальная сумма чисел в одном столбце равна 10. Поэтому сумма 20 возможна только тогда, когда и первый, и последний столбцы содержат числа 1, 2, 3, 4 и не содержат 5. Но в каждой из четырёх строк есть одна пятёрка. Значит, все четыре пятёрки пришлось бы разместить в трёх средних столбцах. Тогда в одном из этих столбцов пятёрка повторилась бы, что запрещено. Поэтому сумму 20 получить нельзя. Остальные предложенные суммы получить можно. Например, строки 1 2 3 4 5; 2 3 4 5 1; 3 4 5 1 2; 4 5 1 2 3 дают суммы столбцов 10, 14, 13, 12, 11. Переставляя столбцы, можно получить суммы крайних столбцов 21, 23, 25 и 26. Ответ: 20.",
+  },
+  reasoningCheckpoint: {
+    id: "table-impossible-sums-impossibility-argument",
+    heading: "Проверь рассуждение",
+    question:
+      "Если сумма крайних столбцов равна 20, в них нет пятёрок. Что завершает доказательство невозможности?",
+    options: [
+      {
+        id: "A",
+        text: "В каждой из четырёх строк есть одна пятёрка. Все четыре пятёрки должны оказаться в трёх средних столбцах, поэтому в каком-то столбце пятёрка повторится, а это запрещено.",
+      },
+      {
+        id: "B",
+        text: "Раз в крайних столбцах нет пятёрок, сумма каждого среднего столбца обязательно равна 14.",
+      },
+      {
+        id: "C",
+        text: "Первый и последний столбцы содержат одинаковый набор чисел, а два столбца с одинаковым набором запрещены.",
+      },
+    ],
+    correctOptionId: "A",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
+  [tableImpossibleSumsProblem.id]: tableImpossibleSumsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {
@@ -250,6 +339,16 @@ export function getLearnerSafePracticeProblem(
     problemId: problem.id,
     title: problem.title,
     statement: problem.statement,
+    response:
+      problem.assessment.kind === "multiple-choice-set"
+        ? {
+            kind: "multiple-choice-set",
+            options: problem.assessment.options.map(({ id, label }) => ({
+              id,
+              label,
+            })),
+          }
+        : { kind: "short-numeric" },
     hints: [
       { hintId: focusHint.id, level: focusHint.level },
       { hintId: strategyHint.id, level: strategyHint.level },

@@ -17,6 +17,8 @@ export function LatestCompletedSummary() {
   >();
   const [interpretation, setInterpretation] =
     useState<ReasoningCheckpointInterpretation | null>(null);
+  const [tableInterpretation, setTableInterpretation] =
+    useState<ReasoningCheckpointInterpretation | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadRetry, setLoadRetry] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -28,11 +30,18 @@ export function LatestCompletedSummary() {
       void readVerifiedLatestCompletedResults(
         verifyPersistedReasoningCheckpointObservation,
       )
-        .then(({ value, interpretation: verifiedInterpretation }) => {
-          if (!active) return;
-          setInterpretation(verifiedInterpretation);
-          setResults(value);
-        })
+        .then(
+          ({
+            value,
+            interpretation: verifiedInterpretation,
+            tableInterpretation: verifiedTableInterpretation,
+          }) => {
+            if (!active) return;
+            setInterpretation(verifiedInterpretation);
+            setTableInterpretation(verifiedTableInterpretation ?? null);
+            setResults(value);
+          },
+        )
         .catch(() => {
           if (active) setLoadError(true);
         });
@@ -75,6 +84,7 @@ export function LatestCompletedSummary() {
     <LatestCompletedSummaryContent
       headingRef={headingRef}
       reasoningInterpretation={interpretation}
+      tableInterpretation={tableInterpretation}
       results={results}
     />
   );
@@ -84,10 +94,12 @@ export function LatestCompletedSummaryContent({
   results,
   headingRef,
   reasoningInterpretation,
+  tableInterpretation,
 }: {
   results: readonly PracticeSessionResult[] | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
+  tableInterpretation?: ReasoningCheckpointInterpretation | null;
 }) {
   if (!results) {
     return (
@@ -104,6 +116,7 @@ export function LatestCompletedSummaryContent({
     <SessionSummary
       headingRef={headingRef}
       reasoningInterpretation={reasoningInterpretation}
+      tableInterpretation={tableInterpretation}
       results={results}
     />
   );

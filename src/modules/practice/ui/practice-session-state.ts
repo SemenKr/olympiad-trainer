@@ -16,10 +16,13 @@ import type {
   RevealedPracticeSolution,
 } from "../application/practice-problem-presentation";
 import type { ActivePractice } from "../application/practice-state";
-import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
+import {
+  isMultipleChoiceSetAnswerState,
+  type PracticeAnswerState,
+} from "./practice-answer-state";
 
 type ConfirmDiscard = () => boolean;
-type GetAnswerState = () => ShortNumericAnswerState;
+type GetAnswerState<T extends PracticeAnswerState> = () => T;
 type RevealHint = () => Promise<RevealedPracticeHint>;
 type RevealSolution = () => Promise<RevealedPracticeSolution>;
 
@@ -96,31 +99,35 @@ export async function restorePracticePresentation(
 type HintRevealGate = { current: boolean };
 type SolutionRevealGate = { current: boolean };
 
-export type SuccessfulHintReveal = Readonly<{
-  answerState: ShortNumericAnswerState;
+export type SuccessfulHintReveal<
+  T extends PracticeAnswerState = PracticeAnswerState,
+> = Readonly<{
+  answerState: T;
   revealedHint: RevealedPracticeHint;
 }>;
 
-export type SuccessfulSolutionReveal = Readonly<{
-  answerState: ShortNumericAnswerState;
+export type SuccessfulSolutionReveal<
+  T extends PracticeAnswerState = PracticeAnswerState,
+> = Readonly<{
+  answerState: T;
   revealedSolution: RevealedPracticeSolution;
 }>;
 
-type RunHintRevealOptions = Readonly<{
+type RunHintRevealOptions<T extends PracticeAnswerState> = Readonly<{
   gate: HintRevealGate;
   hintId: string;
-  requestReveal: () => Promise<SuccessfulHintReveal | null>;
+  requestReveal: () => Promise<SuccessfulHintReveal<T> | null>;
   onStart: (hintId: string) => void;
-  onSuccess: (result: SuccessfulHintReveal) => void;
+  onSuccess: (result: SuccessfulHintReveal<T>) => void;
   onError: () => void;
   onSettled: () => void;
 }>;
 
-type RunSolutionRevealOptions = Readonly<{
+type RunSolutionRevealOptions<T extends PracticeAnswerState> = Readonly<{
   gate: SolutionRevealGate;
-  requestReveal: () => Promise<SuccessfulSolutionReveal | null>;
+  requestReveal: () => Promise<SuccessfulSolutionReveal<T> | null>;
   onStart: () => void;
-  onSuccess: (result: SuccessfulSolutionReveal) => void;
+  onSuccess: (result: SuccessfulSolutionReveal<T>) => void;
   onError: () => void;
   onSettled: () => void;
 }>;
@@ -138,7 +145,7 @@ function assertMatchingReveal(
 }
 
 export function isFocusHintAvailable(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   hintId: string,
 ): boolean {
   return (
@@ -152,10 +159,10 @@ export function isFocusHintAvailable(
   );
 }
 
-export function openFocusHint(
-  answerState: ShortNumericAnswerState,
+export function openFocusHint<T extends PracticeAnswerState>(
+  answerState: T,
   hintId: string,
-): ShortNumericAnswerState {
+): T {
   if (!isFocusHintAvailable(answerState, hintId)) {
     return answerState;
   }
@@ -166,14 +173,14 @@ export function openFocusHint(
       hintId,
       level: "focus",
     }),
-  };
+  } as T;
 }
 
-export async function requestFocusHintReveal(
-  getAnswerState: GetAnswerState,
+export async function requestFocusHintReveal<T extends PracticeAnswerState>(
+  getAnswerState: GetAnswerState<T>,
   descriptor: LearnerSafeFocusHintDescriptor,
   revealHint: RevealHint,
-): Promise<SuccessfulHintReveal | null> {
+): Promise<SuccessfulHintReveal<T> | null> {
   if (!isFocusHintAvailable(getAnswerState(), descriptor.hintId)) {
     return null;
   }
@@ -192,7 +199,7 @@ export async function requestFocusHintReveal(
 }
 
 export function isStrategyHintAvailable(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   focusHintId: string,
   strategyHintId: string,
 ): boolean {
@@ -208,11 +215,11 @@ export function isStrategyHintAvailable(
   );
 }
 
-export function openStrategyHint(
-  answerState: ShortNumericAnswerState,
+export function openStrategyHint<T extends PracticeAnswerState>(
+  answerState: T,
   focusHintId: string,
   strategyHintId: string,
-): ShortNumericAnswerState {
+): T {
   if (!isStrategyHintAvailable(answerState, focusHintId, strategyHintId)) {
     return answerState;
   }
@@ -223,15 +230,15 @@ export function openStrategyHint(
       hintId: strategyHintId,
       level: "strategy",
     }),
-  };
+  } as T;
 }
 
-export async function requestStrategyHintReveal(
-  getAnswerState: GetAnswerState,
+export async function requestStrategyHintReveal<T extends PracticeAnswerState>(
+  getAnswerState: GetAnswerState<T>,
   focusHintId: string,
   descriptor: LearnerSafeStrategyHintDescriptor,
   revealHint: RevealHint,
-): Promise<SuccessfulHintReveal | null> {
+): Promise<SuccessfulHintReveal<T> | null> {
   if (
     !isStrategyHintAvailable(getAnswerState(), focusHintId, descriptor.hintId)
   ) {
@@ -256,7 +263,7 @@ export async function requestStrategyHintReveal(
 }
 
 export function isNextStepHintAvailable(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   strategyHintId: string,
   nextStepHintId: string,
 ): boolean {
@@ -272,11 +279,11 @@ export function isNextStepHintAvailable(
   );
 }
 
-export function openNextStepHint(
-  answerState: ShortNumericAnswerState,
+export function openNextStepHint<T extends PracticeAnswerState>(
+  answerState: T,
   strategyHintId: string,
   nextStepHintId: string,
-): ShortNumericAnswerState {
+): T {
   if (!isNextStepHintAvailable(answerState, strategyHintId, nextStepHintId)) {
     return answerState;
   }
@@ -287,15 +294,15 @@ export function openNextStepHint(
       hintId: nextStepHintId,
       level: "next-step",
     }),
-  };
+  } as T;
 }
 
-export async function requestNextStepHintReveal(
-  getAnswerState: GetAnswerState,
+export async function requestNextStepHintReveal<T extends PracticeAnswerState>(
+  getAnswerState: GetAnswerState<T>,
   strategyHintId: string,
   descriptor: LearnerSafeNextStepHintDescriptor,
   revealHint: RevealHint,
-): Promise<SuccessfulHintReveal | null> {
+): Promise<SuccessfulHintReveal<T> | null> {
   if (
     !isNextStepHintAvailable(
       getAnswerState(),
@@ -324,7 +331,7 @@ export async function requestNextStepHintReveal(
 }
 
 export function isSolutionAvailable(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   focusHintId: string,
   strategyHintId: string,
   nextStepHintId: string,
@@ -350,13 +357,13 @@ export function isSolutionAvailable(
   );
 }
 
-export function openSolution(
-  answerState: ShortNumericAnswerState,
+export function openSolution<T extends PracticeAnswerState>(
+  answerState: T,
   focusHintId: string,
   strategyHintId: string,
   nextStepHintId: string,
   solutionId: string,
-): ShortNumericAnswerState {
+): T {
   if (
     !isSolutionAvailable(
       answerState,
@@ -371,17 +378,17 @@ export function openSolution(
   return {
     ...answerState,
     practice: recordSolutionExposure(answerState.practice, { solutionId }),
-  };
+  } as T;
 }
 
-export async function requestSolutionReveal(
-  getAnswerState: GetAnswerState,
+export async function requestSolutionReveal<T extends PracticeAnswerState>(
+  getAnswerState: GetAnswerState<T>,
   focusHintId: string,
   strategyHintId: string,
   nextStepHintId: string,
   descriptor: LearnerSafeSolutionDescriptor,
   revealSolution: RevealSolution,
-): Promise<SuccessfulSolutionReveal | null> {
+): Promise<SuccessfulSolutionReveal<T> | null> {
   if (
     !isSolutionAvailable(
       getAnswerState(),
@@ -415,7 +422,7 @@ export async function requestSolutionReveal(
   return { answerState, revealedSolution };
 }
 
-export async function runPracticeHintReveal({
+export async function runPracticeHintReveal<T extends PracticeAnswerState>({
   gate,
   hintId,
   requestReveal,
@@ -423,7 +430,7 @@ export async function runPracticeHintReveal({
   onSuccess,
   onError,
   onSettled,
-}: RunHintRevealOptions): Promise<void> {
+}: RunHintRevealOptions<T>): Promise<void> {
   if (gate.current) {
     return;
   }
@@ -445,14 +452,14 @@ export async function runPracticeHintReveal({
   }
 }
 
-export async function runPracticeSolutionReveal({
+export async function runPracticeSolutionReveal<T extends PracticeAnswerState>({
   gate,
   requestReveal,
   onStart,
   onSuccess,
   onError,
   onSettled,
-}: RunSolutionRevealOptions): Promise<void> {
+}: RunSolutionRevealOptions<T>): Promise<void> {
   if (gate.current) {
     return;
   }
@@ -475,7 +482,7 @@ export async function runPracticeSolutionReveal({
 }
 
 export function requestPracticeFinish(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   confirmDiscard: ConfirmDiscard,
   supportRevealPending = false,
 ): PracticeSummary | null {
@@ -484,7 +491,10 @@ export function requestPracticeFinish(
   }
 
   const hasUnsubmittedAnswer =
-    answerState.status === "typing" && answerState.rawAnswer.length > 0;
+    answerState.status === "typing" &&
+    (isMultipleChoiceSetAnswerState(answerState)
+      ? answerState.selectedOptionIds.length > 0
+      : answerState.rawAnswer.length > 0);
 
   if (hasUnsubmittedAnswer && !confirmDiscard()) {
     return null;
