@@ -176,9 +176,9 @@ export function SessionSummary({
         <Link className={styles.primary} href="/">
           На главную
         </Link>
-        <button className={styles.secondary} disabled type="button">
+        <Link className={styles.secondary} href="/progress">
           Мой прогресс
-        </button>
+        </Link>
       </div>
     </main>
   );

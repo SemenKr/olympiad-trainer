@@ -61,7 +61,8 @@
   }
 
   .secondary {
-    display: inline-flex;
+    display: flex;
+    width: fit-content;
     min-height: 44px;
     align-items: center;
     margin-top: var(--ot-space-12);
