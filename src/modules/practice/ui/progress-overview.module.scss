@@ -1,15 +1,13 @@
-.summary,
+.progress,
 .header,
-.section,
-.results,
-.result,
-.actions {
+.capability,
+.error {
   display: flex;
   min-width: 0;
   flex-direction: column;
 }
 
-.summary {
+.progress {
   width: min(calc(100% - (var(--ot-space-16) * 2)), 680px);
   gap: var(--ot-space-24);
   margin-inline: auto;
@@ -20,30 +18,16 @@
 }
 
 .header,
-.section,
-.actions {
+.capability,
+.error {
   gap: var(--ot-space-10);
-}
-
-.results {
-  gap: var(--ot-space-16);
-}
-
-.result {
-  gap: var(--ot-space-6);
-}
-
-.header,
-.section,
-.result {
   overflow-wrap: anywhere;
+}
 
-  h1,
-  h2,
-  h3,
-  p {
-    margin: 0;
-  }
+.progress h1,
+.progress h2,
+.progress p {
+  margin: 0;
 }
 
 .header h1 {
@@ -51,32 +35,21 @@
   line-height: var(--ot-line-height-heading);
 }
 
-.header h1:focus-visible,
-.primary:focus-visible,
-.secondary:focus-visible {
-  outline: var(--ot-border-width-strong) solid transparent;
-  outline-offset: 2px;
-  box-shadow: var(--ot-shadow-focus);
-}
-
-.eyebrow,
-.result h3 {
-  color: var(--ot-color-primary);
-  font-size: var(--ot-font-size-micro);
-  font-weight: 600;
-  line-height: var(--ot-line-height-micro);
-}
-
-.section h2 {
-  font-size: var(--ot-font-size-body);
-  line-height: var(--ot-line-height-body);
-}
-
-.section p,
-.result p {
+.header p,
+.capability p {
   color: var(--ot-color-text-secondary);
   font-size: var(--ot-font-size-body);
   line-height: var(--ot-line-height-body);
+}
+
+.capability h2 {
+  font-size: var(--ot-font-size-body);
+  line-height: var(--ot-line-height-body);
+}
+
+.capability .group {
+  color: var(--ot-color-primary);
+  font-weight: 600;
 }
 
 .primary,
@@ -91,20 +64,27 @@
   font-size: var(--ot-font-size-label);
   font-weight: 600;
   line-height: var(--ot-line-height-label);
+  text-decoration: none;
 }
 
 .primary {
   color: var(--ot-color-text-on-primary);
   background: var(--ot-color-primary);
-  text-decoration: none;
+  border: 0;
+  cursor: pointer;
 }
 
 .secondary {
   color: var(--ot-color-primary);
-  background: transparent;
   border: var(--ot-border-width-default) solid var(--ot-color-border-default);
-  cursor: pointer;
-  text-decoration: none;
+}
+
+.header h1:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: var(--ot-border-width-strong) solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--ot-shadow-focus);
 }
 
 @media (forced-colors: active) {
@@ -115,19 +95,20 @@
     box-shadow: none;
   }
 
-  .summary,
+  .progress,
   .secondary {
     border-color: CanvasText;
   }
 }
 
 @media (width >= 768px) {
-  .summary {
+  .progress {
     gap: var(--ot-space-28);
     padding: var(--ot-space-32);
   }
 
-  .actions {
+  .primary,
+  .secondary {
     width: min(100%, 360px);
   }
 }

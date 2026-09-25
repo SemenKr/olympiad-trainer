@@ -19,6 +19,7 @@ vi.mock("@/modules/practice/ui/session-summary", () => ({
 
 import { startPractice } from "../modules/practice/application/practice-state";
 import { HomePracticeContent } from "./home-practice-action";
+import Home from "./page";
 
 const completed = [
   {
@@ -62,6 +63,14 @@ const noNext = {
 };
 
 describe("Home Practice precedence", () => {
+  it("keeps Progress secondary on Home without changing Practice's primary action", () => {
+    const markup = renderToStaticMarkup(<Home />);
+
+    expect(markup).toContain('href="/progress"');
+    expect(markup).toContain("Мой прогресс");
+    expect(markup).toContain("Проверяем, есть ли незаконченная тренировка…");
+  });
+
   it("keeps Resume primary with the previous completion secondary", () => {
     const markup = renderToStaticMarkup(
       <HomePracticeContent stored={{ unfinished, completed }} />,

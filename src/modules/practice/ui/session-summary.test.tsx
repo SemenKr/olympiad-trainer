@@ -267,14 +267,14 @@ describe("SessionSummary", () => {
     expect(renderSummary(outcome)).not.toContain("Задача пропущена");
   });
 
-  it("keeps Home functional and Progress honestly unavailable", () => {
+  it("links to Home and Progress after Finish", () => {
     const markup = renderSummary("eventually-correct");
 
     expect(markup).toContain('href="/"');
     expect(markup).toContain("На главную");
-    expect(markup).toMatch(
-      /<button[^>]*disabled=""[^>]*>Мой прогресс<\/button>/,
-    );
+    expect(markup).toContain('href="/progress"');
+    expect(markup).toContain("Мой прогресс");
+    expect(markup).not.toContain('disabled=""');
   });
 
   it("renders two ordered independent results", () => {
