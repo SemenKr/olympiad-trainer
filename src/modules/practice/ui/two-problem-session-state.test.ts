@@ -62,10 +62,14 @@ function withResult(
 
 describe("fixed two-problem session", () => {
   it("starts on the first problem with no completed results", () => {
-    expect(startTwoProblemSession()).toEqual({
+    const session = startTwoProblemSession();
+    expect(session).toEqual({
+      sessionId: expect.any(String),
       activeProblemIndex: 0,
       completedResults: [],
     });
+    expect(session.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(startTwoProblemSession().sessionId).not.toBe(session.sessionId);
   });
 
   it("allows navigation only after correct or solution exposure", () => {
@@ -244,12 +248,11 @@ describe("fixed two-problem session", () => {
       summary!,
       "skipped",
     );
-    const advanced = advanceTwoProblemSession(
-      startTwoProblemSession(),
-      skippedResult,
-    );
+    const initial = startTwoProblemSession();
+    const advanced = advanceTwoProblemSession(initial, skippedResult);
 
     expect(advanced).toEqual({
+      sessionId: initial.sessionId,
       activeProblemIndex: 1,
       completedResults: [skippedResult],
     });
@@ -287,6 +290,7 @@ describe("fixed two-problem session", () => {
       const noNext = skipFinalTwoProblemSession(second, skipped);
 
       expect(noNext).toEqual({
+        sessionId: second.sessionId,
         status: "no-next",
         completedResults: [firstResult, skipped],
       });
@@ -322,6 +326,7 @@ describe("fixed two-problem session", () => {
     const advanced = advanceTwoProblemSession(initial, firstResult);
 
     expect(advanced).toEqual({
+      sessionId: initial.sessionId,
       activeProblemIndex: 1,
       completedResults: [firstResult],
     });

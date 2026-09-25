@@ -33,6 +33,7 @@ const completed = [
   },
 ];
 const unfinished = {
+  sessionId: "00000000-0000-4000-8000-000000000065",
   problemIds: ["coinciding-seats", "guaranteed-sock-pair"] as const,
   activeProblemIndex: 0 as const,
   completedResults: [],
@@ -40,6 +41,7 @@ const unfinished = {
   rawAnswer: "",
 };
 const noNext = {
+  sessionId: "00000000-0000-4000-8000-000000000090",
   status: "no-next" as const,
   completedResults: [
     {

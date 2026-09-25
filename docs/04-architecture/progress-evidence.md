@@ -1,0 +1,9 @@
+# Progress Evidence v0
+
+The reasoning checkpoint for `guaranteed-sock-pair` has a dedicated browser-local factual store at `olympiad-trainer:progress-evidence-v0`. It is separate from the latest completed Practice summary and is updated only when a session with an eligible checkpoint observation finishes durably.
+
+The version 1 snapshot retains three facts: the latest correct checkpoint without earlier hints, the latest correct checkpoint with earlier hints, and the latest incorrect checkpoint. Each contribution receives the next positive sequence number; replacing one slot leaves the other two intact. A fact contains only the fixed problem ID, the checkpoint observation, ordered hint levels exposed before submission, and `solutionExposedBeforeCheckpoint: false`. No answer draft, protected prompt or options, interpretation, score, or mastery state is stored.
+
+Contributing Finish first checks that the saved unfinished snapshot still matches the episode. A Practice-specific pending transition record keeps the prior and intended values while the unfinished, latest-completed, and Progress keys change. It is removed before successful completion is reported. A retry reconciles that record before assigning any new sequence; an unresolved or conflicting transition blocks further completion.
+
+The browser validates the exact snapshot shape and sequence constraints. Before a retained fact affects interpretation, a server action checks every retained option and outcome against the canonical server-only checkpoint checker. Invalid evidence is discarded; a failed verification request leaves the stored snapshot available for retry. Interpretation is derived on verified read and remains bounded to recognition of this structured argument. Repeated success on the same checkpoint does not establish independent proof construction, transfer, reliability, or mastery.

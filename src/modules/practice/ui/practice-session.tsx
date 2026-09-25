@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   revealReasoningCheckpoint,
@@ -49,9 +49,11 @@ import {
   type SuccessfulHintReveal,
   type SuccessfulSolutionReveal,
 } from "./practice-session-state";
+import { NoNextPracticeSurface } from "./no-next-practice-surface";
 import styles from "./practice-session.module.scss";
 import {
   completePracticeSession,
+  createPracticeSessionSnapshot,
   readVerifiedPracticeSessionSnapshot,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
@@ -93,25 +95,25 @@ type PracticeProblemEpisodeProps = Readonly<{
     summary: PracticeSummary,
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
-  ) => boolean;
+  ) => Promise<boolean>;
   onNextProblem: (
     summary: PracticeSummary,
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
-  ) => void;
-  onSkip: (summary: PracticeSummary) => boolean;
+  ) => Promise<boolean>;
+  onSkip: (summary: PracticeSummary) => Promise<boolean>;
   onPause: (
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
-  ) => boolean;
+  ) => Promise<boolean>;
   onStableChange: (
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
-  ) => void;
+  ) => Promise<boolean>;
   onCheckpointAssessed: (
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation,
-  ) => boolean;
+  ) => Promise<boolean>;
   initialAnswerState: ShortNumericAnswerState;
   initialCheckpointObservation: ReasoningCheckpointObservation | null;
   initialCheckpointInterpretation: ReasoningCheckpointInterpretation | null;
@@ -144,38 +146,38 @@ export function PracticeSolutionRevealError() {
   );
 }
 
-export function savePracticeSessionWhileActive(
+export async function savePracticeSessionWhileActive(
   completionLatch: { current: boolean },
   session: TwoProblemSessionState,
   answer: ShortNumericAnswerState,
   storage?: Storage,
   observation?: ReasoningCheckpointObservation | null,
-): boolean {
+): Promise<boolean> {
   return (
     !completionLatch.current &&
-    savePracticeSessionSnapshot(
+    (await savePracticeSessionSnapshot(
       session,
       answer,
       storage,
       observation ?? undefined,
-    )
+    ))
   );
 }
 
-export function finishPracticeSessionAndNavigate(
+export async function finishPracticeSessionAndNavigate(
   completionLatch: { current: boolean },
   session: TwoProblemSessionState | NoNextTwoProblemSessionState,
   answer: ShortNumericAnswerState | null,
   results: readonly PracticeSessionResult[],
   navigate: () => void,
   storage?: Storage,
-): boolean {
+): Promise<boolean> {
   if (completionLatch.current) return false;
   const completed =
     "status" in session
-      ? completePracticeSession(session, null, results, storage)
+      ? await completePracticeSession(session, null, results, storage)
       : answer !== null &&
-        completePracticeSession(session, answer, results, storage);
+        (await completePracticeSession(session, answer, results, storage));
   if (!completed) return false;
   completionLatch.current = true;
   navigate();
@@ -185,6 +187,8 @@ export function finishPracticeSessionAndNavigate(
 export function PracticeSession({ problems }: PracticeSessionProps) {
   const router = useRouter();
   const completionLatch = useRef(false);
+  const noNextMutationGate = useRef(false);
+  const [noNextMutationPending, setNoNextMutationPending] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
   const [noNextStorageError, setNoNextStorageError] = useState(false);
   const [restoreError, setRestoreError] = useState(false);
@@ -207,7 +211,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       void readVerifiedPracticeSessionSnapshot(
         verifyPersistedReasoningCheckpointObservation,
       )
-        .then(({ value: snapshot, interpretation }) => {
+        .then(async ({ value: snapshot, interpretation }) => {
           if (!active) return;
           if (snapshot && "status" in snapshot) {
             setLoaded({ session: snapshot });
@@ -215,6 +219,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
           }
           const session = snapshot
             ? {
+                sessionId: snapshot.sessionId,
                 activeProblemIndex: snapshot.activeProblemIndex,
                 completedResults: snapshot.completedResults,
               }
@@ -222,13 +227,20 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
           const answer = snapshot
             ? restoreAnswerState(snapshot)
             : createShortNumericAnswerState();
+          if (
+            !snapshot &&
+            !(await createPracticeSessionSnapshot(session, answer))
+          ) {
+            if (active) setRestoreError(true);
+            return;
+          }
+          if (!active) return;
           setLoaded({
             session,
             answer,
             observation: snapshot?.reasoningCheckpointObservation ?? null,
             interpretation,
           });
-          if (!snapshot) savePracticeSessionSnapshot(session, answer);
         })
         .catch(() => {
           if (active) setRestoreError(true);
@@ -273,29 +285,42 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     const noNextSession = loaded.session;
     return (
       <NoNextPracticeSurface
+        pending={noNextMutationPending}
         onFinish={() => {
-          if (completionLatch.current) return;
-          if (
-            !finishPracticeSessionAndNavigate(
-              completionLatch,
-              noNextSession,
-              null,
-              noNextSession.completedResults,
-              () => {
-                setCompletionPending(true);
-                router.push("/practice/summary");
-              },
-            )
-          )
-            setNoNextStorageError(true);
+          if (completionLatch.current || noNextMutationGate.current) return;
+          noNextMutationGate.current = true;
+          setNoNextMutationPending(true);
+          void finishPracticeSessionAndNavigate(
+            completionLatch,
+            noNextSession,
+            null,
+            noNextSession.completedResults,
+            () => {
+              setCompletionPending(true);
+              router.push("/practice/summary");
+            },
+          ).then((completed) => {
+            if (!completed) {
+              setNoNextStorageError(true);
+              noNextMutationGate.current = false;
+              setNoNextMutationPending(false);
+            }
+          });
         }}
         onPause={() => {
-          if (completionLatch.current) return;
-          if (!saveNoNextPracticeSessionSnapshot(noNextSession)) {
-            setNoNextStorageError(true);
-            return;
-          }
-          router.push("/");
+          if (completionLatch.current || noNextMutationGate.current) return;
+          noNextMutationGate.current = true;
+          setNoNextMutationPending(true);
+          void saveNoNextPracticeSessionSnapshot(noNextSession).then(
+            (saved) => {
+              if (saved) router.push("/");
+              else {
+                setNoNextStorageError(true);
+                noNextMutationGate.current = false;
+                setNoNextMutationPending(false);
+              }
+            },
+          );
         }}
         storageError={noNextStorageError}
       />
@@ -305,12 +330,12 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   const { session: sessionState } = loaded;
   const activeProblem = problems[sessionState.activeProblemIndex];
 
-  function handleNextProblem(
+  async function handleNextProblem(
     summary: PracticeSummary,
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
   ) {
-    if (completionLatch.current) return;
+    if (completionLatch.current) return false;
     const firstCorrectSubmissionCount = observation
       ? answer.practice.submissions.findIndex(
           (submission) => submission.outcome === "correct",
@@ -325,16 +350,17 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     );
     const nextSession = advanceTwoProblemSession(sessionState, result);
 
-    if (nextSession) {
-      const answer = createShortNumericAnswerState();
-      savePracticeSessionSnapshot(nextSession, answer);
-      setLoaded({
-        session: nextSession,
-        answer,
-        observation: null,
-        interpretation: null,
-      });
-    }
+    if (!nextSession) return false;
+    const nextAnswer = createShortNumericAnswerState();
+    if (!(await savePracticeSessionSnapshot(nextSession, nextAnswer)))
+      return false;
+    setLoaded({
+      session: nextSession,
+      answer: nextAnswer,
+      observation: null,
+      interpretation: null,
+    });
+    return true;
   }
 
   function handleFinish(
@@ -367,7 +393,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     );
   }
 
-  function handleSkip(summary: PracticeSummary): boolean {
+  async function handleSkip(summary: PracticeSummary): Promise<boolean> {
     if (completionLatch.current) return false;
     const result = createPracticeSessionResult(
       activeProblem,
@@ -378,7 +404,8 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
 
     if (nextSession) {
       const answer = createShortNumericAnswerState();
-      if (!savePracticeSessionSnapshot(nextSession, answer)) return false;
+      if (!(await savePracticeSessionSnapshot(nextSession, answer)))
+        return false;
       setLoaded({
         session: nextSession,
         answer,
@@ -389,24 +416,27 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     }
 
     const noNextSession = skipFinalTwoProblemSession(sessionState, result);
-    if (!noNextSession || !saveNoNextPracticeSessionSnapshot(noNextSession))
+    if (
+      !noNextSession ||
+      !(await saveNoNextPracticeSessionSnapshot(noNextSession))
+    )
       return false;
     setLoaded({ session: noNextSession });
     return true;
   }
 
-  function handlePause(
+  async function handlePause(
     answer: ShortNumericAnswerState,
     observation: ReasoningCheckpointObservation | null,
   ) {
     if (
-      !savePracticeSessionWhileActive(
+      !(await savePracticeSessionWhileActive(
         completionLatch,
         sessionState,
         answer,
         undefined,
         observation,
-      )
+      ))
     )
       return false;
     router.push("/");
@@ -449,59 +479,6 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   );
 }
 
-export function NoNextPracticeSurface({
-  onFinish,
-  onPause,
-  storageError,
-}: {
-  onFinish: () => void;
-  onPause: () => void;
-  storageError: boolean;
-}) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const descriptionId = useId();
-  const focusedRef = useRef(false);
-
-  useEffect(() => {
-    if (focusedRef.current) return;
-    focusedRef.current = true;
-    headingRef.current?.focus();
-  }, []);
-
-  return (
-    <main className={styles["no-next"]}>
-      <h1 aria-describedby={descriptionId} ref={headingRef} tabIndex={-1}>
-        Тренировка
-      </h1>
-      <p id={descriptionId}>
-        Сейчас больше нет задач в этой тренировке. Можно завершить тренировку и
-        посмотреть итоги или вернуться на главную.
-      </p>
-      {storageError ? (
-        <p aria-atomic="true" className={styles["hint-error"]} role="alert">
-          Не удалось сохранить тренировку. Попробуй ещё раз.
-        </p>
-      ) : null}
-      <div className={styles["no-next-actions"]}>
-        <button
-          className={styles["next-action"]}
-          onClick={onFinish}
-          type="button"
-        >
-          Завершить тренировку
-        </button>
-        <button
-          className={styles["hint-action"]}
-          onClick={onPause}
-          type="button"
-        >
-          На главную
-        </button>
-      </div>
-    </main>
-  );
-}
-
 function PracticeProblemEpisode({
   problem,
   hasNextProblem,
@@ -529,8 +506,9 @@ function PracticeProblemEpisode({
   const [hintRevealFailed, setHintRevealFailed] = useState(false);
   const [solutionRevealFailed, setSolutionRevealFailed] = useState(false);
   const [storageError, setStorageError] = useState<
-    "pause" | "finish" | "skip" | "checkpoint" | null
+    "save" | "pause" | "finish" | "next" | "skip" | "checkpoint" | null
   >(null);
+  const [transitionPending, setTransitionPending] = useState(false);
   const [checkpointObservation, setCheckpointObservation] = useState(
     initialCheckpointObservation,
   );
@@ -567,6 +545,8 @@ function PracticeProblemEpisode({
   const checkpointRevealGate = useRef(false);
   const checkpointAssessmentGate = useRef(false);
   const episodeActiveRef = useRef(true);
+  const transitionGate = useRef(false);
+  const stableWriteTail = useRef<Promise<void>>(Promise.resolve());
   const submissionGate = useRef(false);
   const hintRevealGate = useRef(false);
   const solutionRevealGate = useRef(false);
@@ -733,16 +713,55 @@ function PracticeProblemEpisode({
   }, [checkpointObservation]);
 
   function updateAnswerState(nextState: ShortNumericAnswerState) {
-    if (completionLatch.current || !episodeActiveRef.current) return;
+    if (
+      completionLatch.current ||
+      !episodeActiveRef.current ||
+      transitionGate.current
+    )
+      return;
     answerStateRef.current = nextState;
     setAnswerState(nextState);
-    onStableChange(nextState, checkpointObservationRef.current);
+    const observation = checkpointObservationRef.current;
+    stableWriteTail.current = stableWriteTail.current.then(async () => {
+      if (!episodeActiveRef.current || completionLatch.current) return;
+      try {
+        if (!(await onStableChange(nextState, observation)))
+          setStorageError("save");
+        else
+          setStorageError((current) => (current === "save" ? null : current));
+      } catch {
+        if (episodeActiveRef.current) setStorageError("save");
+      }
+    });
+  }
+
+  async function runPersistenceTransition(
+    error: "pause" | "finish" | "next" | "skip",
+    persist: () => Promise<boolean>,
+  ) {
+    if (transitionGate.current) return;
+    transitionGate.current = true;
+    setTransitionPending(true);
+    try {
+      await stableWriteTail.current;
+      if (!episodeActiveRef.current || completionLatch.current) return;
+      if (await persist()) episodeActiveRef.current = false;
+      else setStorageError(error);
+    } catch {
+      if (episodeActiveRef.current) setStorageError(error);
+    } finally {
+      if (episodeActiveRef.current && !completionLatch.current) {
+        transitionGate.current = false;
+        setTransitionPending(false);
+      }
+    }
   }
 
   function handlePause() {
     if (
       completionLatch.current ||
       !episodeActiveRef.current ||
+      transitionGate.current ||
       submissionGate.current ||
       answerStateRef.current.status === "loading" ||
       hintRevealGate.current ||
@@ -751,22 +770,25 @@ function PracticeProblemEpisode({
       restorePendingRef.current
     )
       return;
-    if (!onPause(answerStateRef.current, checkpointObservationRef.current)) {
-      setStorageError("pause");
-    } else {
-      episodeActiveRef.current = false;
-    }
+    void runPersistenceTransition("pause", () =>
+      onPause(answerStateRef.current, checkpointObservationRef.current),
+    );
   }
 
   function handleAnswerChange(rawAnswer: string) {
-    if (checkpointAssessmentGate.current) return;
+    if (checkpointAssessmentGate.current || transitionGate.current) return;
     updateAnswerState(
       editShortNumericAnswer(answerStateRef.current, rawAnswer),
     );
   }
 
   function handleAnswerSubmit() {
-    if (completionLatch.current || checkpointAssessmentGate.current) return;
+    if (
+      completionLatch.current ||
+      checkpointAssessmentGate.current ||
+      transitionGate.current
+    )
+      return;
     void runShortNumericAnswerSubmission({
       state: answerStateRef.current,
       gate: submissionGate,
@@ -783,6 +805,7 @@ function PracticeProblemEpisode({
     if (
       completionLatch.current ||
       !episodeActiveRef.current ||
+      transitionGate.current ||
       restorePendingRef.current ||
       checkpointAssessmentGate.current
     )
@@ -794,15 +817,13 @@ function PracticeProblemEpisode({
     );
 
     if (nextSummary) {
-      if (
-        !onFinish(
+      void runPersistenceTransition("finish", () =>
+        onFinish(
           nextSummary,
           answerStateRef.current,
           checkpointObservationRef.current,
-        )
-      )
-        setStorageError("finish");
-      else episodeActiveRef.current = false;
+        ),
+      );
     }
   }
 
@@ -810,6 +831,7 @@ function PracticeProblemEpisode({
     if (
       completionLatch.current ||
       !episodeActiveRef.current ||
+      transitionGate.current ||
       restorePendingRef.current ||
       checkpointAssessmentGate.current
     )
@@ -824,11 +846,12 @@ function PracticeProblemEpisode({
       nextSummary &&
       isPracticeProblemNavigationComplete(answerStateRef.current)
     ) {
-      episodeActiveRef.current = false;
-      onNextProblem(
-        nextSummary,
-        answerStateRef.current,
-        checkpointObservationRef.current,
+      void runPersistenceTransition("next", () =>
+        onNextProblem(
+          nextSummary,
+          answerStateRef.current,
+          checkpointObservationRef.current,
+        ),
       );
     }
   }
@@ -837,6 +860,7 @@ function PracticeProblemEpisode({
     if (
       completionLatch.current ||
       !episodeActiveRef.current ||
+      transitionGate.current ||
       restorePendingRef.current ||
       checkpointAssessmentGate.current
     )
@@ -848,7 +872,7 @@ function PracticeProblemEpisode({
     );
 
     if (nextSummary) {
-      if (!onSkip(nextSummary)) setStorageError("skip");
+      void runPersistenceTransition("skip", () => onSkip(nextSummary));
     }
   }
 
@@ -872,7 +896,7 @@ function PracticeProblemEpisode({
       Awaited<ReturnType<typeof requestFocusHintReveal>>
     >,
   ) {
-    if (completionLatch.current) return;
+    if (completionLatch.current || transitionGate.current) return;
     await runPracticeHintReveal({
       gate: hintRevealGate,
       hintId,
@@ -923,7 +947,7 @@ function PracticeProblemEpisode({
   }
 
   function handleSolutionOpen() {
-    if (completionLatch.current) return;
+    if (completionLatch.current || transitionGate.current) return;
     void runPracticeSolutionReveal({
       gate: solutionRevealGate,
       requestReveal: () =>
@@ -959,6 +983,7 @@ function PracticeProblemEpisode({
       descriptor.checkpointId !== SOCK_REASONING_CHECKPOINT_ID ||
       !episodeActiveRef.current ||
       completionLatch.current ||
+      transitionGate.current ||
       checkpointRevealGate.current ||
       checkpointAssessmentGate.current ||
       submissionGate.current ||
@@ -1003,6 +1028,7 @@ function PracticeProblemEpisode({
       !selectedOptionId ||
       !episodeActiveRef.current ||
       completionLatch.current ||
+      transitionGate.current ||
       checkpointAssessmentGate.current ||
       submissionGate.current ||
       hintRevealGate.current ||
@@ -1040,7 +1066,8 @@ function PracticeProblemEpisode({
       setCheckpointObservation(observation);
       setCheckpointInterpretation(assessed.interpretation);
       setRevealedCheckpoint(null);
-      if (!onCheckpointAssessed(answerStateRef.current, observation))
+      await stableWriteTail.current;
+      if (!(await onCheckpointAssessed(answerStateRef.current, observation)))
         setStorageError("checkpoint");
     } catch {
       if (episodeActiveRef.current) setCheckpointError(true);
@@ -1058,18 +1085,22 @@ function PracticeProblemEpisode({
             onAnswerChange={handleAnswerChange}
             onSubmit={handleAnswerSubmit}
             state={answerState}
-            locked={checkpointAssessmentPending}
+            locked={checkpointAssessmentPending || transitionPending}
           />
 
           {storageError ? (
             <p aria-atomic="true" className={styles["hint-error"]} role="alert">
               {storageError === "pause"
                 ? "Не удалось сохранить тренировку. Попробуй ещё раз."
-                : storageError === "skip"
-                  ? "Не удалось пропустить задачу. Попробуй ещё раз."
-                  : storageError === "checkpoint"
-                    ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
-                    : "Не удалось завершить тренировку. Попробуй ещё раз."}
+                : storageError === "save"
+                  ? "Не удалось сохранить тренировку. Попробуй ещё раз."
+                  : storageError === "next"
+                    ? "Не удалось перейти к следующей задаче. Попробуй ещё раз."
+                    : storageError === "skip"
+                      ? "Не удалось пропустить задачу. Попробуй ещё раз."
+                      : storageError === "checkpoint"
+                        ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
+                        : "Не удалось завершить тренировку. Попробуй ещё раз."}
             </p>
           ) : null}
 
@@ -1245,6 +1276,7 @@ function PracticeProblemEpisode({
           {canSkipProblem ? (
             <button
               className={styles["hint-action"]}
+              disabled={transitionPending}
               onClick={handleSkip}
               type="button"
             >
@@ -1255,7 +1287,7 @@ function PracticeProblemEpisode({
           {canOpenNextProblem ? (
             <button
               className={styles["next-action"]}
-              disabled={checkpointAssessmentPending}
+              disabled={checkpointAssessmentPending || transitionPending}
               onClick={handleNextProblem}
               type="button"
             >
@@ -1270,7 +1302,8 @@ function PracticeProblemEpisode({
             isPending ||
             supportRevealPending ||
             restorePending ||
-            checkpointAssessmentPending
+            checkpointAssessmentPending ||
+            transitionPending
           }
           onClick={handlePause}
           type="button"
@@ -1285,7 +1318,8 @@ function PracticeProblemEpisode({
             isPending ||
             supportRevealPending ||
             restorePending ||
-            checkpointAssessmentPending
+            checkpointAssessmentPending ||
+            transitionPending
           }
           onClick={handleFinish}
           type="button"

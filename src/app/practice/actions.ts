@@ -154,3 +154,36 @@ export async function verifyPersistedReasoningCheckpointObservation(
     return { valid: false };
   }
 }
+
+export async function verifyPersistedGuaranteeEvidenceFacts(
+  facts: unknown,
+): Promise<boolean> {
+  if (!Array.isArray(facts) || facts.length > 3) return false;
+
+  let valid = true;
+  for (const fact of facts) {
+    if (
+      !record(fact) ||
+      fact.problemId !== "guaranteed-sock-pair" ||
+      !record(fact.observation) ||
+      typeof fact.observation.checkpointId !== "string" ||
+      typeof fact.observation.selectedOptionId !== "string" ||
+      (fact.observation.outcome !== "correct" &&
+        fact.observation.outcome !== "incorrect")
+    ) {
+      valid = false;
+      continue;
+    }
+    try {
+      const assessed = assessReasoningCheckpointOption(
+        fact.problemId,
+        fact.observation.checkpointId,
+        fact.observation.selectedOptionId,
+      );
+      if (assessed.outcome !== fact.observation.outcome) valid = false;
+    } catch {
+      valid = false;
+    }
+  }
+  return valid;
+}

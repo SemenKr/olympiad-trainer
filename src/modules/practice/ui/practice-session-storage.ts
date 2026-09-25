@@ -8,12 +8,19 @@ import {
   getPracticeSummary,
 } from "../application/practice-state";
 import {
+  appendGuaranteeEvidence,
+  emptyGuaranteeProgressEvidence,
+  getGuaranteeEvidenceContribution,
+  validateGuaranteeProgressEvidence,
+} from "../application/guarantee-progress-evidence";
+import {
   SOCK_REASONING_CHECKPOINT_ID,
   type ReasoningCheckpointInterpretation,
   type ReasoningCheckpointObservation,
   type ReasoningCheckpointVerification,
 } from "../application/reasoning-checkpoint";
 import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
+import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import type {
   NoNextTwoProblemSessionState,
   PracticeSessionResult,
@@ -23,6 +30,20 @@ import type {
 export const PRACTICE_SESSION_STORAGE_KEY = "olympiad-trainer:practice-session";
 export const PRACTICE_LATEST_COMPLETED_STORAGE_KEY =
   "olympiad-trainer:practice-latest-completed";
+const PRACTICE_PROGRESS_FINISH_PENDING_KEY =
+  "olympiad-trainer:practice-progress-finish-pending";
+const PRACTICE_SESSION_MUTATION_LOCK =
+  "olympiad-trainer:practice-session-mutation";
+
+function withPracticeSessionLock<T>(operation: () => T): Promise<T> {
+  if (typeof navigator === "undefined" || !navigator.locks?.request)
+    return Promise.reject(new Error("Practice session lock is unavailable."));
+  return navigator.locks.request(
+    PRACTICE_SESSION_MUTATION_LOCK,
+    { mode: "exclusive" },
+    operation,
+  );
+}
 
 const problems = [
   {
@@ -48,6 +69,7 @@ const problems = [
 ] as const;
 
 export type PracticeSessionSnapshot = Readonly<{
+  sessionId: string;
   problemIds: readonly [string, string];
   activeProblemIndex: 0 | 1;
   completedResults: readonly PracticeSessionResult[];
@@ -88,6 +110,15 @@ function validCount(value: unknown, maximum: number): value is number {
     Number.isInteger(value) &&
     value >= 0 &&
     value <= maximum
+  );
+}
+
+function validSessionId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      value,
+    )
   );
 }
 
@@ -344,7 +375,8 @@ export function validatePracticeSessionSnapshot(
   value: unknown,
 ): UnfinishedPracticeSessionSnapshot | null {
   if (record(value) && value.status === "no-next") {
-    return exactKeys(value, ["status", "completedResults"]) &&
+    return exactKeys(value, ["sessionId", "status", "completedResults"]) &&
+      validSessionId(value.sessionId) &&
       Array.isArray(value.completedResults) &&
       value.completedResults.length === problems.length &&
       validResult(value.completedResults[0], problems[0], false) &&
@@ -361,6 +393,7 @@ export function validatePracticeSessionSnapshot(
       value,
       Object.hasOwn(value, "reasoningCheckpointObservation")
         ? [
+            "sessionId",
             "problemIds",
             "activeProblemIndex",
             "completedResults",
@@ -369,6 +402,7 @@ export function validatePracticeSessionSnapshot(
             "reasoningCheckpointObservation",
           ]
         : [
+            "sessionId",
             "problemIds",
             "activeProblemIndex",
             "completedResults",
@@ -376,6 +410,7 @@ export function validatePracticeSessionSnapshot(
             "rawAnswer",
           ],
     ) ||
+    !validSessionId(value.sessionId) ||
     !Array.isArray(value.problemIds) ||
     value.problemIds.length !== 2 ||
     value.problemIds[0] !== problems[0].id ||
@@ -408,16 +443,51 @@ export function validatePracticeSessionSnapshot(
   return value as PracticeSessionSnapshot;
 }
 
-export function readPracticeSessionSnapshot(
-  storage?: Storage,
-): UnfinishedPracticeSessionSnapshot | null {
-  try {
-    const store = storage ?? window.localStorage;
+function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
+  snapshot: UnfinishedPracticeSessionSnapshot;
+  raw: string;
+} | null> {
+  return withPracticeSessionLock(() => {
     const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
     if (raw === null) return null;
-    const snapshot = validatePracticeSessionSnapshot(JSON.parse(raw));
-    if (!snapshot) store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
-    return snapshot;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+      return null;
+    }
+    const snapshot = validatePracticeSessionSnapshot(parsed);
+    if (snapshot) return { snapshot, raw };
+
+    if (record(parsed) && !Object.hasOwn(parsed, "sessionId")) {
+      const migrated = {
+        sessionId: crypto.randomUUID(),
+        ...parsed,
+      };
+      const legacy = validatePracticeSessionSnapshot(migrated);
+      if (legacy) {
+        const migratedRaw = JSON.stringify(migrated);
+        store.setItem(PRACTICE_SESSION_STORAGE_KEY, migratedRaw);
+        if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== migratedRaw)
+          throw new Error("Practice session migration was not persisted.");
+        return { snapshot: legacy, raw: migratedRaw };
+      }
+    }
+
+    store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    return null;
+  });
+}
+
+export async function readPracticeSessionSnapshot(
+  storage?: Storage,
+): Promise<UnfinishedPracticeSessionSnapshot | null> {
+  try {
+    return (
+      (await readPracticeSessionSnapshotWithRaw(storage ?? window.localStorage))
+        ?.snapshot ?? null
+    );
   } catch {
     return null;
   }
@@ -444,9 +514,9 @@ export async function readVerifiedPracticeSessionSnapshot(
   storage?: Storage,
 ): Promise<VerifiedCheckpointData<UnfinishedPracticeSessionSnapshot | null>> {
   const store = storage ?? window.localStorage;
-  const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
-  const snapshot = readPracticeSessionSnapshot(store);
-  if (!snapshot) return { value: null, interpretation: null };
+  const saved = await readPracticeSessionSnapshotWithRaw(store);
+  if (!saved) return { value: null, interpretation: null };
+  const { snapshot, raw } = saved;
 
   const resultVerification = await verifyResultObservations(
     snapshot.completedResults,
@@ -466,7 +536,11 @@ export async function readVerifiedPracticeSessionSnapshot(
     resultVerification?.valid === false ||
     activeVerification?.valid === false
   ) {
-    store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    await withPracticeSessionLock(() => {
+      if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
+        throw new Error("Practice snapshot changed during verification.");
+      store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    });
     return { value: null, interpretation: null };
   }
   return {
@@ -479,13 +553,13 @@ export async function readVerifiedPracticeSessionSnapshot(
   };
 }
 
-export function savePracticeSessionSnapshot(
+function activeSessionSnapshot(
   session: TwoProblemSessionState,
   answer: ShortNumericAnswerState,
-  storage?: Storage,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
-): boolean {
-  const snapshot: PracticeSessionSnapshot = {
+): PracticeSessionSnapshot {
+  return {
+    sessionId: session.sessionId,
     problemIds: [problems[0].id, problems[1].id],
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,
@@ -495,38 +569,98 @@ export function savePracticeSessionSnapshot(
       ? { reasoningCheckpointObservation }
       : {}),
   };
+}
+
+function ownsPersistedPracticeSession(
+  store: Storage,
+  sessionId: string,
+): boolean {
+  const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
+  if (raw === null) return false;
+  const persisted = validatePracticeSessionSnapshot(JSON.parse(raw));
+  return persisted?.sessionId === sessionId;
+}
+
+export async function createPracticeSessionSnapshot(
+  session: TwoProblemSessionState,
+  answer: ShortNumericAnswerState,
+  storage?: Storage,
+): Promise<boolean> {
+  if (session.activeProblemIndex !== 0 || session.completedResults.length !== 0)
+    return false;
+  const snapshot = activeSessionSnapshot(session, answer);
+  if (!validatePracticeSessionSnapshot(snapshot)) return false;
   try {
-    (storage ?? window.localStorage).setItem(
-      PRACTICE_SESSION_STORAGE_KEY,
-      JSON.stringify(snapshot),
-    );
-    return true;
+    const store = storage ?? window.localStorage;
+    return await withPracticeSessionLock(() => {
+      if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null) return false;
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(snapshot));
+      return true;
+    });
   } catch {
     return false;
   }
 }
 
-export function saveNoNextPracticeSessionSnapshot(
+export async function savePracticeSessionSnapshot(
+  session: TwoProblemSessionState,
+  answer: ShortNumericAnswerState,
+  storage?: Storage,
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation,
+): Promise<boolean> {
+  const snapshot = activeSessionSnapshot(
+    session,
+    answer,
+    reasoningCheckpointObservation,
+  );
+  if (!validSessionId(session.sessionId)) return false;
+  try {
+    const store = storage ?? window.localStorage;
+    return await withPracticeSessionLock(() => {
+      if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(snapshot));
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function saveNoNextPracticeSessionSnapshot(
   session: NoNextTwoProblemSessionState,
   storage?: Storage,
-): boolean {
+): Promise<boolean> {
   const validated = validatePracticeSessionSnapshot(session);
   if (!validated || !("status" in validated)) return false;
   try {
-    (storage ?? window.localStorage).setItem(
-      PRACTICE_SESSION_STORAGE_KEY,
-      JSON.stringify(session),
-    );
+    const store = storage ?? window.localStorage;
+    return await withPracticeSessionLock(() => {
+      if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(session));
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+function clearPracticeSessionSnapshotInsideLock(storage: Storage): boolean {
+  try {
+    storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
     return true;
   } catch {
     return false;
   }
 }
 
-export function clearPracticeSessionSnapshot(storage?: Storage): boolean {
+export async function clearPracticeSessionSnapshot(
+  storage?: Storage,
+): Promise<boolean> {
   try {
-    (storage ?? window.localStorage).removeItem(PRACTICE_SESSION_STORAGE_KEY);
-    return true;
+    const store = storage ?? window.localStorage;
+    return await withPracticeSessionLock(() =>
+      clearPracticeSessionSnapshotInsideLock(store),
+    );
   } catch {
     return false;
   }
@@ -539,9 +673,7 @@ export function readLatestCompletedResults(
     const store = storage ?? window.localStorage;
     const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     if (raw === null) return null;
-    const results = validateLatestCompletedResults(JSON.parse(raw));
-    if (!results) store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
-    return results;
+    return validateLatestCompletedResults(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -563,7 +695,6 @@ export async function readVerifiedLatestCompletedResults(
   if (store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !== raw)
     throw new Error("Completed Practice results changed during verification.");
   if (verification?.valid === false) {
-    store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     return { value: null, interpretation: null };
   }
   return {
@@ -588,41 +719,452 @@ export function saveLatestCompletedResults(
   }
 }
 
+type PracticeFinishValues = Readonly<{
+  unfinished: string | null;
+  completed: string | null;
+  progress: string | null;
+}>;
+
+type PendingPracticeProgressFinish = Readonly<{
+  sessionId: string;
+  unfinishedBefore: string;
+  completedBefore: string | null;
+  progressBefore: string | null;
+  completedAfter: string;
+  progressAfter: string;
+}>;
+
+function expectedUnfinishedForFinish(
+  session: TwoProblemSessionState | NoNextTwoProblemSessionState,
+  answer: ShortNumericAnswerState | null,
+  results: readonly PracticeSessionResult[],
+): string | null {
+  if ("status" in session) {
+    return JSON.stringify(results) === JSON.stringify(session.completedResults)
+      ? JSON.stringify(session)
+      : null;
+  }
+  const currentResult = results.at(-1);
+  if (
+    !answer ||
+    !currentResult ||
+    results.length !== session.completedResults.length + 1 ||
+    JSON.stringify(results.slice(0, -1)) !==
+      JSON.stringify(session.completedResults) ||
+    JSON.stringify(currentResult.summary) !==
+      JSON.stringify(getPracticeSummary(finishPractice(answer.practice)))
+  )
+    return null;
+  return JSON.stringify({
+    sessionId: session.sessionId,
+    problemIds: [problems[0].id, problems[1].id],
+    activeProblemIndex: session.activeProblemIndex,
+    completedResults: session.completedResults,
+    activePractice: answer.practice,
+    rawAnswer: answer.rawAnswer,
+    ...(currentResult.reasoningCheckpointObservation
+      ? {
+          reasoningCheckpointObservation:
+            currentResult.reasoningCheckpointObservation,
+        }
+      : {}),
+  });
+}
+
+function readPracticeFinishValues(store: Storage): PracticeFinishValues | null {
+  try {
+    return {
+      unfinished: store.getItem(PRACTICE_SESSION_STORAGE_KEY),
+      completed: store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY),
+      progress: store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeAndConfirm(
+  store: Storage,
+  key: string,
+  intended: string | null,
+): boolean {
+  try {
+    if (intended === null) store.removeItem(key);
+    else store.setItem(key, intended);
+  } catch {
+    // A storage implementation can mutate and then report failure.
+  }
+  try {
+    return store.getItem(key) === intended;
+  } catch {
+    return false;
+  }
+}
+
+function progressBeforeOrEmpty(raw: string | null) {
+  if (raw === null) return emptyGuaranteeProgressEvidence();
+  try {
+    return (
+      validateGuaranteeProgressEvidence(JSON.parse(raw)) ??
+      emptyGuaranteeProgressEvidence()
+    );
+  } catch {
+    return emptyGuaranteeProgressEvidence();
+  }
+}
+
+function restorePracticeFinishValues(
+  store: Storage,
+  before: PracticeFinishValues,
+  after: PracticeFinishValues,
+): boolean {
+  const current = readPracticeFinishValues(store);
+  if (
+    !current ||
+    (current.unfinished !== before.unfinished &&
+      current.unfinished !== after.unfinished) ||
+    (current.completed !== before.completed &&
+      current.completed !== after.completed) ||
+    (current.progress !== before.progress &&
+      current.progress !== after.progress)
+  )
+    return false;
+
+  for (const [key, actual, previous] of [
+    [PROGRESS_EVIDENCE_STORAGE_KEY, current.progress, before.progress],
+    [
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      current.completed,
+      before.completed,
+    ],
+    [PRACTICE_SESSION_STORAGE_KEY, current.unfinished, before.unfinished],
+  ] as const) {
+    if (actual !== previous && !writeAndConfirm(store, key, previous))
+      return false;
+  }
+  const restored = readPracticeFinishValues(store);
+  return (
+    restored !== null &&
+    restored.unfinished === before.unfinished &&
+    restored.completed === before.completed &&
+    restored.progress === before.progress
+  );
+}
+
+function readPendingPracticeProgressFinish(
+  raw: string,
+): PendingPracticeProgressFinish | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (
+      !record(value) ||
+      !exactKeys(value, [
+        "sessionId",
+        "unfinishedBefore",
+        "completedBefore",
+        "progressBefore",
+        "completedAfter",
+        "progressAfter",
+      ]) ||
+      !validSessionId(value.sessionId) ||
+      typeof value.unfinishedBefore !== "string" ||
+      !(
+        value.completedBefore === null ||
+        typeof value.completedBefore === "string"
+      ) ||
+      !(
+        value.progressBefore === null ||
+        typeof value.progressBefore === "string"
+      ) ||
+      typeof value.completedAfter !== "string" ||
+      typeof value.progressAfter !== "string"
+    )
+      return null;
+    const unfinished = validatePracticeSessionSnapshot(
+      JSON.parse(value.unfinishedBefore),
+    );
+    const completed = validateLatestCompletedResults(
+      JSON.parse(value.completedAfter),
+    );
+    const progressAfter = validateGuaranteeProgressEvidence(
+      JSON.parse(value.progressAfter),
+    );
+    const progressBefore = progressBeforeOrEmpty(value.progressBefore);
+    const contribution = getGuaranteeEvidenceContribution(completed?.at(-1));
+    if (
+      !unfinished ||
+      "status" in unfinished ||
+      unfinished.sessionId !== value.sessionId ||
+      !completed ||
+      !progressAfter ||
+      !contribution ||
+      expectedUnfinishedForFinish(
+        {
+          sessionId: unfinished.sessionId,
+          activeProblemIndex: unfinished.activeProblemIndex,
+          completedResults: unfinished.completedResults,
+        },
+        restoreAnswerState(unfinished),
+        completed,
+      ) !== value.unfinishedBefore ||
+      JSON.stringify(appendGuaranteeEvidence(progressBefore, contribution)) !==
+        value.progressAfter
+    )
+      return null;
+    return value as PendingPracticeProgressFinish;
+  } catch {
+    return null;
+  }
+}
+
+function reconcilePendingPracticeProgressFinish(
+  store: Storage,
+  expectedSessionId: string,
+  expectedUnfinished: string,
+  completedAfter: string,
+): "ready" | "completed" | "unresolved" {
+  let raw: string | null;
+  try {
+    raw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
+  } catch {
+    return "unresolved";
+  }
+  if (raw === null) return "ready";
+  const pending = readPendingPracticeProgressFinish(raw);
+  if (!pending) return "unresolved";
+
+  const before = {
+    unfinished: pending.unfinishedBefore,
+    completed: pending.completedBefore,
+    progress: pending.progressBefore,
+  };
+  const after = {
+    unfinished: null,
+    completed: pending.completedAfter,
+    progress: pending.progressAfter,
+  };
+  const current = readPracticeFinishValues(store);
+  if (!current) return "unresolved";
+  if (current.unfinished === null && pending.sessionId !== expectedSessionId)
+    return "unresolved";
+  const sameEpisode =
+    pending.sessionId === expectedSessionId &&
+    pending.unfinishedBefore === expectedUnfinished &&
+    pending.completedAfter === completedAfter;
+
+  if (
+    current.completed === after.completed &&
+    current.progress === after.progress
+  ) {
+    const canCompleteThisEpisode =
+      sameEpisode &&
+      (current.unfinished === null || current.unfinished === before.unfinished);
+    if (
+      current.unfinished === before.unfinished &&
+      (!sameEpisode ||
+        !writeAndConfirm(store, PRACTICE_SESSION_STORAGE_KEY, null))
+    )
+      return "unresolved";
+    if (!writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null))
+      return "unresolved";
+    return canCompleteThisEpisode ? "completed" : "ready";
+  }
+
+  if (!restorePracticeFinishValues(store, before, after)) return "unresolved";
+  return writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null)
+    ? "ready"
+    : "unresolved";
+}
+
 export function completePracticeSession(
   session: TwoProblemSessionState,
   answer: ShortNumericAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-): boolean;
+): Promise<boolean>;
 export function completePracticeSession(
   session: NoNextTwoProblemSessionState,
   answer: null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-): boolean;
-export function completePracticeSession(
+): Promise<boolean>;
+export async function completePracticeSession(
   session: TwoProblemSessionState | NoNextTwoProblemSessionState,
   answer: ShortNumericAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-): boolean {
+): Promise<boolean> {
   if (!validateLatestCompletedResults(results)) return false;
   if ("status" in session && !validatePracticeSessionSnapshot(session))
     return false;
   if (!("status" in session) && !answer) return false;
-  if (!clearPracticeSessionSnapshot(storage)) return false;
-  if (saveLatestCompletedResults(results, storage)) return true;
-  if ("status" in session) {
-    saveNoNextPracticeSessionSnapshot(session, storage);
-  } else if (answer) {
-    savePracticeSessionSnapshot(
-      session,
-      answer,
-      storage,
-      results.at(-1)?.reasoningCheckpointObservation,
-    );
+
+  const expectedUnfinished = expectedUnfinishedForFinish(
+    session,
+    answer,
+    results,
+  );
+  if (expectedUnfinished === null) return false;
+  let store: Storage;
+  try {
+    store = storage ?? window.localStorage;
+  } catch {
+    return false;
   }
-  return false;
+  try {
+    return await withPracticeSessionLock(() => {
+      const completedAfter = JSON.stringify(results);
+      const contribution = getGuaranteeEvidenceContribution(results.at(-1));
+      const beforeReconciliation = readPracticeFinishValues(store);
+      if (!beforeReconciliation) return false;
+      if (beforeReconciliation.unfinished !== null) {
+        try {
+          const persisted = validatePracticeSessionSnapshot(
+            JSON.parse(beforeReconciliation.unfinished),
+          );
+          if (
+            !persisted ||
+            persisted.sessionId !== session.sessionId ||
+            JSON.stringify(persisted) !== expectedUnfinished
+          )
+            return false;
+        } catch {
+          return false;
+        }
+      }
+      const reconciliation = reconcilePendingPracticeProgressFinish(
+        store,
+        session.sessionId,
+        expectedUnfinished,
+        completedAfter,
+      );
+      if (reconciliation === "completed") return true;
+      if (reconciliation === "unresolved") return false;
+
+      const before = readPracticeFinishValues(store);
+      if (!before?.unfinished) return false;
+      try {
+        const persisted = validatePracticeSessionSnapshot(
+          JSON.parse(before.unfinished),
+        );
+        if (!persisted || JSON.stringify(persisted) !== expectedUnfinished)
+          return false;
+      } catch {
+        return false;
+      }
+
+      if (contribution) {
+        const progress = progressBeforeOrEmpty(before.progress);
+        const nextProgress = appendGuaranteeEvidence(progress, contribution);
+        if (!nextProgress) return false;
+        const after = {
+          unfinished: null,
+          completed: completedAfter,
+          progress: JSON.stringify(nextProgress),
+        };
+        const pending: PendingPracticeProgressFinish = {
+          sessionId: session.sessionId,
+          unfinishedBefore: before.unfinished,
+          completedBefore: before.completed,
+          progressBefore: before.progress,
+          completedAfter,
+          progressAfter: after.progress,
+        };
+        const pendingRaw = JSON.stringify(pending);
+        if (
+          !writeAndConfirm(
+            store,
+            PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+            pendingRaw,
+          )
+        )
+          return false;
+        const stillCurrent = readPracticeFinishValues(store);
+        if (
+          !stillCurrent ||
+          stillCurrent.unfinished !== before.unfinished ||
+          stillCurrent.completed !== before.completed ||
+          stillCurrent.progress !== before.progress
+        ) {
+          try {
+            if (
+              store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) === pendingRaw
+            )
+              writeAndConfirm(
+                store,
+                PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+                null,
+              );
+          } catch {
+            // Leave the pending record to block an uncertain retry.
+          }
+          return false;
+        }
+
+        const rollback = () => {
+          if (restorePracticeFinishValues(store, before, after))
+            writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null);
+          return false;
+        };
+        if (!clearPracticeSessionSnapshotInsideLock(store)) {
+          return rollback();
+        }
+        const cleared = readPracticeFinishValues(store);
+        if (
+          !cleared ||
+          cleared.unfinished !== null ||
+          cleared.completed !== before.completed ||
+          cleared.progress !== before.progress
+        )
+          return rollback();
+        if (!saveLatestCompletedResults(results, store)) {
+          return rollback();
+        }
+        const completed = readPracticeFinishValues(store);
+        if (
+          !completed ||
+          completed.unfinished !== null ||
+          completed.completed !== after.completed ||
+          completed.progress !== before.progress
+        )
+          return rollback();
+        try {
+          store.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, after.progress);
+        } catch {
+          // Read back before deciding whether the write succeeded.
+        }
+        const durable = readPracticeFinishValues(store);
+        if (
+          !durable ||
+          durable.unfinished !== after.unfinished ||
+          durable.completed !== after.completed ||
+          durable.progress !== after.progress
+        )
+          return rollback();
+        return writeAndConfirm(
+          store,
+          PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+          null,
+        );
+      }
+
+      if (!clearPracticeSessionSnapshotInsideLock(store)) return false;
+      if (saveLatestCompletedResults(results, store)) return true;
+      try {
+        if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) === null)
+          writeAndConfirm(
+            store,
+            PRACTICE_SESSION_STORAGE_KEY,
+            before.unfinished,
+          );
+      } catch {
+        // Leave the current storage value untouched when it cannot be inspected.
+      }
+      return false;
+    });
+  } catch {
+    return false;
+  }
 }
 
 export function restoreAnswerState(

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -16,12 +17,15 @@ import {
   recordAnswerResult,
   startPractice,
 } from "../application/practice-state";
+import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import {
   completePracticeSession,
+  createPracticeSessionSnapshot,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
   readLatestCompletedResults,
+  readVerifiedLatestCompletedResults,
   readPracticeSessionSnapshot,
   saveLatestCompletedResults,
   saveNoNextPracticeSessionSnapshot,
@@ -38,6 +42,8 @@ import {
   type NoNextTwoProblemSessionState,
   type PracticeSessionResult,
 } from "./two-problem-session-state";
+
+beforeEach(installImmediatePracticeSessionLock);
 
 const problems = [
   { id: "coinciding-seats", title: "Совпадающие места" },
@@ -62,6 +68,45 @@ function memoryStorage(): Storage {
   };
 }
 
+async function seedActiveSnapshot(
+  session: Parameters<typeof savePracticeSessionSnapshot>[0],
+  answer: Parameters<typeof savePracticeSessionSnapshot>[1],
+  storage: Storage,
+) {
+  expect(
+    await createPracticeSessionSnapshot(
+      {
+        sessionId: session.sessionId,
+        activeProblemIndex: 0,
+        completedResults: [],
+      },
+      createShortNumericAnswerState(),
+      storage,
+    ),
+  ).toBe(true);
+  expect(await savePracticeSessionSnapshot(session, answer, storage)).toBe(
+    true,
+  );
+}
+
+async function seedNoNextSnapshot(
+  session: NoNextTwoProblemSessionState,
+  storage: Storage,
+) {
+  expect(
+    await createPracticeSessionSnapshot(
+      {
+        sessionId: session.sessionId,
+        activeProblemIndex: 0,
+        completedResults: [],
+      },
+      createShortNumericAnswerState(),
+      storage,
+    ),
+  ).toBe(true);
+  expect(await saveNoNextPracticeSessionSnapshot(session, storage)).toBe(true);
+}
+
 function result(
   index: 0 | 1,
   outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct",
@@ -83,65 +128,76 @@ function result(
 }
 
 describe("latest completed Practice storage", () => {
-  it("latches after successful Finish before navigation can write or Pause", () => {
+  it("latches after successful Finish before navigation can write or Pause", async () => {
     const storage = memoryStorage();
     const session = startTwoProblemSession();
     const answer = createShortNumericAnswerState();
     const results = [result(0, "no-valid-submissions")];
     const completionLatch = { current: false };
-    savePracticeSessionSnapshot(session, answer, storage);
+    await seedActiveSnapshot(session, answer, storage);
     let navigations = 0;
+    let navigationCheck: Promise<void> | null = null;
 
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         answer,
         results,
         () => {
           navigations += 1;
-          expect(completionLatch.current).toBe(true);
-          expect(readPracticeSessionSnapshot(storage)).toBeNull();
-          expect(
-            savePracticeSessionWhileActive(
-              completionLatch,
-              session,
-              answer,
-              storage,
-            ),
-          ).toBe(false);
-          const pause = () => {
-            if (
-              !savePracticeSessionWhileActive(
+          navigationCheck = (async () => {
+            expect(completionLatch.current).toBe(true);
+            expect(await readPracticeSessionSnapshot(storage)).toBeNull();
+            expect(
+              await savePracticeSessionWhileActive(
                 completionLatch,
                 session,
                 answer,
                 storage,
+              ),
+            ).toBe(false);
+            const pause = async () => {
+              if (
+                !(await savePracticeSessionWhileActive(
+                  completionLatch,
+                  session,
+                  answer,
+                  storage,
+                ))
               )
-            )
-              return false;
-            navigations += 1;
-            return true;
-          };
-          expect(pause()).toBe(false);
+                return false;
+              navigations += 1;
+              return true;
+            };
+            expect(await pause()).toBe(false);
+          })();
         },
         storage,
       ),
     ).toBe(true);
 
+    await navigationCheck;
     expect(navigations).toBe(1);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(results);
   });
 
-  it("does not latch a failed Finish and permits a successful retry", () => {
+  it("does not latch a failed Finish and permits a successful retry", async () => {
     const storage = memoryStorage();
     const session = startTwoProblemSession();
-    const answer = createShortNumericAnswerState();
+    const answer = {
+      rawAnswer: "17",
+      status: "incorrect" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "incorrect",
+        normalizedAnswer: "17",
+      }),
+    };
     const results = [result(0, "incorrect-only")];
     const completionLatch = { current: false };
     let navigations = 0;
-    savePracticeSessionSnapshot(session, answer, storage);
+    await seedActiveSnapshot(session, answer, storage);
     const failedWrite = {
       ...storage,
       setItem: (key: string, value: string) => {
@@ -152,7 +208,7 @@ describe("latest completed Practice storage", () => {
     };
 
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         answer,
@@ -165,12 +221,17 @@ describe("latest completed Practice storage", () => {
     ).toBe(false);
     expect(completionLatch.current).toBe(false);
     expect(navigations).toBe(0);
-    expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
     expect(
-      savePracticeSessionWhileActive(completionLatch, session, answer, storage),
+      await savePracticeSessionWhileActive(
+        completionLatch,
+        session,
+        answer,
+        storage,
+      ),
     ).toBe(true);
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         answer,
@@ -184,17 +245,17 @@ describe("latest completed Practice storage", () => {
     expect(navigations).toBe(1);
   });
 
-  it("finishes into a separate factual snapshot and survives another read", () => {
+  it("finishes into a separate factual snapshot and survives another read", async () => {
     const storage = memoryStorage();
     const session = startTwoProblemSession();
     const answer = createShortNumericAnswerState();
     const results = [result(0, "no-valid-submissions")];
-    savePracticeSessionSnapshot(session, answer, storage);
+    await seedActiveSnapshot(session, answer, storage);
 
-    expect(completePracticeSession(session, answer, results, storage)).toBe(
-      true,
-    );
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(
+      await completePracticeSession(session, answer, results, storage),
+    ).toBe(true);
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(results);
     expect(
       JSON.parse(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
@@ -210,34 +271,56 @@ describe("latest completed Practice storage", () => {
     ).not.toContain("assessment");
   });
 
-  it("preserves Skip and mixed ordered results, then replaces the latest completion", () => {
+  it("preserves Skip and mixed ordered results, then replaces the latest completion", async () => {
     const storage = memoryStorage();
     const skipped = result(0, "incorrect-only", true);
     const session = advanceTwoProblemSession(
       startTwoProblemSession(),
       skipped,
     )!;
-    const answer = createShortNumericAnswerState();
+    const answer = {
+      rawAnswer: "17",
+      status: "correct" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "correct",
+        normalizedAnswer: "17",
+      }),
+    };
     const mixed = [skipped, result(1, "eventually-correct")];
-    savePracticeSessionSnapshot(session, answer, storage);
+    await seedActiveSnapshot(session, answer, storage);
 
-    expect(completePracticeSession(session, answer, mixed, storage)).toBe(true);
+    expect(await completePracticeSession(session, answer, mixed, storage)).toBe(
+      true,
+    );
     expect(readLatestCompletedResults(storage)).toEqual(mixed);
 
     const newSession = startTwoProblemSession();
-    savePracticeSessionSnapshot(newSession, answer, storage);
-    expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
+    const newAnswer = {
+      rawAnswer: "17",
+      status: "incorrect" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "incorrect",
+        normalizedAnswer: "17",
+      }),
+    };
+    await seedActiveSnapshot(newSession, newAnswer, storage);
+    expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(mixed);
 
     const replacement = [result(0, "incorrect-only")];
     expect(
-      completePracticeSession(newSession, answer, replacement, storage),
+      await completePracticeSession(
+        newSession,
+        newAnswer,
+        replacement,
+        storage,
+      ),
     ).toBe(true);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(replacement);
   });
 
-  it("accepts an unfinished final result without loosening navigation results", () => {
+  it("accepts an unfinished final result without loosening navigation results", async () => {
     expect(
       validateLatestCompletedResults([result(0, "no-valid-submissions")]),
     ).not.toBeNull();
@@ -267,7 +350,7 @@ describe("latest completed Practice storage", () => {
     ).not.toBeNull();
   });
 
-  it("fails closed for malformed, stale, protected, and impossible completed data", () => {
+  it("fails closed for malformed, stale, protected, and impossible completed data", async () => {
     const good = result(0, "eventually-correct");
     const invalid = [
       [],
@@ -326,18 +409,96 @@ describe("latest completed Practice storage", () => {
       JSON.stringify(invalid[0]),
     );
     expect(readLatestCompletedResults(storage)).toBeNull();
-    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
+      JSON.stringify(invalid[0]),
+    );
     expect(readLatestCompletedResults(storage)).toBeNull();
   });
 
-  it("keeps the old completion and Practice retryable when clear or completed write fails", () => {
+  it("does not let a malformed completed read erase a newer completion", () => {
+    const storage = memoryStorage();
+    const malformed = "{malformed";
+    const replacement = [result(0, "eventually-correct")];
+    storage.setItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY, malformed);
+    let observedOldValue = false;
+    const racingStorage = {
+      ...storage,
+      getItem: (key: string) => {
+        const value = storage.getItem(key);
+        if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY) {
+          observedOldValue = true;
+          expect(value).toBe(malformed);
+          expect(saveLatestCompletedResults(replacement, storage)).toBe(true);
+        }
+        return value;
+      },
+      removeItem: vi.fn(storage.removeItem),
+      setItem: vi.fn(storage.setItem),
+    } as Storage;
+
+    expect(readLatestCompletedResults(racingStorage)).toBeNull();
+    expect(observedOldValue).toBe(true);
+    expect(racingStorage.removeItem).not.toHaveBeenCalled();
+    expect(racingStorage.setItem).not.toHaveBeenCalled();
+    expect(readLatestCompletedResults(storage)).toEqual(replacement);
+  });
+
+  it("does not let stale completed verification erase a newer completion", async () => {
+    const storage = memoryStorage();
+    const replacement = [result(0, "eventually-correct")];
+    const invalid = [
+      replacement[0],
+      {
+        ...result(1, "eventually-correct"),
+        reasoningCheckpointObservation: {
+          checkpointId: SOCK_REASONING_CHECKPOINT_ID,
+          selectedOptionId: "B",
+          outcome: "correct",
+          validSubmissionCountAtSubmit: 1,
+        },
+        firstCorrectSubmissionCount: 1,
+      },
+    ];
+    expect(validateLatestCompletedResults(invalid)).not.toBeNull();
+    storage.setItem(
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      JSON.stringify(invalid),
+    );
+    const remove = vi.spyOn(storage, "removeItem");
+    const write = vi.spyOn(storage, "setItem");
+    let resolveVerification!: (value: { valid: false }) => void;
+    const pending = readVerifiedLatestCompletedResults(
+      () =>
+        new Promise<{ valid: false }>((resolve) => {
+          resolveVerification = resolve;
+        }),
+      storage,
+    );
+
+    expect(saveLatestCompletedResults(replacement, storage)).toBe(true);
+    const writesAfterReplacement = write.mock.calls.length;
+    resolveVerification({ valid: false });
+    await expect(pending).rejects.toThrow("changed during verification");
+    expect(remove).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledTimes(writesAfterReplacement);
+    expect(readLatestCompletedResults(storage)).toEqual(replacement);
+  });
+
+  it("keeps the old completion and Practice retryable when clear or completed write fails", async () => {
     const storage = memoryStorage();
     const oldResults = [result(0, "eventually-correct")];
     const newResults = [result(0, "incorrect-only")];
     const session = startTwoProblemSession();
-    const answer = createShortNumericAnswerState();
+    const answer = {
+      rawAnswer: "17",
+      status: "incorrect" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "incorrect",
+        normalizedAnswer: "17",
+      }),
+    };
     saveLatestCompletedResults(oldResults, storage);
-    savePracticeSessionSnapshot(session, answer, storage);
+    await seedActiveSnapshot(session, answer, storage);
 
     const failedClear = {
       ...storage,
@@ -346,9 +507,9 @@ describe("latest completed Practice storage", () => {
       },
     };
     expect(
-      completePracticeSession(session, answer, newResults, failedClear),
+      await completePracticeSession(session, answer, newResults, failedClear),
     ).toBe(false);
-    expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(oldResults);
 
     const failedCompletedWrite = {
@@ -360,27 +521,28 @@ describe("latest completed Practice storage", () => {
       },
     };
     expect(
-      completePracticeSession(
+      await completePracticeSession(
         session,
         answer,
         newResults,
         failedCompletedWrite,
       ),
     ).toBe(false);
-    expect(readPracticeSessionSnapshot(storage)).not.toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(oldResults);
-    expect(completePracticeSession(session, answer, newResults, storage)).toBe(
-      true,
-    );
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(
+      await completePracticeSession(session, answer, newResults, storage),
+    ).toBe(true);
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(newResults);
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
   });
 
-  it("finishes no-next explicitly, preserving the prior completion through failed transitions", () => {
+  it("finishes no-next explicitly, preserving the prior completion through failed transitions", async () => {
     const storage = memoryStorage();
     const previous = [result(0, "eventually-correct")];
     const session: NoNextTwoProblemSessionState = {
+      sessionId: crypto.randomUUID(),
       status: "no-next",
       completedResults: [
         result(0, "eventually-correct"),
@@ -390,7 +552,7 @@ describe("latest completed Practice storage", () => {
     const completionLatch = { current: false };
     const navigate = vi.fn();
     expect(saveLatestCompletedResults(previous, storage)).toBe(true);
-    expect(saveNoNextPracticeSessionSnapshot(session, storage)).toBe(true);
+    await seedNoNextSnapshot(session, storage);
     const originalNoNext = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
 
     const failedClear = {
@@ -400,7 +562,7 @@ describe("latest completed Practice storage", () => {
       },
     };
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         null,
@@ -421,7 +583,7 @@ describe("latest completed Practice storage", () => {
       },
     };
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         null,
@@ -436,7 +598,7 @@ describe("latest completed Practice storage", () => {
     expect(readLatestCompletedResults(storage)).toEqual(previous);
 
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         completionLatch,
         session,
         null,
@@ -447,16 +609,17 @@ describe("latest completed Practice storage", () => {
     ).toBe(true);
     expect(completionLatch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
     expect(readLatestCompletedResults(storage)).toEqual(
       session.completedResults,
     );
   });
 
-  it("keeps no-next Finish retryable in memory even if rollback storage also fails", () => {
+  it("fails closed when no-next rollback cannot restore persisted unfinished state", async () => {
     const storage = memoryStorage();
     const previous = [result(0, "eventually-correct")];
     const session: NoNextTwoProblemSessionState = {
+      sessionId: crypto.randomUUID(),
       status: "no-next",
       completedResults: [
         result(0, "eventually-correct"),
@@ -466,7 +629,7 @@ describe("latest completed Practice storage", () => {
     const latch = { current: false };
     const navigate = vi.fn();
     saveLatestCompletedResults(previous, storage);
-    saveNoNextPracticeSessionSnapshot(session, storage);
+    await seedNoNextSnapshot(session, storage);
     const failedWrites = {
       ...storage,
       setItem: () => {
@@ -475,7 +638,7 @@ describe("latest completed Practice storage", () => {
     };
 
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         latch,
         session,
         null,
@@ -487,10 +650,10 @@ describe("latest completed Practice storage", () => {
     expect(latch.current).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
     expect(readLatestCompletedResults(storage)).toEqual(previous);
-    expect(readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
 
     expect(
-      finishPracticeSessionAndNavigate(
+      await finishPracticeSessionAndNavigate(
         latch,
         session,
         null,
@@ -498,10 +661,9 @@ describe("latest completed Practice storage", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
-    expect(navigate).toHaveBeenCalledOnce();
-    expect(readLatestCompletedResults(storage)).toEqual(
-      session.completedResults,
-    );
+    ).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(readLatestCompletedResults(storage)).toEqual(previous);
+    expect(latch.current).toBe(false);
   });
 });
