@@ -8,6 +8,7 @@ export function normalizeMultipleChoiceSetAnswer(
     !Array.isArray(input) ||
     input.length === 0 ||
     input.length > knownOptionIds.length ||
+    Array.from(input.keys()).some((index) => !Object.hasOwn(input, index)) ||
     input.some(
       (id) => typeof id !== "string" || !knownOptionIds.includes(id),
     ) ||

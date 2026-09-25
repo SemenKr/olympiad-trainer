@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { checkNonnegativeIntegerAnswer } from "./numeric-answer";
-import { checkMultipleChoiceSetAnswer } from "./multiple-choice-set-answer";
+import {
+  checkMultipleChoiceSetAnswer,
+  normalizeMultipleChoiceSetAnswer,
+} from "./multiple-choice-set-answer";
 
 const options = ["sum-20", "sum-21", "sum-23", "sum-25", "sum-26"];
 
@@ -27,6 +30,30 @@ describe("multiple-choice-set checker", () => {
       expect(
         checkMultipleChoiceSetAnswer(selection, options, ["sum-20"]),
       ).toEqual({ status: "invalid" });
+    },
+  );
+
+  const firstHole = Array<string>(2);
+  firstHole[1] = "sum-20";
+  const middleHole = Array<string>(3);
+  middleHole[0] = "sum-20";
+  middleHole[2] = "sum-21";
+  const lastHole = Array<string>(2);
+  lastHole[0] = "sum-20";
+
+  it.each([
+    ["first", firstHole],
+    ["middle", middleHole],
+    ["last", lastHole],
+  ])(
+    "rejects a sparse selection with a hole at the %s position",
+    (_, selection) => {
+      expect(normalizeMultipleChoiceSetAnswer(selection, options)).toBeNull();
+      expect(
+        checkMultipleChoiceSetAnswer(selection, options, ["sum-20"]),
+      ).toEqual({
+        status: "invalid",
+      });
     },
   );
 
