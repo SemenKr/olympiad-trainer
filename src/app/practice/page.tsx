@@ -8,6 +8,7 @@ export default function PracticePage() {
   const problems = [
     getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[0]),
     getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[1]),
+    getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[2]),
   ] as const;
 
   return <PracticeSession problems={problems} />;

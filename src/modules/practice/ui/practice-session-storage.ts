@@ -6,26 +6,33 @@ import type {
 import {
   finishPractice,
   getPracticeSummary,
+  startPractice,
 } from "../application/practice-state";
 import {
-  appendGuaranteeEvidence,
-  emptyGuaranteeProgressEvidence,
-  getGuaranteeEvidenceContribution,
-  validateGuaranteeProgressEvidence,
-} from "../application/guarantee-progress-evidence";
+  appendPracticeProgressEvidence,
+  emptyPracticeProgressEvidence,
+  getPracticeProgressContribution,
+  validatePracticeProgressEvidence,
+  type PracticeProgressEvidence,
+} from "../application/practice-progress-evidence";
 import {
   SOCK_REASONING_CHECKPOINT_ID,
+  TABLE_REASONING_CHECKPOINT_ID,
   type ReasoningCheckpointInterpretation,
   type ReasoningCheckpointObservation,
   type ReasoningCheckpointVerification,
 } from "../application/reasoning-checkpoint";
-import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
+import {
+  isMultipleChoiceSetAnswerState,
+  type PracticeAnswerState,
+} from "./practice-answer-state";
+import { normalizeMultipleChoiceSetAnswer } from "../domain/multiple-choice-set-answer";
 import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import type {
-  NoNextTwoProblemSessionState,
+  NoNextPracticeSessionState,
   PracticeSessionResult,
-  TwoProblemSessionState,
-} from "./two-problem-session-state";
+  PracticeSessionState,
+} from "./fixed-practice-session-state";
 
 export const PRACTICE_SESSION_STORAGE_KEY = "olympiad-trainer:practice-session";
 export const PRACTICE_LATEST_COMPLETED_STORAGE_KEY =
@@ -66,19 +73,32 @@ const problems = [
     ],
     solution: "guaranteed-sock-pair-full-solution",
   },
+  {
+    id: "table-impossible-sums",
+    title: "Невозможные суммы",
+    hints: [
+      "table-impossible-sums-focus-constraints",
+      "table-impossible-sums-strategy-minimum",
+      "table-impossible-sums-next-step-fives",
+    ],
+    solution: "table-impossible-sums-full-solution",
+    optionIds: ["sum-20", "sum-21", "sum-23", "sum-25", "sum-26"],
+  },
 ] as const;
 
-export type PracticeSessionSnapshot = Readonly<{
+type PracticeSessionSnapshotBase = Readonly<{
   sessionId: string;
-  problemIds: readonly [string, string];
-  activeProblemIndex: 0 | 1;
+  problemIds: readonly [string, string, string];
+  activeProblemIndex: 0 | 1 | 2;
   completedResults: readonly PracticeSessionResult[];
   activePractice: ActivePractice;
-  rawAnswer: string;
   reasoningCheckpointObservation?: ReasoningCheckpointObservation;
 }>;
 
-export type NoNextPracticeSessionSnapshot = NoNextTwoProblemSessionState;
+export type PracticeSessionSnapshot = PracticeSessionSnapshotBase &
+  Readonly<{ rawAnswer?: string; selectedOptionIds?: readonly string[] }>;
+
+export type NoNextPracticeSessionSnapshot = NoNextPracticeSessionState;
 export type UnfinishedPracticeSessionSnapshot =
   PracticeSessionSnapshot | NoNextPracticeSessionSnapshot;
 
@@ -91,6 +111,7 @@ type VerifyCheckpoint = (
 type VerifiedCheckpointData<T> = Readonly<{
   value: T;
   interpretation: ReasoningCheckpointInterpretation | null;
+  tableInterpretation?: ReasoningCheckpointInterpretation | null;
 }>;
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -211,8 +232,12 @@ function validReasoningCheckpointObservation(
   submissionCount: number,
   firstCorrectSubmissionCount: number,
 ): value is ReasoningCheckpointObservation {
-  return (
-    problem.id === "guaranteed-sock-pair" &&
+  return Boolean(
+    (problem.id === "guaranteed-sock-pair"
+      ? record(value) && value.checkpointId === SOCK_REASONING_CHECKPOINT_ID
+      : problem.id === "table-impossible-sums" &&
+        record(value) &&
+        value.checkpointId === TABLE_REASONING_CHECKPOINT_ID) &&
     record(value) &&
     exactKeys(value, [
       "checkpointId",
@@ -220,14 +245,13 @@ function validReasoningCheckpointObservation(
       "outcome",
       "validSubmissionCountAtSubmit",
     ]) &&
-    value.checkpointId === SOCK_REASONING_CHECKPOINT_ID &&
     (value.selectedOptionId === "A" ||
       value.selectedOptionId === "B" ||
       value.selectedOptionId === "C") &&
     (value.outcome === "correct" || value.outcome === "incorrect") &&
     validCount(value.validSubmissionCountAtSubmit, submissionCount) &&
     firstCorrectSubmissionCount > 0 &&
-    value.validSubmissionCountAtSubmit >= firstCorrectSubmissionCount
+    value.validSubmissionCountAtSubmit >= firstCorrectSubmissionCount,
   );
 }
 
@@ -299,13 +323,15 @@ export function validateLatestCompletedResults(
 ): readonly PracticeSessionResult[] | null {
   if (
     !Array.isArray(value) ||
-    (value.length !== 1 && value.length !== problems.length) ||
+    (value.length !== 1 &&
+      value.length !== 2 &&
+      value.length !== problems.length) ||
     !value.every((result, index) =>
       validResult(
         result,
         problems[index],
         index === value.length - 1,
-        value.length === problems.length && index === 1,
+        value.length > 1 && index === value.length - 1,
       ),
     )
   ) {
@@ -334,7 +360,7 @@ function validActivePractice(
         record(submission) &&
         exactKeys(submission, ["answer", "outcome"]) &&
         typeof submission.answer === "string" &&
-        /^(?:0|[1-9][0-9]*)$/.test(submission.answer) &&
+        validStoredSubmissionAnswer(submission.answer, problem) &&
         (submission.outcome === "correct" ||
           submission.outcome === "incorrect"),
     ) ||
@@ -371,76 +397,124 @@ function validActivePractice(
   return true;
 }
 
-export function validatePracticeSessionSnapshot(
+function validStoredSubmissionAnswer(
+  answer: string,
+  problem: (typeof problems)[number],
+): boolean {
+  if (problem.id !== "table-impossible-sums")
+    return /^(?:0|[1-9][0-9]*)$/.test(answer);
+  try {
+    return (
+      normalizeMultipleChoiceSetAnswer(
+        JSON.parse(answer),
+        problem.optionIds,
+      ) === answer
+    );
+  } catch {
+    return false;
+  }
+}
+
+function validSelectedOptionIds(value: unknown): value is string[] {
+  if (!Array.isArray(value)) return false;
+  const known = problems[2].optionIds;
+  return (
+    value.length <= known.length &&
+    value.every(
+      (id) =>
+        typeof id === "string" && known.includes(id as (typeof known)[number]),
+    ) &&
+    new Set(value).size === value.length &&
+    JSON.stringify(value) ===
+      JSON.stringify(known.filter((id) => value.includes(id)))
+  );
+}
+
+function validateSessionShape(
   value: unknown,
-): UnfinishedPracticeSessionSnapshot | null {
+  length: 2 | 3,
+): Record<string, unknown> | null {
   if (record(value) && value.status === "no-next") {
     return exactKeys(value, ["sessionId", "status", "completedResults"]) &&
       validSessionId(value.sessionId) &&
       Array.isArray(value.completedResults) &&
-      value.completedResults.length === problems.length &&
-      validResult(value.completedResults[0], problems[0], false) &&
-      record(value.completedResults[1]) &&
-      value.completedResults[1].taskOutcome === "skipped" &&
-      validResult(value.completedResults[1], problems[1], true, true)
-      ? (value as NoNextPracticeSessionSnapshot)
+      value.completedResults.length === length &&
+      value.completedResults.every((result, index) =>
+        validResult(
+          result,
+          problems[index],
+          index === length - 1,
+          index === length - 1,
+        ),
+      ) &&
+      record(value.completedResults[length - 1]) &&
+      value.completedResults[length - 1].taskOutcome === "skipped"
+      ? value
       : null;
   }
 
   if (
     !record(value) ||
-    !exactKeys(
-      value,
-      Object.hasOwn(value, "reasoningCheckpointObservation")
-        ? [
-            "sessionId",
-            "problemIds",
-            "activeProblemIndex",
-            "completedResults",
-            "activePractice",
-            "rawAnswer",
-            "reasoningCheckpointObservation",
-          ]
-        : [
-            "sessionId",
-            "problemIds",
-            "activeProblemIndex",
-            "completedResults",
-            "activePractice",
-            "rawAnswer",
-          ],
-    ) ||
     !validSessionId(value.sessionId) ||
     !Array.isArray(value.problemIds) ||
-    value.problemIds.length !== 2 ||
-    value.problemIds[0] !== problems[0].id ||
-    value.problemIds[1] !== problems[1].id ||
-    (value.activeProblemIndex !== 0 && value.activeProblemIndex !== 1) ||
+    value.problemIds.length !== length ||
+    !value.problemIds.every((id, index) => id === problems[index].id) ||
+    !validCount(value.activeProblemIndex, length - 1) ||
     !Array.isArray(value.completedResults) ||
     value.completedResults.length !== value.activeProblemIndex ||
-    (value.activeProblemIndex === 1 &&
-      !validResult(value.completedResults[0], problems[0], false)) ||
+    !value.completedResults.every((result, index) =>
+      validResult(result, problems[index], false),
+    ) ||
     !validActivePractice(
       value.activePractice,
       problems[value.activeProblemIndex],
-    ) ||
+    )
+  )
+    return null;
+
+  const problem = problems[value.activeProblemIndex];
+  const answerKey =
+    problem.id === "table-impossible-sums" ? "selectedOptionIds" : "rawAnswer";
+  const keys = [
+    "sessionId",
+    "problemIds",
+    "activeProblemIndex",
+    "completedResults",
+    "activePractice",
+    answerKey,
+  ];
+  if (Object.hasOwn(value, "reasoningCheckpointObservation"))
+    keys.push("reasoningCheckpointObservation");
+  if (
+    !exactKeys(value, keys) ||
     (Object.hasOwn(value, "reasoningCheckpointObservation") &&
       (value.activePractice.solutionExposure !== null ||
         !validReasoningCheckpointObservation(
           value.reasoningCheckpointObservation,
-          problems[value.activeProblemIndex],
+          problem,
           value.activePractice.submissions.length,
           value.activePractice.submissions.findIndex(
             (submission: { outcome: string }) =>
               submission.outcome === "correct",
           ) + 1,
         ))) ||
-    typeof value.rawAnswer !== "string"
+    (answerKey === "rawAnswer"
+      ? typeof value.rawAnswer !== "string"
+      : !validSelectedOptionIds(value.selectedOptionIds))
   ) {
     return null;
   }
 
-  return value as PracticeSessionSnapshot;
+  return value;
+}
+
+export function validatePracticeSessionSnapshot(
+  value: unknown,
+): UnfinishedPracticeSessionSnapshot | null {
+  return validateSessionShape(
+    value,
+    3,
+  ) as UnfinishedPracticeSessionSnapshot | null;
 }
 
 function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
@@ -460,19 +534,33 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
     const snapshot = validatePracticeSessionSnapshot(parsed);
     if (snapshot) return { snapshot, raw };
 
-    if (record(parsed) && !Object.hasOwn(parsed, "sessionId")) {
-      const migrated = {
-        sessionId: crypto.randomUUID(),
-        ...parsed,
-      };
-      const legacy = validatePracticeSessionSnapshot(migrated);
-      if (legacy) {
-        const migratedRaw = JSON.stringify(migrated);
-        store.setItem(PRACTICE_SESSION_STORAGE_KEY, migratedRaw);
-        if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== migratedRaw)
-          throw new Error("Practice session migration was not persisted.");
-        return { snapshot: legacy, raw: migratedRaw };
-      }
+    const withSessionId =
+      record(parsed) && !Object.hasOwn(parsed, "sessionId")
+        ? { sessionId: crypto.randomUUID(), ...parsed }
+        : parsed;
+    const legacy = validateSessionShape(withSessionId, 2);
+    const migrated = legacy
+      ? legacy.status === "no-next"
+        ? {
+            sessionId: legacy.sessionId,
+            problemIds: problems.map((problem) => problem.id),
+            activeProblemIndex: 2,
+            completedResults: legacy.completedResults,
+            activePractice: startPractice(),
+            selectedOptionIds: [],
+          }
+        : {
+            ...legacy,
+            problemIds: problems.map((problem) => problem.id),
+          }
+      : withSessionId;
+    const validated = validatePracticeSessionSnapshot(migrated);
+    if (validated) {
+      const migratedRaw = JSON.stringify(migrated);
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, migratedRaw);
+      if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== migratedRaw)
+        throw new Error("Practice session migration was not persisted.");
+      return { snapshot: validated, raw: migratedRaw };
     }
 
     store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
@@ -496,17 +584,20 @@ export async function readPracticeSessionSnapshot(
 async function verifyResultObservations(
   results: readonly PracticeSessionResult[],
   verifyCheckpoint: VerifyCheckpoint,
-): Promise<ReasoningCheckpointVerification | null> {
+): Promise<readonly ReasoningCheckpointVerification[]> {
+  const verifications: ReasoningCheckpointVerification[] = [];
   for (const result of results) {
     if (result.reasoningCheckpointObservation) {
-      return verifyCheckpoint(
-        result.problemId,
-        result.reasoningCheckpointObservation,
-        result.summary,
+      verifications.push(
+        await verifyCheckpoint(
+          result.problemId,
+          result.reasoningCheckpointObservation,
+          result.summary,
+        ),
       );
     }
   }
-  return null;
+  return verifications;
 }
 
 export async function readVerifiedPracticeSessionSnapshot(
@@ -533,7 +624,7 @@ export async function readVerifiedPracticeSessionSnapshot(
   if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
     throw new Error("Practice snapshot changed during verification.");
   if (
-    resultVerification?.valid === false ||
+    resultVerification.some((verification) => !verification.valid) ||
     activeVerification?.valid === false
   ) {
     await withPracticeSessionLock(() => {
@@ -547,24 +638,24 @@ export async function readVerifiedPracticeSessionSnapshot(
     value: snapshot,
     interpretation: activeVerification?.valid
       ? activeVerification.interpretation
-      : resultVerification?.valid
-        ? resultVerification.interpretation
-        : null,
+      : null,
   };
 }
 
 function activeSessionSnapshot(
-  session: TwoProblemSessionState,
-  answer: ShortNumericAnswerState,
+  session: PracticeSessionState,
+  answer: PracticeAnswerState,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): PracticeSessionSnapshot {
   return {
     sessionId: session.sessionId,
-    problemIds: [problems[0].id, problems[1].id],
+    problemIds: [problems[0].id, problems[1].id, problems[2].id],
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,
     activePractice: answer.practice,
-    rawAnswer: answer.rawAnswer,
+    ...(isMultipleChoiceSetAnswerState(answer)
+      ? { selectedOptionIds: answer.selectedOptionIds }
+      : { rawAnswer: answer.rawAnswer }),
     ...(reasoningCheckpointObservation
       ? { reasoningCheckpointObservation }
       : {}),
@@ -582,8 +673,8 @@ function ownsPersistedPracticeSession(
 }
 
 export async function createPracticeSessionSnapshot(
-  session: TwoProblemSessionState,
-  answer: ShortNumericAnswerState,
+  session: PracticeSessionState,
+  answer: PracticeAnswerState,
   storage?: Storage,
 ): Promise<boolean> {
   if (session.activeProblemIndex !== 0 || session.completedResults.length !== 0)
@@ -603,8 +694,8 @@ export async function createPracticeSessionSnapshot(
 }
 
 export async function savePracticeSessionSnapshot(
-  session: TwoProblemSessionState,
-  answer: ShortNumericAnswerState,
+  session: PracticeSessionState,
+  answer: PracticeAnswerState,
   storage?: Storage,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): Promise<boolean> {
@@ -627,7 +718,7 @@ export async function savePracticeSessionSnapshot(
 }
 
 export async function saveNoNextPracticeSessionSnapshot(
-  session: NoNextTwoProblemSessionState,
+  session: NoNextPracticeSessionState,
   storage?: Storage,
 ): Promise<boolean> {
   const validated = validatePracticeSessionSnapshot(session);
@@ -694,12 +785,24 @@ export async function readVerifiedLatestCompletedResults(
   );
   if (store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !== raw)
     throw new Error("Completed Practice results changed during verification.");
-  if (verification?.valid === false) {
+  if (verification.some((item) => !item.valid)) {
     return { value: null, interpretation: null };
   }
+  const interpretations = verification.flatMap((item) =>
+    item.valid ? [item.interpretation] : [],
+  );
   return {
     value: results,
-    interpretation: verification?.valid ? verification.interpretation : null,
+    interpretation:
+      interpretations.find(
+        (item) => item.learnerLabel === "Как гарантировать результат",
+      ) ?? null,
+    tableInterpretation:
+      interpretations.find(
+        (item) =>
+          item.capability ===
+          "Доказывать глобальную невозможность через ограничения",
+      ) ?? null,
   };
 }
 
@@ -735,8 +838,8 @@ type PendingPracticeProgressFinish = Readonly<{
 }>;
 
 function expectedUnfinishedForFinish(
-  session: TwoProblemSessionState | NoNextTwoProblemSessionState,
-  answer: ShortNumericAnswerState | null,
+  session: PracticeSessionState | NoNextPracticeSessionState,
+  answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
 ): string | null {
   if ("status" in session) {
@@ -755,20 +858,13 @@ function expectedUnfinishedForFinish(
       JSON.stringify(getPracticeSummary(finishPractice(answer.practice)))
   )
     return null;
-  return JSON.stringify({
-    sessionId: session.sessionId,
-    problemIds: [problems[0].id, problems[1].id],
-    activeProblemIndex: session.activeProblemIndex,
-    completedResults: session.completedResults,
-    activePractice: answer.practice,
-    rawAnswer: answer.rawAnswer,
-    ...(currentResult.reasoningCheckpointObservation
-      ? {
-          reasoningCheckpointObservation:
-            currentResult.reasoningCheckpointObservation,
-        }
-      : {}),
-  });
+  return JSON.stringify(
+    activeSessionSnapshot(
+      session,
+      answer,
+      currentResult.reasoningCheckpointObservation,
+    ),
+  );
 }
 
 function readPracticeFinishValues(store: Storage): PracticeFinishValues | null {
@@ -802,15 +898,36 @@ function writeAndConfirm(
 }
 
 function progressBeforeOrEmpty(raw: string | null) {
-  if (raw === null) return emptyGuaranteeProgressEvidence();
+  if (raw === null) return emptyPracticeProgressEvidence();
   try {
     return (
-      validateGuaranteeProgressEvidence(JSON.parse(raw)) ??
-      emptyGuaranteeProgressEvidence()
+      validatePracticeProgressEvidence(JSON.parse(raw)) ??
+      emptyPracticeProgressEvidence()
     );
   } catch {
-    return emptyGuaranteeProgressEvidence();
+    return emptyPracticeProgressEvidence();
   }
+}
+
+function progressAfterResults(
+  before: PracticeProgressEvidence,
+  results: readonly PracticeSessionResult[],
+): PracticeProgressEvidence | null {
+  let current: PracticeProgressEvidence = before;
+  for (const result of results) {
+    const contribution = getPracticeProgressContribution(result);
+    if (!contribution) continue;
+    const next = appendPracticeProgressEvidence(current, contribution);
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}
+
+function hasProgressContribution(results: readonly PracticeSessionResult[]) {
+  return results.some(
+    (result) => getPracticeProgressContribution(result) !== null,
+  );
 }
 
 function restorePracticeFinishValues(
@@ -886,18 +1003,20 @@ function readPendingPracticeProgressFinish(
     const completed = validateLatestCompletedResults(
       JSON.parse(value.completedAfter),
     );
-    const progressAfter = validateGuaranteeProgressEvidence(
+    const progressAfter = validatePracticeProgressEvidence(
       JSON.parse(value.progressAfter),
     );
     const progressBefore = progressBeforeOrEmpty(value.progressBefore);
-    const contribution = getGuaranteeEvidenceContribution(completed?.at(-1));
+    const hasContribution = completed
+      ? hasProgressContribution(completed)
+      : false;
     if (
       !unfinished ||
       "status" in unfinished ||
       unfinished.sessionId !== value.sessionId ||
       !completed ||
       !progressAfter ||
-      !contribution ||
+      !hasContribution ||
       expectedUnfinishedForFinish(
         {
           sessionId: unfinished.sessionId,
@@ -907,7 +1026,7 @@ function readPendingPracticeProgressFinish(
         restoreAnswerState(unfinished),
         completed,
       ) !== value.unfinishedBefore ||
-      JSON.stringify(appendGuaranteeEvidence(progressBefore, contribution)) !==
+      JSON.stringify(progressAfterResults(progressBefore, completed)) !==
         value.progressAfter
     )
       return null;
@@ -977,20 +1096,20 @@ function reconcilePendingPracticeProgressFinish(
 }
 
 export function completePracticeSession(
-  session: TwoProblemSessionState,
-  answer: ShortNumericAnswerState,
+  session: PracticeSessionState,
+  answer: PracticeAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
 ): Promise<boolean>;
 export function completePracticeSession(
-  session: NoNextTwoProblemSessionState,
+  session: NoNextPracticeSessionState,
   answer: null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
 ): Promise<boolean>;
 export async function completePracticeSession(
-  session: TwoProblemSessionState | NoNextTwoProblemSessionState,
-  answer: ShortNumericAnswerState | null,
+  session: PracticeSessionState | NoNextPracticeSessionState,
+  answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
 ): Promise<boolean> {
@@ -1014,7 +1133,7 @@ export async function completePracticeSession(
   try {
     return await withPracticeSessionLock(() => {
       const completedAfter = JSON.stringify(results);
-      const contribution = getGuaranteeEvidenceContribution(results.at(-1));
+      const hasContribution = hasProgressContribution(results);
       const beforeReconciliation = readPracticeFinishValues(store);
       if (!beforeReconciliation) return false;
       if (beforeReconciliation.unfinished !== null) {
@@ -1053,9 +1172,9 @@ export async function completePracticeSession(
         return false;
       }
 
-      if (contribution) {
+      if (hasContribution) {
         const progress = progressBeforeOrEmpty(before.progress);
-        const nextProgress = appendGuaranteeEvidence(progress, contribution);
+        const nextProgress = progressAfterResults(progress, results);
         if (!nextProgress) return false;
         const after = {
           unfinished: null,
@@ -1169,11 +1288,22 @@ export async function completePracticeSession(
 
 export function restoreAnswerState(
   snapshot: PracticeSessionSnapshot,
-): ShortNumericAnswerState {
+): PracticeAnswerState {
   const lastSubmission = snapshot.activePractice.submissions.at(-1);
+  if (snapshot.selectedOptionIds) {
+    const answer = JSON.stringify(snapshot.selectedOptionIds);
+    return {
+      practice: snapshot.activePractice,
+      selectedOptionIds: snapshot.selectedOptionIds,
+      status:
+        lastSubmission && answer === lastSubmission.answer
+          ? lastSubmission.outcome
+          : "typing",
+    };
+  }
   return {
     practice: snapshot.activePractice,
-    rawAnswer: snapshot.rawAnswer,
+    rawAnswer: snapshot.rawAnswer ?? "",
     status:
       lastSubmission && snapshot.rawAnswer === lastSubmission.answer
         ? lastSubmission.outcome

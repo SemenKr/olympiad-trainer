@@ -1,7 +1,7 @@
 import type { LearnerSafePracticeProblem } from "../application/practice-problem-presentation";
 import type { PracticeSummary } from "../application/practice-state";
 import type { ReasoningCheckpointObservation } from "../application/reasoning-checkpoint";
-import type { ShortNumericAnswerState } from "./short-numeric-answer-state";
+import type { PracticeAnswerState } from "./practice-answer-state";
 import { requestPracticeFinish } from "./practice-session-state";
 
 export type PracticeSessionResult = Readonly<{
@@ -34,7 +34,7 @@ export function startTwoProblemSession(): TwoProblemSessionState {
 }
 
 export function isPracticeProblemNavigationComplete(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
 ): boolean {
   return (
     answerState.status !== "loading" &&
@@ -46,7 +46,7 @@ export function isPracticeProblemNavigationComplete(
 }
 
 export function isPracticeProblemSkipAvailable(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   supportRevealPending = false,
 ): boolean {
   return (
@@ -57,7 +57,7 @@ export function isPracticeProblemSkipAvailable(
 }
 
 export function requestPracticeSkip(
-  answerState: ShortNumericAnswerState,
+  answerState: PracticeAnswerState,
   confirmDiscard: () => boolean,
   supportRevealPending = false,
 ): PracticeSummary | null {

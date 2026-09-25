@@ -207,6 +207,7 @@ describe("practice problem catalog", () => {
     expect(PRACTICE_SESSION_PROBLEM_IDS).toEqual([
       "coinciding-seats",
       "guaranteed-sock-pair",
+      "table-impossible-sums",
     ]);
   });
 
@@ -244,12 +245,43 @@ describe("practice problem catalog", () => {
 });
 
 describe("learner-safe practice problem projection", () => {
+  it("projects table choices without the protected expected set or checkpoint answer", () => {
+    const projection = getLearnerSafePracticeProblem("table-impossible-sums");
+    expect(projection.response).toEqual({
+      kind: "multiple-choice-set",
+      options: [
+        { id: "sum-20", label: "20" },
+        { id: "sum-21", label: "21" },
+        { id: "sum-23", label: "23" },
+        { id: "sum-25", label: "25" },
+        { id: "sum-26", label: "26" },
+      ],
+    });
+    expect(projection.reasoningCheckpoint).toEqual({
+      checkpointId: "table-impossible-sums-impossibility-argument",
+    });
+    const serialized = JSON.stringify(projection);
+    expect(serialized).not.toContain("expectedOptionIds");
+    expect(serialized).not.toContain("correctOptionId");
+    expect(serialized).not.toContain("training-adaptation");
+    expect(serialized).not.toContain("provenance");
+    expect(serialized).not.toContain("Минимальная сумма");
+    expect(
+      getProblemDefinition("table-impossible-sums").provenance,
+    ).toMatchObject({
+      problemNumber: 8,
+      originalSource: { page: 5 },
+      officialSolution: { page: 7 },
+    });
+  });
+
   it("contains only the learner data required by the current UI", () => {
     expect(getLearnerSafePracticeProblem(CURRENT_PRACTICE_PROBLEM_ID)).toEqual({
       problemId: "coinciding-seats",
       title: "Совпадающие места",
       statement:
         "В зале 102 места, пронумерованных от 1 до 102. Для одной группы отмечают каждое второе место, а для другой — каждое третье. Сколько мест окажутся отмечены для обеих групп?",
+      response: { kind: "short-numeric" },
       hints: [
         {
           hintId: "coinciding-seats-focus-simultaneous-rules",
@@ -280,6 +312,7 @@ describe("learner-safe practice problem projection", () => {
       "problemId",
       "title",
       "statement",
+      "response",
       "hints",
       "solution",
     ]);
@@ -302,6 +335,7 @@ describe("learner-safe practice problem projection", () => {
       problemId: sockProblemId,
       title: "Носки в пакете",
       statement: sockStatement,
+      response: { kind: "short-numeric" },
       hints: [
         {
           hintId: "guaranteed-sock-pair-focus-guarantee",

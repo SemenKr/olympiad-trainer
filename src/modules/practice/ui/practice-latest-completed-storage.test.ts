@@ -39,15 +39,16 @@ import {
 import {
   advanceTwoProblemSession,
   startTwoProblemSession,
-  type NoNextTwoProblemSessionState,
   type PracticeSessionResult,
 } from "./two-problem-session-state";
+import type { NoNextPracticeSessionState as NoNextTwoProblemSessionState } from "./fixed-practice-session-state";
 
 beforeEach(installImmediatePracticeSessionLock);
 
 const problems = [
   { id: "coinciding-seats", title: "Совпадающие места" },
   { id: "guaranteed-sock-pair", title: "Носки в пакете" },
+  { id: "table-impossible-sums", title: "Невозможные суммы" },
 ] as const;
 
 function memoryStorage(): Storage {
@@ -108,7 +109,7 @@ async function seedNoNextSnapshot(
 }
 
 function result(
-  index: 0 | 1,
+  index: 0 | 1 | 2,
   outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct",
   skipped = false,
 ): PracticeSessionResult {
@@ -346,6 +347,7 @@ describe("latest completed Practice storage", () => {
       validateLatestCompletedResults([
         result(0, "eventually-correct"),
         result(1, "incorrect-only", true),
+        result(2, "no-valid-submissions", true),
       ]),
     ).not.toBeNull();
   });
@@ -547,6 +549,7 @@ describe("latest completed Practice storage", () => {
       completedResults: [
         result(0, "eventually-correct"),
         result(1, "incorrect-only", true),
+        result(2, "no-valid-submissions", true),
       ],
     };
     const completionLatch = { current: false };
@@ -624,6 +627,7 @@ describe("latest completed Practice storage", () => {
       completedResults: [
         result(0, "eventually-correct"),
         result(1, "no-valid-submissions", true),
+        result(2, "no-valid-submissions", true),
       ],
     };
     const latch = { current: false };

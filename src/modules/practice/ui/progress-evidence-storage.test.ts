@@ -46,10 +46,8 @@ import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
 } from "./progress-evidence-storage";
-import type {
-  NoNextTwoProblemSessionState,
-  PracticeSessionResult,
-} from "./two-problem-session-state";
+import type { PracticeSessionResult } from "./two-problem-session-state";
+import type { NoNextPracticeSessionState as NoNextTwoProblemSessionState } from "./fixed-practice-session-state";
 
 beforeEach(installImmediatePracticeSessionLock);
 
@@ -595,6 +593,17 @@ describe("guarantee Progress evidence", () => {
           },
           taskOutcome: "skipped",
         },
+        {
+          problemId: "table-impossible-sums",
+          problemTitle: "Невозможные суммы",
+          summary: {
+            outcome: "no-valid-submissions",
+            validSubmissionCount: 0,
+            hintExposures: [],
+            solutionExposure: null,
+          },
+          taskOutcome: "skipped",
+        },
       ],
     };
     storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
@@ -749,7 +758,21 @@ describe("guarantee Progress evidence", () => {
     const firstNoNext: NoNextTwoProblemSessionState = {
       sessionId: crypto.randomUUID(),
       status: "no-next",
-      completedResults: [firstResult, skipped],
+      completedResults: [
+        firstResult,
+        skipped,
+        {
+          problemId: "table-impossible-sums",
+          problemTitle: "Невозможные суммы",
+          summary: {
+            outcome: "no-valid-submissions",
+            validSubmissionCount: 0,
+            hintExposures: [],
+            solutionExposure: null,
+          },
+          taskOutcome: "skipped",
+        },
+      ],
     };
     const secondNoNext = {
       ...firstNoNext,

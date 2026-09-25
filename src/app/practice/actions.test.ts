@@ -110,6 +110,62 @@ describe("reasoning checkpoint server boundary", () => {
 });
 
 describe("practice answer server boundary", () => {
+  it("checks table sets on the server without returning protected expected IDs", async () => {
+    await expect(
+      submitPracticeAnswer("table-impossible-sums", ["sum-20"]),
+    ).resolves.toEqual({ status: "correct", normalizedAnswer: '["sum-20"]' });
+    await expect(
+      submitPracticeAnswer("table-impossible-sums", ["sum-21", "sum-20"]),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      submitPracticeAnswer("table-impossible-sums", ["sum-20", "sum-20"]),
+    ).resolves.toEqual({ status: "invalid" });
+  });
+
+  it("protects the table checkpoint until an explicit request and verifies its outcome", async () => {
+    const checkpoint = "table-impossible-sums-impossibility-argument";
+    const revealed = await revealReasoningCheckpoint(
+      "table-impossible-sums",
+      checkpoint,
+    );
+    expect(revealed.options).toHaveLength(3);
+    expect(JSON.stringify(revealed)).not.toContain("correctOptionId");
+    await expect(
+      submitReasoningCheckpointOption(
+        "table-impossible-sums",
+        checkpoint,
+        "A",
+        correctSummary,
+      ),
+    ).resolves.toMatchObject({
+      outcome: "correct",
+      interpretation: { progressGroup: "Начинаю разбираться" },
+    });
+    await expect(
+      submitReasoningCheckpointOption(
+        "table-impossible-sums",
+        checkpoint,
+        "B",
+        correctSummary,
+      ),
+    ).resolves.toMatchObject({
+      outcome: "incorrect",
+      interpretation: { progressGroup: null },
+    });
+    await expect(
+      verifyPersistedReasoningCheckpointObservation(
+        "table-impossible-sums",
+        {
+          checkpointId: checkpoint,
+          selectedOptionId: "A",
+          outcome: "incorrect",
+          validSubmissionCountAtSubmit: 1,
+        },
+        correctSummary,
+      ),
+    ).resolves.toEqual({ valid: false });
+  });
+
   it("checks a correct answer through the catalog", async () => {
     await expect(submitPracticeAnswer(problemId, " 017 ")).resolves.toEqual({
       status: "correct",

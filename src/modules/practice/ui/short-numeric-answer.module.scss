@@ -11,6 +11,39 @@
   min-width: 0;
 }
 
+.choice-set {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    margin-bottom: var(--ot-space-8);
+    font-size: var(--ot-font-size-caption);
+    font-weight: 600;
+  }
+}
+
+.choice {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--ot-space-12);
+  padding: var(--ot-space-8) var(--ot-space-12);
+  background: var(--ot-color-surface);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-12);
+
+  input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--ot-color-primary);
+  }
+}
+
 .announcement:not(:empty),
 .submit {
   margin-top: var(--ot-space-16);
@@ -79,6 +112,7 @@
 }
 
 .field input:focus-visible,
+.choice input:focus-visible,
 .submit:focus-visible {
   outline: var(--ot-border-width-strong) solid transparent;
   outline-offset: 2px;
@@ -178,6 +212,7 @@
 
 @media (forced-colors: active) {
   .field input:focus-visible,
+  .choice input:focus-visible,
   .submit:focus-visible {
     outline-color: Highlight;
     box-shadow: none;

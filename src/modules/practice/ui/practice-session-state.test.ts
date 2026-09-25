@@ -37,6 +37,7 @@ const restoreProblem = {
   problemId: "coinciding-seats",
   title: "Совпадающие места",
   statement: "Learner statement",
+  response: { kind: "short-numeric" },
   hints: [
     { hintId: focusHintId, level: "focus" },
     { hintId: strategyHintId, level: "strategy" },
@@ -1199,7 +1200,9 @@ describe("practice hint reveal timing", () => {
     let pendingHintId: string | null = null;
     const gate = { current: false };
     const runReveal = (
-      requestReveal: () => ReturnType<typeof requestFocusHintReveal>,
+      requestReveal: () => ReturnType<
+        typeof requestFocusHintReveal<ShortNumericAnswerState>
+      >,
     ) =>
       runPracticeHintReveal({
         gate,

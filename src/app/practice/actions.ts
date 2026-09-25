@@ -14,6 +14,7 @@ import {
   checkNonnegativeIntegerAnswer,
   type NumericAnswerResult,
 } from "../../modules/practice/domain/numeric-answer";
+import { checkMultipleChoiceSetAnswer } from "../../modules/practice/domain/multiple-choice-set-answer";
 import {
   getProblemDefinition,
   getRevealedReasoningCheckpoint,
@@ -58,14 +59,18 @@ export async function submitPracticeAnswer(
     requireIdentifier(problemId, "practice problem ID"),
   );
 
-  if (typeof rawAnswer !== "string") {
-    return { status: "invalid" };
-  }
-
-  return checkNonnegativeIntegerAnswer(
-    rawAnswer,
-    problem.assessment.expectedAnswer,
-  );
+  if (problem.assessment.kind === "multiple-choice-set")
+    return checkMultipleChoiceSetAnswer(
+      rawAnswer,
+      problem.assessment.options.map((option) => option.id),
+      problem.assessment.expectedOptionIds,
+    );
+  return typeof rawAnswer === "string"
+    ? checkNonnegativeIntegerAnswer(
+        rawAnswer,
+        problem.assessment.expectedAnswer,
+      )
+    : { status: "invalid" };
 }
 
 export async function revealPracticeHint(
@@ -118,6 +123,7 @@ export async function submitReasoningCheckpointOption(
     interpretation: getReasoningCheckpointInterpretation(
       context,
       assessed.outcome,
+      requireIdentifier(problemId, "practice problem ID"),
     ),
   };
 }
@@ -148,6 +154,7 @@ export async function verifyPersistedReasoningCheckpointObservation(
       interpretation: getReasoningCheckpointInterpretation(
         context,
         assessed.outcome,
+        requireIdentifier(problemId, "practice problem ID"),
       ),
     };
   } catch {
@@ -165,6 +172,39 @@ export async function verifyPersistedGuaranteeEvidenceFacts(
     if (
       !record(fact) ||
       fact.problemId !== "guaranteed-sock-pair" ||
+      !record(fact.observation) ||
+      typeof fact.observation.checkpointId !== "string" ||
+      typeof fact.observation.selectedOptionId !== "string" ||
+      (fact.observation.outcome !== "correct" &&
+        fact.observation.outcome !== "incorrect")
+    ) {
+      valid = false;
+      continue;
+    }
+    try {
+      const assessed = assessReasoningCheckpointOption(
+        fact.problemId,
+        fact.observation.checkpointId,
+        fact.observation.selectedOptionId,
+      );
+      if (assessed.outcome !== fact.observation.outcome) valid = false;
+    } catch {
+      valid = false;
+    }
+  }
+  return valid;
+}
+
+export async function verifyPersistedPracticeProgressEvidenceFacts(
+  facts: unknown,
+): Promise<boolean> {
+  if (!Array.isArray(facts) || facts.length > 6) return false;
+  let valid = true;
+  for (const fact of facts) {
+    if (
+      !record(fact) ||
+      (fact.problemId !== "guaranteed-sock-pair" &&
+        fact.problemId !== "table-impossible-sums") ||
       !record(fact.observation) ||
       typeof fact.observation.checkpointId !== "string" ||
       typeof fact.observation.selectedOptionId !== "string" ||
