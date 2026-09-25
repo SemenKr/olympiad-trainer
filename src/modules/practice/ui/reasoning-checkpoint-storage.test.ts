@@ -185,10 +185,8 @@ describe("reasoning checkpoint persistence", () => {
         valid,
       );
 
-      storage.setItem(
-        PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
-        JSON.stringify([firstResult, result]),
-      );
+      const completedRaw = JSON.stringify([firstResult, result]);
+      storage.setItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY, completedRaw);
       expect(
         validateLatestCompletedResults([firstResult, result]),
       ).not.toBeNull();
@@ -200,9 +198,9 @@ describe("reasoning checkpoint persistence", () => {
       expect(
         completed.interpretation?.progressGroup === "Начинаю разбираться",
       ).toBe(valid && selectedOptionId === "A");
-      expect(
-        storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !== null,
-      ).toBe(valid);
+      expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
+        completedRaw,
+      );
     },
   );
 

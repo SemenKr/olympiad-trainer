@@ -17,6 +17,7 @@ import {
   recordAnswerResult,
   startPractice,
 } from "../application/practice-state";
+import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import {
   completePracticeSession,
@@ -24,6 +25,7 @@ import {
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
   readLatestCompletedResults,
+  readVerifiedLatestCompletedResults,
   readPracticeSessionSnapshot,
   saveLatestCompletedResults,
   saveNoNextPracticeSessionSnapshot,
@@ -407,8 +409,79 @@ describe("latest completed Practice storage", () => {
       JSON.stringify(invalid[0]),
     );
     expect(readLatestCompletedResults(storage)).toBeNull();
-    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
+      JSON.stringify(invalid[0]),
+    );
     expect(readLatestCompletedResults(storage)).toBeNull();
+  });
+
+  it("does not let a malformed completed read erase a newer completion", () => {
+    const storage = memoryStorage();
+    const malformed = "{malformed";
+    const replacement = [result(0, "eventually-correct")];
+    storage.setItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY, malformed);
+    let observedOldValue = false;
+    const racingStorage = {
+      ...storage,
+      getItem: (key: string) => {
+        const value = storage.getItem(key);
+        if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY) {
+          observedOldValue = true;
+          expect(value).toBe(malformed);
+          expect(saveLatestCompletedResults(replacement, storage)).toBe(true);
+        }
+        return value;
+      },
+      removeItem: vi.fn(storage.removeItem),
+      setItem: vi.fn(storage.setItem),
+    } as Storage;
+
+    expect(readLatestCompletedResults(racingStorage)).toBeNull();
+    expect(observedOldValue).toBe(true);
+    expect(racingStorage.removeItem).not.toHaveBeenCalled();
+    expect(racingStorage.setItem).not.toHaveBeenCalled();
+    expect(readLatestCompletedResults(storage)).toEqual(replacement);
+  });
+
+  it("does not let stale completed verification erase a newer completion", async () => {
+    const storage = memoryStorage();
+    const replacement = [result(0, "eventually-correct")];
+    const invalid = [
+      replacement[0],
+      {
+        ...result(1, "eventually-correct"),
+        reasoningCheckpointObservation: {
+          checkpointId: SOCK_REASONING_CHECKPOINT_ID,
+          selectedOptionId: "B",
+          outcome: "correct",
+          validSubmissionCountAtSubmit: 1,
+        },
+        firstCorrectSubmissionCount: 1,
+      },
+    ];
+    expect(validateLatestCompletedResults(invalid)).not.toBeNull();
+    storage.setItem(
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      JSON.stringify(invalid),
+    );
+    const remove = vi.spyOn(storage, "removeItem");
+    const write = vi.spyOn(storage, "setItem");
+    let resolveVerification!: (value: { valid: false }) => void;
+    const pending = readVerifiedLatestCompletedResults(
+      () =>
+        new Promise<{ valid: false }>((resolve) => {
+          resolveVerification = resolve;
+        }),
+      storage,
+    );
+
+    expect(saveLatestCompletedResults(replacement, storage)).toBe(true);
+    const writesAfterReplacement = write.mock.calls.length;
+    resolveVerification({ valid: false });
+    await expect(pending).rejects.toThrow("changed during verification");
+    expect(remove).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledTimes(writesAfterReplacement);
+    expect(readLatestCompletedResults(storage)).toEqual(replacement);
   });
 
   it("keeps the old completion and Practice retryable when clear or completed write fails", async () => {

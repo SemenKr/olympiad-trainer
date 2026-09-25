@@ -673,9 +673,7 @@ export function readLatestCompletedResults(
     const store = storage ?? window.localStorage;
     const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     if (raw === null) return null;
-    const results = validateLatestCompletedResults(JSON.parse(raw));
-    if (!results) store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
-    return results;
+    return validateLatestCompletedResults(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -697,7 +695,6 @@ export async function readVerifiedLatestCompletedResults(
   if (store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !== raw)
     throw new Error("Completed Practice results changed during verification.");
   if (verification?.valid === false) {
-    store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     return { value: null, interpretation: null };
   }
   return {

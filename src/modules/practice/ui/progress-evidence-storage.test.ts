@@ -336,8 +336,8 @@ describe("guarantee Progress evidence", () => {
         storage,
       );
       expect(read.evidence.nextSequence).toBe(valid ? 2 : 1);
-      expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !== null).toBe(
-        valid,
+      expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
+        JSON.stringify(evidence),
       );
       expect(read.interpretation.progressGroup).toBe(
         valid && outcome === "correct" ? "Начинаю разбираться" : null,
@@ -391,7 +391,12 @@ describe("guarantee Progress evidence", () => {
     );
     expect(invalid.evidence).toEqual(emptyGuaranteeProgressEvidence());
     expect(invalid.interpretation.progressGroup).toBeNull();
-    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
+      JSON.stringify({
+        ...verified.evidence,
+        latestCorrectWithHints: fact(2, "B", "correct", ["focus"]),
+      }),
+    );
 
     storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, "{malformed");
     const malformed = await readVerifiedGuaranteeProgressEvidence(
@@ -399,10 +404,10 @@ describe("guarantee Progress evidence", () => {
       storage,
     );
     expect(malformed.evidence).toEqual(emptyGuaranteeProgressEvidence());
-    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe("{malformed");
   });
 
-  it("keeps a newer snapshot when an old verification response arrives", async () => {
+  it("does not let stale Progress verification erase a newer Finish", async () => {
     const storage = memoryStorage();
     storage.setItem(
       PROGRESS_EVIDENCE_STORAGE_KEY,
@@ -412,6 +417,11 @@ describe("guarantee Progress evidence", () => {
         latestCorrectWithoutHints: fact(1, "B", "correct"),
       }),
     );
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const remove = vi.spyOn(storage, "removeItem");
+    const write = vi.spyOn(storage, "setItem");
     let resolve!: (valid: boolean) => void;
     const pending = readVerifiedGuaranteeProgressEvidence(
       () =>
@@ -420,11 +430,25 @@ describe("guarantee Progress evidence", () => {
         }),
       storage,
     );
-    const replacement = JSON.stringify(emptyGuaranteeProgressEvidence());
-    storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, replacement);
+    expect(
+      await finishPracticeSessionAndNavigate(
+        { current: false },
+        session,
+        answer,
+        [firstResult, sockResult],
+        vi.fn(),
+        storage,
+      ),
+    ).toBe(true);
+    const replacement = storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
+    const removalsAfterFinish = remove.mock.calls.length;
+    const writesAfterFinish = write.mock.calls.length;
     resolve(false);
     await expect(pending).rejects.toThrow("changed during verification");
+    expect(remove).toHaveBeenCalledTimes(removalsAfterFinish);
+    expect(write).toHaveBeenCalledTimes(writesAfterFinish);
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(replacement);
+    expect(JSON.parse(replacement!).latestCorrectWithoutHints.sequence).toBe(2);
   });
 
   it("finishes only after Progress write, then rolls back exact prior values on failure", async () => {

@@ -4,24 +4,24 @@ import type {
   RevealedPracticeHint,
   RevealedPracticeSolution,
   RevealedReasoningCheckpoint,
-} from '@/modules/practice/application/practice-problem-presentation';
-import type { PracticeSummary } from '@/modules/practice/application/practice-state';
+} from "../../modules/practice/application/practice-problem-presentation";
+import type { PracticeSummary } from "../../modules/practice/application/practice-state";
 import type {
   ReasoningCheckpointInterpretation,
   ReasoningCheckpointVerification,
-} from '@/modules/practice/application/reasoning-checkpoint';
+} from "../../modules/practice/application/reasoning-checkpoint";
 import {
   checkNonnegativeIntegerAnswer,
   type NumericAnswerResult,
-} from '@/modules/practice/domain/numeric-answer';
+} from "../../modules/practice/domain/numeric-answer";
 import {
   getProblemDefinition,
   getRevealedReasoningCheckpoint,
   getRevealedPracticeHint,
   getRevealedPracticeSolution,
   assessReasoningCheckpointOption,
-} from '@/modules/practice/server/problem-catalog';
-import { getReasoningCheckpointInterpretation } from '@/modules/practice/server/reasoning-checkpoint-interpretation';
+} from "../../modules/practice/server/problem-catalog";
+import { getReasoningCheckpointInterpretation } from "../../modules/practice/server/reasoning-checkpoint-interpretation";
 
 function requireIdentifier(value: unknown, fieldName: string): string {
   if (typeof value !== "string" || value.length === 0) {

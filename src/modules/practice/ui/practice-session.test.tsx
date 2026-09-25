@@ -12,10 +12,10 @@ vi.mock("@/app/practice/actions", () => ({
 }));
 
 import { revealPracticeSolution } from "@/app/practice/actions";
+import { NoNextPracticeSurface } from "./no-next-practice-surface";
 
 import {
   PracticeHintRevealError,
-  NoNextPracticeSurface,
   PracticeSession,
   PracticeSolutionRevealError,
 } from "./practice-session";

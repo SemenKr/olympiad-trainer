@@ -46,9 +46,6 @@ export async function readVerifiedGuaranteeProgressEvidence(
     throw new Error("Progress evidence changed during verification.");
   const verifiedEvidence =
     valid && evidence ? evidence : emptyGuaranteeProgressEvidence();
-  if (!valid) {
-    store.removeItem(PROGRESS_EVIDENCE_STORAGE_KEY);
-  }
   return {
     evidence: verifiedEvidence,
     interpretation: deriveGuaranteeProgressInterpretation(verifiedEvidence),
