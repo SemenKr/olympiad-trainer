@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/app/practice/actions", () => ({
   verifyPersistedGuaranteeEvidenceFacts: vi.fn(),
 }));
+vi.mock("../../../app/progress/actions", () => ({
+  importBrowserProgressEvidence: vi.fn(async () => {}),
+  readServerProgress: vi.fn(),
+}));
 
 import {
   emptyGuaranteeProgressEvidence,

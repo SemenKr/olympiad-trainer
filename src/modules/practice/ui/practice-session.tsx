@@ -12,6 +12,7 @@ import {
   submitPracticeAnswer,
   verifyPersistedReasoningCheckpointObservation,
 } from "@/app/practice/actions";
+import { persistPracticeFinishEvidence } from "../../../app/progress/actions";
 
 import type {
   LearnerSafePracticeProblem,
@@ -64,6 +65,8 @@ import styles from "./practice-session.module.scss";
 import {
   completePracticeSession,
   createPracticeSessionSnapshot,
+  hasPendingServerPracticeFinish,
+  isCurrentPracticeFinish,
   readVerifiedPracticeSessionSnapshot,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
@@ -89,6 +92,8 @@ import {
   type PracticeSessionResult,
   type PracticeSessionState,
 } from "./fixed-practice-session-state";
+import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
+import { ensureServerProgressImported } from "./server-progress-import";
 
 type PracticeSessionProps = Readonly<{
   problems: readonly [
@@ -185,11 +190,52 @@ export async function finishPracticeSessionAndNavigate(
   storage?: Storage,
 ): Promise<boolean> {
   if (completionLatch.current) return false;
+  const contributions = results
+    .map(getPracticeProgressContribution)
+    .filter((value) => value !== null);
+  let pendingServerFinish = false;
+  try {
+    pendingServerFinish = await hasPendingServerPracticeFinish(
+      session.sessionId,
+      storage,
+    );
+  } catch {
+    return false;
+  }
+  if (contributions.length > 0 || pendingServerFinish) {
+    if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
+      return false;
+    let importedLegacyFinish: string | null;
+    try {
+      importedLegacyFinish = await ensureServerProgressImported(storage);
+    } catch {
+      return false;
+    }
+    if (importedLegacyFinish === session.sessionId) {
+      completionLatch.current = true;
+      navigate();
+      return true;
+    }
+  }
+  const persist =
+    contributions.length > 0 || pendingServerFinish
+      ? (request: { sessionId: string; contributions: readonly unknown[] }) =>
+          persistPracticeFinishEvidence(
+            request.sessionId,
+            request.contributions,
+          )
+      : undefined;
   const completed =
     "status" in session
-      ? await completePracticeSession(session, null, results, storage)
+      ? await completePracticeSession(session, null, results, storage, persist)
       : answer !== null &&
-        (await completePracticeSession(session, answer, results, storage));
+        (await completePracticeSession(
+          session,
+          answer,
+          results,
+          storage,
+          persist,
+        ));
   if (!completed) return false;
   completionLatch.current = true;
   navigate();

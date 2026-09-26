@@ -10,6 +10,10 @@ vi.mock("@/app/practice/actions", () => ({
   revealPracticeSolution: vi.fn(),
   submitPracticeAnswer: vi.fn(),
 }));
+vi.mock("../../../app/progress/actions", () => ({
+  importBrowserProgressEvidence: vi.fn(async () => {}),
+  persistPracticeFinishEvidence: vi.fn(async () => {}),
+}));
 
 import {
   finishPractice,

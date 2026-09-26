@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { verifyPersistedPracticeProgressEvidenceFacts } from "@/app/practice/actions";
+import { readServerProgress } from "../../../app/progress/actions";
 
-import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
-import { readVerifiedPracticeProgressEvidence } from "./progress-evidence-storage";
+import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
+import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./progress-overview.module.scss";
 
 type ProgressLoad =
@@ -15,8 +15,8 @@ type ProgressLoad =
   | {
       status: "ready";
       interpretations: readonly [
-        ReasoningCheckpointInterpretation,
-        ReasoningCheckpointInterpretation,
+        LearnerProgressInterpretation,
+        LearnerProgressInterpretation,
       ];
     };
 
@@ -29,10 +29,9 @@ export function ProgressOverview() {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      void readVerifiedPracticeProgressEvidence(
-        verifyPersistedPracticeProgressEvidenceFacts,
-      )
-        .then(({ interpretations }) => {
+      void ensureServerProgressImported()
+        .then(readServerProgress)
+        .then((interpretations) => {
           if (active) setLoad({ status: "ready", interpretations });
         })
         .catch(() => {
@@ -97,7 +96,7 @@ export function ProgressOverview() {
 export function ProgressEvidenceContent({
   interpretation,
 }: {
-  interpretation: ReasoningCheckpointInterpretation;
+  interpretation: LearnerProgressInterpretation;
 }) {
   return (
     <section className={styles.capability}>
