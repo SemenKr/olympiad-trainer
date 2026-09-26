@@ -31,6 +31,11 @@ export type ReasoningCheckpointInterpretation = Readonly<{
   conclusion: string;
 }>;
 
+export type LearnerProgressInterpretation = Pick<
+  ReasoningCheckpointInterpretation,
+  "learnerLabel" | "progressGroup" | "conclusion"
+>;
+
 export type ReasoningCheckpointVerification =
   | Readonly<{
       valid: true;

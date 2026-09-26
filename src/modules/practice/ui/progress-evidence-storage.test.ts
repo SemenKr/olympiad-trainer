@@ -13,6 +13,15 @@ vi.mock("@/app/practice/actions", () => ({
   submitPracticeAnswer: vi.fn(),
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
+vi.mock("../../../app/progress/actions", () => ({
+  importBrowserProgressEvidence: vi.fn(async () => {}),
+  persistPracticeFinishEvidence: vi.fn(async () => {}),
+}));
+
+import {
+  importBrowserProgressEvidence,
+  persistPracticeFinishEvidence,
+} from "../../../app/progress/actions";
 
 import { verifyPersistedGuaranteeEvidenceFacts } from "../../../app/practice/actions";
 import {
@@ -34,9 +43,13 @@ import {
   savePracticeSessionWhileActive,
 } from "./practice-session";
 import {
+  clearPracticeSessionSnapshot,
+  completePracticeSession,
   createPracticeSessionSnapshot,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
+  readPracticeSessionSnapshot,
+  readVerifiedPracticeSessionSnapshot,
   saveLatestCompletedResults,
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
@@ -46,10 +59,14 @@ import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
 } from "./progress-evidence-storage";
+import { ensureServerProgressImported } from "./server-progress-import";
 import type { PracticeSessionResult } from "./two-problem-session-state";
 import type { NoNextPracticeSessionState as NoNextTwoProblemSessionState } from "./fixed-practice-session-state";
 
-beforeEach(installImmediatePracticeSessionLock);
+beforeEach(() => {
+  vi.clearAllMocks();
+  installImmediatePracticeSessionLock();
+});
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -442,14 +459,16 @@ describe("guarantee Progress evidence", () => {
     const removalsAfterFinish = remove.mock.calls.length;
     const writesAfterFinish = write.mock.calls.length;
     resolve(false);
-    await expect(pending).rejects.toThrow("changed during verification");
+    await pending.catch(() => undefined);
     expect(remove).toHaveBeenCalledTimes(removalsAfterFinish);
     expect(write).toHaveBeenCalledTimes(writesAfterFinish);
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(replacement);
-    expect(JSON.parse(replacement!).latestCorrectWithoutHints.sequence).toBe(2);
+    expect(replacement).toBeNull();
+    expect(importBrowserProgressEvidence).toHaveBeenCalledOnce();
+    expect(persistPracticeFinishEvidence).toHaveBeenCalledOnce();
   });
 
-  it("finishes only after Progress write, then rolls back exact prior values on failure", async () => {
+  it("keeps unfinished Practice after server write failure and retries the same session", async () => {
     const storage = memoryStorage();
     const priorProgress = JSON.stringify({
       ...emptyGuaranteeProgressEvidence(),
@@ -465,17 +484,9 @@ describe("guarantee Progress evidence", () => {
     const priorCompleted = storage.getItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
     );
-    let failProgress = true;
-    const failingStorage = {
-      ...storage,
-      setItem: (key: string, value: string) => {
-        if (key === PROGRESS_EVIDENCE_STORAGE_KEY && failProgress) {
-          failProgress = false;
-          throw new Error("Progress write failed");
-        }
-        storage.setItem(key, value);
-      },
-    } as Storage;
+    vi.mocked(persistPracticeFinishEvidence)
+      .mockRejectedValueOnce(new Error("Database unavailable"))
+      .mockResolvedValueOnce();
     const latch = { current: false };
     const navigate = vi.fn();
     expect(
@@ -485,7 +496,7 @@ describe("guarantee Progress evidence", () => {
         answer,
         [firstResult, sockResult],
         navigate,
-        failingStorage,
+        storage,
       ),
     ).toBe(false);
     expect(latch.current).toBe(false);
@@ -494,7 +505,11 @@ describe("guarantee Progress evidence", () => {
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
       priorCompleted,
     );
-    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(priorProgress);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(priorProgress);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    const requestKey = "olympiad-trainer:practice-server-finish-request";
+    const immutableRequest = storage.getItem(requestKey);
+    expect(immutableRequest).not.toBeNull();
 
     expect(
       await finishPracticeSessionAndNavigate(
@@ -513,14 +528,103 @@ describe("guarantee Progress evidence", () => {
       storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!,
     );
     expect(completed).toEqual([firstResult, sockResult]);
-    const progress = JSON.parse(
-      storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)!,
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(requestKey)).toBeNull();
+    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+      [session.sessionId, JSON.parse(immutableRequest!).contributions],
+      [session.sessionId, JSON.parse(immutableRequest!).contributions],
+    ]);
+  });
+
+  it("retries the persisted Finish request after a lost response and later Practice edits", async () => {
+    const storage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const requestKey = "olympiad-trainer:practice-server-finish-request";
+    const originalContribution = getGuaranteeEvidenceContribution(sockResult)!;
+    vi.mocked(persistPracticeFinishEvidence)
+      .mockImplementationOnce(async () => {
+        expect(JSON.parse(storage.getItem(requestKey)!)).toMatchObject({
+          sessionId: session.sessionId,
+          contributions: [{ bucket: "guarantee", value: originalContribution }],
+        });
+        throw new Error("Response lost after commit");
+      })
+      .mockResolvedValueOnce();
+    const latch = { current: false };
+    const navigate = vi.fn();
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        answer,
+        [firstResult, sockResult],
+        navigate,
+        storage,
+      ),
+    ).toBe(false);
+    const savedRequest = storage.getItem(requestKey);
+    expect(savedRequest).not.toBeNull();
+    expect(JSON.parse(savedRequest!)).toMatchObject({
+      sessionId: session.sessionId,
+      contributions: [{ bucket: "guarantee", value: originalContribution }],
+    });
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        { ...answer, rawAnswer: "8" },
+        storage,
+        observation,
+      ),
+    ).toBe(false);
+    const changedSnapshot = JSON.parse(
+      storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!,
     );
-    expect(progress.nextSequence).toBe(3);
-    expect(progress.latestCorrectWithoutHints.sequence).toBe(2);
-    expect(progress.latestIncorrect).toEqual(fact(1, "B", "incorrect"));
-    expect(JSON.stringify(progress)).not.toContain("rawAnswer");
-    expect(JSON.stringify(progress)).not.toContain("Почему 7 носков");
+    storage.setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      JSON.stringify({ ...changedSnapshot, rawAnswer: "8" }),
+    );
+    const changedResult = {
+      ...sockResult,
+      reasoningCheckpointObservation: {
+        ...observation,
+        selectedOptionId: "B" as const,
+        outcome: "incorrect" as const,
+      },
+    };
+    expect(
+      await completePracticeSession(
+        session,
+        { ...answer, rawAnswer: "8" },
+        [firstResult, changedResult],
+        storage,
+      ),
+    ).toBe(false);
+    expect(storage.getItem(requestKey)).toBe(savedRequest);
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        { ...answer, rawAnswer: "8" },
+        [firstResult, changedResult],
+        navigate,
+        storage,
+      ),
+    ).toBe(true);
+    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+      [
+        session.sessionId,
+        [{ bucket: "guarantee", value: originalContribution }],
+      ],
+      [
+        session.sessionId,
+        [{ bucket: "guarantee", value: originalContribution }],
+      ],
+    ]);
+    expect(storage.getItem(requestKey)).toBeNull();
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(navigate).toHaveBeenCalledOnce();
   });
 
   it("rejects stale active and no-next Finish without touching newer storage", async () => {
@@ -670,7 +774,20 @@ describe("guarantee Progress evidence", () => {
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(
       await seedActiveSnapshot(secondSession, answer, storage, observation),
+    ).toBe(false);
+    const newerStorage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(
+        secondSession,
+        answer,
+        newerStorage,
+        observation,
+      ),
     ).toBe(true);
+    storage.setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      newerStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!,
+    );
     const beforeUnfinished = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
     const beforeCompleted = storage.getItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
@@ -779,7 +896,15 @@ describe("guarantee Progress evidence", () => {
       sessionId: crypto.randomUUID(),
     };
     storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
-    expect(await seedNoNextSnapshot(secondNoNext, storage)).toBe(true);
+    expect(await seedNoNextSnapshot(secondNoNext, storage)).toBe(false);
+    const newerNoNextStorage = memoryStorage();
+    expect(await seedNoNextSnapshot(secondNoNext, newerNoNextStorage)).toBe(
+      true,
+    );
+    storage.setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      newerNoNextStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!,
+    );
     const beforeNoNext = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
     expect(await saveNoNextPracticeSessionSnapshot(firstNoNext, storage)).toBe(
       false,
@@ -802,19 +927,141 @@ describe("guarantee Progress evidence", () => {
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(beforeProgress);
   });
 
-  it("accepts a Progress write that reports failure after the intended value is durable", async () => {
+  it("finishes an already-pending legacy local transition and imports its result as baseline", async () => {
     const storage = memoryStorage();
     expect(
       await seedActiveSnapshot(session, answer, storage, observation),
     ).toBe(true);
-    const reportingStorage = {
-      ...storage,
-      setItem: (key: string, value: string) => {
-        storage.setItem(key, value);
-        if (key === PROGRESS_EVIDENCE_STORAGE_KEY)
-          throw new Error("Write reported failure after mutation");
+    const pendingKey = "olympiad-trainer:practice-progress-finish-pending";
+    const localProgress = JSON.stringify(
+      appendGuaranteeEvidence(
+        emptyGuaranteeProgressEvidence(),
+        getGuaranteeEvidenceContribution(sockResult)!,
+      ),
+    );
+    storage.setItem(
+      pendingKey,
+      JSON.stringify({
+        sessionId: session.sessionId,
+        unfinishedBefore: storage.getItem(PRACTICE_SESSION_STORAGE_KEY),
+        completedBefore: null,
+        progressBefore: null,
+        completedAfter: JSON.stringify([firstResult, sockResult]),
+        progressAfter: localProgress,
+      }),
+    );
+    const navigate = vi.fn();
+    expect(
+      await finishPracticeSessionAndNavigate(
+        { current: false },
+        session,
+        answer,
+        [firstResult, sockResult],
+        navigate,
+        storage,
+      ),
+    ).toBe(true);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(localProgress);
+    expect(persistPracticeFinishEvidence).not.toHaveBeenCalled();
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+
+  it("imports the recovered legacy Finish result before a Progress read can take a baseline", async () => {
+    const storage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const pendingKey = "olympiad-trainer:practice-progress-finish-pending";
+    const afterProgress = JSON.stringify(
+      appendGuaranteeEvidence(
+        emptyGuaranteeProgressEvidence(),
+        getGuaranteeEvidenceContribution(sockResult)!,
+      ),
+    );
+    storage.setItem(
+      pendingKey,
+      JSON.stringify({
+        sessionId: session.sessionId,
+        unfinishedBefore: storage.getItem(PRACTICE_SESSION_STORAGE_KEY),
+        completedBefore: null,
+        progressBefore: JSON.stringify(emptyGuaranteeProgressEvidence()),
+        completedAfter: JSON.stringify([firstResult, sockResult]),
+        progressAfter: afterProgress,
+      }),
+    );
+    const pendingRaw = storage.getItem(pendingKey);
+    storage.setItem(
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      JSON.stringify([firstResult, sockResult]),
+    );
+    storage.setItem(
+      PROGRESS_EVIDENCE_STORAGE_KEY,
+      JSON.stringify(emptyGuaranteeProgressEvidence()),
+    );
+    storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    expect(
+      (
+        await readVerifiedPracticeSessionSnapshot(
+          async () => ({
+            valid: true,
+            interpretation: deriveGuaranteeProgressInterpretation(
+              emptyGuaranteeProgressEvidence(),
+            ),
+          }),
+          storage,
+        )
+      ).value?.sessionId,
+    ).toBe(session.sessionId);
+    expect(storage.getItem(pendingKey)).toBe(pendingRaw);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
+      JSON.stringify(emptyGuaranteeProgressEvidence()),
+    );
+    vi.mocked(importBrowserProgressEvidence).mockImplementationOnce(
+      async (raw) => {
+        expect(raw).toBe(afterProgress);
+        expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+        expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
+          afterProgress,
+        );
+        expect(storage.getItem(pendingKey)).not.toBeNull();
       },
-    } as Storage;
+    );
+    expect(await ensureServerProgressImported(storage)).toBe(session.sessionId);
+    expect(storage.getItem(pendingKey)).toBeNull();
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
+      JSON.stringify([firstResult, sockResult]),
+    );
+  });
+
+  it("keeps recovered legacy bytes and pending Finish retryable when import fails", async () => {
+    const storage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const pendingKey = "olympiad-trainer:practice-progress-finish-pending";
+    const afterProgress = JSON.stringify(
+      appendGuaranteeEvidence(
+        emptyGuaranteeProgressEvidence(),
+        getGuaranteeEvidenceContribution(sockResult)!,
+      ),
+    );
+    storage.setItem(
+      pendingKey,
+      JSON.stringify({
+        sessionId: session.sessionId,
+        unfinishedBefore: storage.getItem(PRACTICE_SESSION_STORAGE_KEY),
+        completedBefore: null,
+        progressBefore: null,
+        completedAfter: JSON.stringify([firstResult, sockResult]),
+        progressAfter: afterProgress,
+      }),
+    );
+    vi.mocked(importBrowserProgressEvidence)
+      .mockRejectedValueOnce(new Error("Import response lost"))
+      .mockResolvedValueOnce();
     const latch = { current: false };
     const navigate = vi.fn();
     expect(
@@ -824,50 +1071,135 @@ describe("guarantee Progress evidence", () => {
         answer,
         [firstResult, sockResult],
         navigate,
-        reportingStorage,
+        storage,
+      ),
+    ).toBe(false);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(afterProgress);
+    const pendingRaw = storage.getItem(pendingKey);
+    expect(pendingRaw).not.toBeNull();
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect((await readPracticeSessionSnapshot(storage))?.sessionId).toBe(
+      session.sessionId,
+    );
+    expect(storage.getItem(pendingKey)).toBe(pendingRaw);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(afterProgress);
+    expect(
+      await savePracticeSessionSnapshot(session, answer, storage, observation),
+    ).toBe(false);
+    expect(await clearPracticeSessionSnapshot(storage)).toBe(false);
+    expect(storage.getItem(pendingKey)).toBe(pendingRaw);
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        answer,
+        [firstResult, sockResult],
+        navigate,
+        storage,
+      ),
+    ).toBe(true);
+    expect(vi.mocked(importBrowserProgressEvidence).mock.calls).toEqual([
+      [afterProgress],
+      [afterProgress],
+    ]);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(pendingKey)).toBeNull();
+    expect(persistPracticeFinishEvidence).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+
+  it("does not replace malformed legacy bytes while recovering a pending Finish", async () => {
+    const storage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const pendingKey = "olympiad-trainer:practice-progress-finish-pending";
+    const malformed = "{malformed";
+    storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, malformed);
+    storage.setItem(
+      pendingKey,
+      JSON.stringify({
+        sessionId: session.sessionId,
+        unfinishedBefore: storage.getItem(PRACTICE_SESSION_STORAGE_KEY),
+        completedBefore: null,
+        progressBefore: malformed,
+        completedAfter: JSON.stringify([firstResult, sockResult]),
+        progressAfter: JSON.stringify(
+          appendGuaranteeEvidence(
+            emptyGuaranteeProgressEvidence(),
+            getGuaranteeEvidenceContribution(sockResult)!,
+          ),
+        ),
+      }),
+    );
+    const pendingRaw = storage.getItem(pendingKey);
+    storage.setItem(
+      PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+      JSON.stringify([firstResult, sockResult]),
+    );
+    storage.setItem(
+      PROGRESS_EVIDENCE_STORAGE_KEY,
+      JSON.parse(pendingRaw!).progressAfter,
+    );
+    storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    expect((await readPracticeSessionSnapshot(storage))?.sessionId).toBe(
+      session.sessionId,
+    );
+    expect(storage.getItem(pendingKey)).toBe(pendingRaw);
+    expect(JSON.parse(storage.getItem(pendingKey)!).progressBefore).toBe(
+      malformed,
+    );
+    await expect(ensureServerProgressImported(storage)).rejects.toThrow(
+      "could not be verified",
+    );
+    expect(importBrowserProgressEvidence).not.toHaveBeenCalled();
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
+      JSON.parse(pendingRaw!).progressAfter,
+    );
+    expect(storage.getItem(pendingKey)).toBe(pendingRaw);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("does not write a browser-local Progress snapshot after server acknowledgement", async () => {
+    const storage = memoryStorage();
+    expect(
+      await seedActiveSnapshot(session, answer, storage, observation),
+    ).toBe(true);
+    const write = vi.spyOn(storage, "setItem");
+    const latch = { current: false };
+    const navigate = vi.fn();
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        session,
+        answer,
+        [firstResult, sockResult],
+        navigate,
+        storage,
       ),
     ).toBe(true);
     expect(latch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
-    const progress = JSON.parse(
-      storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)!,
-    );
-    expect(progress.nextSequence).toBe(2);
-    expect(progress.latestCorrectWithoutHints.sequence).toBe(1);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(
+      write.mock.calls.filter(([key]) => key === PROGRESS_EVIDENCE_STORAGE_KEY),
+    ).toEqual([]);
   });
 
-  it("reconciles a mutated Progress write after rollback failure without appending twice", async () => {
+  it("retries local finalization after server acknowledgement with the same session ID", async () => {
     const storage = memoryStorage();
-    const priorProgress = JSON.stringify(emptyGuaranteeProgressEvidence());
-    storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, priorProgress);
     expect(
       await seedActiveSnapshot(session, answer, storage, observation),
     ).toBe(true);
-    let maskProgressRead = false;
-    let failRollback = true;
+    const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+    let failCompleted = true;
     const failingStorage = {
       ...storage,
-      getItem: (key: string) => {
-        if (key === PROGRESS_EVIDENCE_STORAGE_KEY && maskProgressRead) {
-          maskProgressRead = false;
-          return priorProgress;
-        }
-        return storage.getItem(key);
-      },
       setItem: (key: string, value: string) => {
-        if (key === PROGRESS_EVIDENCE_STORAGE_KEY && value !== priorProgress) {
-          storage.setItem(key, value);
-          maskProgressRead = true;
-          throw new Error("Progress write reported failure after mutation");
-        }
-        if (
-          key === PROGRESS_EVIDENCE_STORAGE_KEY &&
-          value === priorProgress &&
-          failRollback
-        ) {
-          failRollback = false;
-          throw new Error("Progress rollback failed");
+        if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY && failCompleted) {
+          failCompleted = false;
+          throw new Error("Summary write failed");
         }
         storage.setItem(key, value);
       },
@@ -885,9 +1217,11 @@ describe("guarantee Progress evidence", () => {
       ),
     ).toBe(false);
     expect(latch.current).toBe(false);
-    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
-    const afterFailedFinish = storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
-    expect(JSON.parse(afterFailedFinish!).nextSequence).toBe(2);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+    expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBeNull();
+    const requestKey = "olympiad-trainer:practice-server-finish-request";
+    const immutableRequest = storage.getItem(requestKey);
+    expect(immutableRequest).not.toBeNull();
 
     expect(
       await finishPracticeSessionAndNavigate(
@@ -902,12 +1236,12 @@ describe("guarantee Progress evidence", () => {
     expect(latch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
-    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(
-      afterFailedFinish,
-    );
-    expect(
-      JSON.parse(afterFailedFinish!).latestCorrectWithoutHints.sequence,
-    ).toBe(1);
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(requestKey)).toBeNull();
+    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+      [session.sessionId, JSON.parse(immutableRequest!).contributions],
+      [session.sessionId, JSON.parse(immutableRequest!).contributions],
+    ]);
   });
 
   it("restores the unfinished and previous completed values after earlier transition failures", async () => {
