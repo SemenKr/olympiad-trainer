@@ -208,6 +208,40 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     ).toHaveLength(1);
   });
 
+  it("persists both checkpoint buckets once for one Finish request and its retry", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const sessionId = randomUUID();
+    const contributions = [
+      { bucket: "guarantee", value: guarantee },
+      { bucket: "impossibility", value: impossibility },
+    ];
+
+    await persistFinishContributions(id, sessionId, contributions);
+    await persistFinishContributions(id, sessionId, contributions);
+
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    const guaranteeBucket = row.guaranteeEvidence as ReturnType<
+      typeof emptyGuaranteeProgressEvidence
+    >;
+    const impossibilityBucket = row.impossibilityEvidence as ReturnType<
+      typeof emptyImpossibilityProgressEvidence
+    >;
+    expect(guaranteeBucket.nextSequence).toBe(2);
+    expect(impossibilityBucket.nextSequence).toBe(2);
+    expect(guaranteeBucket.latestCorrectWithoutHints?.sequence).toBe(1);
+    expect(impossibilityBucket.latestCorrectWithoutHints?.sequence).toBe(1);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(eq(practiceFinishReceipts.learnerId, id)),
+    ).toHaveLength(1);
+  });
+
   it("fails closed when stored JSONB is structurally invalid", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);

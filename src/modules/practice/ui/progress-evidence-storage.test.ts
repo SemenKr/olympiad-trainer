@@ -37,7 +37,11 @@ import {
   startPractice,
   type PracticeSummary,
 } from "../application/practice-state";
-import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
+import {
+  SOCK_REASONING_CHECKPOINT_ID,
+  TABLE_REASONING_CHECKPOINT_ID,
+} from "../application/reasoning-checkpoint";
+import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
 import {
   finishPracticeSessionAndNavigate,
   savePracticeSessionWhileActive,
@@ -55,6 +59,8 @@ import {
   savePracticeSessionSnapshot,
 } from "./practice-session-storage";
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
+import { createMultipleChoiceSetAnswerState } from "./multiple-choice-set-answer-state";
+import { finishPracticeSession } from "./fixed-practice-session-state";
 import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
@@ -534,6 +540,102 @@ describe("guarantee Progress evidence", () => {
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
     ]);
+  });
+
+  it("captures both checkpoints in one immutable Finish request immediately after P3 saves", async () => {
+    const storage = memoryStorage();
+    const thirdSession = {
+      sessionId: crypto.randomUUID(),
+      activeProblemIndex: 2 as const,
+      completedResults: [firstResult, sockResult],
+    };
+    const thirdAnswer = {
+      ...createMultipleChoiceSetAnswerState(),
+      selectedOptionIds: ["sum-20"],
+      status: "correct" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "correct",
+        normalizedAnswer: '["sum-20"]',
+      }),
+    };
+    const thirdObservation = {
+      checkpointId: TABLE_REASONING_CHECKPOINT_ID,
+      selectedOptionId: "A" as const,
+      outcome: "correct" as const,
+      validSubmissionCountAtSubmit: 1,
+    };
+    const thirdResult: PracticeSessionResult = {
+      problemId: "table-impossible-sums",
+      problemTitle: "Невозможные суммы",
+      summary: sockSummary,
+      reasoningCheckpointObservation: thirdObservation,
+      firstCorrectSubmissionCount: 1,
+    };
+    const results = finishPracticeSession(thirdSession, thirdResult);
+    expect(await seedActiveSnapshot(thirdSession, thirdAnswer, storage)).toBe(
+      true,
+    );
+    expect(
+      await savePracticeSessionWhileActive(
+        { current: false },
+        thirdSession,
+        thirdAnswer,
+        storage,
+        thirdObservation,
+      ),
+    ).toBe(true);
+    expect(
+      JSON.parse(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)!)
+        .reasoningCheckpointObservation,
+    ).toEqual(thirdObservation);
+    const requestKey = "olympiad-trainer:practice-server-finish-request";
+    const expectedContributions = [sockResult, thirdResult].map(
+      getPracticeProgressContribution,
+    );
+    expect(expectedContributions.map((entry) => entry?.bucket)).toEqual([
+      "guarantee",
+      "impossibility",
+    ]);
+    vi.mocked(persistPracticeFinishEvidence)
+      .mockImplementationOnce(async () => {
+        expect(JSON.parse(storage.getItem(requestKey)!)).toMatchObject({
+          sessionId: thirdSession.sessionId,
+          contributions: expectedContributions,
+        });
+        throw new Error("Response lost after commit");
+      })
+      .mockResolvedValueOnce();
+    const latch = { current: false };
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        thirdSession,
+        thirdAnswer,
+        results,
+        vi.fn(),
+        storage,
+      ),
+    ).toBe(false);
+    const immutableRequest = storage.getItem(requestKey);
+    expect(immutableRequest).not.toBeNull();
+    expect(JSON.parse(immutableRequest!).contributions).toEqual(
+      expectedContributions,
+    );
+    expect(
+      await finishPracticeSessionAndNavigate(
+        latch,
+        thirdSession,
+        thirdAnswer,
+        results,
+        vi.fn(),
+        storage,
+      ),
+    ).toBe(true);
+    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+      [thirdSession.sessionId, expectedContributions],
+      [thirdSession.sessionId, expectedContributions],
+    ]);
+    expect(storage.getItem(requestKey)).toBeNull();
   });
 
   it("retries the persisted Finish request after a lost response and later Practice edits", async () => {
