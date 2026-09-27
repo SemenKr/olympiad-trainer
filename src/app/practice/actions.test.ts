@@ -24,6 +24,41 @@ const correctSummary = {
 };
 
 describe("reasoning checkpoint server boundary", () => {
+  it("keeps the brothers answer and checkpoint canonical on the server", async () => {
+    const id = "brothers-ages-products";
+    const checkpoint = "brothers-ages-products-youngest-lower-bound";
+    await expect(submitPracticeAnswer(id, " 02 ")).resolves.toEqual({
+      status: "correct",
+      normalizedAnswer: "2",
+    });
+    await expect(submitPracticeAnswer(id, "3")).resolves.toMatchObject({
+      status: "incorrect",
+    });
+    const revealed = await revealReasoningCheckpoint(id, checkpoint);
+    expect(revealed.options).toHaveLength(3);
+    expect(JSON.stringify(revealed)).not.toContain("correctOptionId");
+    await expect(
+      submitReasoningCheckpointOption(id, checkpoint, "A", correctSummary),
+    ).resolves.toMatchObject({ outcome: "correct" });
+    await expect(
+      submitReasoningCheckpointOption(id, checkpoint, "B", correctSummary),
+    ).resolves.toMatchObject({ outcome: "incorrect" });
+    await expect(
+      verifyPersistedReasoningCheckpointObservation(
+        id,
+        {
+          checkpointId: checkpoint,
+          selectedOptionId: "B",
+          outcome: "correct",
+          validSubmissionCountAtSubmit: 1,
+        },
+        correctSummary,
+      ),
+    ).resolves.toEqual({ valid: false });
+    await expect(
+      revealReasoningCheckpoint("table-impossible-sums", checkpoint),
+    ).rejects.toThrow();
+  });
   it("reveals prompt and options only on request, without the correct option", async () => {
     const revealed = await revealReasoningCheckpoint(
       sockProblemId,

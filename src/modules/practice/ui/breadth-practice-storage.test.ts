@@ -19,6 +19,7 @@ import {
   emptyPracticeProgressEvidence,
   progressEvidenceBuckets,
 } from "../application/practice-progress-evidence";
+import { impossibilityFacts } from "../application/impossibility-progress-evidence";
 import { createMultipleChoiceSetAnswerState } from "./multiple-choice-set-answer-state";
 import {
   completePracticeSession,
@@ -211,8 +212,9 @@ describe("fixed three-problem persistence", () => {
         .latestCorrectWithoutHints,
     ).not.toBeNull();
     expect(
-      progressEvidenceBuckets(progress.evidence).impossibility
-        .latestCorrectWithoutHints,
+      impossibilityFacts(
+        progressEvidenceBuckets(progress.evidence).impossibility,
+      ).find((fact) => fact.observation.outcome === "correct"),
     ).not.toBeNull();
     const durableProgress = storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
     expect(

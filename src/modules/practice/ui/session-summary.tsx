@@ -130,7 +130,9 @@ export function SessionSummary({
       })
     : null;
   const tableResult = results.find(
-    (result) => result.problemId === "table-impossible-sums",
+    (result) =>
+      result.problemId === "table-impossible-sums" ||
+      result.problemId === "brothers-ages-products",
   );
   const tableReasoning = tableResult
     ? (tableInterpretation ?? {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  ADAPTIVE_TRANSFER_PROBLEM_ID,
   CURRENT_PRACTICE_PROBLEM_ID,
   assessReasoningCheckpointOption,
   getLearnerSafePracticeProblem,
@@ -47,6 +48,54 @@ const checkpointOptions = [
 ];
 
 describe("practice problem catalog", () => {
+  it("keeps the school-stage transfer problem outside the fixed core and protects its answer", () => {
+    const problem = getProblemDefinition(ADAPTIVE_TRANSFER_PROBLEM_ID);
+    expect(PRACTICE_SESSION_PROBLEM_IDS).toEqual([
+      "coinciding-seats",
+      "guaranteed-sock-pair",
+      "table-impossible-sums",
+    ]);
+    expect(problem.provenance).toMatchObject({
+      academicYear: "2024/25",
+      stage: "school",
+      problemNumber: 1,
+    });
+    expect(problem.provenance).not.toHaveProperty("variant");
+    expect(problem.provenance.originalSource.url).toContain(
+      "tasks-math-5-sch-msk-24-25.pdf",
+    );
+    expect(problem.provenance.officialSolution.url).toContain(
+      "sol-math-5-sch-msk-24-25.pdf",
+    );
+    expect(problem.assessment).toEqual({
+      kind: "nonnegative-integer",
+      expectedAnswer: "2",
+    });
+    expect(problem.solution).toMatchObject({
+      id: "brothers-ages-products-full-solution",
+      kind: "training-adaptation",
+    });
+    const learner = getLearnerSafePracticeProblem(ADAPTIVE_TRANSFER_PROBLEM_ID);
+    expect(learner.response.kind).toBe("short-numeric");
+    expect(JSON.stringify(learner)).not.toContain("expectedAnswer");
+    expect(JSON.stringify(learner)).not.toContain(
+      "Тогда три разных натуральных возраста",
+    );
+    expect(
+      assessReasoningCheckpointOption(
+        ADAPTIVE_TRANSFER_PROBLEM_ID,
+        problem.reasoningCheckpoint!.id,
+        "A",
+      ),
+    ).toEqual({ outcome: "correct" });
+    expect(
+      assessReasoningCheckpointOption(
+        ADAPTIVE_TRANSFER_PROBLEM_ID,
+        problem.reasoningCheckpoint!.id,
+        "B",
+      ),
+    ).toEqual({ outcome: "incorrect" });
+  });
   it("resolves the current problem by stable product ID", () => {
     expect(getProblemDefinition(CURRENT_PRACTICE_PROBLEM_ID)).toMatchObject({
       id: "coinciding-seats",

@@ -12,7 +12,7 @@ import {
   getImpossibilityEvidenceContribution,
   validateImpossibilityProgressEvidence,
   type ImpossibilityEvidenceContribution,
-  type ImpossibilityProgressEvidenceV0,
+  type ImpossibilityProgressEvidence,
 } from "./impossibility-progress-evidence";
 import type { PracticeSummary } from "./practice-state";
 import type { ReasoningCheckpointObservation } from "./reasoning-checkpoint";
@@ -20,7 +20,7 @@ import type { ReasoningCheckpointObservation } from "./reasoning-checkpoint";
 export type TwoBucketProgressEvidence = Readonly<{
   version: 2;
   guarantee: GuaranteeProgressEvidenceV0;
-  impossibility: ImpossibilityProgressEvidenceV0;
+  impossibility: ImpossibilityProgressEvidence;
 }>;
 
 export type PracticeProgressEvidence =

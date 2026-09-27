@@ -5,6 +5,7 @@ import {
   deriveImpossibilityProgressInterpretation,
   emptyImpossibilityProgressEvidence,
   getImpossibilityEvidenceContribution,
+  impossibilityFacts,
   validateImpossibilityProgressEvidence,
 } from "./impossibility-progress-evidence";
 import {
@@ -82,8 +83,14 @@ describe("impossibility Progress bucket", () => {
       },
     })!;
     const later = appendImpossibilityEvidence(first, incorrect)!;
-    expect(later.latestCorrectWithoutHints).toEqual(
-      first.latestCorrectWithoutHints,
+    expect(
+      impossibilityFacts(later).find(
+        (fact) => fact.observation.outcome === "correct",
+      ),
+    ).toEqual(
+      impossibilityFacts(first).find(
+        (fact) => fact.observation.outcome === "correct",
+      ),
     );
     expect(deriveImpossibilityProgressInterpretation(later)).toMatchObject({
       progressGroup: "Начинаю разбираться",
@@ -154,7 +161,9 @@ describe("impossibility Progress bucket", () => {
       progressEvidenceBuckets(both).guarantee.latestCorrectWithoutHints,
     ).not.toBeNull();
     expect(
-      progressEvidenceBuckets(both).impossibility.latestCorrectWithoutHints,
+      impossibilityFacts(progressEvidenceBuckets(both).impossibility).find(
+        (fact) => fact.observation.outcome === "correct",
+      ),
     ).not.toBeNull();
   });
 });

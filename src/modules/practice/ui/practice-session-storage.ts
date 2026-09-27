@@ -19,6 +19,7 @@ import {
 import {
   SOCK_REASONING_CHECKPOINT_ID,
   TABLE_REASONING_CHECKPOINT_ID,
+  BROTHERS_REASONING_CHECKPOINT_ID,
   type ReasoningCheckpointInterpretation,
   type ReasoningCheckpointObservation,
   type ReasoningCheckpointVerification,
@@ -30,9 +31,10 @@ import {
 import { normalizeMultipleChoiceSetAnswer } from "../domain/multiple-choice-set-answer";
 import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import type {
-  NoNextPracticeSessionState,
+  AdaptiveNoNextPracticeSessionState,
+  ActivePracticeSessionState,
+  FinishedPracticeSessionState,
   PracticeSessionResult,
-  PracticeSessionState,
 } from "./fixed-practice-session-state";
 
 export const PRACTICE_SESSION_STORAGE_KEY = "olympiad-trainer:practice-session";
@@ -89,6 +91,19 @@ const problems = [
   },
 ] as const;
 
+const transferProblem = {
+  id: "brothers-ages-products",
+  title: "Возраст братьев",
+  hints: [
+    "brothers-ages-products-focus-distinct-products",
+    "brothers-ages-products-strategy-youngest",
+    "brothers-ages-products-next-step-bound",
+  ],
+  solution: "brothers-ages-products-full-solution",
+} as const;
+
+type StoredProblem = (typeof problems)[number] | typeof transferProblem;
+
 type PracticeSessionSnapshotBase = Readonly<{
   sessionId: string;
   problemIds: readonly [string, string, string];
@@ -98,10 +113,24 @@ type PracticeSessionSnapshotBase = Readonly<{
   reasoningCheckpointObservation?: ReasoningCheckpointObservation;
 }>;
 
-export type PracticeSessionSnapshot = PracticeSessionSnapshotBase &
+type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
   Readonly<{ rawAnswer?: string; selectedOptionIds?: readonly string[] }>;
 
-export type NoNextPracticeSessionSnapshot = NoNextPracticeSessionState;
+type AdaptivePracticeSessionSnapshot = Readonly<{
+  sessionId: string;
+  mode: "transfer";
+  problemIds: readonly ["brothers-ages-products"];
+  activeProblemIndex: 0;
+  completedResults: readonly [];
+  activePractice: ActivePractice;
+  rawAnswer: string;
+  reasoningCheckpointObservation?: ReasoningCheckpointObservation;
+}>;
+
+export type PracticeSessionSnapshot =
+  CorePracticeSessionSnapshot | AdaptivePracticeSessionSnapshot;
+
+export type NoNextPracticeSessionSnapshot = FinishedPracticeSessionState;
 export type UnfinishedPracticeSessionSnapshot =
   PracticeSessionSnapshot | NoNextPracticeSessionSnapshot;
 
@@ -148,7 +177,7 @@ function validSessionId(value: unknown): value is string {
 
 function validExposures(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
   submissionCount: number,
 ): value is PracticeHintExposure[] {
   if (!Array.isArray(value) || value.length > 3) return false;
@@ -168,7 +197,7 @@ function validExposures(
 
 function validSolution(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
   submissionCount: number,
   hintExposures: readonly PracticeHintExposure[],
 ): boolean {
@@ -188,7 +217,7 @@ function validSolution(
 
 function validSummary(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
 ): value is PracticeSummary {
   if (
     !record(value) ||
@@ -231,16 +260,19 @@ function validSummary(
 
 function validReasoningCheckpointObservation(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
   submissionCount: number,
   firstCorrectSubmissionCount: number,
 ): value is ReasoningCheckpointObservation {
   return Boolean(
     (problem.id === "guaranteed-sock-pair"
       ? record(value) && value.checkpointId === SOCK_REASONING_CHECKPOINT_ID
-      : problem.id === "table-impossible-sums" &&
-        record(value) &&
-        value.checkpointId === TABLE_REASONING_CHECKPOINT_ID) &&
+      : (problem.id === "table-impossible-sums" &&
+          record(value) &&
+          value.checkpointId === TABLE_REASONING_CHECKPOINT_ID) ||
+        (problem.id === "brothers-ages-products" &&
+          record(value) &&
+          value.checkpointId === BROTHERS_REASONING_CHECKPOINT_ID)) &&
     record(value) &&
     exactKeys(value, [
       "checkpointId",
@@ -260,7 +292,7 @@ function validReasoningCheckpointObservation(
 
 function validResult(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
   isFinal: boolean,
   allowFinalSkip = false,
 ): value is PracticeSessionResult {
@@ -325,6 +357,12 @@ export function validateLatestCompletedResults(
   value: unknown,
 ): readonly PracticeSessionResult[] | null {
   if (
+    Array.isArray(value) &&
+    value.length === 1 &&
+    validResult(value[0], transferProblem, true, true)
+  )
+    return value as readonly PracticeSessionResult[];
+  if (
     !Array.isArray(value) ||
     (value.length !== 1 &&
       value.length !== 2 &&
@@ -346,7 +384,7 @@ export function validateLatestCompletedResults(
 
 function validActivePractice(
   value: unknown,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
 ): value is ActivePractice {
   if (
     !record(value) ||
@@ -402,7 +440,7 @@ function validActivePractice(
 
 function validStoredSubmissionAnswer(
   answer: string,
-  problem: (typeof problems)[number],
+  problem: StoredProblem,
 ): boolean {
   if (problem.id !== "table-impossible-sums")
     return /^(?:0|[1-9][0-9]*)$/.test(answer);
@@ -514,6 +552,55 @@ function validateSessionShape(
 export function validatePracticeSessionSnapshot(
   value: unknown,
 ): UnfinishedPracticeSessionSnapshot | null {
+  if (record(value) && value.mode === "transfer") {
+    if (!validSessionId(value.sessionId)) return null;
+    if (value.status === "no-next")
+      return exactKeys(value, [
+        "sessionId",
+        "mode",
+        "status",
+        "completedResults",
+      ]) &&
+        Array.isArray(value.completedResults) &&
+        value.completedResults.length === 1 &&
+        validResult(value.completedResults[0], transferProblem, true, true) &&
+        value.completedResults[0].taskOutcome === "skipped"
+        ? (value as AdaptiveNoNextPracticeSessionState)
+        : null;
+    const keys = [
+      "sessionId",
+      "mode",
+      "problemIds",
+      "activeProblemIndex",
+      "completedResults",
+      "activePractice",
+      "rawAnswer",
+    ];
+    if (Object.hasOwn(value, "reasoningCheckpointObservation"))
+      keys.push("reasoningCheckpointObservation");
+    return exactKeys(value, keys) &&
+      Array.isArray(value.problemIds) &&
+      value.problemIds.length === 1 &&
+      value.problemIds[0] === transferProblem.id &&
+      value.activeProblemIndex === 0 &&
+      Array.isArray(value.completedResults) &&
+      value.completedResults.length === 0 &&
+      validActivePractice(value.activePractice, transferProblem) &&
+      typeof value.rawAnswer === "string" &&
+      (!Object.hasOwn(value, "reasoningCheckpointObservation") ||
+        (value.activePractice.solutionExposure === null &&
+          validReasoningCheckpointObservation(
+            value.reasoningCheckpointObservation,
+            transferProblem,
+            value.activePractice.submissions.length,
+            value.activePractice.submissions.findIndex(
+              (submission: { outcome: string }) =>
+                submission.outcome === "correct",
+            ) + 1,
+          )))
+      ? (value as AdaptivePracticeSessionSnapshot)
+      : null;
+  }
   return validateSessionShape(
     value,
     3,
@@ -670,7 +757,10 @@ export async function readVerifiedPracticeSessionSnapshot(
     "status" in snapshot || !snapshot.reasoningCheckpointObservation
       ? null
       : await verifyCheckpoint(
-          problems[snapshot.activeProblemIndex].id,
+          ("mode" in snapshot
+            ? transferProblem
+            : problems[snapshot.activeProblemIndex]
+          ).id,
           snapshot.reasoningCheckpointObservation,
           getPracticeSummary(finishPractice(snapshot.activePractice)),
         );
@@ -696,10 +786,23 @@ export async function readVerifiedPracticeSessionSnapshot(
 }
 
 function activeSessionSnapshot(
-  session: PracticeSessionState,
+  session: ActivePracticeSessionState,
   answer: PracticeAnswerState,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): PracticeSessionSnapshot {
+  if ("mode" in session)
+    return {
+      sessionId: session.sessionId,
+      mode: "transfer",
+      problemIds: [transferProblem.id],
+      activeProblemIndex: 0,
+      completedResults: [],
+      activePractice: answer.practice,
+      rawAnswer: "rawAnswer" in answer ? answer.rawAnswer : "",
+      ...(reasoningCheckpointObservation
+        ? { reasoningCheckpointObservation }
+        : {}),
+    };
   return {
     sessionId: session.sessionId,
     problemIds: [problems[0].id, problems[1].id, problems[2].id],
@@ -726,7 +829,7 @@ function ownsPersistedPracticeSession(
 }
 
 export async function createPracticeSessionSnapshot(
-  session: PracticeSessionState,
+  session: ActivePracticeSessionState,
   answer: PracticeAnswerState,
   storage?: Storage,
 ): Promise<boolean> {
@@ -752,7 +855,7 @@ export async function createPracticeSessionSnapshot(
 }
 
 export async function savePracticeSessionSnapshot(
-  session: PracticeSessionState,
+  session: ActivePracticeSessionState,
   answer: PracticeAnswerState,
   storage?: Storage,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
@@ -781,7 +884,7 @@ export async function savePracticeSessionSnapshot(
 }
 
 export async function saveNoNextPracticeSessionSnapshot(
-  session: NoNextPracticeSessionState,
+  session: FinishedPracticeSessionState,
   storage?: Storage,
 ): Promise<boolean> {
   const validated = validatePracticeSessionSnapshot(session);
@@ -912,6 +1015,7 @@ type PendingPracticeProgressFinish = Readonly<{
 export type ServerPracticeFinishPayload = Readonly<{
   sessionId: string;
   contributions: readonly PracticeProgressContribution[];
+  adaptiveFacts?: Readonly<{ attempted: boolean; solutionExposed: boolean }>;
 }>;
 
 type ServerPracticeFinishRequest = ServerPracticeFinishPayload &
@@ -927,16 +1031,19 @@ function readServerPracticeFinishRequest(
 ): ServerPracticeFinishRequest | null {
   try {
     const value: unknown = JSON.parse(raw);
+    const requestKeys = [
+      "sessionId",
+      "contributions",
+      "unfinishedBefore",
+      "completedBefore",
+      "progressBefore",
+      "completedAfter",
+    ];
+    if (record(value) && Object.hasOwn(value, "adaptiveFacts"))
+      requestKeys.push("adaptiveFacts");
     if (
       !record(value) ||
-      !exactKeys(value, [
-        "sessionId",
-        "contributions",
-        "unfinishedBefore",
-        "completedBefore",
-        "progressBefore",
-        "completedAfter",
-      ]) ||
+      !exactKeys(value, requestKeys) ||
       !validSessionId(value.sessionId) ||
       typeof value.unfinishedBefore !== "string" ||
       !(
@@ -965,26 +1072,45 @@ function readServerPracticeFinishRequest(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
+              ...("mode" in unfinished ? { mode: "transfer" as const } : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
-            },
+            } as ActivePracticeSessionState,
             restoreAnswerState(unfinished),
             results,
           );
     const contributions = results
       .map(getPracticeProgressContribution)
       .filter((entry) => entry !== null);
+    const adaptiveFacts = adaptiveFinishFacts(unfinished, results);
     if (
       expected !== value.unfinishedBefore ||
-      contributions.length < 1 ||
+      contributions.length < (adaptiveFacts ? 0 : 1) ||
       contributions.length > 2 ||
-      JSON.stringify(value.contributions) !== JSON.stringify(contributions)
+      JSON.stringify(value.contributions) !== JSON.stringify(contributions) ||
+      JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts)
     )
       return null;
     return value as ServerPracticeFinishRequest;
   } catch {
     return null;
   }
+}
+
+function adaptiveFinishFacts(
+  session:
+    | ActivePracticeSessionState
+    | FinishedPracticeSessionState
+    | UnfinishedPracticeSessionSnapshot,
+  results: readonly PracticeSessionResult[],
+): ServerPracticeFinishPayload["adaptiveFacts"] {
+  if (!("mode" in session)) return undefined;
+  const result = results.length === 1 ? results[0] : null;
+  if (!result || result.problemId !== transferProblem.id) return undefined;
+  return {
+    attempted: result.summary.validSubmissionCount > 0,
+    solutionExposed: result.summary.solutionExposure !== null,
+  };
 }
 
 export async function hasPendingServerPracticeFinish(
@@ -1002,7 +1128,7 @@ export async function hasPendingServerPracticeFinish(
 }
 
 function expectedUnfinishedForFinish(
-  session: PracticeSessionState | NoNextPracticeSessionState,
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
 ): string | null {
@@ -1032,7 +1158,7 @@ function expectedUnfinishedForFinish(
 }
 
 export async function isCurrentPracticeFinish(
-  session: PracticeSessionState | NoNextPracticeSessionState,
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
@@ -1231,9 +1357,10 @@ function readPendingPracticeProgressFinish(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
+              ...("mode" in unfinished ? { mode: "transfer" as const } : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
-            },
+            } as ActivePracticeSessionState,
             restoreAnswerState(unfinished),
             completed,
           )) !== value.unfinishedBefore ||
@@ -1368,7 +1495,7 @@ export function acknowledgeLegacyFinishImportInsideLock(
 }
 
 async function completeServerBackedPracticeSession(
-  session: PracticeSessionState | NoNextPracticeSessionState,
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   store: Storage,
@@ -1394,19 +1521,21 @@ async function completeServerBackedPracticeSession(
       const contributions = results
         .map(getPracticeProgressContribution)
         .filter((entry) => entry !== null);
+      const adaptiveFacts = adaptiveFinishFacts(session, results);
       if (
         !validateLatestCompletedResults(results) ||
         !unfinishedBefore ||
         !before ||
         before.unfinished !== unfinishedBefore ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
-        contributions.length < 1 ||
+        contributions.length < (adaptiveFacts ? 0 : 1) ||
         contributions.length > 2
       )
         return false;
       request = {
         sessionId: session.sessionId,
         contributions,
+        ...(adaptiveFacts ? { adaptiveFacts } : {}),
         unfinishedBefore,
         completedBefore: before.completed,
         progressBefore: before.progress,
@@ -1441,6 +1570,9 @@ async function completeServerBackedPracticeSession(
       await serverPersist({
         sessionId: request.sessionId,
         contributions: request.contributions,
+        ...(request.adaptiveFacts
+          ? { adaptiveFacts: request.adaptiveFacts }
+          : {}),
       });
       return writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null);
     }
@@ -1459,6 +1591,9 @@ async function completeServerBackedPracticeSession(
     await serverPersist({
       sessionId: request.sessionId,
       contributions: request.contributions,
+      ...(request.adaptiveFacts
+        ? { adaptiveFacts: request.adaptiveFacts }
+        : {}),
     });
     const unchanged = readPracticeFinishValues(store);
     if (
@@ -1532,21 +1667,21 @@ async function completeServerBackedPracticeSession(
 }
 
 export function completePracticeSession(
-  session: PracticeSessionState,
+  session: ActivePracticeSessionState,
   answer: PracticeAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
   serverPersist?: (request: ServerPracticeFinishPayload) => Promise<void>,
 ): Promise<boolean>;
 export function completePracticeSession(
-  session: NoNextPracticeSessionState,
+  session: FinishedPracticeSessionState,
   answer: null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
   serverPersist?: (request: ServerPracticeFinishPayload) => Promise<void>,
 ): Promise<boolean>;
 export async function completePracticeSession(
-  session: PracticeSessionState | NoNextPracticeSessionState,
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
@@ -1745,7 +1880,7 @@ export function restoreAnswerState(
   snapshot: PracticeSessionSnapshot,
 ): PracticeAnswerState {
   const lastSubmission = snapshot.activePractice.submissions.at(-1);
-  if (snapshot.selectedOptionIds) {
+  if ("selectedOptionIds" in snapshot && snapshot.selectedOptionIds) {
     const answer = JSON.stringify(snapshot.selectedOptionIds);
     return {
       practice: snapshot.activePractice,
@@ -1769,5 +1904,7 @@ export function restoreAnswerState(
 export function getStoredProblemTitle(
   snapshot: PracticeSessionSnapshot,
 ): string {
-  return problems[snapshot.activeProblemIndex].title;
+  return "mode" in snapshot
+    ? transferProblem.title
+    : problems[snapshot.activeProblemIndex].title;
 }

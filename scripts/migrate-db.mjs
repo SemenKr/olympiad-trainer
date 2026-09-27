@@ -14,17 +14,21 @@ try {
   await client.query(
     "CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY)",
   );
-  const name = "0001_learner_progress.sql";
-  const prior = await client.query(
-    "SELECT 1 FROM schema_migrations WHERE name = $1",
-    [name],
-  );
-  if (prior.rowCount === 0) {
-    const sql = await readFile(resolve("db/migrations", name), "utf8");
-    await client.query(sql);
-    await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
-      name,
-    ]);
+  for (const name of [
+    "0001_learner_progress.sql",
+    "0002_adaptive_transfer_status.sql",
+  ]) {
+    const prior = await client.query(
+      "SELECT 1 FROM schema_migrations WHERE name = $1",
+      [name],
+    );
+    if (prior.rowCount === 0) {
+      const sql = await readFile(resolve("db/migrations", name), "utf8");
+      await client.query(sql);
+      await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
+        name,
+      ]);
+    }
   }
   await client.query("COMMIT");
 } catch (error) {

@@ -7,6 +7,7 @@ import {
 } from "../application/guarantee-progress-evidence";
 import {
   deriveImpossibilityProgressInterpretation,
+  impossibilityFacts,
   type ImpossibilityEvidenceFact,
 } from "../application/impossibility-progress-evidence";
 import {
@@ -59,9 +60,7 @@ export async function readVerifiedPracticeProgressEvidence(
     buckets.guarantee.latestCorrectWithoutHints,
     buckets.guarantee.latestCorrectWithHints,
     buckets.guarantee.latestIncorrect,
-    buckets.impossibility.latestCorrectWithoutHints,
-    buckets.impossibility.latestCorrectWithHints,
-    buckets.impossibility.latestIncorrect,
+    ...impossibilityFacts(buckets.impossibility),
   ].filter(
     (fact): fact is GuaranteeEvidenceFact | ImpossibilityEvidenceFact =>
       fact !== null,

@@ -20,11 +20,40 @@ export type PracticeSessionState = Readonly<{
   completedResults: readonly PracticeSessionResult[];
 }>;
 
+export type AdaptivePracticeSessionState = Readonly<{
+  sessionId: string;
+  mode: "transfer";
+  activeProblemIndex: 0;
+  completedResults: readonly [];
+}>;
+
+export type ActivePracticeSessionState =
+  PracticeSessionState | AdaptivePracticeSessionState;
+
 export type NoNextPracticeSessionState = Readonly<{
   sessionId: string;
   status: "no-next";
   completedResults: readonly PracticeSessionResult[];
 }>;
+
+export type AdaptiveNoNextPracticeSessionState = Readonly<{
+  sessionId: string;
+  mode: "transfer";
+  status: "no-next";
+  completedResults: readonly [PracticeSessionResult];
+}>;
+
+export type FinishedPracticeSessionState =
+  NoNextPracticeSessionState | AdaptiveNoNextPracticeSessionState;
+
+export function startAdaptivePracticeSession(): AdaptivePracticeSessionState {
+  return {
+    sessionId: crypto.randomUUID(),
+    mode: "transfer",
+    activeProblemIndex: 0,
+    completedResults: [],
+  };
+}
 
 export function startPracticeSession(): PracticeSessionState {
   return {

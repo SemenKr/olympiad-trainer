@@ -17,13 +17,13 @@ type SourceReference = Readonly<{
 type ProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
-  academicYear: "2025/26";
-  stage: "invitational";
+  academicYear: "2025/26" | "2024/25";
+  stage: "invitational" | "school";
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
   grade: 5;
   problemNumber: number;
-  variant: 1;
+  variant?: 1;
   originalSource: SourceReference;
   officialSolution: SourceReference;
 }>;
@@ -309,10 +309,86 @@ const tableImpossibleSumsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+export const ADAPTIVE_TRANSFER_PROBLEM_ID = "brothers-ages-products" as const;
+
+const brothersAgesProductsProblem = {
+  id: ADAPTIVE_TRANSFER_PROBLEM_ID,
+  grade: 5,
+  subject: "mathematics",
+  title: "Возраст братьев",
+  statement:
+    "У трёх братьев разные натуральные возраста. Сейчас произведение их возрастов равно 18, а через год оно будет равно 60. Сколько лет сейчас среднему брату?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/tasks-math-5-sch-msk-24-25.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/sol-math-5-sch-msk-24-25.pdf",
+      page: 1,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "2" },
+  hints: [
+    {
+      id: "brothers-ages-products-focus-distinct-products",
+      level: "focus",
+      text: "Учти одновременно два условия: возраста братьев разные и их произведение сейчас равно 18.",
+    },
+    {
+      id: "brothers-ages-products-strategy-youngest",
+      level: "strategy",
+      text: "Сначала попробуй ограничить возраст младшего. Что произойдёт с самым маленьким возможным произведением, если ему хотя бы 2 года?",
+    },
+    {
+      id: "brothers-ages-products-next-step-bound",
+      level: "next-step",
+      text: "Если младшему хотя бы 2 года, три разных возраста не меньше 2, 3 и 4, а 2 × 3 × 4 = 24 > 18. После этого останется проверить подходящие пары множителей 18 по условию про следующий год.",
+    },
+  ],
+  solution: {
+    id: "brothers-ages-products-full-solution",
+    kind: "training-adaptation",
+    text: "Если младшему хотя бы 2 года, то три разных возраста не меньше 2, 3 и 4, поэтому их произведение не меньше 24, а должно быть 18. Значит, младшему 1 год. Произведение возрастов двух других братьев равно 18: возможны пары 2 и 9 либо 3 и 6. Через год для пары 2 и 9 получаем 2 × 3 × 10 = 60, а для пары 3 и 6 — 2 × 4 × 7 = 56. Значит, среднему брату сейчас 2 года. Ответ: 2.",
+  },
+  reasoningCheckpoint: {
+    id: "brothers-ages-products-youngest-lower-bound",
+    heading: "Проверь рассуждение",
+    question:
+      "Какое рассуждение доказывает, что младшему брату не может быть 2 года или больше?",
+    options: [
+      {
+        id: "A",
+        text: "Тогда три разных натуральных возраста были бы не меньше 2, 3 и 4. Их произведение было бы не меньше 24, но по условию оно равно 18.",
+      },
+      {
+        id: "B",
+        text: "Тогда произведение возрастов обязательно делилось бы на 24.",
+      },
+      {
+        id: "C",
+        text: "Тогда через год произведение возрастов обязательно было бы больше 60.",
+      },
+    ],
+    correctOptionId: "A",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
   [tableImpossibleSumsProblem.id]: tableImpossibleSumsProblem,
+  [brothersAgesProductsProblem.id]: brothersAgesProductsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {
