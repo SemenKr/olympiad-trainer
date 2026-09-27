@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
+import { readServerNextUsefulProblem } from "@/app/progress/actions";
 import {
   getStoredProblemTitle,
   readVerifiedLatestCompletedResults,
@@ -15,12 +16,17 @@ import {
   getPracticeResultLabel,
 } from "@/modules/practice/ui/session-summary";
 import type { PracticeSessionResult } from "@/modules/practice/ui/two-problem-session-state";
+import { ensureServerProgressImported } from "@/modules/practice/ui/server-progress-import";
 
 import styles from "./page.module.scss";
 
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
+  recommendation?: Readonly<{
+    problemId: "brothers-ages-products";
+    reason: string;
+  }> | null;
 }>;
 
 export function HomePracticeAction() {
@@ -40,11 +46,17 @@ export function HomePracticeAction() {
           verifyPersistedReasoningCheckpointObservation,
         ),
       ])
-        .then(([unfinished, completed]) => {
+        .then(async ([unfinished, completed]) => {
+          let recommendation: StoredPractice["recommendation"] = null;
+          if (!unfinished.value) {
+            await ensureServerProgressImported();
+            recommendation = await readServerNextUsefulProblem();
+          }
           if (active)
             setStored({
               unfinished: unfinished.value,
               completed: completed.value,
+              recommendation,
             });
         })
         .catch(() => {
@@ -94,10 +106,23 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
               <p>{getStoredProblemTitle(stored.unfinished)}</p>
             </>
           )}
-          <Link className={styles.primary} href="/practice">
+          <Link
+            className={styles.primary}
+            href={
+              "mode" in stored.unfinished ? "/practice/transfer" : "/practice"
+            }
+          >
             {"status" in stored.unfinished
               ? "Завершить тренировку"
               : "Продолжить тренировку"}
+          </Link>
+        </section>
+      ) : stored.recommendation ? (
+        <section aria-label="Следующая полезная задача">
+          <h2>Следующая полезная задача</h2>
+          <p>{stored.recommendation.reason}</p>
+          <Link className={styles.primary} href="/practice/transfer">
+            Возраст братьев
           </Link>
         </section>
       ) : (

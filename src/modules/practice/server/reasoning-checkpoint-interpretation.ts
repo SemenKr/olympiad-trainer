@@ -8,6 +8,22 @@ export function getReasoningCheckpointInterpretation(
   outcome: "correct" | "incorrect",
   problemId: string = "guaranteed-sock-pair",
 ): ReasoningCheckpointInterpretation {
+  if (problemId === "brothers-ages-products") {
+    const base = {
+      capability: "Доказывать глобальную невозможность через ограничения",
+      learnerLabel: "Доказывать, что что-то невозможно",
+    };
+    if (outcome !== "correct" || summary.solutionExposure !== null)
+      return { ...base, progressGroup: null, conclusion: "Пока рано сказать" };
+    return {
+      ...base,
+      progressGroup: "Начинаю разбираться",
+      conclusion:
+        summary.hintExposures.length === 0
+          ? "Без подсказок ты верно распознал рассуждение в новой задаче. Самостоятельное построение доказательства пока не проверено."
+          : "После подсказок ты верно распознал рассуждение в новой задаче. Самостоятельный перенос и построение доказательства пока не проверены.",
+    };
+  }
   if (problemId === "table-impossible-sums") {
     const base = {
       capability: "Доказывать глобальную невозможность через ограничения",

@@ -198,13 +198,14 @@ export async function verifyPersistedGuaranteeEvidenceFacts(
 export async function verifyPersistedPracticeProgressEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
-  if (!Array.isArray(facts) || facts.length > 6) return false;
+  if (!Array.isArray(facts) || facts.length > 10) return false;
   let valid = true;
   for (const fact of facts) {
     if (
       !record(fact) ||
       (fact.problemId !== "guaranteed-sock-pair" &&
-        fact.problemId !== "table-impossible-sums") ||
+        fact.problemId !== "table-impossible-sums" &&
+        fact.problemId !== "brothers-ages-products") ||
       !record(fact.observation) ||
       typeof fact.observation.checkpointId !== "string" ||
       typeof fact.observation.selectedOptionId !== "string" ||

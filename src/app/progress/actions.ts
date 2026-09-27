@@ -6,6 +6,7 @@ import {
   importLegacyProgress,
   persistFinishContributions,
   readLearnerProgress,
+  readNextUsefulProblem,
 } from "../../modules/practice/server/learner-progress-persistence";
 
 export async function importBrowserProgressEvidence(
@@ -18,9 +19,23 @@ export async function importBrowserProgressEvidence(
 export async function persistPracticeFinishEvidence(
   sessionId: string,
   contributions: unknown,
+  adaptiveFacts?: unknown,
 ): Promise<void> {
   const learnerId = await resolveLearnerFromCookie();
-  await persistFinishContributions(learnerId, sessionId, contributions);
+  if (adaptiveFacts === undefined)
+    await persistFinishContributions(learnerId, sessionId, contributions);
+  else
+    await persistFinishContributions(
+      learnerId,
+      sessionId,
+      contributions,
+      adaptiveFacts,
+    );
+}
+
+export async function readServerNextUsefulProblem() {
+  const learnerId = await resolveLearnerFromCookie();
+  return readNextUsefulProblem(learnerId);
 }
 
 export async function readServerProgress(): Promise<

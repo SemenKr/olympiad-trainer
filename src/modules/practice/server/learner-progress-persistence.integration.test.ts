@@ -13,6 +13,7 @@ import {
   importLegacyProgress,
   persistFinishContributions,
   readLearnerProgress,
+  readNextUsefulProblem,
 } from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
 import { learners, practiceFinishReceipts } from "./progress-schema";
@@ -46,6 +47,17 @@ const impossibility = {
   hintLevelsExposedBeforeCheckpoint: [] as const,
   solutionExposedBeforeCheckpoint: false as const,
 };
+const transfer = {
+  problemId: "brothers-ages-products" as const,
+  observation: {
+    checkpointId: "brothers-ages-products-youngest-lower-bound" as const,
+    selectedOptionId: "A" as const,
+    outcome: "correct" as const,
+    validSubmissionCountAtSubmit: 1,
+  },
+  hintLevelsExposedBeforeCheckpoint: [] as const,
+  solutionExposedBeforeCheckpoint: false as const,
+};
 
 async function learner() {
   const token = randomBytes(32).toString("base64url");
@@ -62,6 +74,252 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it.each([
+    {
+      priorHinted: true,
+      laterHinted: false,
+      group: "Уже получается",
+    },
+    {
+      priorHinted: false,
+      laterHinted: true,
+      group: "Получается в разных задачах",
+    },
+  ] as const)(
+    "keeps a verified transfer basis across later I-08 work and identical Finish retry ($group)",
+    async ({ priorHinted, laterHinted, group }) => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      await persistFinishContributions(id, randomUUID(), [
+        {
+          bucket: "impossibility",
+          value: {
+            ...impossibility,
+            hintLevelsExposedBeforeCheckpoint: priorHinted
+              ? (["focus"] as const)
+              : ([] as const),
+          },
+        },
+      ]);
+      const transferSessionId = randomUUID();
+      const transferContributions = [
+        { bucket: "impossibility" as const, value: transfer },
+      ];
+      const adaptiveFacts = { attempted: true, solutionExposed: false };
+      await persistFinishContributions(
+        id,
+        transferSessionId,
+        transferContributions,
+        adaptiveFacts,
+      );
+      await persistFinishContributions(
+        id,
+        transferSessionId,
+        transferContributions,
+        adaptiveFacts,
+      );
+      expect((await readLearnerProgress(id))[1].progressGroup).toBe(group);
+      await persistFinishContributions(id, randomUUID(), [
+        {
+          bucket: "impossibility",
+          value: {
+            ...impossibility,
+            hintLevelsExposedBeforeCheckpoint: laterHinted
+              ? (["focus"] as const)
+              : ([] as const),
+          },
+        },
+      ]);
+      const [row] = await getProgressDb()
+        .select()
+        .from(learners)
+        .where(eq(learners.id, id));
+      expect(row.impossibilityEvidence).toMatchObject({
+        version: 2,
+        nextSequence: 4,
+        tableBasisForBrothersWithoutHints: {
+          sequence: 1,
+          observation: impossibility.observation,
+          hintLevelsExposedBeforeCheckpoint: priorHinted ? ["focus"] : [],
+        },
+      });
+      expect((await readLearnerProgress(id))[1].progressGroup).toBe(group);
+      expect(
+        await getProgressDb()
+          .select()
+          .from(practiceFinishReceipts)
+          .where(eq(practiceFinishReceipts.learnerId, id)),
+      ).toHaveLength(3);
+    },
+  );
+
+  it("canonically reverifies a captured I-08 basis after its live slot is replaced", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [{ bucket: "impossibility", value: transfer }],
+      { attempted: true, solutionExposed: false },
+    );
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    const evidence = row.impossibilityEvidence as {
+      tableBasisForBrothersWithoutHints: {
+        observation: { selectedOptionId: string };
+      };
+    };
+    await getProgressDb()
+      .update(learners)
+      .set({
+        impossibilityEvidence: {
+          ...evidence,
+          tableBasisForBrothersWithoutHints: {
+            ...evidence.tableBasisForBrothersWithoutHints,
+            observation: {
+              ...evidence.tableBasisForBrothersWithoutHints.observation,
+              selectedOptionId: "B",
+            },
+          },
+        },
+      })
+      .where(eq(learners.id, id));
+    await expect(readLearnerProgress(id)).rejects.toThrow(
+      "could not be verified",
+    );
+    await expect(readNextUsefulProblem(id)).rejects.toThrow(
+      "could not be verified",
+    );
+  });
+
+  it("derives an eligible transfer from verified I-08, migrates its bucket, and receipts an immutable adaptive Finish", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    expect((await readNextUsefulProblem(id))?.reason).toContain(
+      "Раньше ты уже",
+    );
+    const sessionId = randomUUID();
+    const contributions = [{ bucket: "impossibility", value: transfer }];
+    const facts = { attempted: true, solutionExposed: false };
+    await persistFinishContributions(id, sessionId, contributions, facts);
+    await persistFinishContributions(id, sessionId, contributions, facts);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.brothersAgesAttempted).toBe(true);
+    expect(row.brothersAgesSolutionExposed).toBe(false);
+    expect(row.impossibilityEvidence).toMatchObject({
+      version: 2,
+      nextSequence: 3,
+    });
+    expect((await readLearnerProgress(id))[1].progressGroup).toBe(
+      "Получается в разных задачах",
+    );
+    await expect(
+      persistFinishContributions(
+        id,
+        sessionId,
+        [
+          {
+            bucket: "impossibility",
+            value: {
+              ...transfer,
+              hintLevelsExposedBeforeCheckpoint: ["focus"],
+            },
+          },
+        ],
+        facts,
+      ),
+    ).rejects.toThrow("changed after Finish");
+  });
+
+  it("records an adaptive attempt without checkpoint and never treats it as positive evidence", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    const sessionId = randomUUID();
+    await persistFinishContributions(id, sessionId, [], {
+      attempted: true,
+      solutionExposed: false,
+    });
+    await persistFinishContributions(id, sessionId, [], {
+      attempted: true,
+      solutionExposed: false,
+    });
+    await expect(
+      persistFinishContributions(id, sessionId, [], {
+        attempted: false,
+        solutionExposed: false,
+      }),
+    ).rejects.toThrow("changed after Finish");
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.impossibilityEvidence).toMatchObject({
+      version: 1,
+      nextSequence: 2,
+    });
+    expect((await readLearnerProgress(id))[1].progressGroup).toBe(
+      "Начинаю разбираться",
+    );
+  });
+
+  it("records solution exposure without transfer evidence and serializes concurrent transfer sequences", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    const exposureSession = randomUUID();
+    await persistFinishContributions(id, exposureSession, [], {
+      attempted: true,
+      solutionExposed: true,
+    });
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    const first = randomUUID();
+    const second = randomUUID();
+    await Promise.all([
+      persistFinishContributions(
+        id,
+        first,
+        [{ bucket: "impossibility", value: transfer }],
+        { attempted: true, solutionExposed: false },
+      ),
+      persistFinishContributions(
+        id,
+        second,
+        [{ bucket: "impossibility", value: transfer }],
+        { attempted: true, solutionExposed: false },
+      ),
+    ]);
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.impossibilityEvidence).toMatchObject({
+      version: 2,
+      nextSequence: 4,
+      brothers: { latestCorrectWithoutHints: { sequence: 3 } },
+    });
+    expect(row.brothersAgesSolutionExposed).toBe(true);
+  });
   it("imports guarantee-only v1, retries the same bytes and rejects different bytes", async () => {
     const id = await learner();
     const raw = JSON.stringify({
@@ -250,6 +508,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       .set({ guaranteeEvidence: { version: 99 } })
       .where(eq(learners.id, id));
     await expect(readLearnerProgress(id)).rejects.toThrow(
+      "could not be verified",
+    );
+    await expect(readNextUsefulProblem(id)).rejects.toThrow(
       "could not be verified",
     );
   });

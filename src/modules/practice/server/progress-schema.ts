@@ -1,4 +1,5 @@
 import {
+  boolean,
   jsonb,
   pgTable,
   primaryKey,
@@ -13,6 +14,12 @@ export const learners = pgTable("learners", {
   guaranteeEvidence: jsonb("guarantee_evidence").notNull(),
   impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
   legacyImportHash: text("legacy_import_hash"),
+  brothersAgesAttempted: boolean("brothers_ages_attempted")
+    .notNull()
+    .default(false),
+  brothersAgesSolutionExposed: boolean("brothers_ages_solution_exposed")
+    .notNull()
+    .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

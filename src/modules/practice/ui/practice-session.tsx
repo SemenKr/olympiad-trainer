@@ -12,7 +12,10 @@ import {
   submitPracticeAnswer,
   verifyPersistedReasoningCheckpointObservation,
 } from "@/app/practice/actions";
-import { persistPracticeFinishEvidence } from "../../../app/progress/actions";
+import {
+  persistPracticeFinishEvidence,
+  readServerNextUsefulProblem,
+} from "../../../app/progress/actions";
 
 import type {
   LearnerSafePracticeProblem,
@@ -88,9 +91,10 @@ import {
   requestPracticeSkip,
   skipFinalPracticeSession,
   startPracticeSession,
-  type NoNextPracticeSessionState,
+  startAdaptivePracticeSession,
+  type ActivePracticeSessionState,
+  type FinishedPracticeSessionState,
   type PracticeSessionResult,
-  type PracticeSessionState,
 } from "./fixed-practice-session-state";
 import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
 import { ensureServerProgressImported } from "./server-progress-import";
@@ -101,6 +105,8 @@ type PracticeSessionProps = Readonly<{
     LearnerSafePracticeProblem,
     LearnerSafePracticeProblem,
   ];
+  transferProblem?: LearnerSafePracticeProblem;
+  startMode?: "core" | "transfer";
 }>;
 
 type PracticeProblemEpisodeProps = Readonly<{
@@ -165,7 +171,7 @@ export function PracticeSolutionRevealError() {
 
 export async function savePracticeSessionWhileActive(
   completionLatch: { current: boolean },
-  session: PracticeSessionState,
+  session: ActivePracticeSessionState,
   answer: PracticeAnswerState,
   storage?: Storage,
   observation?: ReasoningCheckpointObservation | null,
@@ -183,7 +189,7 @@ export async function savePracticeSessionWhileActive(
 
 export async function finishPracticeSessionAndNavigate(
   completionLatch: { current: boolean },
-  session: PracticeSessionState | NoNextPracticeSessionState,
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   navigate: () => void,
@@ -194,6 +200,7 @@ export async function finishPracticeSessionAndNavigate(
     .map(getPracticeProgressContribution)
     .filter((value) => value !== null);
   let pendingServerFinish = false;
+  const adaptive = "mode" in session;
   try {
     pendingServerFinish = await hasPendingServerPracticeFinish(
       session.sessionId,
@@ -202,7 +209,7 @@ export async function finishPracticeSessionAndNavigate(
   } catch {
     return false;
   }
-  if (contributions.length > 0 || pendingServerFinish) {
+  if (contributions.length > 0 || pendingServerFinish || adaptive) {
     if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
       return false;
     let importedLegacyFinish: string | null;
@@ -218,12 +225,22 @@ export async function finishPracticeSessionAndNavigate(
     }
   }
   const persist =
-    contributions.length > 0 || pendingServerFinish
-      ? (request: { sessionId: string; contributions: readonly unknown[] }) =>
-          persistPracticeFinishEvidence(
-            request.sessionId,
-            request.contributions,
-          )
+    contributions.length > 0 || pendingServerFinish || adaptive
+      ? (request: {
+          sessionId: string;
+          contributions: readonly unknown[];
+          adaptiveFacts?: { attempted: boolean; solutionExposed: boolean };
+        }) =>
+          request.adaptiveFacts
+            ? persistPracticeFinishEvidence(
+                request.sessionId,
+                request.contributions,
+                request.adaptiveFacts,
+              )
+            : persistPracticeFinishEvidence(
+                request.sessionId,
+                request.contributions,
+              )
       : undefined;
   const completed =
     "status" in session
@@ -242,7 +259,12 @@ export async function finishPracticeSessionAndNavigate(
   return true;
 }
 
-export function PracticeSession({ problems }: PracticeSessionProps) {
+export function PracticeSession({
+  problems,
+  transferProblem,
+  startMode = "core",
+}: PracticeSessionProps) {
+  const adaptiveProblem = transferProblem ?? problems[0];
   const router = useRouter();
   const completionLatch = useRef(false);
   const noNextMutationGate = useRef(false);
@@ -253,12 +275,12 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   const [restoreRetry, setRestoreRetry] = useState(0);
   const [loaded, setLoaded] = useState<
     | {
-        session: PracticeSessionState;
+        session: ActivePracticeSessionState;
         answer: PracticeAnswerState;
         observation: ReasoningCheckpointObservation | null;
         interpretation: ReasoningCheckpointInterpretation | null;
       }
-    | { session: NoNextPracticeSessionState }
+    | { session: FinishedPracticeSessionState }
     | null
   >(null);
 
@@ -275,16 +297,29 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
             setLoaded({ session: snapshot });
             return;
           }
-          const session = snapshot
-            ? {
+          const session: ActivePracticeSessionState = snapshot
+            ? ({
                 sessionId: snapshot.sessionId,
+                ...("mode" in snapshot ? { mode: "transfer" as const } : {}),
                 activeProblemIndex: snapshot.activeProblemIndex,
                 completedResults: snapshot.completedResults,
-              }
-            : startPracticeSession();
+              } as ActivePracticeSessionState)
+            : startMode === "transfer"
+              ? startAdaptivePracticeSession()
+              : startPracticeSession();
           const answer = snapshot
             ? restoreAnswerState(snapshot)
-            : createPracticeAnswerState(problems[0]);
+            : createPracticeAnswerState(
+                startMode === "transfer" ? adaptiveProblem : problems[0],
+              );
+          if (!snapshot && startMode === "transfer") {
+            await ensureServerProgressImported();
+            const recommendation = await readServerNextUsefulProblem();
+            if (!recommendation) {
+              if (active) setRestoreError(true);
+              return;
+            }
+          }
           if (
             !snapshot &&
             !(await createPracticeSessionSnapshot(session, answer))
@@ -307,7 +342,7 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     return () => {
       active = false;
     };
-  }, [restoreRetry, problems]);
+  }, [restoreRetry, problems, adaptiveProblem, startMode]);
 
   if (restoreError) {
     return (
@@ -386,7 +421,10 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
   }
 
   const { session: sessionState } = loaded;
-  const activeProblem = problems[sessionState.activeProblemIndex];
+  const activeProblem =
+    "mode" in sessionState
+      ? adaptiveProblem
+      : problems[sessionState.activeProblemIndex];
 
   async function handleNextProblem(
     summary: PracticeSummary,
@@ -406,7 +444,10 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       observation ?? undefined,
       firstCorrectSubmissionCount,
     );
-    const nextSession = advancePracticeSession(sessionState, result);
+    const nextSession =
+      "mode" in sessionState
+        ? null
+        : advancePracticeSession(sessionState, result);
 
     if (!nextSession) return false;
     const nextAnswer = createPracticeAnswerState(
@@ -440,7 +481,10 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       observation ?? undefined,
       firstCorrectSubmissionCount,
     );
-    const results = finishPracticeSession(sessionState, result);
+    const results =
+      "mode" in sessionState
+        ? [result]
+        : finishPracticeSession(sessionState, result);
     return finishPracticeSessionAndNavigate(
       completionLatch,
       sessionState,
@@ -460,7 +504,10 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       summary,
       "skipped",
     );
-    const nextSession = advancePracticeSession(sessionState, result);
+    const nextSession =
+      "mode" in sessionState
+        ? null
+        : advancePracticeSession(sessionState, result);
 
     if (nextSession) {
       const answer = createPracticeAnswerState(
@@ -477,7 +524,15 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
       return true;
     }
 
-    const noNextSession = skipFinalPracticeSession(sessionState, result);
+    const noNextSession: FinishedPracticeSessionState | null =
+      "mode" in sessionState
+        ? {
+            sessionId: sessionState.sessionId,
+            mode: "transfer",
+            status: "no-next",
+            completedResults: [result],
+          }
+        : skipFinalPracticeSession(sessionState, result);
     if (
       !noNextSession ||
       !(await saveNoNextPracticeSessionSnapshot(noNextSession))
@@ -509,7 +564,9 @@ export function PracticeSession({ problems }: PracticeSessionProps) {
     <PracticeProblemEpisode
       completionLatch={completionLatch}
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
-      hasNextProblem={sessionState.activeProblemIndex < 2}
+      hasNextProblem={
+        !("mode" in sessionState) && sessionState.activeProblemIndex < 2
+      }
       key={activeProblem.problemId}
       initialAnswerState={loaded.answer}
       initialCheckpointObservation={loaded.observation}

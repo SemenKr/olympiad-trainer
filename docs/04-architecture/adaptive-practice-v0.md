@@ -1,0 +1,9 @@
+# Adaptive Practice v0 — one next useful problem
+
+The fixed three-problem core remains unchanged. A separate `transfer` Practice episode contains only `brothers-ages-products` (G5S-1), using the existing answer, hint, solution, checkpoint, pause, Summary and immutable Finish transitions. This is an explicit mode, not a general planner or fourth unconditional core item. Existing core snapshots and completed summaries remain readable.
+
+Home first offers Resume for any unfinished episode. Otherwise it reads verified PostgreSQL evidence after legacy import. It offers G5S-1 only when the latest positive I-08 checkpoint fact has no later I-08 incorrect fact and G5S-1 has never been attempted or solution-exposed. The reason is chosen from that latest positive fact's hint exposure. Invalid or unavailable evidence is a retryable read failure, not an absence of recommendation. Direct opening of the transfer route checks the same server rule before creating a new local episode.
+
+The purpose is to test transfer from recognizing a global impossibility argument in a table to recognizing one in a different numerical setting. The UI gets only the problem ID and learner-safe reason; it never receives evidence slots, option IDs, sequences or a score. G5S-1 checkpoint success can raise the existing impossibility interpretation only to bounded recognition groups; main-answer correctness alone cannot. Neither recommendation nor derived Progress wording is stored.
+
+The adaptive Finish receipt hashes the same immutable request's factual contributions and attempted/solution-exposed state. A completed attempt without a checkpoint therefore suppresses a repeat recommendation without manufacturing positive evidence. The two factual booleans and the evolved impossibility snapshot are the only new PostgreSQL learner fields; unfinished Practice and latest Summary remain browser-local.

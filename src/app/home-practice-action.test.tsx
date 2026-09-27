@@ -5,6 +5,14 @@ vi.mock("@/app/practice/actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
 
+vi.mock("@/app/progress/actions", () => ({
+  readServerNextUsefulProblem: vi.fn(async () => null),
+}));
+
+vi.mock("@/modules/practice/ui/server-progress-import", () => ({
+  ensureServerProgressImported: vi.fn(async () => null),
+}));
+
 vi.mock("@/modules/practice/ui/practice-session-storage", () => ({
   getStoredProblemTitle: () => "Совпадающие места",
   readVerifiedLatestCompletedResults: vi.fn(),
@@ -72,6 +80,30 @@ const noNext = {
 };
 
 describe("Home Practice precedence", () => {
+  const recommendation = {
+    problemId: "brothers-ages-products" as const,
+    reason:
+      "Раньше ты уже верно проверил рассуждение без подсказок. Здесь условия совсем другие — посмотрим, получится ли так же в новой ситуации.",
+  };
+
+  it("shows the single transfer as primary only without unfinished Practice", () => {
+    const recommended = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{ unfinished: null, completed, recommendation }}
+      />,
+    );
+    expect(recommended).toContain('href="/practice/transfer"');
+    expect(recommended).toContain(recommendation.reason);
+    expect(recommended).not.toContain("Начать тренировку");
+    expect(recommended).not.toContain("младшему");
+    const resume = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{ unfinished, completed, recommendation }}
+      />,
+    );
+    expect(resume).toContain("Продолжить тренировку");
+    expect(resume).not.toContain(recommendation.reason);
+  });
   it("keeps Progress secondary on Home without changing Practice's primary action", () => {
     const markup = renderToStaticMarkup(<Home />);
 
