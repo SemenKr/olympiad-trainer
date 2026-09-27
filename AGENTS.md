@@ -23,14 +23,6 @@ Current explicit task instructions take precedence over this guide and skill pro
 Report conflicts between authoritative documents instead of silently choosing one.
 Skills do not approve scope, product requirements, architecture or Git actions.
 
-## Current phase
-
-Product & Architecture Foundation.
-Do not create application code, dependencies, schemas, framework/deployment configuration
-or infrastructure unless the current task explicitly requests them.
-Research findings are not automatically architecture decisions.
-Uncertain classifications and hypotheses remain provisional.
-
 ## Working style
 
 Check repository state, relevant evidence and task scope before changes.
