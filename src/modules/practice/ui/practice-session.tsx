@@ -1152,13 +1152,16 @@ function PracticeProblemEpisode({
         outcome: assessed.outcome,
         validSubmissionCountAtSubmit,
       };
+      await stableWriteTail.current;
+      if (!(await onCheckpointAssessed(answerStateRef.current, observation))) {
+        setStorageError("checkpoint");
+        return;
+      }
+      if (!episodeActiveRef.current || completionLatch.current) return;
       checkpointObservationRef.current = observation;
       setCheckpointObservation(observation);
       setCheckpointInterpretation(assessed.interpretation);
       setRevealedCheckpoint(null);
-      await stableWriteTail.current;
-      if (!(await onCheckpointAssessed(answerStateRef.current, observation)))
-        setStorageError("checkpoint");
     } catch {
       if (episodeActiveRef.current) setCheckpointError(true);
     } finally {
