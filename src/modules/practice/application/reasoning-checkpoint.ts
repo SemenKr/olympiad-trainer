@@ -6,6 +6,8 @@ export const TABLE_REASONING_CHECKPOINT_ID =
   "table-impossible-sums-impossibility-argument" as const;
 export const BROTHERS_REASONING_CHECKPOINT_ID =
   "brothers-ages-products-youngest-lower-bound" as const;
+export const PARROTS_REASONING_CHECKPOINT_ID =
+  "parrots-guaranteed-colors-guarantee-argument" as const;
 
 export type ReasoningCheckpointOptionId = "A" | "B" | "C";
 
@@ -15,7 +17,8 @@ export function isKnownReasoningCheckpointId(
   return (
     value === SOCK_REASONING_CHECKPOINT_ID ||
     value === TABLE_REASONING_CHECKPOINT_ID ||
-    value === BROTHERS_REASONING_CHECKPOINT_ID
+    value === BROTHERS_REASONING_CHECKPOINT_ID ||
+    value === PARROTS_REASONING_CHECKPOINT_ID
   );
 }
 
@@ -23,7 +26,8 @@ export type ReasoningCheckpointObservation = Readonly<{
   checkpointId:
     | typeof SOCK_REASONING_CHECKPOINT_ID
     | typeof TABLE_REASONING_CHECKPOINT_ID
-    | typeof BROTHERS_REASONING_CHECKPOINT_ID;
+    | typeof BROTHERS_REASONING_CHECKPOINT_ID
+    | typeof PARROTS_REASONING_CHECKPOINT_ID;
   selectedOptionId: ReasoningCheckpointOptionId;
   outcome: "correct" | "incorrect";
   validSubmissionCountAtSubmit: number;

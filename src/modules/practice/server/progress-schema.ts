@@ -20,6 +20,10 @@ export const learners = pgTable("learners", {
   brothersAgesSolutionExposed: boolean("brothers_ages_solution_exposed")
     .notNull()
     .default(false),
+  parrotsAttempted: boolean("parrots_attempted").notNull().default(false),
+  parrotsSolutionExposed: boolean("parrots_solution_exposed")
+    .notNull()
+    .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

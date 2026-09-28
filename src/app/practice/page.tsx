@@ -1,6 +1,7 @@
 import {
   getLearnerSafePracticeProblem,
   ADAPTIVE_TRANSFER_PROBLEM_ID,
+  PARROTS_TRANSFER_PROBLEM_ID,
   PRACTICE_SESSION_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
@@ -17,6 +18,9 @@ export default function PracticePage() {
       problems={problems}
       transferProblem={getLearnerSafePracticeProblem(
         ADAPTIVE_TRANSFER_PROBLEM_ID,
+      )}
+      parrotsProblem={getLearnerSafePracticeProblem(
+        PARROTS_TRANSFER_PROBLEM_ID,
       )}
     />
   );

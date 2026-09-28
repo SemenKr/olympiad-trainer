@@ -64,7 +64,7 @@
 
 Статус: завершён и проверен в production.
 
-В продукте есть отдельный адаптивный эпизод переноса для `brothers-ages-products`.
+Этот выпущенный этап добавил отдельный адаптивный эпизод переноса для `brothers-ages-products`. Следующий этап расширяет его вторым явным путём для `parrots-guaranteed-colors`.
 
 ## Следующий этап: Adaptive Practice v1 — Two-Capability Transfer
 

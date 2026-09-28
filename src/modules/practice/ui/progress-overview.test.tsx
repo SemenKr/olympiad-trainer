@@ -11,6 +11,7 @@ vi.mock("../../../app/progress/actions", () => ({
 
 import {
   emptyGuaranteeProgressEvidence,
+  guaranteeSockSlots,
   type GuaranteeEvidenceFact,
   type GuaranteeProgressEvidenceV0,
 } from "../application/guarantee-progress-evidence";
@@ -227,7 +228,9 @@ describe("Progress overview", () => {
     const { markup, read, verify } = await renderEvidence(evidence);
 
     expect(verify).toHaveBeenCalledOnce();
-    expect(read.evidence.latestCorrectWithoutHints).toEqual(positive);
+    expect(guaranteeSockSlots(read.evidence).latestCorrectWithoutHints).toEqual(
+      positive,
+    );
     expect(markup).toContain("Начинаю разбираться");
     expect(markup).toContain("в более поздней такой проверке ответ был другим");
     expect(markup).toContain("Пока рано говорить о стабильности");

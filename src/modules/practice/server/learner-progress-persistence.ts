@@ -6,6 +6,8 @@ import { and, eq } from "drizzle-orm";
 import {
   deriveGuaranteeProgressInterpretation,
   emptyGuaranteeProgressEvidence,
+  getGuaranteeTransferReason,
+  guaranteeFacts,
   validateGuaranteeProgressEvidence,
   type GuaranteeEvidenceContribution,
   type GuaranteeEvidenceFact,
@@ -40,13 +42,11 @@ function hash(value: string) {
 }
 
 function facts(
-  guarantee: ReturnType<typeof emptyGuaranteeProgressEvidence>,
+  guarantee: NonNullable<ReturnType<typeof validateGuaranteeProgressEvidence>>,
   impossibility: ImpossibilityProgressEvidence,
 ): readonly (GuaranteeEvidenceFact | ImpossibilityEvidenceFact)[] {
   return [
-    guarantee.latestCorrectWithoutHints,
-    guarantee.latestCorrectWithHints,
-    guarantee.latestIncorrect,
+    ...guaranteeFacts(guarantee),
     ...impossibilityFacts(impossibility),
   ].filter(
     (fact): fact is GuaranteeEvidenceFact | ImpossibilityEvidenceFact =>
@@ -208,7 +208,26 @@ function validateContribution(
         : "latestCorrectWithHints";
   const checked =
     candidate.bucket === "guarantee"
-      ? validateGuaranteeProgressEvidence({ ...snapshot, [slot]: fact })
+      ? validateGuaranteeProgressEvidence(
+          typed.problemId === "parrots-guaranteed-colors"
+            ? {
+                version: 2,
+                nextSequence: 2,
+                sock: {
+                  latestCorrectWithoutHints: null,
+                  latestCorrectWithHints: null,
+                  latestIncorrect: null,
+                },
+                parrots: {
+                  latestCorrectWithoutHints: null,
+                  latestCorrectWithHints: null,
+                  latestIncorrect: null,
+                  [slot]: fact,
+                },
+                sockBasisForParrotsWithoutHints: null,
+              }
+            : { ...snapshot, [slot]: fact },
+        )
       : validateImpossibilityProgressEvidence(
           typed.problemId === "brothers-ages-products"
             ? {
@@ -234,7 +253,9 @@ function validateContribution(
     !canonicalFactsAreValid(
       facts(
         candidate.bucket === "guarantee"
-          ? (checked as ReturnType<typeof emptyGuaranteeProgressEvidence>)
+          ? (checked as NonNullable<
+              ReturnType<typeof validateGuaranteeProgressEvidence>
+            >)
           : emptyGuaranteeProgressEvidence(),
         candidate.bucket === "impossibility"
           ? (checked as ImpossibilityProgressEvidence)
@@ -244,7 +265,11 @@ function validateContribution(
   )
     return null;
   const verified =
-    checked.version === 2 ? checked.brothers[slot] : checked[slot];
+    checked.version === 2
+      ? "parrots" in checked
+        ? checked.parrots[slot]
+        : checked.brothers[slot]
+      : checked[slot];
   if (!verified) return null;
   const normalized = {
     problemId: verified.problemId,
@@ -272,25 +297,34 @@ function validateContribution(
 }
 
 export type AdaptiveTransferFinishFacts = Readonly<{
+  problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
   attempted: boolean;
   solutionExposed: boolean;
 }>;
 
+type LegacyAdaptiveTransferFinishFacts = Omit<
+  AdaptiveTransferFinishFacts,
+  "problemId"
+>;
+
 function validAdaptiveFinishFacts(
   value: unknown,
-): value is AdaptiveTransferFinishFacts {
+): value is AdaptiveTransferFinishFacts | LegacyAdaptiveTransferFinishFacts {
+  const candidate = value as AdaptiveTransferFinishFacts;
   return (
     typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
-    Object.keys(value).length === 2 &&
+    (Object.keys(value).length === 2 || Object.keys(value).length === 3) &&
+    (Object.keys(value).length === 2 ||
+      (Object.hasOwn(value, "problemId") &&
+        (candidate.problemId === "brothers-ages-products" ||
+          candidate.problemId === "parrots-guaranteed-colors"))) &&
     Object.hasOwn(value, "attempted") &&
     Object.hasOwn(value, "solutionExposed") &&
-    typeof (value as AdaptiveTransferFinishFacts).attempted === "boolean" &&
-    typeof (value as AdaptiveTransferFinishFacts).solutionExposed ===
-      "boolean" &&
-    (!(value as AdaptiveTransferFinishFacts).solutionExposed ||
-      (value as AdaptiveTransferFinishFacts).attempted)
+    typeof candidate.attempted === "boolean" &&
+    typeof candidate.solutionExposed === "boolean" &&
+    (!candidate.solutionExposed || candidate.attempted)
   );
 }
 
@@ -311,6 +345,12 @@ export async function persistFinishContributions(
     throw new Error("Invalid Practice contribution.");
   if (adaptiveFacts !== undefined && !validAdaptiveFinishFacts(adaptiveFacts))
     throw new Error("Invalid adaptive Finish facts.");
+  const adaptiveProblemId =
+    adaptiveFacts === undefined
+      ? null
+      : "problemId" in (adaptiveFacts as AdaptiveTransferFinishFacts)
+        ? (adaptiveFacts as AdaptiveTransferFinishFacts).problemId
+        : "brothers-ages-products";
   const contributions = input.map(validateContribution);
   if (contributions.some((value) => value === null))
     throw new Error("Invalid Practice contribution.");
@@ -319,12 +359,16 @@ export async function persistFinishContributions(
     throw new Error("Duplicate Practice contribution.");
   if (
     adaptiveFacts === undefined &&
-    values.some((value) => value.value.problemId === "brothers-ages-products")
+    values.some(
+      (value) =>
+        value.value.problemId === "brothers-ages-products" ||
+        value.value.problemId === "parrots-guaranteed-colors",
+    )
   )
     throw new Error("Adaptive Finish facts are required.");
   if (
     adaptiveFacts !== undefined &&
-    values.some((value) => value.value.problemId !== "brothers-ages-products")
+    values.some((value) => value.value.problemId !== adaptiveProblemId)
   )
     throw new Error("Unexpected adaptive contribution.");
   if (
@@ -375,7 +419,7 @@ export async function persistFinishContributions(
     };
     for (const contribution of ordered) {
       const next = appendPracticeProgressEvidence(current, contribution);
-      if (!next || next.version !== 2)
+      if (!next || !("guarantee" in next))
         throw new Error("Progress sequence exhausted.");
       current = next;
     }
@@ -386,14 +430,25 @@ export async function persistFinishContributions(
         impossibilityEvidence: current.impossibility,
         ...(adaptiveFacts === undefined
           ? {}
-          : {
-              brothersAgesAttempted:
-                learner.brothersAgesAttempted ||
-                (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
-              brothersAgesSolutionExposed:
-                learner.brothersAgesSolutionExposed ||
-                (adaptiveFacts as AdaptiveTransferFinishFacts).solutionExposed,
-            }),
+          : adaptiveProblemId === "brothers-ages-products"
+            ? {
+                brothersAgesAttempted:
+                  learner.brothersAgesAttempted ||
+                  (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
+                brothersAgesSolutionExposed:
+                  learner.brothersAgesSolutionExposed ||
+                  (adaptiveFacts as AdaptiveTransferFinishFacts)
+                    .solutionExposed,
+              }
+            : {
+                parrotsAttempted:
+                  learner.parrotsAttempted ||
+                  (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
+                parrotsSolutionExposed:
+                  learner.parrotsSolutionExposed ||
+                  (adaptiveFacts as AdaptiveTransferFinishFacts)
+                    .solutionExposed,
+              }),
         updatedAt: new Date(),
       })
       .where(eq(learners.id, learnerId));
@@ -406,7 +461,7 @@ export async function persistFinishContributions(
 export async function readNextUsefulProblem(
   learnerId: string,
 ): Promise<null | Readonly<{
-  problemId: "brothers-ages-products";
+  problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
   reason: string;
 }>> {
   const [row] = await getProgressDb()
@@ -415,20 +470,30 @@ export async function readNextUsefulProblem(
     .where(eq(learners.id, learnerId));
   if (!row || row.legacyImportHash === null)
     throw new Error("Legacy Progress import is required.");
-  const { impossibility } = validatedBuckets(
+  const { guarantee, impossibility } = validatedBuckets(
     row.guaranteeEvidence,
     row.impossibilityEvidence,
   );
   if (
-    row.brothersAgesAttempted ||
-    row.brothersAgesSolutionExposed ||
-    impossibilityFacts(impossibility).some(
+    !row.brothersAgesAttempted &&
+    !row.brothersAgesSolutionExposed &&
+    !impossibilityFacts(impossibility).some(
       (fact) => fact.problemId === "brothers-ages-products",
+    )
+  ) {
+    const reason = getImpossibilityTransferReason(impossibility);
+    if (reason) return { problemId: "brothers-ages-products", reason };
+  }
+  if (
+    row.parrotsAttempted ||
+    row.parrotsSolutionExposed ||
+    guaranteeFacts(guarantee).some(
+      (fact) => fact.problemId === "parrots-guaranteed-colors",
     )
   )
     return null;
-  const reason = getImpossibilityTransferReason(impossibility);
-  return reason ? { problemId: "brothers-ages-products", reason } : null;
+  const reason = getGuaranteeTransferReason(guarantee);
+  return reason ? { problemId: "parrots-guaranteed-colors", reason } : null;
 }
 
 export async function readLearnerProgress(

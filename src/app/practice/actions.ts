@@ -165,13 +165,14 @@ export async function verifyPersistedReasoningCheckpointObservation(
 export async function verifyPersistedGuaranteeEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
-  if (!Array.isArray(facts) || facts.length > 3) return false;
+  if (!Array.isArray(facts) || facts.length > 7) return false;
 
   let valid = true;
   for (const fact of facts) {
     if (
       !record(fact) ||
-      fact.problemId !== "guaranteed-sock-pair" ||
+      (fact.problemId !== "guaranteed-sock-pair" &&
+        fact.problemId !== "parrots-guaranteed-colors") ||
       !record(fact.observation) ||
       typeof fact.observation.checkpointId !== "string" ||
       typeof fact.observation.selectedOptionId !== "string" ||
@@ -198,14 +199,15 @@ export async function verifyPersistedGuaranteeEvidenceFacts(
 export async function verifyPersistedPracticeProgressEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
-  if (!Array.isArray(facts) || facts.length > 10) return false;
+  if (!Array.isArray(facts) || facts.length > 14) return false;
   let valid = true;
   for (const fact of facts) {
     if (
       !record(fact) ||
       (fact.problemId !== "guaranteed-sock-pair" &&
         fact.problemId !== "table-impossible-sums" &&
-        fact.problemId !== "brothers-ages-products") ||
+        fact.problemId !== "brothers-ages-products" &&
+        fact.problemId !== "parrots-guaranteed-colors") ||
       !record(fact.observation) ||
       typeof fact.observation.checkpointId !== "string" ||
       typeof fact.observation.selectedOptionId !== "string" ||

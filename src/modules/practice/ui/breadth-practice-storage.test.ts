@@ -1,3 +1,4 @@
+import { guaranteeSockSlots } from "../application/guarantee-progress-evidence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -208,7 +209,7 @@ describe("fixed three-problem persistence", () => {
       "Начинаю разбираться",
     ]);
     expect(
-      progressEvidenceBuckets(progress.evidence).guarantee
+      guaranteeSockSlots(progressEvidenceBuckets(progress.evidence).guarantee)
         .latestCorrectWithoutHints,
     ).not.toBeNull();
     expect(

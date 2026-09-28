@@ -1,9 +1,10 @@
 import {
   deriveGuaranteeProgressInterpretation,
   emptyGuaranteeProgressEvidence,
+  guaranteeFacts,
   validateGuaranteeProgressEvidence,
   type GuaranteeEvidenceFact,
-  type GuaranteeProgressEvidenceV0,
+  type GuaranteeProgressEvidence,
 } from "../application/guarantee-progress-evidence";
 import {
   deriveImpossibilityProgressInterpretation,
@@ -57,9 +58,7 @@ export async function readVerifiedPracticeProgressEvidence(
     evidence ?? emptyPracticeProgressEvidence(),
   );
   const facts = [
-    buckets.guarantee.latestCorrectWithoutHints,
-    buckets.guarantee.latestCorrectWithHints,
-    buckets.guarantee.latestIncorrect,
+    ...guaranteeFacts(buckets.guarantee),
     ...impossibilityFacts(buckets.impossibility),
   ].filter(
     (fact): fact is GuaranteeEvidenceFact | ImpossibilityEvidenceFact =>
@@ -86,7 +85,7 @@ export async function readVerifiedGuaranteeProgressEvidence(
   verifyFacts: (facts: readonly GuaranteeEvidenceFact[]) => Promise<boolean>,
   storage?: Storage,
 ): Promise<{
-  evidence: GuaranteeProgressEvidenceV0;
+  evidence: GuaranteeProgressEvidence;
   interpretation: ReasoningCheckpointInterpretation;
 }> {
   const store = storage ?? window.localStorage;
@@ -99,19 +98,13 @@ export async function readVerifiedGuaranteeProgressEvidence(
     };
   }
 
-  let evidence: GuaranteeProgressEvidenceV0 | null;
+  let evidence: GuaranteeProgressEvidence | null;
   try {
     evidence = validateGuaranteeProgressEvidence(JSON.parse(raw));
   } catch {
     evidence = null;
   }
-  const facts = evidence
-    ? [
-        evidence.latestCorrectWithoutHints,
-        evidence.latestCorrectWithHints,
-        evidence.latestIncorrect,
-      ].filter((fact): fact is GuaranteeEvidenceFact => fact !== null)
-    : [];
+  const facts = evidence ? guaranteeFacts(evidence) : [];
   const valid =
     evidence !== null && (facts.length === 0 || (await verifyFacts(facts)));
   if (store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !== raw)

@@ -120,7 +120,9 @@ export function SessionSummary({
 
   const showSuccessOverview = overview.length > 0;
   const sockResult = results.find(
-    (result) => result.problemId === "guaranteed-sock-pair",
+    (result) =>
+      result.problemId === "guaranteed-sock-pair" ||
+      result.problemId === "parrots-guaranteed-colors",
   );
   const reasoning = sockResult
     ? (reasoningInterpretation ?? {

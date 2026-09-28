@@ -45,6 +45,102 @@ const observation = {
 };
 
 describe("one adaptive transfer episode", () => {
+  it("preserves exact parrots identity through pause, pending Finish, and retry", async () => {
+    const store = storage();
+    const session = startAdaptivePracticeSession("parrots-guaranteed-colors");
+    const initial = {
+      rawAnswer: "",
+      status: "typing" as const,
+      practice: startPractice(),
+    };
+    expect(await createPracticeSessionSnapshot(session, initial, store)).toBe(
+      true,
+    );
+    expect(await readPracticeSessionSnapshot(store)).toMatchObject({
+      mode: "transfer",
+      problemIds: ["parrots-guaranteed-colors"],
+    });
+    const answer = {
+      rawAnswer: "19",
+      status: "correct" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "correct",
+        normalizedAnswer: "19",
+      }),
+    };
+    const parrotsObservation = {
+      checkpointId: "parrots-guaranteed-colors-guarantee-argument" as const,
+      selectedOptionId: "A" as const,
+      outcome: "correct" as const,
+      validSubmissionCountAtSubmit: 1,
+    };
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        answer,
+        store,
+        parrotsObservation,
+      ),
+    ).toBe(true);
+    const result = {
+      problemId: "parrots-guaranteed-colors",
+      problemTitle: "Попугаи в зоопарке",
+      summary: {
+        outcome: "eventually-correct" as const,
+        validSubmissionCount: 1,
+        hintExposures: [],
+        solutionExposure: null,
+      },
+      reasoningCheckpointObservation: parrotsObservation,
+      firstCorrectSubmissionCount: 1,
+    };
+    const requests: ServerPracticeFinishPayload[] = [];
+    expect(
+      await completePracticeSession(
+        session,
+        answer,
+        [result],
+        store,
+        async (request) => {
+          requests.push(request);
+          throw new Error("response lost");
+        },
+      ),
+    ).toBe(false);
+    expect(requests[0]).toMatchObject({
+      adaptiveFacts: {
+        problemId: "parrots-guaranteed-colors",
+        attempted: true,
+        solutionExposed: false,
+      },
+      contributions: [
+        {
+          bucket: "guarantee",
+          value: { problemId: "parrots-guaranteed-colors" },
+        },
+      ],
+    });
+    expect(await readPracticeSessionSnapshot(store)).toMatchObject({
+      problemIds: ["parrots-guaranteed-colors"],
+    });
+    expect(
+      await completePracticeSession(
+        session,
+        answer,
+        [result],
+        store,
+        async (request) => {
+          requests.push(request);
+        },
+      ),
+    ).toBe(true);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(
+      validateLatestCompletedResults(
+        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
+      ),
+    ).toEqual([result]);
+  });
   it("persists an immutable exact Finish request before a lost server response", async () => {
     const store = storage();
     const session = startAdaptivePracticeSession();

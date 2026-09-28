@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
+  PARROTS_TRANSFER_PROBLEM_ID,
   CURRENT_PRACTICE_PROBLEM_ID,
   assessReasoningCheckpointOption,
   getLearnerSafePracticeProblem,
@@ -48,6 +49,55 @@ const checkpointOptions = [
 ];
 
 describe("practice problem catalog", () => {
+  it("keeps parrots outside core with protected answer and canonical checkpoint", () => {
+    const problem = getProblemDefinition(PARROTS_TRANSFER_PROBLEM_ID);
+    expect(PRACTICE_SESSION_PROBLEM_IDS).not.toContain(
+      PARROTS_TRANSFER_PROBLEM_ID,
+    );
+    expect(problem).toMatchObject({
+      title: "Попугаи в зоопарке",
+      provenance: {
+        academicYear: "2020/21",
+        stage: "invitational",
+        region: "Moscow",
+        problemNumber: 6,
+        originalSource: { page: 2 },
+        officialSolution: { page: 4 },
+      },
+      assessment: { kind: "nonnegative-integer", expectedAnswer: "19" },
+      solution: {
+        id: "parrots-guaranteed-colors-full-solution",
+        kind: "training-adaptation",
+      },
+    });
+    expect(
+      problem.reasoningCheckpoint?.options.map((option) => option.id),
+    ).toEqual(["A", "B", "C"]);
+    expect(
+      assessReasoningCheckpointOption(
+        PARROTS_TRANSFER_PROBLEM_ID,
+        problem.reasoningCheckpoint!.id,
+        "A",
+      ),
+    ).toEqual({ outcome: "correct" });
+    expect(
+      assessReasoningCheckpointOption(
+        PARROTS_TRANSFER_PROBLEM_ID,
+        problem.reasoningCheckpoint!.id,
+        "B",
+      ),
+    ).toEqual({ outcome: "incorrect" });
+    expect(
+      assessReasoningCheckpointOption(
+        PARROTS_TRANSFER_PROBLEM_ID,
+        problem.reasoningCheckpoint!.id,
+        "C",
+      ),
+    ).toEqual({ outcome: "incorrect" });
+    const learner = getLearnerSafePracticeProblem(PARROTS_TRANSFER_PROBLEM_ID);
+    expect(JSON.stringify(learner)).not.toContain("expectedAnswer");
+    expect(JSON.stringify(learner)).not.toContain("Если бы не-красных");
+  });
   it("keeps the school-stage transfer problem outside the fixed core and protects its answer", () => {
     const problem = getProblemDefinition(ADAPTIVE_TRANSFER_PROBLEM_ID);
     expect(PRACTICE_SESSION_PROBLEM_IDS).toEqual([

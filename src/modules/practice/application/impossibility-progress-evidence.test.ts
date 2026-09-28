@@ -1,3 +1,4 @@
+import { guaranteeSockSlots } from "./guarantee-progress-evidence";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -158,7 +159,8 @@ describe("impossibility Progress bucket", () => {
     expect(both.version).toBe(2);
     expect(validatePracticeProgressEvidence(both)).not.toBeNull();
     expect(
-      progressEvidenceBuckets(both).guarantee.latestCorrectWithoutHints,
+      guaranteeSockSlots(progressEvidenceBuckets(both).guarantee)
+        .latestCorrectWithoutHints,
     ).not.toBeNull();
     expect(
       impossibilityFacts(progressEvidenceBuckets(both).impossibility).find(
