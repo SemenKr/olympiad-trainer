@@ -1,11 +1,21 @@
 import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
+  PARROTS_TRANSFER_PROBLEM_ID,
   getLearnerSafePracticeProblem,
   PRACTICE_SESSION_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
 
-export default function TransferPracticePage() {
+export default async function TransferPracticePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ problem?: string }>;
+}) {
+  const requested = (await searchParams).problem;
+  const startTransferProblemId =
+    requested === PARROTS_TRANSFER_PROBLEM_ID
+      ? PARROTS_TRANSFER_PROBLEM_ID
+      : ADAPTIVE_TRANSFER_PROBLEM_ID;
   const problems = PRACTICE_SESSION_PROBLEM_IDS.map(
     getLearnerSafePracticeProblem,
   ) as [
@@ -19,6 +29,10 @@ export default function TransferPracticePage() {
       transferProblem={getLearnerSafePracticeProblem(
         ADAPTIVE_TRANSFER_PROBLEM_ID,
       )}
+      parrotsProblem={getLearnerSafePracticeProblem(
+        PARROTS_TRANSFER_PROBLEM_ID,
+      )}
+      startTransferProblemId={startTransferProblemId}
       startMode="transfer"
     />
   );

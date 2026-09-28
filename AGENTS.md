@@ -104,3 +104,4 @@ This system defines workflows, not an orchestrator or automatic runtime.
 - Documentation and implementation are consistent.
 - Diff/status contain no accidental work.
 - Final report states what changed, evidence/checks and unresolved issues concisely.
+  Before editing any files, confirm you are on the requested feature branch. If it does not exist, create/switch to it from the specified baseline. Never implement directly on main. Do not use worktrees.

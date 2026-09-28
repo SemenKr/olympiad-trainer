@@ -24,7 +24,7 @@ type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
   recommendation?: Readonly<{
-    problemId: "brothers-ages-products";
+    problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
     reason: string;
   }> | null;
 }>;
@@ -121,8 +121,17 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
         <section aria-label="Следующая полезная задача">
           <h2>Следующая полезная задача</h2>
           <p>{stored.recommendation.reason}</p>
-          <Link className={styles.primary} href="/practice/transfer">
-            Возраст братьев
+          <Link
+            className={styles.primary}
+            href={
+              stored.recommendation.problemId === "parrots-guaranteed-colors"
+                ? "/practice/transfer?problem=parrots-guaranteed-colors"
+                : "/practice/transfer"
+            }
+          >
+            {stored.recommendation.problemId === "parrots-guaranteed-colors"
+              ? "Попугаи в зоопарке"
+              : "Возраст братьев"}
           </Link>
         </section>
       ) : (

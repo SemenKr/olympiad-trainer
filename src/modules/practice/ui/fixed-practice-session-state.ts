@@ -23,6 +23,7 @@ export type PracticeSessionState = Readonly<{
 export type AdaptivePracticeSessionState = Readonly<{
   sessionId: string;
   mode: "transfer";
+  problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
   activeProblemIndex: 0;
   completedResults: readonly [];
 }>;
@@ -46,10 +47,13 @@ export type AdaptiveNoNextPracticeSessionState = Readonly<{
 export type FinishedPracticeSessionState =
   NoNextPracticeSessionState | AdaptiveNoNextPracticeSessionState;
 
-export function startAdaptivePracticeSession(): AdaptivePracticeSessionState {
+export function startAdaptivePracticeSession(
+  problemId: AdaptivePracticeSessionState["problemId"] = "brothers-ages-products",
+): AdaptivePracticeSessionState {
   return {
     sessionId: crypto.randomUUID(),
     mode: "transfer",
+    problemId,
     activeProblemIndex: 0,
     completedResults: [],
   };

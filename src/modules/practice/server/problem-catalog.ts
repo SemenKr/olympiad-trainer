@@ -17,7 +17,7 @@ type SourceReference = Readonly<{
 type ProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
-  academicYear: "2025/26" | "2024/25";
+  academicYear: "2025/26" | "2024/25" | "2020/21";
   stage: "invitational" | "school";
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
@@ -310,6 +310,7 @@ const tableImpossibleSumsProblem = {
 } as const satisfies ProblemDefinition;
 
 export const ADAPTIVE_TRANSFER_PROBLEM_ID = "brothers-ages-products" as const;
+export const PARROTS_TRANSFER_PROBLEM_ID = "parrots-guaranteed-colors" as const;
 
 const brothersAgesProductsProblem = {
   id: ADAPTIVE_TRANSFER_PROBLEM_ID,
@@ -384,11 +385,85 @@ const brothersAgesProductsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const parrotsGuaranteedColorsProblem = {
+  id: PARROTS_TRANSFER_PROBLEM_ID,
+  grade: 5,
+  subject: "mathematics",
+  title: "Попугаи в зоопарке",
+  statement:
+    "В зоопарке живут красные, жёлтые и зелёные попугаи, причём каждого цвета есть хотя бы один. Среди любых 10 попугаев обязательно найдётся красный, а среди любых 12 — жёлтый. Какое наибольшее число попугаев может быть в зоопарке?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2020/21",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 6,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/tasks-math-5-prigl-msk-20-21.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/ans-math-5-prigl-msk-20-21.pdf",
+      page: 4,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "19" },
+  hints: [
+    {
+      id: "parrots-guaranteed-colors-focus-worst-group",
+      level: "focus",
+      text: "Условия про «любые 10» и «любые 12» должны выполняться даже для самой неудачной выбранной группы.",
+    },
+    {
+      id: "parrots-guaranteed-colors-strategy-complements",
+      level: "strategy",
+      text: "Посмотри отдельно на попугаев, которые не красные, и на тех, которые не жёлтые. Сколько их может быть максимум?",
+    },
+    {
+      id: "parrots-guaranteed-colors-next-step-overlap",
+      level: "next-step",
+      text: "Не-красных может быть не больше 9, а не-жёлтых — не больше 11. Сложи эти две границы и учти, что каждый зелёный попугай попал в обе группы.",
+    },
+  ],
+  solution: {
+    id: "parrots-guaranteed-colors-full-solution",
+    kind: "training-adaptation",
+    text: "Если бы не-красных было хотя бы 10, можно было бы выбрать 10 попугаев без красного. Поэтому не-красных не больше 9. Так же не-жёлтых не больше 11. При сложении этих двух количеств каждый красный и жёлтый учитывается один раз, а каждый зелёный — дважды. Значит, общее число попугаев плюс число зелёных не больше 20. Зелёный есть хотя бы один, поэтому всего попугаев не больше 19. Этот предел достигается: 10 красных, 8 жёлтых и 1 зелёный. Не-красных тогда 9, не-жёлтых 11, так что оба условия выполняются. Ответ: 19.",
+  },
+  reasoningCheckpoint: {
+    id: "parrots-guaranteed-colors-guarantee-argument",
+    heading: "Проверь рассуждение",
+    question:
+      "Почему набор из 10 красных, 8 жёлтых и 1 зелёного попугая действительно выполняет оба условия задачи?",
+    options: [
+      {
+        id: "A",
+        text: "Не-красных всего 9, поэтому среди любых 10 есть красный. Не-жёлтых всего 11, поэтому среди любых 12 есть жёлтый.",
+      },
+      {
+        id: "B",
+        text: "Красных больше, чем жёлтых, а жёлтых больше, чем зелёных, поэтому оба условия выполняются.",
+      },
+      {
+        id: "C",
+        text: "Всего попугаев 19, а 19 больше 10 и 12, поэтому в любой выбранной группе обязательно есть нужные цвета.",
+      },
+    ],
+    correctOptionId: "A",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
   [tableImpossibleSumsProblem.id]: tableImpossibleSumsProblem,
   [brothersAgesProductsProblem.id]: brothersAgesProductsProblem,
+  [parrotsGuaranteedColorsProblem.id]: parrotsGuaranteedColorsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {

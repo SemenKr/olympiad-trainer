@@ -80,6 +80,26 @@ const noNext = {
 };
 
 describe("Home Practice precedence", () => {
+  it("links a parrots recommendation to its explicit transfer identity", () => {
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{
+          unfinished: null,
+          completed: null,
+          recommendation: {
+            problemId: "parrots-guaranteed-colors",
+            reason:
+              "Здесь выбор устроен иначе — попробуй разобраться без готового хода.",
+          },
+        }}
+      />,
+    );
+    expect(markup).toContain("Попугаи в зоопарке");
+    expect(markup).toContain(
+      "/practice/transfer?problem=parrots-guaranteed-colors",
+    );
+    expect(markup).not.toContain("не-красных");
+  });
   const recommendation = {
     problemId: "brothers-ages-products" as const,
     reason:

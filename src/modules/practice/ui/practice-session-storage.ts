@@ -20,6 +20,7 @@ import {
   SOCK_REASONING_CHECKPOINT_ID,
   TABLE_REASONING_CHECKPOINT_ID,
   BROTHERS_REASONING_CHECKPOINT_ID,
+  PARROTS_REASONING_CHECKPOINT_ID,
   type ReasoningCheckpointInterpretation,
   type ReasoningCheckpointObservation,
   type ReasoningCheckpointVerification,
@@ -102,7 +103,24 @@ const transferProblem = {
   solution: "brothers-ages-products-full-solution",
 } as const;
 
-type StoredProblem = (typeof problems)[number] | typeof transferProblem;
+const parrotsProblem = {
+  id: "parrots-guaranteed-colors",
+  title: "Попугаи в зоопарке",
+  hints: [
+    "parrots-guaranteed-colors-focus-worst-group",
+    "parrots-guaranteed-colors-strategy-complements",
+    "parrots-guaranteed-colors-next-step-overlap",
+  ],
+  solution: "parrots-guaranteed-colors-full-solution",
+} as const;
+
+const transferProblems = [transferProblem, parrotsProblem] as const;
+function storedTransferProblem(problemId: string) {
+  return transferProblems.find((problem) => problem.id === problemId);
+}
+
+type StoredProblem =
+  (typeof problems)[number] | (typeof transferProblems)[number];
 
 type PracticeSessionSnapshotBase = Readonly<{
   sessionId: string;
@@ -119,7 +137,7 @@ type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
 type AdaptivePracticeSessionSnapshot = Readonly<{
   sessionId: string;
   mode: "transfer";
-  problemIds: readonly ["brothers-ages-products"];
+  problemIds: readonly ["brothers-ages-products" | "parrots-guaranteed-colors"];
   activeProblemIndex: 0;
   completedResults: readonly [];
   activePractice: ActivePractice;
@@ -272,7 +290,10 @@ function validReasoningCheckpointObservation(
           value.checkpointId === TABLE_REASONING_CHECKPOINT_ID) ||
         (problem.id === "brothers-ages-products" &&
           record(value) &&
-          value.checkpointId === BROTHERS_REASONING_CHECKPOINT_ID)) &&
+          value.checkpointId === BROTHERS_REASONING_CHECKPOINT_ID) ||
+        (problem.id === "parrots-guaranteed-colors" &&
+          record(value) &&
+          value.checkpointId === PARROTS_REASONING_CHECKPOINT_ID)) &&
     record(value) &&
     exactKeys(value, [
       "checkpointId",
@@ -359,7 +380,13 @@ export function validateLatestCompletedResults(
   if (
     Array.isArray(value) &&
     value.length === 1 &&
-    validResult(value[0], transferProblem, true, true)
+    storedTransferProblem(value[0]?.problemId) &&
+    validResult(
+      value[0],
+      storedTransferProblem(value[0].problemId)!,
+      true,
+      true,
+    )
   )
     return value as readonly PracticeSessionResult[];
   if (
@@ -563,7 +590,13 @@ export function validatePracticeSessionSnapshot(
       ]) &&
         Array.isArray(value.completedResults) &&
         value.completedResults.length === 1 &&
-        validResult(value.completedResults[0], transferProblem, true, true) &&
+        storedTransferProblem(value.completedResults[0]?.problemId) &&
+        validResult(
+          value.completedResults[0],
+          storedTransferProblem(value.completedResults[0].problemId)!,
+          true,
+          true,
+        ) &&
         value.completedResults[0].taskOutcome === "skipped"
         ? (value as AdaptiveNoNextPracticeSessionState)
         : null;
@@ -581,17 +614,20 @@ export function validatePracticeSessionSnapshot(
     return exactKeys(value, keys) &&
       Array.isArray(value.problemIds) &&
       value.problemIds.length === 1 &&
-      value.problemIds[0] === transferProblem.id &&
+      storedTransferProblem(value.problemIds[0]) !== undefined &&
       value.activeProblemIndex === 0 &&
       Array.isArray(value.completedResults) &&
       value.completedResults.length === 0 &&
-      validActivePractice(value.activePractice, transferProblem) &&
+      validActivePractice(
+        value.activePractice,
+        storedTransferProblem(value.problemIds[0])!,
+      ) &&
       typeof value.rawAnswer === "string" &&
       (!Object.hasOwn(value, "reasoningCheckpointObservation") ||
         (value.activePractice.solutionExposure === null &&
           validReasoningCheckpointObservation(
             value.reasoningCheckpointObservation,
-            transferProblem,
+            storedTransferProblem(value.problemIds[0])!,
             value.activePractice.submissions.length,
             value.activePractice.submissions.findIndex(
               (submission: { outcome: string }) =>
@@ -758,7 +794,7 @@ export async function readVerifiedPracticeSessionSnapshot(
       ? null
       : await verifyCheckpoint(
           ("mode" in snapshot
-            ? transferProblem
+            ? storedTransferProblem(snapshot.problemIds[0])!
             : problems[snapshot.activeProblemIndex]
           ).id,
           snapshot.reasoningCheckpointObservation,
@@ -794,7 +830,7 @@ function activeSessionSnapshot(
     return {
       sessionId: session.sessionId,
       mode: "transfer",
-      problemIds: [transferProblem.id],
+      problemIds: [session.problemId],
       activeProblemIndex: 0,
       completedResults: [],
       activePractice: answer.practice,
@@ -1015,7 +1051,11 @@ type PendingPracticeProgressFinish = Readonly<{
 export type ServerPracticeFinishPayload = Readonly<{
   sessionId: string;
   contributions: readonly PracticeProgressContribution[];
-  adaptiveFacts?: Readonly<{ attempted: boolean; solutionExposed: boolean }>;
+  adaptiveFacts?: Readonly<{
+    problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+    attempted: boolean;
+    solutionExposed: boolean;
+  }>;
 }>;
 
 type ServerPracticeFinishRequest = ServerPracticeFinishPayload &
@@ -1072,7 +1112,12 @@ function readServerPracticeFinishRequest(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...("mode" in unfinished ? { mode: "transfer" as const } : {}),
+              ...("mode" in unfinished
+                ? {
+                    mode: "transfer" as const,
+                    problemId: unfinished.problemIds[0],
+                  }
+                : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
             } as ActivePracticeSessionState,
@@ -1083,12 +1128,21 @@ function readServerPracticeFinishRequest(
       .map(getPracticeProgressContribution)
       .filter((entry) => entry !== null);
     const adaptiveFacts = adaptiveFinishFacts(unfinished, results);
+    const legacyBrothersFacts =
+      adaptiveFacts?.problemId === "brothers-ages-products"
+        ? {
+            attempted: adaptiveFacts.attempted,
+            solutionExposed: adaptiveFacts.solutionExposed,
+          }
+        : null;
     if (
       expected !== value.unfinishedBefore ||
       contributions.length < (adaptiveFacts ? 0 : 1) ||
       contributions.length > 2 ||
       JSON.stringify(value.contributions) !== JSON.stringify(contributions) ||
-      JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts)
+      (JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts) &&
+        JSON.stringify(value.adaptiveFacts) !==
+          JSON.stringify(legacyBrothersFacts))
     )
       return null;
     return value as ServerPracticeFinishRequest;
@@ -1106,8 +1160,17 @@ function adaptiveFinishFacts(
 ): ServerPracticeFinishPayload["adaptiveFacts"] {
   if (!("mode" in session)) return undefined;
   const result = results.length === 1 ? results[0] : null;
-  if (!result || result.problemId !== transferProblem.id) return undefined;
+  if (
+    !result ||
+    !storedTransferProblem(result.problemId) ||
+    (!("status" in session) &&
+      result.problemId !==
+        ("problemIds" in session ? session.problemIds[0] : session.problemId))
+  )
+    return undefined;
   return {
+    problemId: result.problemId as
+      "brothers-ages-products" | "parrots-guaranteed-colors",
     attempted: result.summary.validSubmissionCount > 0,
     solutionExposed: result.summary.solutionExposure !== null,
   };
@@ -1357,7 +1420,12 @@ function readPendingPracticeProgressFinish(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...("mode" in unfinished ? { mode: "transfer" as const } : {}),
+              ...("mode" in unfinished
+                ? {
+                    mode: "transfer" as const,
+                    problemId: unfinished.problemIds[0],
+                  }
+                : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
             } as ActivePracticeSessionState,
@@ -1905,6 +1973,6 @@ export function getStoredProblemTitle(
   snapshot: PracticeSessionSnapshot,
 ): string {
   return "mode" in snapshot
-    ? transferProblem.title
+    ? storedTransferProblem(snapshot.problemIds[0])!.title
     : problems[snapshot.activeProblemIndex].title;
 }

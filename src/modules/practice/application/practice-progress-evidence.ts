@@ -4,7 +4,7 @@ import {
   getGuaranteeEvidenceContribution,
   validateGuaranteeProgressEvidence,
   type GuaranteeEvidenceContribution,
-  type GuaranteeProgressEvidenceV0,
+  type GuaranteeProgressEvidence,
 } from "./guarantee-progress-evidence";
 import {
   appendImpossibilityEvidence,
@@ -19,12 +19,12 @@ import type { ReasoningCheckpointObservation } from "./reasoning-checkpoint";
 
 export type TwoBucketProgressEvidence = Readonly<{
   version: 2;
-  guarantee: GuaranteeProgressEvidenceV0;
+  guarantee: GuaranteeProgressEvidence;
   impossibility: ImpossibilityProgressEvidence;
 }>;
 
 export type PracticeProgressEvidence =
-  GuaranteeProgressEvidenceV0 | TwoBucketProgressEvidence;
+  GuaranteeProgressEvidence | TwoBucketProgressEvidence;
 
 type ContributingResult =
   | {
@@ -69,7 +69,7 @@ export function validatePracticeProgressEvidence(
 }
 
 export function progressEvidenceBuckets(value: PracticeProgressEvidence) {
-  return value.version === 2
+  return "guarantee" in value
     ? { guarantee: value.guarantee, impossibility: value.impossibility }
     : {
         guarantee: value,
@@ -94,14 +94,14 @@ export function appendPracticeProgressEvidence(
 ): PracticeProgressEvidence | null {
   if (contribution.bucket === "guarantee") {
     const next = appendGuaranteeEvidence(
-      current.version === 2 ? current.guarantee : current,
+      "guarantee" in current ? current.guarantee : current,
       contribution.value,
     );
     if (!next) return null;
-    return current.version === 2 ? { ...current, guarantee: next } : next;
+    return "guarantee" in current ? { ...current, guarantee: next } : next;
   }
   const next = appendImpossibilityEvidence(
-    current.version === 2
+    "guarantee" in current
       ? current.impossibility
       : emptyImpossibilityProgressEvidence(),
     contribution.value,
@@ -109,7 +109,7 @@ export function appendPracticeProgressEvidence(
   if (!next) return null;
   return {
     version: 2,
-    guarantee: current.version === 2 ? current.guarantee : current,
+    guarantee: "guarantee" in current ? current.guarantee : current,
     impossibility: next,
   };
 }

@@ -58,6 +58,17 @@ const transfer = {
   hintLevelsExposedBeforeCheckpoint: [] as const,
   solutionExposedBeforeCheckpoint: false as const,
 };
+const parrots = {
+  problemId: "parrots-guaranteed-colors" as const,
+  observation: {
+    checkpointId: "parrots-guaranteed-colors-guarantee-argument" as const,
+    selectedOptionId: "A" as const,
+    outcome: "correct" as const,
+    validSubmissionCountAtSubmit: 1,
+  },
+  hintLevelsExposedBeforeCheckpoint: [] as const,
+  solutionExposedBeforeCheckpoint: false as const,
+};
 
 async function learner() {
   const token = randomBytes(32).toString("base64url");
@@ -74,6 +85,236 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("keeps I-08 first when both sources qualify, then offers parrots when brothers is attempted", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+      { bucket: "impossibility", value: impossibility },
+    ]);
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "brothers-ages-products",
+    });
+    await persistFinishContributions(id, randomUUID(), [], {
+      problemId: "brothers-ages-products",
+      attempted: true,
+      solutionExposed: false,
+    });
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "parrots-guaranteed-colors",
+      reason: expect.stringContaining("Раньше ты уже"),
+    });
+  });
+
+  it.each([
+    [true, "Уже получается", "В прошлой задаче"],
+    [false, "Получается в разных задачах", "Раньше ты уже"],
+  ] as const)(
+    "persists parrots transfer with %s hinted frozen sock basis",
+    async (hinted, group, reasonStart) => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      await persistFinishContributions(id, randomUUID(), [
+        {
+          bucket: "guarantee",
+          value: {
+            ...guarantee,
+            hintLevelsExposedBeforeCheckpoint: hinted ? ["focus"] : [],
+          },
+        },
+      ]);
+      expect(await readNextUsefulProblem(id)).toMatchObject({
+        problemId: "parrots-guaranteed-colors",
+        reason: expect.stringContaining(reasonStart),
+      });
+      const sessionId = randomUUID();
+      const contributions = [{ bucket: "guarantee", value: parrots }];
+      const facts = {
+        problemId: "parrots-guaranteed-colors",
+        attempted: true,
+        solutionExposed: false,
+      };
+      await persistFinishContributions(id, sessionId, contributions, facts);
+      await persistFinishContributions(id, sessionId, contributions, facts);
+      expect((await readLearnerProgress(id))[0].progressGroup).toBe(group);
+      expect(await readNextUsefulProblem(id)).toBeNull();
+      await persistFinishContributions(id, randomUUID(), [
+        {
+          bucket: "guarantee",
+          value: {
+            ...guarantee,
+            hintLevelsExposedBeforeCheckpoint: hinted ? [] : ["focus"],
+          },
+        },
+      ]);
+      const [row] = await getProgressDb()
+        .select()
+        .from(learners)
+        .where(eq(learners.id, id));
+      expect(row.guaranteeEvidence).toMatchObject({
+        version: 2,
+        nextSequence: 4,
+        sockBasisForParrotsWithoutHints: {
+          sequence: 1,
+          hintLevelsExposedBeforeCheckpoint: hinted ? ["focus"] : [],
+        },
+      });
+      expect(row.parrotsAttempted).toBe(true);
+      expect((await readLearnerProgress(id))[0].progressGroup).toBe(group);
+      expect(
+        await getProgressDb()
+          .select()
+          .from(practiceFinishReceipts)
+          .where(eq(practiceFinishReceipts.learnerId, id)),
+      ).toHaveLength(3);
+      await expect(
+        persistFinishContributions(
+          id,
+          sessionId,
+          [
+            {
+              bucket: "guarantee",
+              value: {
+                ...parrots,
+                hintLevelsExposedBeforeCheckpoint: ["focus"],
+              },
+            },
+          ],
+          facts,
+        ),
+      ).rejects.toThrow("changed after Finish");
+      await expect(
+        persistFinishContributions(id, sessionId, contributions, {
+          ...facts,
+          problemId: "brothers-ages-products",
+        }),
+      ).rejects.toThrow("Unexpected adaptive contribution");
+    },
+  );
+
+  it("records parrots attempt and solution exposure without a checkpoint", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+    ]);
+    const sessionId = randomUUID();
+    const facts = {
+      problemId: "parrots-guaranteed-colors",
+      attempted: true,
+      solutionExposed: false,
+    };
+    await persistFinishContributions(id, sessionId, [], facts);
+    await persistFinishContributions(id, sessionId, [], facts);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect((await readLearnerProgress(id))[0].progressGroup).toBe(
+      "Начинаю разбираться",
+    );
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.parrotsAttempted).toBe(true);
+    expect(row.guaranteeEvidence).toMatchObject({
+      version: 1,
+      nextSequence: 2,
+    });
+    await expect(
+      persistFinishContributions(id, sessionId, [], {
+        ...facts,
+        solutionExposed: true,
+      }),
+    ).rejects.toThrow("changed after Finish");
+    const exposureId = randomUUID();
+    await persistFinishContributions(id, exposureId, [], {
+      ...facts,
+      solutionExposed: true,
+    });
+    const [exposed] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(exposed.parrotsSolutionExposed).toBe(true);
+  });
+
+  it("suppresses on later sock incorrect and restores after a new verified correct", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+    ]);
+    await persistFinishContributions(id, randomUUID(), [
+      {
+        bucket: "guarantee",
+        value: {
+          ...guarantee,
+          observation: {
+            ...guarantee.observation,
+            selectedOptionId: "B",
+            outcome: "incorrect",
+          },
+        },
+      },
+    ]);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect((await readLearnerProgress(id))[0].progressGroup).toBe(
+      "Начинаю разбираться",
+    );
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+    ]);
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "parrots-guaranteed-colors",
+    });
+  });
+
+  it("reverifies a frozen sock basis after its live slot changes", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+    ]);
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [{ bucket: "guarantee", value: parrots }],
+      {
+        problemId: "parrots-guaranteed-colors",
+        attempted: true,
+        solutionExposed: false,
+      },
+    );
+    await persistFinishContributions(id, randomUUID(), [
+      { bucket: "guarantee", value: guarantee },
+    ]);
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    const evidence = row.guaranteeEvidence as {
+      sockBasisForParrotsWithoutHints: {
+        observation: { selectedOptionId: string };
+      };
+    };
+    await getProgressDb()
+      .update(learners)
+      .set({
+        guaranteeEvidence: {
+          ...evidence,
+          sockBasisForParrotsWithoutHints: {
+            ...evidence.sockBasisForParrotsWithoutHints,
+            observation: {
+              ...evidence.sockBasisForParrotsWithoutHints.observation,
+              selectedOptionId: "B",
+            },
+          },
+        },
+      })
+      .where(eq(learners.id, id));
+    await expect(readLearnerProgress(id)).rejects.toThrow(
+      "could not be verified",
+    );
+  });
   it.each([
     {
       priorHinted: true,

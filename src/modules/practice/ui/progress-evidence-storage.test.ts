@@ -29,6 +29,7 @@ import {
   deriveGuaranteeProgressInterpretation,
   emptyGuaranteeProgressEvidence,
   getGuaranteeEvidenceContribution,
+  guaranteeSockSlots,
   validateGuaranteeProgressEvidence,
   type GuaranteeEvidenceFact,
 } from "../application/guarantee-progress-evidence";
@@ -215,16 +216,18 @@ describe("guarantee Progress evidence", () => {
       emptyGuaranteeProgressEvidence(),
       independent,
     )!;
-    expect(first.latestCorrectWithoutHints?.sequence).toBe(1);
+    expect(guaranteeSockSlots(first).latestCorrectWithoutHints?.sequence).toBe(
+      1,
+    );
     expect(first.nextSequence).toBe(2);
     expect(deriveGuaranteeProgressInterpretation(first).conclusion).toBe(
       "Без открытых подсказок ты верно выбрал объяснение, почему результат гарантирован. Это пока показывает распознавание готового аргумента, а не самостоятельное доказательство.",
     );
     const second = appendGuaranteeEvidence(first, supported)!;
-    expect(second.latestCorrectWithoutHints).toEqual(
-      first.latestCorrectWithoutHints,
+    expect(guaranteeSockSlots(second).latestCorrectWithoutHints).toEqual(
+      guaranteeSockSlots(first).latestCorrectWithoutHints,
     );
-    expect(second.latestCorrectWithHints?.sequence).toBe(2);
+    expect(guaranteeSockSlots(second).latestCorrectWithHints?.sequence).toBe(2);
     const supportedOnly = appendGuaranteeEvidence(
       emptyGuaranteeProgressEvidence(),
       supported,
@@ -235,19 +238,23 @@ describe("guarantee Progress evidence", () => {
       "После открытых подсказок ты верно выбрал объяснение, почему результат гарантирован. Самостоятельное построение такого доказательства пока не проверено.",
     );
     const third = appendGuaranteeEvidence(second, incorrect)!;
-    expect(third.latestCorrectWithoutHints).toEqual(
-      first.latestCorrectWithoutHints,
+    expect(guaranteeSockSlots(third).latestCorrectWithoutHints).toEqual(
+      guaranteeSockSlots(first).latestCorrectWithoutHints,
     );
-    expect(third.latestCorrectWithHints).toEqual(second.latestCorrectWithHints);
-    expect(third.latestIncorrect?.sequence).toBe(3);
+    expect(guaranteeSockSlots(third).latestCorrectWithHints).toEqual(
+      guaranteeSockSlots(second).latestCorrectWithHints,
+    );
+    expect(guaranteeSockSlots(third).latestIncorrect?.sequence).toBe(3);
     expect(deriveGuaranteeProgressInterpretation(third)).toMatchObject({
       progressGroup: "Начинаю разбираться",
       conclusion:
         "Раньше ты верно выбирал подходящее объяснение, но в более поздней такой проверке ответ был другим. Пока рано говорить о стабильности.",
     });
     const fourth = appendGuaranteeEvidence(third, supported)!;
-    expect(fourth.latestCorrectWithHints?.sequence).toBe(4);
-    expect(fourth.latestIncorrect).toEqual(third.latestIncorrect);
+    expect(guaranteeSockSlots(fourth).latestCorrectWithHints?.sequence).toBe(4);
+    expect(guaranteeSockSlots(fourth).latestIncorrect).toEqual(
+      guaranteeSockSlots(third).latestIncorrect,
+    );
     expect(deriveGuaranteeProgressInterpretation(fourth).conclusion).toBe(
       "Без открытых подсказок ты верно выбрал объяснение, почему результат гарантирован. Это пока показывает распознавание готового аргумента, а не самостоятельное доказательство.",
     );

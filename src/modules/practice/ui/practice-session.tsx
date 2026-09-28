@@ -106,8 +106,38 @@ type PracticeSessionProps = Readonly<{
     LearnerSafePracticeProblem,
   ];
   transferProblem?: LearnerSafePracticeProblem;
+  parrotsProblem?: LearnerSafePracticeProblem;
+  startTransferProblemId?:
+    "brothers-ages-products" | "parrots-guaranteed-colors";
   startMode?: "core" | "transfer";
 }>;
+
+export function getActivePracticeProblem(
+  session: ActivePracticeSessionState,
+  problems: PracticeSessionProps["problems"],
+  transferProblem: PracticeSessionProps["transferProblem"],
+  parrotsProblem: PracticeSessionProps["parrotsProblem"],
+): LearnerSafePracticeProblem | null {
+  if (!("mode" in session)) return problems[session.activeProblemIndex];
+  const problem =
+    session.problemId === "parrots-guaranteed-colors"
+      ? parrotsProblem
+      : transferProblem;
+  if (!problem || problem.problemId !== session.problemId) return null;
+  return problem;
+}
+
+function PracticeRestoreError({ onRetry }: Readonly<{ onRetry: () => void }>) {
+  return (
+    <main>
+      <p role="alert">Не удалось проверить сохранённую тренировку.</p>
+      <button onClick={onRetry} type="button">
+        Повторить
+      </button>
+      <Link href="/">На главную</Link>
+    </main>
+  );
+}
 
 type PracticeProblemEpisodeProps = Readonly<{
   problem: LearnerSafePracticeProblem;
@@ -229,7 +259,11 @@ export async function finishPracticeSessionAndNavigate(
       ? (request: {
           sessionId: string;
           contributions: readonly unknown[];
-          adaptiveFacts?: { attempted: boolean; solutionExposed: boolean };
+          adaptiveFacts?: {
+            problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+            attempted: boolean;
+            solutionExposed: boolean;
+          };
         }) =>
           request.adaptiveFacts
             ? persistPracticeFinishEvidence(
@@ -262,9 +296,14 @@ export async function finishPracticeSessionAndNavigate(
 export function PracticeSession({
   problems,
   transferProblem,
+  parrotsProblem,
+  startTransferProblemId = "brothers-ages-products",
   startMode = "core",
 }: PracticeSessionProps) {
-  const adaptiveProblem = transferProblem ?? problems[0];
+  const adaptiveProblem =
+    startTransferProblemId === "parrots-guaranteed-colors"
+      ? (parrotsProblem ?? problems[0])
+      : (transferProblem ?? problems[0]);
   const router = useRouter();
   const completionLatch = useRef(false);
   const noNextMutationGate = useRef(false);
@@ -300,12 +339,17 @@ export function PracticeSession({
           const session: ActivePracticeSessionState = snapshot
             ? ({
                 sessionId: snapshot.sessionId,
-                ...("mode" in snapshot ? { mode: "transfer" as const } : {}),
+                ...("mode" in snapshot
+                  ? {
+                      mode: "transfer" as const,
+                      problemId: snapshot.problemIds[0],
+                    }
+                  : {}),
                 activeProblemIndex: snapshot.activeProblemIndex,
                 completedResults: snapshot.completedResults,
               } as ActivePracticeSessionState)
             : startMode === "transfer"
-              ? startAdaptivePracticeSession()
+              ? startAdaptivePracticeSession(startTransferProblemId)
               : startPracticeSession();
           const answer = snapshot
             ? restoreAnswerState(snapshot)
@@ -315,7 +359,7 @@ export function PracticeSession({
           if (!snapshot && startMode === "transfer") {
             await ensureServerProgressImported();
             const recommendation = await readServerNextUsefulProblem();
-            if (!recommendation) {
+            if (recommendation?.problemId !== startTransferProblemId) {
               if (active) setRestoreError(true);
               return;
             }
@@ -342,25 +386,20 @@ export function PracticeSession({
     return () => {
       active = false;
     };
-  }, [restoreRetry, problems, adaptiveProblem, startMode]);
+  }, [
+    restoreRetry,
+    problems,
+    adaptiveProblem,
+    startMode,
+    startTransferProblemId,
+  ]);
 
-  if (restoreError) {
-    return (
-      <main>
-        <p role="alert">Не удалось проверить сохранённую тренировку.</p>
-        <button
-          onClick={() => {
-            setRestoreError(false);
-            setRestoreRetry((value) => value + 1);
-          }}
-          type="button"
-        >
-          Повторить
-        </button>
-        <Link href="/">На главную</Link>
-      </main>
-    );
-  }
+  const retryRestore = () => {
+    setRestoreError(false);
+    setRestoreRetry((value) => value + 1);
+  };
+
+  if (restoreError) return <PracticeRestoreError onRetry={retryRestore} />;
 
   if (!loaded) {
     return <main aria-busy="true">Загружаем тренировку…</main>;
@@ -421,10 +460,14 @@ export function PracticeSession({
   }
 
   const { session: sessionState } = loaded;
-  const activeProblem =
-    "mode" in sessionState
-      ? adaptiveProblem
-      : problems[sessionState.activeProblemIndex];
+  const activeProblem = getActivePracticeProblem(
+    sessionState,
+    problems,
+    transferProblem,
+    parrotsProblem,
+  );
+  if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
+  const restoredProblem = activeProblem;
 
   async function handleNextProblem(
     summary: PracticeSummary,
@@ -438,7 +481,7 @@ export function PracticeSession({
         ) + 1
       : undefined;
     const result = createPracticeSessionResult(
-      activeProblem,
+      restoredProblem,
       summary,
       undefined,
       observation ?? undefined,
@@ -475,7 +518,7 @@ export function PracticeSession({
         ) + 1
       : undefined;
     const result = createPracticeSessionResult(
-      activeProblem,
+      restoredProblem,
       summary,
       undefined,
       observation ?? undefined,
@@ -500,7 +543,7 @@ export function PracticeSession({
   async function handleSkip(summary: PracticeSummary): Promise<boolean> {
     if (completionLatch.current) return false;
     const result = createPracticeSessionResult(
-      activeProblem,
+      restoredProblem,
       summary,
       "skipped",
     );
