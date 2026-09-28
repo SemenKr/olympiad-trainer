@@ -66,9 +66,21 @@
 
 Этот выпущенный этап добавил отдельный адаптивный эпизод переноса для `brothers-ages-products`. Следующий этап расширяет его вторым явным путём для `parrots-guaranteed-colors`.
 
-## Следующий этап: Adaptive Practice v1 — Two-Capability Transfer
+## Completed milestone: Adaptive Practice v1 — Two-Capability Transfer
 
-Добавить один содержательный путь переноса для существующей возможности `Как гарантировать результат`, сохранив фиксированное ядро из 3 задач и поддержав два явных пути адаптивной рекомендации. В эту цель не входят recommendation score, generic ranking engine, mastery score или система адаптивной сложности.
+Статус: завершён.
+
+Этап сохранил фиксированное ядро из 3 задач и добавил второй явный путь переноса для `parrots-guaranteed-colors`, наряду с `brothers-ages-products`.
+
+## Completed milestone: Home Adaptive Availability
+
+Статус: завершён.
+
+Домашний экран показывает доступность адаптивной тренировки на основе learner-safe серверных фактов; он не представляет это как mastery или выведенный прогресс.
+
+## Текущий этап: Durable Practice History v0
+
+Зафиксировать bounded серверную проекцию завершённой тренировки при успешном Finish: одну запись на эпизод, с идемпотентностью через Finish receipt и атомарной записью. Хранить последние 50 эпизодов и читать последние 10; не переносить локальные Summary в историю. Последний Summary остаётся в браузере. Эта история не содержит ответов или черновиков и не выводит mastery, progress или рекомендации. Полный контракт: [Durable Practice History v0](../04-architecture/durable-practice-history-v0.md).
 
 ## Не входит в ранний MVP
 
