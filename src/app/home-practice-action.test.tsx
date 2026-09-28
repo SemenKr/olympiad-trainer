@@ -6,7 +6,10 @@ vi.mock("@/app/practice/actions", () => ({
 }));
 
 vi.mock("@/app/progress/actions", () => ({
-  readServerNextUsefulProblem: vi.fn(async () => null),
+  readServerAdaptiveAvailability: vi.fn(async () => ({
+    availability: { status: "insufficient-evidence" },
+    hasPracticeHistory: false,
+  })),
 }));
 
 vi.mock("@/modules/practice/ui/server-progress-import", () => ({
@@ -78,6 +81,14 @@ const noNext = {
     },
   ] as const,
 };
+const insufficient = { status: "insufficient-evidence" as const };
+const exhausted = { status: "transfer-exhausted" as const };
+const fresh = {
+  unfinished: null,
+  completed: null,
+  availability: insufficient,
+  hasPracticeHistory: false,
+};
 
 describe("Home Practice precedence", () => {
   it("links a parrots recommendation to its explicit transfer identity", () => {
@@ -86,7 +97,9 @@ describe("Home Practice precedence", () => {
         stored={{
           unfinished: null,
           completed: null,
-          recommendation: {
+          hasPracticeHistory: true,
+          availability: {
+            status: "recommendation",
             problemId: "parrots-guaranteed-colors",
             reason:
               "Здесь выбор устроен иначе — попробуй разобраться без готового хода.",
@@ -101,6 +114,7 @@ describe("Home Practice precedence", () => {
     expect(markup).not.toContain("не-красных");
   });
   const recommendation = {
+    status: "recommendation" as const,
     problemId: "brothers-ages-products" as const,
     reason:
       "Раньше ты уже верно проверил рассуждение без подсказок. Здесь условия совсем другие — посмотрим, получится ли так же в новой ситуации.",
@@ -109,7 +123,12 @@ describe("Home Practice precedence", () => {
   it("shows the single transfer as primary only without unfinished Practice", () => {
     const recommended = renderToStaticMarkup(
       <HomePracticeContent
-        stored={{ unfinished: null, completed, recommendation }}
+        stored={{
+          unfinished: null,
+          completed,
+          availability: recommendation,
+          hasPracticeHistory: true,
+        }}
       />,
     );
     expect(recommended).toContain('href="/practice/transfer"');
@@ -118,7 +137,12 @@ describe("Home Practice precedence", () => {
     expect(recommended).not.toContain("младшему");
     const resume = renderToStaticMarkup(
       <HomePracticeContent
-        stored={{ unfinished, completed, recommendation }}
+        stored={{
+          unfinished,
+          completed,
+          availability: recommendation,
+          hasPracticeHistory: true,
+        }}
       />,
     );
     expect(resume).toContain("Продолжить тренировку");
@@ -127,14 +151,23 @@ describe("Home Practice precedence", () => {
   it("keeps Progress secondary on Home without changing Practice's primary action", () => {
     const markup = renderToStaticMarkup(<Home />);
 
-    expect(markup).toContain('href="/progress"');
-    expect(markup).toContain("Мой прогресс");
+    expect(markup).toContain("Решай олимпиадные задачи по математике");
+    expect(markup).not.toContain("Скоро здесь можно будет готовиться");
     expect(markup).toContain("Проверяем, есть ли незаконченная тренировка…");
+    expect(markup).toContain('aria-live="polite"');
+    expect(markup).toContain('href="/progress"');
   });
 
   it("keeps Resume primary with the previous completion secondary", () => {
     const markup = renderToStaticMarkup(
-      <HomePracticeContent stored={{ unfinished, completed }} />,
+      <HomePracticeContent
+        stored={{
+          unfinished,
+          completed,
+          availability: insufficient,
+          hasPracticeHistory: true,
+        }}
+      />,
     );
 
     expect(markup).toContain("Продолжить тренировку");
@@ -146,20 +179,32 @@ describe("Home Practice precedence", () => {
     expect(markup).toContain("не было проверенного ответа");
   });
 
-  it("shows Start primary and the latest completion secondary without unfinished work", () => {
+  it("treats a verified local Summary as returning even without server history", () => {
     const markup = renderToStaticMarkup(
-      <HomePracticeContent stored={{ unfinished: null, completed }} />,
+      <HomePracticeContent stored={{ ...fresh, completed }} />,
     );
 
-    expect(markup).toContain("Начать тренировку");
+    expect(markup).toContain("Пока без новой задачи");
+    expect(markup).toContain("Посмотреть прогресс");
+    expect(markup).not.toContain("Начать тренировку");
     expect(markup).not.toContain("Продолжить тренировку");
     expect(markup).toContain("Последняя тренировка");
     expect(markup).toContain("Посмотреть итоги");
+    expect(markup.indexOf("Посмотреть прогресс")).toBeLessThan(
+      markup.indexOf("Последняя тренировка"),
+    );
   });
 
   it("shows Finish primary for no-next while retaining the previous Summary", () => {
     const markup = renderToStaticMarkup(
-      <HomePracticeContent stored={{ unfinished: noNext, completed }} />,
+      <HomePracticeContent
+        stored={{
+          unfinished: noNext,
+          completed,
+          availability: insufficient,
+          hasPracticeHistory: true,
+        }}
+      />,
     );
 
     expect(markup).toContain("Завершить тренировку");
@@ -167,6 +212,56 @@ describe("Home Practice precedence", () => {
     expect(markup).not.toContain("Продолжить тренировку");
     expect(markup).not.toContain("Начать тренировку");
     expect(markup).toContain("Последняя тренировка");
+    expect(markup).toContain("Посмотреть итоги");
+  });
+
+  it("offers the core Practice to a fresh learner without recent work", () => {
+    const markup = renderToStaticMarkup(<HomePracticeContent stored={fresh} />);
+    expect(markup).toContain("Что сейчас?");
+    expect(markup).toContain("<h2>Начни с первой тренировки</h2>");
+    expect(markup).toContain('href="/practice"');
+    expect(markup).toContain("Начать тренировку");
+    expect(markup).not.toContain("Последняя тренировка");
+    expect(markup).not.toContain("<h2>Что сейчас?</h2>");
+    expect(markup).toContain("Мой прогресс");
+  });
+
+  it.each([
+    [
+      insufficient,
+      "Пока без новой задачи",
+      "Пока недостаточно проверенной работы",
+    ],
+    [
+      exhausted,
+      "Новых подходящих задач пока нет",
+      "Все подходящие задачи из текущего набора",
+    ],
+  ])("shows Progress for returning %s", (availability, title, text) => {
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{ ...fresh, availability, hasPracticeHistory: true }}
+      />,
+    );
+    expect(markup).toContain(`<h2>${title}</h2>`);
+    expect(markup).toContain(text);
+    expect(markup).toContain('href="/progress"');
+    expect(markup).toContain("Посмотреть прогресс");
+    expect(markup).not.toContain("Начать тренировку");
+    expect(markup).not.toContain("Мой прогресс");
+    expect(markup).not.toMatch(/слаб|освоил|мастерств|вернись позже/i);
+    expect(markup).not.toContain("disabled");
+  });
+
+  it("keeps a latest Summary secondary when transfers are exhausted", () => {
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{ ...fresh, completed, availability: exhausted }}
+      />,
+    );
+    expect(markup.indexOf("Посмотреть прогресс")).toBeLessThan(
+      markup.indexOf("Последняя тренировка"),
+    );
     expect(markup).toContain("Посмотреть итоги");
   });
 });

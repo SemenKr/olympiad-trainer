@@ -68,7 +68,6 @@ import styles from "./practice-session.module.scss";
 import {
   completePracticeSession,
   createPracticeSessionSnapshot,
-  hasPendingServerPracticeFinish,
   isCurrentPracticeFinish,
   readVerifiedPracticeSessionSnapshot,
   restoreAnswerState,
@@ -96,7 +95,6 @@ import {
   type FinishedPracticeSessionState,
   type PracticeSessionResult,
 } from "./fixed-practice-session-state";
-import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
 import { ensureServerProgressImported } from "./server-progress-import";
 
 type PracticeSessionProps = Readonly<{
@@ -226,56 +224,35 @@ export async function finishPracticeSessionAndNavigate(
   storage?: Storage,
 ): Promise<boolean> {
   if (completionLatch.current) return false;
-  const contributions = results
-    .map(getPracticeProgressContribution)
-    .filter((value) => value !== null);
-  let pendingServerFinish = false;
-  const adaptive = "mode" in session;
+  if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
+    return false;
+  let importedLegacyFinish: string | null;
   try {
-    pendingServerFinish = await hasPendingServerPracticeFinish(
-      session.sessionId,
-      storage,
-    );
+    importedLegacyFinish = await ensureServerProgressImported(storage);
   } catch {
     return false;
   }
-  if (contributions.length > 0 || pendingServerFinish || adaptive) {
-    if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
-      return false;
-    let importedLegacyFinish: string | null;
-    try {
-      importedLegacyFinish = await ensureServerProgressImported(storage);
-    } catch {
-      return false;
-    }
-    if (importedLegacyFinish === session.sessionId) {
-      completionLatch.current = true;
-      navigate();
-      return true;
-    }
+  if (importedLegacyFinish === session.sessionId) {
+    completionLatch.current = true;
+    navigate();
+    return true;
   }
-  const persist =
-    contributions.length > 0 || pendingServerFinish || adaptive
-      ? (request: {
-          sessionId: string;
-          contributions: readonly unknown[];
-          adaptiveFacts?: {
-            problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
-            attempted: boolean;
-            solutionExposed: boolean;
-          };
-        }) =>
-          request.adaptiveFacts
-            ? persistPracticeFinishEvidence(
-                request.sessionId,
-                request.contributions,
-                request.adaptiveFacts,
-              )
-            : persistPracticeFinishEvidence(
-                request.sessionId,
-                request.contributions,
-              )
-      : undefined;
+  const persist = (request: {
+    sessionId: string;
+    contributions: readonly unknown[];
+    adaptiveFacts?: {
+      problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+      attempted: boolean;
+      solutionExposed: boolean;
+    };
+  }) =>
+    request.adaptiveFacts
+      ? persistPracticeFinishEvidence(
+          request.sessionId,
+          request.contributions,
+          request.adaptiveFacts,
+        )
+      : persistPracticeFinishEvidence(request.sessionId, request.contributions);
   const completed =
     "status" in session
       ? await completePracticeSession(session, null, results, storage, persist)

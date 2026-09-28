@@ -1409,7 +1409,7 @@ describe("guarantee Progress evidence", () => {
     }
   });
 
-  it("leaves Progress untouched for a completed session without checkpoint evidence", async () => {
+  it("imports existing Progress and records a Finish without checkpoint evidence", async () => {
     const storage = memoryStorage();
     const prior = JSON.stringify(emptyGuaranteeProgressEvidence());
     storage.setItem(PROGRESS_EVIDENCE_STORAGE_KEY, prior);
@@ -1436,6 +1436,11 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(prior);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(prior);
+    expect(persistPracticeFinishEvidence).toHaveBeenCalledWith(
+      session.sessionId,
+      [],
+    );
+    expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
   });
 });

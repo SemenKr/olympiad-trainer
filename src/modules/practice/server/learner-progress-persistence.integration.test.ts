@@ -12,6 +12,7 @@ import {
   findOrCreateLearner,
   importLegacyProgress,
   persistFinishContributions,
+  readAdaptiveAvailability,
   readLearnerProgress,
   readNextUsefulProblem,
 } from "./learner-progress-persistence";
@@ -85,6 +86,20 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("uses a Finish receipt for history even without checkpoint evidence", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    expect(await readAdaptiveAvailability(id)).toEqual({
+      availability: { status: "insufficient-evidence" },
+      hasPracticeHistory: false,
+    });
+    await persistFinishContributions(id, randomUUID(), []);
+    expect(await readAdaptiveAvailability(id)).toEqual({
+      availability: { status: "insufficient-evidence" },
+      hasPracticeHistory: true,
+    });
+  });
+
   it("keeps I-08 first when both sources qualify, then offers parrots when brothers is attempted", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);
@@ -95,6 +110,13 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     expect(await readNextUsefulProblem(id)).toMatchObject({
       problemId: "brothers-ages-products",
     });
+    expect(await readAdaptiveAvailability(id)).toMatchObject({
+      availability: {
+        status: "recommendation",
+        problemId: "brothers-ages-products",
+      },
+      hasPracticeHistory: true,
+    });
     await persistFinishContributions(id, randomUUID(), [], {
       problemId: "brothers-ages-products",
       attempted: true,
@@ -103,6 +125,29 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     expect(await readNextUsefulProblem(id)).toMatchObject({
       problemId: "parrots-guaranteed-colors",
       reason: expect.stringContaining("Раньше ты уже"),
+    });
+  });
+
+  it("reports exhaustion only after both transfer targets are attempted", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), [], {
+      problemId: "brothers-ages-products",
+      attempted: true,
+      solutionExposed: false,
+    });
+    expect(await readAdaptiveAvailability(id)).toEqual({
+      availability: { status: "insufficient-evidence" },
+      hasPracticeHistory: true,
+    });
+    await persistFinishContributions(id, randomUUID(), [], {
+      problemId: "parrots-guaranteed-colors",
+      attempted: true,
+      solutionExposed: false,
+    });
+    expect(await readAdaptiveAvailability(id)).toEqual({
+      availability: { status: "transfer-exhausted" },
+      hasPracticeHistory: true,
     });
   });
 
