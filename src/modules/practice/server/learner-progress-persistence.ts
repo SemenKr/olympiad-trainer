@@ -1,7 +1,12 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import {
+  validateCompletedEpisode,
+  type CompletedPracticeEpisodeFactsV1,
+  type CompletedPracticeEpisodeMode,
+} from "../application/completed-practice-episode";
 import {
   classifyAdaptiveAvailability,
   type AdaptiveAvailability,
@@ -30,9 +35,16 @@ import {
   type PracticeProgressContribution,
 } from "../application/practice-progress-evidence";
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
-import { assessReasoningCheckpointOption } from "./problem-catalog";
+import {
+  assessReasoningCheckpointOption,
+  getProblemDefinition,
+} from "./problem-catalog";
 import { getProgressDb } from "./progress-db";
-import { learners, practiceFinishReceipts } from "./progress-schema";
+import {
+  learners,
+  practiceCompletedEpisodes,
+  practiceFinishReceipts,
+} from "./progress-schema";
 
 const NO_LOCAL_EVIDENCE = "no-browser-progress-evidence-v1";
 const SESSION_ID =
@@ -334,6 +346,7 @@ export async function persistFinishContributions(
   sessionId: unknown,
   input: unknown,
   adaptiveFacts?: unknown,
+  episode?: unknown,
 ): Promise<void> {
   if (
     typeof sessionId !== "string" ||
@@ -381,11 +394,66 @@ export async function persistFinishContributions(
   const ordered = ["guarantee", "impossibility"].flatMap((bucket) =>
     values.filter((value) => value.bucket === bucket),
   );
+  let completedEpisode: null | Readonly<{
+    mode: CompletedPracticeEpisodeMode;
+    facts: CompletedPracticeEpisodeFactsV1;
+  }> = null;
+  if (episode !== undefined) {
+    if (
+      typeof episode !== "object" ||
+      episode === null ||
+      Array.isArray(episode) ||
+      Object.keys(episode).length !== 2 ||
+      !Object.hasOwn(episode, "mode") ||
+      !Object.hasOwn(episode, "facts")
+    )
+      throw new Error("Invalid completed Practice episode.");
+    const candidate = episode as { mode?: unknown; facts?: unknown };
+    const checked = validateCompletedEpisode(candidate.mode, candidate.facts);
+    if (
+      !checked ||
+      (candidate.mode === "transfer") !== (adaptiveFacts !== undefined) ||
+      (candidate.mode === "transfer" &&
+        (checked.problems[0].problemId !== adaptiveProblemId ||
+          checked.problems[0].validSubmissionCount > 0 !==
+            (adaptiveFacts as AdaptiveTransferFinishFacts).attempted ||
+          checked.problems[0].solutionExposed !==
+            (adaptiveFacts as AdaptiveTransferFinishFacts).solutionExposed))
+    )
+      throw new Error("Invalid completed Practice episode.");
+    for (const fact of checked.problems) {
+      const contribution = ordered.find(
+        (item) => item.value.problemId === fact.problemId,
+      );
+      const checkpoint = contribution?.value.observation ?? null;
+      if (
+        JSON.stringify(fact.checkpoint) !==
+        JSON.stringify(
+          checkpoint && {
+            checkpointId: checkpoint.checkpointId,
+            outcome: checkpoint.outcome,
+          },
+        )
+      )
+        throw new Error("Completed checkpoint conflicts with Finish evidence.");
+    }
+    completedEpisode = {
+      mode: candidate.mode as CompletedPracticeEpisodeMode,
+      facts: checked,
+    };
+  }
   const contributionHash = hash(
     JSON.stringify(
-      adaptiveFacts === undefined
-        ? ordered
-        : { contributions: ordered, adaptiveFacts },
+      completedEpisode
+        ? {
+            contributions: ordered,
+            ...(adaptiveFacts === undefined ? {} : { adaptiveFacts }),
+            episodeMode: completedEpisode.mode,
+            episodeFacts: completedEpisode.facts,
+          }
+        : adaptiveFacts === undefined
+          ? ordered
+          : { contributions: ordered, adaptiveFacts },
     ),
   );
   await getProgressDb().transaction(async (tx) => {
@@ -452,9 +520,88 @@ export async function persistFinishContributions(
         updatedAt: new Date(),
       })
       .where(eq(learners.id, learnerId));
+    if (completedEpisode) {
+      await tx.insert(practiceCompletedEpisodes).values({
+        learnerId,
+        sessionId,
+        mode: completedEpisode.mode,
+        episodeFacts: completedEpisode.facts,
+      });
+      await tx.execute(sql`DELETE FROM practice_completed_episodes
+        WHERE learner_id = ${learnerId} AND session_id IN (
+          SELECT session_id FROM practice_completed_episodes
+          WHERE learner_id = ${learnerId}
+          ORDER BY completed_at DESC, session_id DESC OFFSET 50
+        )`);
+    }
     await tx
       .insert(practiceFinishReceipts)
       .values({ learnerId, sessionId, contributionHash });
+  });
+}
+
+export type RecentPracticeEpisode = Readonly<{
+  mode: CompletedPracticeEpisodeMode;
+  completedAt: string;
+  problems: readonly Readonly<{
+    problemTitle: string;
+    outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct";
+    skipped: boolean;
+    validSubmissionCount: number;
+    hintLevelsExposed: readonly ("focus" | "strategy" | "next-step")[];
+    solutionExposed: boolean;
+    checkpoint: Readonly<{ outcome: "correct" | "incorrect" }> | null;
+  }>[];
+}>;
+
+export async function readRecentPracticeEpisodes(
+  learnerId: string,
+): Promise<readonly RecentPracticeEpisode[]> {
+  const rows = await getProgressDb()
+    .select({
+      mode: practiceCompletedEpisodes.mode,
+      facts: practiceCompletedEpisodes.episodeFacts,
+      completedAt: practiceCompletedEpisodes.completedAt,
+    })
+    .from(practiceCompletedEpisodes)
+    .where(eq(practiceCompletedEpisodes.learnerId, learnerId))
+    .orderBy(
+      desc(practiceCompletedEpisodes.completedAt),
+      desc(practiceCompletedEpisodes.sessionId),
+    )
+    .limit(10);
+  return rows.map((row) => {
+    const checked = validateCompletedEpisode(row.mode, row.facts);
+    if (
+      !checked ||
+      !(row.completedAt instanceof Date) ||
+      Number.isNaN(row.completedAt.getTime())
+    )
+      throw new Error("Completed Practice history could not be verified.");
+    const problems = checked.problems.map((fact) => {
+      const definition = getProblemDefinition(fact.problemId);
+      if (
+        fact.checkpoint &&
+        definition.reasoningCheckpoint?.id !== fact.checkpoint.checkpointId
+      )
+        throw new Error("Completed Practice history could not be verified.");
+      return {
+        problemTitle: definition.title,
+        outcome: fact.outcome,
+        skipped: fact.skipped,
+        validSubmissionCount: fact.validSubmissionCount,
+        hintLevelsExposed: fact.hintLevelsExposed,
+        solutionExposed: fact.solutionExposed,
+        checkpoint: fact.checkpoint
+          ? { outcome: fact.checkpoint.outcome }
+          : null,
+      };
+    });
+    return {
+      mode: row.mode,
+      completedAt: row.completedAt.toISOString(),
+      problems,
+    };
   });
 }
 

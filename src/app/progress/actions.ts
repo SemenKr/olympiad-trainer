@@ -7,6 +7,7 @@ import {
   persistFinishContributions,
   readAdaptiveAvailability,
   readLearnerProgress,
+  readRecentPracticeEpisodes,
   readNextUsefulProblem,
 } from "../../modules/practice/server/learner-progress-persistence";
 
@@ -21,9 +22,18 @@ export async function persistPracticeFinishEvidence(
   sessionId: string,
   contributions: unknown,
   adaptiveFacts?: unknown,
+  episode?: unknown,
 ): Promise<void> {
   const learnerId = await resolveLearnerFromCookie();
-  if (adaptiveFacts === undefined)
+  if (episode !== undefined)
+    await persistFinishContributions(
+      learnerId,
+      sessionId,
+      contributions,
+      adaptiveFacts,
+      episode,
+    );
+  else if (adaptiveFacts === undefined)
     await persistFinishContributions(learnerId, sessionId, contributions);
   else
     await persistFinishContributions(
@@ -49,4 +59,9 @@ export async function readServerProgress(): Promise<
 > {
   const learnerId = await resolveLearnerFromCookie();
   return readLearnerProgress(learnerId);
+}
+
+export async function readServerRecentPracticeEpisodes() {
+  const learnerId = await resolveLearnerFromCookie();
+  return readRecentPracticeEpisodes(learnerId);
 }

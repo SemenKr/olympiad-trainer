@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { readServerProgress } from "../../../app/progress/actions";
+import {
+  readServerProgress,
+  readServerRecentPracticeEpisodes,
+} from "../../../app/progress/actions";
 
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
+import type { RecentPracticeEpisode } from "../server/learner-progress-persistence";
 import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./progress-overview.module.scss";
 
@@ -18,6 +22,7 @@ type ProgressLoad =
         LearnerProgressInterpretation,
         LearnerProgressInterpretation,
       ];
+      episodes: readonly RecentPracticeEpisode[];
     };
 
 export function ProgressOverview() {
@@ -30,9 +35,14 @@ export function ProgressOverview() {
     queueMicrotask(() => {
       if (!active) return;
       void ensureServerProgressImported()
-        .then(readServerProgress)
-        .then((interpretations) => {
-          if (active) setLoad({ status: "ready", interpretations });
+        .then(() =>
+          Promise.all([
+            readServerProgress(),
+            readServerRecentPracticeEpisodes(),
+          ]),
+        )
+        .then(([interpretations, episodes]) => {
+          if (active) setLoad({ status: "ready", interpretations, episodes });
         })
         .catch(() => {
           if (active) setLoad({ status: "error" });
@@ -83,6 +93,7 @@ export function ProgressOverview() {
               key={interpretation.learnerLabel}
             />
           ))}
+          <RecentPracticeHistory episodes={load.episodes} />
         </>
       )}
 
@@ -90,6 +101,61 @@ export function ProgressOverview() {
         На главную
       </Link>
     </main>
+  );
+}
+
+function problemStatus(
+  problem: RecentPracticeEpisode["problems"][number],
+): string {
+  if (problem.skipped) return "Задача пропущена";
+  if (problem.solutionExposed) return "Открыт разбор";
+  if (problem.outcome === "eventually-correct")
+    return problem.hintLevelsExposed.length > 0
+      ? "Ответ найден после подсказок"
+      : "Ответ найден без подсказок";
+  return problem.outcome === "incorrect-only"
+    ? "Ответ пока не найден"
+    : "Без отправленного ответа";
+}
+
+export function RecentPracticeHistory({
+  episodes,
+}: {
+  episodes: readonly RecentPracticeEpisode[];
+}) {
+  if (episodes.length === 0) return null;
+  return (
+    <section className={styles.history}>
+      <h2>Недавняя работа</h2>
+      <ol className={styles.episodes}>
+        {episodes.map((episode, index) => (
+          <li key={`${episode.completedAt}-${index}`}>
+            <h3>
+              {episode.mode === "core" ? "Тренировка" : "Дополнительная задача"}
+            </h3>
+            <time dateTime={episode.completedAt}>
+              {new Date(episode.completedAt).toLocaleString("ru-RU")}
+            </time>
+            <ul className={styles.problems}>
+              {episode.problems.map((problem, problemIndex) => (
+                <li key={problemIndex}>
+                  <strong>{problem.problemTitle}</strong>
+                  <span>{problemStatus(problem)}</span>
+                  {problem.checkpoint && (
+                    <span>
+                      Проверка рассуждения:{" "}
+                      {problem.checkpoint.outcome === "correct"
+                        ? "верно"
+                        : "не засчитана"}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

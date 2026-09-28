@@ -7,17 +7,20 @@ vi.mock("../../modules/practice/server/learner-progress-persistence", () => ({
   importLegacyProgress: vi.fn(async () => {}),
   persistFinishContributions: vi.fn(async () => {}),
   readLearnerProgress: vi.fn(async () => []),
+  readRecentPracticeEpisodes: vi.fn(async () => []),
 }));
 
 import {
   importBrowserProgressEvidence,
   persistPracticeFinishEvidence,
   readServerProgress,
+  readServerRecentPracticeEpisodes,
 } from "./actions";
 import {
   importLegacyProgress,
   persistFinishContributions,
   readLearnerProgress,
+  readRecentPracticeEpisodes,
 } from "../../modules/practice/server/learner-progress-persistence";
 
 beforeEach(() => vi.clearAllMocks());
@@ -29,6 +32,7 @@ describe("Progress server actions", () => {
       { bucket: "guarantee", value: { learnerId: "forged" } },
     ]);
     await readServerProgress();
+    await readServerRecentPracticeEpisodes();
     expect(importLegacyProgress).toHaveBeenCalledWith(
       "cookie-owned-learner",
       null,
@@ -39,5 +43,8 @@ describe("Progress server actions", () => {
       expect.any(Array),
     );
     expect(readLearnerProgress).toHaveBeenCalledWith("cookie-owned-learner");
+    expect(readRecentPracticeEpisodes).toHaveBeenCalledWith(
+      "cookie-owned-learner",
+    );
   });
 });

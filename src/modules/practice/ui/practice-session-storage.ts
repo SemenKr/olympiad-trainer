@@ -17,6 +17,12 @@ import {
   type PracticeProgressEvidence,
 } from "../application/practice-progress-evidence";
 import {
+  completedEpisodeFacts,
+  validateCompletedEpisode,
+  type CompletedPracticeEpisodeFactsV1,
+  type CompletedPracticeEpisodeMode,
+} from "../application/completed-practice-episode";
+import {
   SOCK_REASONING_CHECKPOINT_ID,
   TABLE_REASONING_CHECKPOINT_ID,
   BROTHERS_REASONING_CHECKPOINT_ID,
@@ -1051,6 +1057,8 @@ type PendingPracticeProgressFinish = Readonly<{
 export type ServerPracticeFinishPayload = Readonly<{
   sessionId: string;
   contributions: readonly PracticeProgressContribution[];
+  episodeMode?: CompletedPracticeEpisodeMode;
+  episodeFacts?: CompletedPracticeEpisodeFactsV1;
   adaptiveFacts?: Readonly<{
     problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
     attempted: boolean;
@@ -1081,6 +1089,8 @@ function readServerPracticeFinishRequest(
     ];
     if (record(value) && Object.hasOwn(value, "adaptiveFacts"))
       requestKeys.push("adaptiveFacts");
+    if (record(value) && Object.hasOwn(value, "episodeMode"))
+      requestKeys.push("episodeMode", "episodeFacts");
     if (
       !record(value) ||
       !exactKeys(value, requestKeys) ||
@@ -1128,6 +1138,8 @@ function readServerPracticeFinishRequest(
       .map(getPracticeProgressContribution)
       .filter((entry) => entry !== null);
     const adaptiveFacts = adaptiveFinishFacts(unfinished, results);
+    const mode = "mode" in unfinished ? "transfer" : "core";
+    const expectedEpisode = completedEpisodeFacts(results);
     const legacyBrothersFacts =
       adaptiveFacts?.problemId === "brothers-ages-products"
         ? {
@@ -1141,7 +1153,12 @@ function readServerPracticeFinishRequest(
       JSON.stringify(value.contributions) !== JSON.stringify(contributions) ||
       (JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts) &&
         JSON.stringify(value.adaptiveFacts) !==
-          JSON.stringify(legacyBrothersFacts))
+          JSON.stringify(legacyBrothersFacts)) ||
+      (Object.hasOwn(value, "episodeMode") &&
+        (value.episodeMode !== mode ||
+          !validateCompletedEpisode(value.episodeMode, value.episodeFacts) ||
+          JSON.stringify(value.episodeFacts) !==
+            JSON.stringify(expectedEpisode)))
     )
       return null;
     return value as ServerPracticeFinishRequest;
@@ -1575,8 +1592,11 @@ async function completeServerBackedPracticeSession(
         .map(getPracticeProgressContribution)
         .filter((entry) => entry !== null);
       const adaptiveFacts = adaptiveFinishFacts(session, results);
+      const episodeMode = "mode" in session ? "transfer" : "core";
+      const episodeFacts = completedEpisodeFacts(results);
       if (
         !validateLatestCompletedResults(results) ||
+        !validateCompletedEpisode(episodeMode, episodeFacts) ||
         !unfinishedBefore ||
         !before ||
         before.unfinished !== unfinishedBefore ||
@@ -1588,6 +1608,8 @@ async function completeServerBackedPracticeSession(
         sessionId: session.sessionId,
         contributions,
         ...(adaptiveFacts ? { adaptiveFacts } : {}),
+        episodeMode,
+        episodeFacts,
         unfinishedBefore,
         completedBefore: before.completed,
         progressBefore: before.progress,
@@ -1625,6 +1647,12 @@ async function completeServerBackedPracticeSession(
         ...(request.adaptiveFacts
           ? { adaptiveFacts: request.adaptiveFacts }
           : {}),
+        ...(request.episodeFacts
+          ? {
+              episodeMode: request.episodeMode,
+              episodeFacts: request.episodeFacts,
+            }
+          : {}),
       });
       return writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null);
     }
@@ -1645,6 +1673,12 @@ async function completeServerBackedPracticeSession(
       contributions: request.contributions,
       ...(request.adaptiveFacts
         ? { adaptiveFacts: request.adaptiveFacts }
+        : {}),
+      ...(request.episodeFacts
+        ? {
+            episodeMode: request.episodeMode,
+            episodeFacts: request.episodeFacts,
+          }
         : {}),
     });
     const unchanged = readPracticeFinishValues(store);

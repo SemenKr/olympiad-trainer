@@ -1,0 +1,135 @@
+import { describe, expect, it } from "vitest";
+import {
+  completedEpisodeFacts,
+  validateCompletedEpisode,
+} from "./completed-practice-episode";
+
+const empty = {
+  outcome: "no-valid-submissions" as const,
+  validSubmissionCount: 0,
+  hintExposures: [],
+  solutionExposure: null,
+};
+const coreIds = [
+  "coinciding-seats",
+  "guaranteed-sock-pair",
+  "table-impossible-sums",
+];
+
+describe("completed Practice episode facts", () => {
+  it("constructs the exact core order without protected result content", () => {
+    const facts = completedEpisodeFacts(
+      coreIds.map((problemId) => ({
+        problemId,
+        problemTitle: "Must not persist",
+        summary: empty,
+        answer: "Must not persist",
+      })),
+    );
+    expect(validateCompletedEpisode("core", facts)).toEqual(facts);
+    expect(facts.problems.map((problem) => problem.problemId)).toEqual(coreIds);
+    expect(JSON.stringify(facts)).not.toContain("Must not persist");
+    expect(
+      validateCompletedEpisode("core", {
+        ...facts,
+        problems: [...facts.problems].reverse(),
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["brothers-ages-products", "correct"],
+    ["brothers-ages-products", "incorrect"],
+    ["parrots-guaranteed-colors", "correct"],
+    ["parrots-guaranteed-colors", "incorrect"],
+  ] as const)(
+    "accepts one %s transfer with %s checkpoint and strips selected option",
+    (problemId, outcome) => {
+      const facts = completedEpisodeFacts([
+        {
+          problemId,
+          summary: {
+            outcome: "eventually-correct",
+            validSubmissionCount: 2,
+            hintExposures: [
+              {
+                hintId: "secret",
+                level: "focus",
+                validSubmissionCountAtOpen: 1,
+              },
+            ],
+            solutionExposure: null,
+          },
+          reasoningCheckpointObservation: {
+            checkpointId:
+              problemId === "brothers-ages-products"
+                ? "brothers-ages-products-youngest-lower-bound"
+                : "parrots-guaranteed-colors-guarantee-argument",
+            selectedOptionId: "A",
+            outcome,
+            validSubmissionCountAtSubmit: 2,
+          },
+        },
+      ]);
+      expect(validateCompletedEpisode("transfer", facts)).toEqual(facts);
+      expect(facts.problems[0]).toMatchObject({
+        outcome: "eventually-correct",
+        validSubmissionCount: 2,
+        hintLevelsExposed: ["focus"],
+        solutionExposed: false,
+        checkpoint: { outcome },
+      });
+      expect(JSON.stringify(facts)).not.toMatch(
+        /selectedOptionId|hintId|secret/,
+      );
+      expect(
+        validateCompletedEpisode("transfer", {
+          version: 1,
+          problems: [
+            {
+              ...facts.problems[0],
+              checkpoint: {
+                ...facts.problems[0].checkpoint,
+                selectedOptionId: "A",
+              },
+            },
+          ],
+        }),
+      ).toBeNull();
+    },
+  );
+
+  it("represents skip, solution exposure, and no valid submission as separate facts", () => {
+    const skipped = completedEpisodeFacts([
+      { problemId: coreIds[0], summary: empty, taskOutcome: "skipped" },
+    ]).problems[0];
+    const solution = completedEpisodeFacts([
+      {
+        problemId: coreIds[1],
+        summary: {
+          outcome: "incorrect-only",
+          validSubmissionCount: 1,
+          hintExposures: ["focus", "strategy", "next-step"].map((level) => ({
+            hintId: "hidden",
+            level: level as "focus" | "strategy" | "next-step",
+            validSubmissionCountAtOpen: 1,
+          })),
+          solutionExposure: {
+            solutionId: "hidden",
+            validSubmissionCountAtOpen: 1,
+          },
+        },
+      },
+    ]).problems[0];
+    expect(skipped).toMatchObject({
+      skipped: true,
+      outcome: "no-valid-submissions",
+      validSubmissionCount: 0,
+    });
+    expect(solution).toMatchObject({
+      solutionExposed: true,
+      outcome: "incorrect-only",
+    });
+    expect(JSON.stringify(solution)).not.toContain("hidden");
+  });
+});

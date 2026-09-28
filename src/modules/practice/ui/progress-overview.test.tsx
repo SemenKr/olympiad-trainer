@@ -16,7 +16,10 @@ import {
   type GuaranteeProgressEvidenceV0,
 } from "../application/guarantee-progress-evidence";
 import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
-import { ProgressEvidenceContent } from "./progress-overview";
+import {
+  ProgressEvidenceContent,
+  RecentPracticeHistory,
+} from "./progress-overview";
 import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
@@ -93,6 +96,85 @@ async function renderEvidence(evidence?: GuaranteeProgressEvidenceV0) {
 }
 
 describe("Progress overview", () => {
+  it("omits empty durable history and uses factual status precedence", () => {
+    expect(renderToStaticMarkup(<RecentPracticeHistory episodes={[]} />)).toBe(
+      "",
+    );
+    const statuses = [
+      {
+        skipped: true,
+        solutionExposed: false,
+        outcome: "no-valid-submissions",
+        hintLevelsExposed: [],
+      },
+      {
+        skipped: false,
+        solutionExposed: true,
+        outcome: "incorrect-only",
+        hintLevelsExposed: ["focus"],
+      },
+      {
+        skipped: false,
+        solutionExposed: false,
+        outcome: "eventually-correct",
+        hintLevelsExposed: ["focus"],
+      },
+      {
+        skipped: false,
+        solutionExposed: false,
+        outcome: "eventually-correct",
+        hintLevelsExposed: [],
+      },
+      {
+        skipped: false,
+        solutionExposed: false,
+        outcome: "incorrect-only",
+        hintLevelsExposed: [],
+      },
+      {
+        skipped: false,
+        solutionExposed: false,
+        outcome: "no-valid-submissions",
+        hintLevelsExposed: [],
+      },
+    ] as const;
+    const markup = renderToStaticMarkup(
+      <RecentPracticeHistory
+        episodes={[
+          {
+            mode: "core",
+            completedAt: "2026-09-28T12:00:00.000Z",
+            problems: statuses.map((status, index) => ({
+              problemTitle: `Задача ${index}`,
+              validSubmissionCount:
+                status.outcome === "no-valid-submissions" ? 0 : 1,
+              checkpoint:
+                index === 2
+                  ? { outcome: "correct" as const }
+                  : index === 3
+                    ? { outcome: "incorrect" as const }
+                    : null,
+              ...status,
+            })),
+          },
+        ]}
+      />,
+    );
+    for (const phrase of [
+      "Недавняя работа",
+      "Тренировка",
+      "Задача пропущена",
+      "Открыт разбор",
+      "Ответ найден после подсказок",
+      "Ответ найден без подсказок",
+      "Ответ пока не найден",
+      "Без отправленного ответа",
+      "Проверка рассуждения: верно",
+      "Проверка рассуждения: не засчитана",
+    ])
+      expect(markup).toContain(phrase);
+    expect(markup).not.toContain("Ты ещё не тренировался");
+  });
   it("renders both derived capabilities without exposing raw facts and retries verified reads", async () => {
     const storage = memoryStorage();
     const evidence = {
