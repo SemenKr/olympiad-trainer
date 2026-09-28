@@ -22,6 +22,7 @@ import {
   startPractice,
 } from "../application/practice-state";
 import { SOCK_REASONING_CHECKPOINT_ID } from "../application/reasoning-checkpoint";
+import { createMultipleChoiceSetAnswerState } from "./multiple-choice-set-answer-state";
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import {
   completePracticeSession,
@@ -135,9 +136,19 @@ function result(
 describe("latest completed Practice storage", () => {
   it("latches after successful Finish before navigation can write or Pause", async () => {
     const storage = memoryStorage();
-    const session = startTwoProblemSession();
-    const answer = createShortNumericAnswerState();
-    const results = [result(0, "no-valid-submissions")];
+    const session = {
+      sessionId: crypto.randomUUID(),
+      activeProblemIndex: 2 as const,
+      completedResults: [
+        result(0, "eventually-correct"),
+        result(1, "eventually-correct"),
+      ],
+    };
+    const answer = createMultipleChoiceSetAnswerState();
+    const results = [
+      ...session.completedResults,
+      result(2, "no-valid-submissions"),
+    ];
     const completionLatch = { current: false };
     await seedActiveSnapshot(session, answer, storage);
     let navigations = 0;
@@ -190,16 +201,24 @@ describe("latest completed Practice storage", () => {
 
   it("does not latch a failed Finish and permits a successful retry", async () => {
     const storage = memoryStorage();
-    const session = startTwoProblemSession();
+    const session = {
+      sessionId: crypto.randomUUID(),
+      activeProblemIndex: 2 as const,
+      completedResults: [
+        result(0, "eventually-correct"),
+        result(1, "eventually-correct"),
+      ],
+    };
     const answer = {
-      rawAnswer: "17",
+      ...createMultipleChoiceSetAnswerState(),
+      selectedOptionIds: ["sum-20"],
       status: "incorrect" as const,
       practice: recordAnswerResult(startPractice(), {
         status: "incorrect",
-        normalizedAnswer: "17",
+        normalizedAnswer: '["sum-20"]',
       }),
     };
-    const results = [result(0, "incorrect-only")];
+    const results = [...session.completedResults, result(2, "incorrect-only")];
     const completionLatch = { current: false };
     let navigations = 0;
     await seedActiveSnapshot(session, answer, storage);

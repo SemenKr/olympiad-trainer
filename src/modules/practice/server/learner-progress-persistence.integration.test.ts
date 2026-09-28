@@ -12,13 +12,18 @@ import {
   findOrCreateLearner,
   importLegacyProgress,
   persistFinishContributions,
+  readRecentPracticeEpisodes,
   readAdaptiveAvailability,
   readLearnerProgress,
   readNextUsefulProblem,
 } from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
-import { learners, practiceFinishReceipts } from "./progress-schema";
-import { eq } from "drizzle-orm";
+import {
+  learners,
+  practiceCompletedEpisodes,
+  practiceFinishReceipts,
+} from "./progress-schema";
+import { and, eq } from "drizzle-orm";
 
 const testUrl = process.env.DATABASE_TEST_URL;
 
@@ -71,6 +76,33 @@ const parrots = {
   solutionExposedBeforeCheckpoint: false as const,
 };
 
+const noAnswer = (problemId: string) => ({
+  problemId,
+  outcome: "no-valid-submissions" as const,
+  skipped: false,
+  validSubmissionCount: 0,
+  hintLevelsExposed: [],
+  solutionExposed: false,
+  checkpoint: null,
+});
+const coreEpisode = {
+  mode: "core" as const,
+  facts: {
+    version: 1 as const,
+    problems: [
+      noAnswer("coinciding-seats"),
+      noAnswer("guaranteed-sock-pair"),
+      noAnswer("table-impossible-sums"),
+    ],
+  },
+};
+const transferEpisode = (
+  problemId: "brothers-ages-products" | "parrots-guaranteed-colors",
+) => ({
+  mode: "transfer" as const,
+  facts: { version: 1 as const, problems: [noAnswer(problemId)] },
+});
+
 async function learner() {
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -86,6 +118,271 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("writes a core episode with its receipt, keeps first completion time on retry, and rejects changed facts", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const sessionId = randomUUID();
+    await persistFinishContributions(id, sessionId, [], undefined, coreEpisode);
+    const [first] = await getProgressDb()
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(eq(practiceCompletedEpisodes.learnerId, id));
+    expect(first.episodeFacts).toEqual(coreEpisode.facts);
+    expect(
+      (await readRecentPracticeEpisodes(id))[0].problems.map(
+        (problem) => problem.problemTitle,
+      ),
+    ).toEqual(["Совпадающие места", "Носки в пакете", "Невозможные суммы"]);
+    await persistFinishContributions(id, sessionId, [], undefined, coreEpisode);
+    const rows = await getProgressDb()
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(eq(practiceCompletedEpisodes.learnerId, id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].completedAt).toEqual(first.completedAt);
+    await expect(
+      persistFinishContributions(id, sessionId, [], undefined, {
+        ...coreEpisode,
+        facts: {
+          ...coreEpisode.facts,
+          problems: [
+            { ...coreEpisode.facts.problems[0], skipped: true },
+            ...coreEpisode.facts.problems.slice(1),
+          ],
+        },
+      }),
+    ).rejects.toThrow("changed after Finish");
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(eq(practiceFinishReceipts.learnerId, id)),
+    ).toHaveLength(1);
+  });
+
+  it.each(["brothers-ages-products", "parrots-guaranteed-colors"] as const)(
+    "persists current %s transfer identity without making history evidence",
+    async (problemId) => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      await persistFinishContributions(
+        id,
+        randomUUID(),
+        [],
+        {
+          problemId,
+          attempted: false,
+          solutionExposed: false,
+        },
+        transferEpisode(problemId),
+      );
+      expect((await readRecentPracticeEpisodes(id))[0]).toMatchObject({
+        mode: "transfer",
+        problems: [
+          {
+            problemTitle:
+              problemId === "brothers-ages-products"
+                ? "Возраст братьев"
+                : "Попугаи в зоопарке",
+          },
+        ],
+      });
+      const [row] = await getProgressDb()
+        .select()
+        .from(learners)
+        .where(eq(learners.id, id));
+      expect(row.guaranteeEvidence).toEqual(emptyGuaranteeProgressEvidence());
+      expect(row.impossibilityEvidence).toEqual(
+        emptyImpossibilityProgressEvidence(),
+      );
+    },
+  );
+
+  it("rolls back evidence when episode insertion conflicts, without writing a receipt", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const sessionId = randomUUID();
+    await getProgressDb().insert(practiceCompletedEpisodes).values({
+      learnerId: id,
+      sessionId,
+      mode: "core",
+      episodeFacts: coreEpisode.facts,
+    });
+    const before = (
+      await getProgressDb().select().from(learners).where(eq(learners.id, id))
+    )[0];
+    const episode = {
+      ...coreEpisode,
+      facts: {
+        ...coreEpisode.facts,
+        problems: [
+          coreEpisode.facts.problems[0],
+          {
+            ...coreEpisode.facts.problems[1],
+            outcome: "eventually-correct" as const,
+            validSubmissionCount: 1,
+            checkpoint: {
+              checkpointId: guarantee.observation.checkpointId,
+              outcome: "correct" as const,
+            },
+          },
+          coreEpisode.facts.problems[2],
+        ],
+      },
+    };
+    await expect(
+      persistFinishContributions(
+        id,
+        sessionId,
+        [{ bucket: "guarantee", value: guarantee }],
+        undefined,
+        episode,
+      ),
+    ).rejects.toThrow();
+    const after = (
+      await getProgressDb().select().from(learners).where(eq(learners.id, id))
+    )[0];
+    expect(after.guaranteeEvidence).toEqual(before.guaranteeEvidence);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(eq(practiceFinishReceipts.learnerId, id)),
+    ).toHaveLength(0);
+  });
+
+  it.each([1, 50, 53])(
+    "retains newest 50 of %s episodes with deterministic ties and authoritative receipts",
+    async (count) => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      const otherId = await learner();
+      await importLegacyProgress(otherId, null);
+      await persistFinishContributions(
+        otherId,
+        randomUUID(),
+        [],
+        undefined,
+        coreEpisode,
+      );
+      const episodeFor = (index: number) => ({
+        ...coreEpisode,
+        facts: {
+          ...coreEpisode.facts,
+          problems: [
+            {
+              ...coreEpisode.facts.problems[0],
+              outcome: "incorrect-only" as const,
+              validSubmissionCount: index,
+            },
+            ...coreEpisode.facts.problems.slice(1),
+          ],
+        },
+      });
+      const sessionIds: string[] = [];
+      for (let index = 1; index <= count; index++) {
+        const sessionId =
+          "00000000-0000-4000-8000-" + String(index).padStart(12, "0");
+        sessionIds.push(sessionId);
+        await persistFinishContributions(
+          id,
+          sessionId,
+          [],
+          undefined,
+          episodeFor(index),
+        );
+        await getProgressDb()
+          .update(practiceCompletedEpisodes)
+          .set({ completedAt: new Date("2020-01-01T00:00:00.000Z") })
+          .where(eq(practiceCompletedEpisodes.learnerId, id));
+      }
+      const expected = sessionIds.slice(-50).sort();
+      const readRows = () =>
+        getProgressDb()
+          .select()
+          .from(practiceCompletedEpisodes)
+          .where(eq(practiceCompletedEpisodes.learnerId, id));
+      const before = await readRows();
+      expect(before.map((row) => row.sessionId).sort()).toEqual(expected);
+      expect(
+        await getProgressDb()
+          .select()
+          .from(practiceFinishReceipts)
+          .where(eq(practiceFinishReceipts.learnerId, id)),
+      ).toHaveLength(count);
+      const newestCounts = Array.from(
+        { length: Math.min(count, 10) },
+        (_, index) => count - index,
+      );
+      expect(
+        (await readRecentPracticeEpisodes(id)).map(
+          (episode) => episode.problems[0].validSubmissionCount,
+        ),
+      ).toEqual(newestCounts);
+      // For 53 episodes this receipt's episode was pruned. The receipt still wins.
+      await persistFinishContributions(
+        id,
+        sessionIds[0],
+        [],
+        undefined,
+        episodeFor(1),
+      );
+      expect(
+        (await readRows()).sort((a, b) =>
+          a.sessionId.localeCompare(b.sessionId),
+        ),
+      ).toEqual(before.sort((a, b) => a.sessionId.localeCompare(b.sessionId)));
+      expect(
+        await getProgressDb()
+          .select()
+          .from(practiceFinishReceipts)
+          .where(eq(practiceFinishReceipts.learnerId, id)),
+      ).toHaveLength(count);
+      expect(await readRecentPracticeEpisodes(otherId)).toHaveLength(1);
+      // Completion time takes precedence over the session-ID tie breaker.
+      const oldestRetained = Math.max(1, count - 49);
+      await getProgressDb()
+        .update(practiceCompletedEpisodes)
+        .set({ completedAt: new Date("2021-01-01T00:00:00.000Z") })
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(
+              practiceCompletedEpisodes.sessionId,
+              sessionIds[oldestRetained - 1],
+            ),
+          ),
+        );
+      expect(
+        (await readRecentPracticeEpisodes(id)).map(
+          (episode) => episode.problems[0].validSubmissionCount,
+        ),
+      ).toEqual(
+        [
+          oldestRetained,
+          ...newestCounts.filter((value) => value !== oldestRetained),
+        ].slice(0, 10),
+      );
+    },
+  );
+
+  it("accepts legacy Finish semantics without history and rejects corrupt stored facts on read", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const legacyId = randomUUID();
+    await persistFinishContributions(id, legacyId, []);
+    await persistFinishContributions(id, legacyId, []);
+    expect(await readRecentPracticeEpisodes(id)).toEqual([]);
+    const sessionId = randomUUID();
+    await persistFinishContributions(id, sessionId, [], undefined, coreEpisode);
+    await getProgressDb()
+      .update(practiceCompletedEpisodes)
+      .set({ episodeFacts: { version: 1, problems: [] } })
+      .where(eq(practiceCompletedEpisodes.sessionId, sessionId));
+    await expect(readRecentPracticeEpisodes(id)).rejects.toThrow(
+      "could not be verified",
+    );
+  });
   it("uses a Finish receipt for history even without checkpoint evidence", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);

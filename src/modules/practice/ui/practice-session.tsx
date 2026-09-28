@@ -245,14 +245,29 @@ export async function finishPracticeSessionAndNavigate(
       attempted: boolean;
       solutionExposed: boolean;
     };
+    episodeMode?: "core" | "transfer";
+    episodeFacts?: unknown;
   }) =>
-    request.adaptiveFacts
+    request.episodeFacts
       ? persistPracticeFinishEvidence(
           request.sessionId,
           request.contributions,
           request.adaptiveFacts,
+          {
+            mode: request.episodeMode,
+            facts: request.episodeFacts,
+          },
         )
-      : persistPracticeFinishEvidence(request.sessionId, request.contributions);
+      : request.adaptiveFacts
+        ? persistPracticeFinishEvidence(
+            request.sessionId,
+            request.contributions,
+            request.adaptiveFacts,
+          )
+        : persistPracticeFinishEvidence(
+            request.sessionId,
+            request.contributions,
+          );
   const completed =
     "status" in session
       ? await completePracticeSession(session, null, results, storage, persist)

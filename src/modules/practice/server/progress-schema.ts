@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   jsonb,
   pgTable,
   primaryKey,
@@ -45,4 +46,27 @@ export const practiceFinishReceipts = pgTable(
       .defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.learnerId, table.sessionId] })],
+);
+
+export const practiceCompletedEpisodes = pgTable(
+  "practice_completed_episodes",
+  {
+    learnerId: uuid("learner_id")
+      .notNull()
+      .references(() => learners.id),
+    sessionId: uuid("session_id").notNull(),
+    mode: text("mode").$type<"core" | "transfer">().notNull(),
+    episodeFacts: jsonb("episode_facts").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.learnerId, table.sessionId] }),
+    index("practice_completed_episodes_recent_idx").on(
+      table.learnerId,
+      table.completedAt.desc(),
+      table.sessionId.desc(),
+    ),
+  ],
 );

@@ -7,6 +7,25 @@
   flex-direction: column;
 }
 
+.history,
+.episodes,
+.problems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-10);
+}
+
+.episodes,
+.problems {
+  padding-inline-start: var(--ot-space-24);
+}
+
+.history h3,
+.history time,
+.problems span {
+  display: block;
+}
+
 .progress {
   width: min(calc(100% - (var(--ot-space-16) * 2)), 680px);
   gap: var(--ot-space-24);
