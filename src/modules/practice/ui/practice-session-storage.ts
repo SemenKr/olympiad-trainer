@@ -1137,7 +1137,6 @@ function readServerPracticeFinishRequest(
         : null;
     if (
       expected !== value.unfinishedBefore ||
-      contributions.length < (adaptiveFacts ? 0 : 1) ||
       contributions.length > 2 ||
       JSON.stringify(value.contributions) !== JSON.stringify(contributions) ||
       (JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts) &&
@@ -1174,20 +1173,6 @@ function adaptiveFinishFacts(
     attempted: result.summary.validSubmissionCount > 0,
     solutionExposed: result.summary.solutionExposure !== null,
   };
-}
-
-export async function hasPendingServerPracticeFinish(
-  sessionId: string,
-  storage?: Storage,
-): Promise<boolean> {
-  const store = storage ?? window.localStorage;
-  return withPracticeSessionLock(() => {
-    const raw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
-    if (raw === null) return false;
-    const request = readServerPracticeFinishRequest(raw);
-    if (!request) throw new Error("Practice Finish request is invalid.");
-    return request.sessionId === sessionId;
-  });
 }
 
 function expectedUnfinishedForFinish(
@@ -1596,7 +1581,6 @@ async function completeServerBackedPracticeSession(
         !before ||
         before.unfinished !== unfinishedBefore ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
-        contributions.length < (adaptiveFacts ? 0 : 1) ||
         contributions.length > 2
       )
         return false;

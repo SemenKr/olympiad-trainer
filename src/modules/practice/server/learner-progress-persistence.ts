@@ -2,11 +2,13 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-
+import {
+  classifyAdaptiveAvailability,
+  type AdaptiveAvailability,
+} from "../application/adaptive-availability";
 import {
   deriveGuaranteeProgressInterpretation,
   emptyGuaranteeProgressEvidence,
-  getGuaranteeTransferReason,
   guaranteeFacts,
   validateGuaranteeProgressEvidence,
   type GuaranteeEvidenceContribution,
@@ -15,7 +17,6 @@ import {
 import {
   deriveImpossibilityProgressInterpretation,
   emptyImpossibilityProgressEvidence,
-  getImpossibilityTransferReason,
   impossibilityFacts,
   validateImpossibilityProgressEvidence,
   type ImpossibilityEvidenceContribution,
@@ -338,7 +339,6 @@ export async function persistFinishContributions(
     typeof sessionId !== "string" ||
     !SESSION_ID.test(sessionId) ||
     !Array.isArray(input) ||
-    input.length < (adaptiveFacts === undefined ? 1 : 0) ||
     input.length > 2 ||
     Array.from(input.keys()).some((index) => !Object.hasOwn(input, index))
   )
@@ -464,6 +464,18 @@ export async function readNextUsefulProblem(
   problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
   reason: string;
 }>> {
+  const { availability } = await readAdaptiveAvailability(learnerId);
+  return availability.status === "recommendation"
+    ? { problemId: availability.problemId, reason: availability.reason }
+    : null;
+}
+
+export async function readAdaptiveAvailability(learnerId: string): Promise<
+  Readonly<{
+    availability: AdaptiveAvailability;
+    hasPracticeHistory: boolean;
+  }>
+> {
   const [row] = await getProgressDb()
     .select()
     .from(learners)
@@ -474,26 +486,30 @@ export async function readNextUsefulProblem(
     row.guaranteeEvidence,
     row.impossibilityEvidence,
   );
-  if (
-    !row.brothersAgesAttempted &&
-    !row.brothersAgesSolutionExposed &&
-    !impossibilityFacts(impossibility).some(
-      (fact) => fact.problemId === "brothers-ages-products",
-    )
-  ) {
-    const reason = getImpossibilityTransferReason(impossibility);
-    if (reason) return { problemId: "brothers-ages-products", reason };
-  }
-  if (
+  const availability = classifyAdaptiveAvailability(guarantee, impossibility, {
+    brothersAttempted: row.brothersAgesAttempted,
+    brothersSolutionExposed: row.brothersAgesSolutionExposed,
+    parrotsAttempted: row.parrotsAttempted,
+    parrotsSolutionExposed: row.parrotsSolutionExposed,
+  });
+  const hasVerifiedFacts = facts(guarantee, impossibility).length > 0;
+  const hasTransferAttempt =
+    row.brothersAgesAttempted ||
+    row.brothersAgesSolutionExposed ||
     row.parrotsAttempted ||
-    row.parrotsSolutionExposed ||
-    guaranteeFacts(guarantee).some(
-      (fact) => fact.problemId === "parrots-guaranteed-colors",
-    )
-  )
-    return null;
-  const reason = getGuaranteeTransferReason(guarantee);
-  return reason ? { problemId: "parrots-guaranteed-colors", reason } : null;
+    row.parrotsSolutionExposed;
+  const [receipt] =
+    hasVerifiedFacts || hasTransferAttempt
+      ? []
+      : await getProgressDb()
+          .select({ sessionId: practiceFinishReceipts.sessionId })
+          .from(practiceFinishReceipts)
+          .where(eq(practiceFinishReceipts.learnerId, learnerId))
+          .limit(1);
+  return {
+    availability,
+    hasPracticeHistory: hasVerifiedFacts || hasTransferAttempt || !!receipt,
+  };
 }
 
 export async function readLearnerProgress(

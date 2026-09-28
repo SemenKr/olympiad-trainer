@@ -2,6 +2,7 @@
   width: min(100% - 2rem, 42rem);
   margin: 0 auto;
   padding: clamp(4rem, 12vh, 8rem) 0;
+  overflow-wrap: anywhere;
 
   h1 {
     margin: 0 0 1rem;
@@ -21,10 +22,18 @@
     line-height: 1.6;
   }
 
+  .eyebrow {
+    margin-top: var(--ot-space-24);
+    color: var(--ot-color-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
   .primary {
     display: inline-flex;
     min-width: 44px;
     min-height: 48px;
+    max-width: 100%;
     align-items: center;
     justify-content: center;
     margin-top: var(--ot-space-24);
@@ -34,6 +43,8 @@
     border-radius: var(--ot-radius-12);
     font-weight: 600;
     text-decoration: none;
+    text-align: center;
+    overflow-wrap: anywhere;
   }
 
   .primary:focus-visible {
@@ -63,6 +74,7 @@
   .secondary {
     display: flex;
     width: fit-content;
+    max-width: 100%;
     min-height: 44px;
     align-items: center;
     margin-top: var(--ot-space-12);

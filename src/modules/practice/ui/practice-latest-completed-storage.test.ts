@@ -234,7 +234,7 @@ describe("latest completed Practice storage", () => {
         answer,
         storage,
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       await finishPracticeSessionAndNavigate(
         completionLatch,
@@ -622,7 +622,7 @@ describe("latest completed Practice storage", () => {
     );
   });
 
-  it("fails closed when no-next rollback cannot restore persisted unfinished state", async () => {
+  it("keeps no-next unfinished when the server Finish request cannot be written", async () => {
     const storage = memoryStorage();
     const previous = [result(0, "eventually-correct")];
     const session: NoNextTwoProblemSessionState = {
@@ -658,7 +658,7 @@ describe("latest completed Practice storage", () => {
     expect(latch.current).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
     expect(readLatestCompletedResults(storage)).toEqual(previous);
-    expect(await readPracticeSessionSnapshot(storage)).toBeNull();
+    expect(await readPracticeSessionSnapshot(storage)).toEqual(session);
 
     expect(
       await finishPracticeSessionAndNavigate(
@@ -669,9 +669,11 @@ describe("latest completed Practice storage", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
-    expect(navigate).not.toHaveBeenCalled();
-    expect(readLatestCompletedResults(storage)).toEqual(previous);
-    expect(latch.current).toBe(false);
+    ).toBe(true);
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(readLatestCompletedResults(storage)).toEqual(
+      session.completedResults,
+    );
+    expect(latch.current).toBe(true);
   });
 });

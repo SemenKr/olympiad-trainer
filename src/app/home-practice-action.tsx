@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
-import { readServerNextUsefulProblem } from "@/app/progress/actions";
+import { readServerAdaptiveAvailability } from "@/app/progress/actions";
+import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
 import {
   getStoredProblemTitle,
   readVerifiedLatestCompletedResults,
@@ -23,10 +24,8 @@ import styles from "./page.module.scss";
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
-  recommendation?: Readonly<{
-    problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
-    reason: string;
-  }> | null;
+  availability: AdaptiveAvailability;
+  hasPracticeHistory: boolean;
 }>;
 
 export function HomePracticeAction() {
@@ -47,16 +46,22 @@ export function HomePracticeAction() {
         ),
       ])
         .then(async ([unfinished, completed]) => {
-          let recommendation: StoredPractice["recommendation"] = null;
+          let adaptive: Pick<
+            StoredPractice,
+            "availability" | "hasPracticeHistory"
+          > = {
+            availability: { status: "insufficient-evidence" },
+            hasPracticeHistory: false,
+          };
           if (!unfinished.value) {
             await ensureServerProgressImported();
-            recommendation = await readServerNextUsefulProblem();
+            adaptive = await readServerAdaptiveAvailability();
           }
           if (active)
             setStored({
               unfinished: unfinished.value,
               completed: completed.value,
-              recommendation,
+              ...adaptive,
             });
         })
         .catch(() => {
@@ -81,18 +86,34 @@ export function HomePracticeAction() {
         >
           Повторить
         </button>
+        <Link className={styles.secondary} href="/progress">
+          Мой прогресс
+        </Link>
       </div>
     );
   }
 
-  if (!stored) {
-    return <p role="status">Проверяем, есть ли незаконченная тренировка…</p>;
-  }
-
-  return <HomePracticeContent stored={stored} />;
+  return (
+    <div aria-live="polite" aria-atomic="true">
+      {stored ? (
+        <HomePracticeContent stored={stored} />
+      ) : (
+        <>
+          <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
+          <Link className={styles.secondary} href="/progress">
+            Мой прогресс
+          </Link>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
+  const progressIsPrimary =
+    !stored.unfinished &&
+    stored.availability.status !== "recommendation" &&
+    (stored.completed !== null || stored.hasPracticeHistory);
   return (
     <>
       {stored.unfinished ? (
@@ -117,27 +138,52 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
               : "Продолжить тренировку"}
           </Link>
         </section>
-      ) : stored.recommendation ? (
+      ) : stored.availability.status === "recommendation" ? (
         <section aria-label="Следующая полезная задача">
           <h2>Следующая полезная задача</h2>
-          <p>{stored.recommendation.reason}</p>
+          <p>{stored.availability.reason}</p>
           <Link
             className={styles.primary}
             href={
-              stored.recommendation.problemId === "parrots-guaranteed-colors"
+              stored.availability.problemId === "parrots-guaranteed-colors"
                 ? "/practice/transfer?problem=parrots-guaranteed-colors"
                 : "/practice/transfer"
             }
           >
-            {stored.recommendation.problemId === "parrots-guaranteed-colors"
+            {stored.availability.problemId === "parrots-guaranteed-colors"
               ? "Попугаи в зоопарке"
               : "Возраст братьев"}
           </Link>
         </section>
+      ) : progressIsPrimary ? (
+        <section>
+          <p className={styles.eyebrow}>Что сейчас?</p>
+          <h2>
+            {stored.availability.status === "transfer-exhausted"
+              ? "Новых подходящих задач пока нет"
+              : "Пока без новой задачи"}
+          </h2>
+          <p>
+            {stored.availability.status === "transfer-exhausted"
+              ? "Все подходящие задачи из текущего набора уже были в работе."
+              : "Пока недостаточно проверенной работы, чтобы честно выбрать следующую полезную задачу."}
+          </p>
+          <Link className={styles.primary} href="/progress">
+            Посмотреть прогресс
+          </Link>
+        </section>
       ) : (
-        <Link className={styles.primary} href="/practice">
-          Начать тренировку
-        </Link>
+        <section>
+          <p className={styles.eyebrow}>Что сейчас?</p>
+          <h2>Начни с первой тренировки</h2>
+          <p>
+            Попробуй решить задачу самостоятельно. Если понадобится, помощь
+            можно открыть по ходу решения.
+          </p>
+          <Link className={styles.primary} href="/practice">
+            Начать тренировку
+          </Link>
+        </section>
       )}
       {stored.completed ? (
         <section aria-label="Последняя тренировка" className={styles.latest}>
@@ -157,6 +203,11 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
             Посмотреть итоги
           </Link>
         </section>
+      ) : null}
+      {!progressIsPrimary ? (
+        <Link className={styles.secondary} href="/progress">
+          Мой прогресс
+        </Link>
       ) : null}
     </>
   );

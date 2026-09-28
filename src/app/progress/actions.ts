@@ -5,6 +5,7 @@ import { resolveLearnerFromCookie } from "../../modules/practice/server/learner-
 import {
   importLegacyProgress,
   persistFinishContributions,
+  readAdaptiveAvailability,
   readLearnerProgress,
   readNextUsefulProblem,
 } from "../../modules/practice/server/learner-progress-persistence";
@@ -36,6 +37,11 @@ export async function persistPracticeFinishEvidence(
 export async function readServerNextUsefulProblem() {
   const learnerId = await resolveLearnerFromCookie();
   return readNextUsefulProblem(learnerId);
+}
+
+export async function readServerAdaptiveAvailability() {
+  const learnerId = await resolveLearnerFromCookie();
+  return readAdaptiveAvailability(learnerId);
 }
 
 export async function readServerProgress(): Promise<
