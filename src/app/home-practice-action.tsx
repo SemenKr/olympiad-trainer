@@ -6,7 +6,11 @@ import { useEffect, useState } from "react";
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
 import { readServerAdaptiveAvailability } from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
-import { PACK_A_NAME } from "../modules/practice/application/completed-practice-episode";
+import {
+  PACK_A_NAME,
+  PACK_B_NAME,
+  packIdFromProblemIds,
+} from "../modules/practice/application/completed-practice-episode";
 import {
   getStoredProblemTitle,
   readVerifiedLatestCompletedResults,
@@ -132,7 +136,15 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
             className={styles.primary}
             href={
               stored.unfinished.mode === "pack"
-                ? "/practice/pack"
+                ? packIdFromProblemIds(
+                    "status" in stored.unfinished
+                      ? stored.unfinished.completedResults.map(
+                          (result) => result.problemId,
+                        )
+                      : stored.unfinished.problemIds,
+                  ) === "pack-b"
+                  ? "/practice/pack?pack=pack-b"
+                  : "/practice/pack"
                 : "mode" in stored.unfinished
                   ? "/practice/transfer"
                   : "/practice"
@@ -206,6 +218,15 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           <Link className={styles.secondary} href="/practice/pack">
             Решить 3 задачи
           </Link>
+          <div className={styles["pack-choice"]}>
+            <h3>{PACK_B_NAME}</h3>
+            <Link
+              className={styles.secondary}
+              href="/practice/pack?pack=pack-b"
+            >
+              Решить 3 задачи
+            </Link>
+          </div>
         </section>
       ) : null}
       {stored.completed ? (

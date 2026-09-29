@@ -19,6 +19,8 @@ import {
 import {
   completedEpisodeFacts,
   PACK_A_PROBLEM_IDS,
+  PACK_B_PROBLEM_IDS,
+  packIdFromProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
@@ -134,6 +136,56 @@ const packProblems = [
   },
 ] as const;
 
+const packBProblems = [
+  {
+    id: PACK_B_PROBLEM_IDS[0],
+    title: "Одновременно в город",
+    hints: [
+      "truck-car-same-arrival-focus",
+      "truck-car-same-arrival-strategy",
+      "truck-car-same-arrival-next-step",
+    ],
+    solution: "truck-car-same-arrival-full-solution",
+  },
+  {
+    id: PACK_B_PROBLEM_IDS[1],
+    title: "Рыцари и лжецы",
+    hints: [
+      "knights-all-or-none-focus",
+      "knights-all-or-none-strategy",
+      "knights-all-or-none-next-step",
+    ],
+    solution: "knights-all-or-none-full-solution",
+    optionIds: [
+      "count-0",
+      "count-1",
+      "count-2",
+      "count-3",
+      "count-4",
+      "count-5",
+    ],
+  },
+  {
+    id: PACK_B_PROBLEM_IDS[2],
+    title: "Хвастливый рыбак",
+    hints: [
+      "boastful-fisherman-streak-focus",
+      "boastful-fisherman-streak-strategy",
+      "boastful-fisherman-streak-next-step",
+    ],
+    solution: "boastful-fisherman-streak-full-solution",
+  },
+] as const;
+
+function storedPackProblems(problemIds: readonly string[]) {
+  const packId = packIdFromProblemIds(problemIds);
+  return packId === "pack-a"
+    ? packProblems
+    : packId === "pack-b"
+      ? packBProblems
+      : null;
+}
+
 const transferProblem = {
   id: "brothers-ages-products",
   title: "Возраст братьев",
@@ -181,6 +233,7 @@ function storedAdaptiveProblem(problemId: string) {
 type StoredProblem =
   | (typeof problems)[number]
   | (typeof packProblems)[number]
+  | (typeof packBProblems)[number]
   | (typeof transferProblems)[number]
   | typeof pagesProblem;
 
@@ -450,15 +503,24 @@ function validResult(
 export function validateLatestCompletedResults(
   value: unknown,
 ): readonly PracticeSessionResult[] | null {
+  const completedPackProblems = Array.isArray(value)
+    ? storedPackProblems(
+        value.map((result) =>
+          record(result) && typeof result.problemId === "string"
+            ? result.problemId
+            : "",
+        ),
+      )
+    : null;
   if (
     Array.isArray(value) &&
-    value.length === packProblems.length &&
+    completedPackProblems &&
     value.every((result, index) =>
       validResult(
         result,
-        packProblems[index],
-        index === packProblems.length - 1,
-        index === packProblems.length - 1,
+        completedPackProblems[index],
+        index === completedPackProblems.length - 1,
+        index === completedPackProblems.length - 1,
       ),
     )
   )
@@ -589,8 +651,23 @@ function validateSessionShape(
   length: 2 | 3,
   mode?: "pack",
 ): Record<string, unknown> | null {
+  const packIds =
+    record(value) && mode === "pack"
+      ? value.status === "no-next" && Array.isArray(value.completedResults)
+        ? value.completedResults.map((result) =>
+            record(result) && typeof result.problemId === "string"
+              ? result.problemId
+              : "",
+          )
+        : Array.isArray(value.problemIds)
+          ? value.problemIds.map((id) => (typeof id === "string" ? id : ""))
+          : []
+      : [];
+  const selectedPackProblems =
+    mode === "pack" ? storedPackProblems(packIds) : null;
+  if (mode === "pack" && !selectedPackProblems) return null;
   const sessionProblems: readonly StoredProblem[] =
-    mode === "pack" ? packProblems : problems;
+    selectedPackProblems ?? problems;
   if (record(value) && value.status === "no-next") {
     return exactKeys(value, [
       "sessionId",
@@ -904,7 +981,9 @@ export async function readVerifiedPracticeSessionSnapshot(
           ("mode" in snapshot && snapshot.mode !== "pack"
             ? storedAdaptiveProblem(snapshot.problemIds[0])!
             : snapshot.mode === "pack"
-              ? packProblems[snapshot.activeProblemIndex]
+              ? storedPackProblems(snapshot.problemIds)![
+                  snapshot.activeProblemIndex
+                ]
               : problems[snapshot.activeProblemIndex]
           ).id,
           snapshot.reasoningCheckpointObservation,
@@ -954,7 +1033,7 @@ function activeSessionSnapshot(
     ...(session.mode === "pack" ? { mode: "pack" as const } : {}),
     problemIds:
       session.mode === "pack"
-        ? [packProblems[0].id, packProblems[1].id, packProblems[2].id]
+        ? (session.problemIds ?? PACK_A_PROBLEM_IDS)
         : [problems[0].id, problems[1].id, problems[2].id],
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,
@@ -1233,6 +1312,9 @@ function readServerPracticeFinishRequest(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
+              ...(unfinished.mode === "pack"
+                ? { problemIds: unfinished.problemIds }
+                : {}),
               ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
                     mode: unfinished.mode,
@@ -1540,6 +1622,9 @@ function readPendingPracticeProgressFinish(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
+              ...(unfinished.mode === "pack"
+                ? { problemIds: unfinished.problemIds }
+                : {}),
               ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
                     mode: unfinished.mode,
@@ -2113,6 +2198,7 @@ export function getStoredProblemTitle(
   return "mode" in snapshot && snapshot.mode !== "pack"
     ? storedAdaptiveProblem(snapshot.problemIds[0])!.title
     : snapshot.mode === "pack"
-      ? packProblems[snapshot.activeProblemIndex].title
+      ? storedPackProblems(snapshot.problemIds)![snapshot.activeProblemIndex]
+          .title
       : problems[snapshot.activeProblemIndex].title;
 }

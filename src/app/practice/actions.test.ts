@@ -145,6 +145,40 @@ describe("reasoning checkpoint server boundary", () => {
 });
 
 describe("practice answer server boundary", () => {
+  it("assesses Pack B with existing numeric and exact-set answers and protected support", async () => {
+    await expect(
+      submitPracticeAnswer("truck-car-same-arrival", "180"),
+    ).resolves.toMatchObject({ status: "correct" });
+    await expect(
+      submitPracticeAnswer("boastful-fisherman-streak", "8"),
+    ).resolves.toMatchObject({ status: "correct" });
+    await expect(
+      submitPracticeAnswer("truck-car-same-arrival", "42"),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      submitPracticeAnswer("knights-all-or-none", ["count-5", "count-0"]),
+    ).resolves.toMatchObject({ status: "correct" });
+    await expect(
+      submitPracticeAnswer("knights-all-or-none", ["count-0"]),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      submitPracticeAnswer("knights-all-or-none", ["count-0", "count-0"]),
+    ).resolves.toMatchObject({ status: "invalid" });
+    await expect(
+      revealPracticeHint("knights-all-or-none", "knights-all-or-none-strategy"),
+    ).resolves.toMatchObject({ level: "strategy" });
+    await expect(
+      revealPracticeSolution(
+        "boastful-fisherman-streak",
+        "boastful-fisherman-streak-full-solution",
+      ),
+    ).resolves.toMatchObject({
+      solutionId: "boastful-fisherman-streak-full-solution",
+    });
+    await expect(
+      revealReasoningCheckpoint("knights-all-or-none", "made-up"),
+    ).rejects.toThrow();
+  });
   it("assesses Pack A through existing set and integer checkers with protected support", async () => {
     await expect(
       submitPracticeAnswer("granddaughters-first", ["bella"]),

@@ -5,6 +5,10 @@ import {
   requestPracticeSkip,
   type PracticeSessionResult,
 } from "./two-problem-session-state";
+import {
+  packProblemIds,
+  type PackId,
+} from "../application/completed-practice-episode";
 
 export {
   createPracticeSessionResult,
@@ -17,6 +21,7 @@ export type { PracticeSessionResult };
 export type PracticeSessionState = Readonly<{
   sessionId: string;
   mode?: "pack";
+  problemIds?: readonly [string, string, string];
   activeProblemIndex: 0 | 1 | 2;
   completedResults: readonly PracticeSessionResult[];
 }>;
@@ -72,8 +77,14 @@ export function startPracticeSession(): PracticeSessionState {
   };
 }
 
-export function startPackPracticeSession(): PracticeSessionState {
-  return { ...startPracticeSession(), mode: "pack" };
+export function startPackPracticeSession(
+  packId: PackId = "pack-a",
+): PracticeSessionState {
+  return {
+    ...startPracticeSession(),
+    mode: "pack",
+    problemIds: packProblemIds(packId),
+  };
 }
 
 export function isFixedPracticeSession(
@@ -94,6 +105,7 @@ export function advancePracticeSession(
   return {
     sessionId: state.sessionId,
     ...(state.mode === "pack" ? { mode: "pack" as const } : {}),
+    ...(state.problemIds ? { problemIds: state.problemIds } : {}),
     activeProblemIndex: (state.activeProblemIndex + 1) as 1 | 2,
     completedResults: [...state.completedResults, result],
   };

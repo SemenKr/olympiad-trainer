@@ -7,7 +7,10 @@ import type {
   RevealedReasoningCheckpoint,
 } from "../application/practice-problem-presentation";
 import type { ReasoningCheckpointOptionId } from "../application/reasoning-checkpoint";
-import { PACK_A_PROBLEM_IDS } from "../application/completed-practice-episode";
+import {
+  PACK_A_PROBLEM_IDS,
+  PACK_B_PROBLEM_IDS,
+} from "../application/completed-practice-episode";
 
 type SourceReference = Readonly<{
   reference: "I" | "IS";
@@ -94,7 +97,7 @@ export const PRACTICE_SESSION_PROBLEM_IDS = [
   "guaranteed-sock-pair",
   "table-impossible-sums",
 ] as const;
-export { PACK_A_PROBLEM_IDS };
+export { PACK_A_PROBLEM_IDS, PACK_B_PROBLEM_IDS };
 
 const coincidingSeatsProblem = {
   id: CURRENT_PRACTICE_PROBLEM_ID,
@@ -706,6 +709,173 @@ const dominoPlacementsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const truckCarSameArrivalProblem = {
+  id: PACK_B_PROBLEM_IDS[0],
+  grade: 5,
+  subject: "mathematics",
+  title: "Одновременно в город",
+  statement:
+    "Из деревни в город с постоянной скоростью выехал грузовик. Когда он проехал 42 км, из деревни по той же дороге с постоянной скоростью выехал автомобиль. Когда автомобиль проехал 30 км, грузовик находился в 65 км от деревни. Грузовик и автомобиль приехали в город одновременно. Каково расстояние от деревни до города?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/tasks-math-5-sch-msk-24-25.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/sol-math-5-sch-msk-24-25.pdf",
+      page: 4,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "180" },
+  hints: [
+    {
+      id: "truck-car-same-arrival-focus",
+      level: "focus",
+      text: "Сравни, сколько грузовик и автомобиль проехали за один и тот же промежуток времени после старта автомобиля.",
+    },
+    {
+      id: "truck-car-same-arrival-strategy",
+      level: "strategy",
+      text: "Пока автомобиль проехал 30 км, грузовик проехал от отметки 42 км до отметки 65 км. Найди, насколько за это время уменьшилось расстояние между ними.",
+    },
+    {
+      id: "truck-car-same-arrival-next-step",
+      level: "next-step",
+      text: "Грузовик проехал 23 км, а автомобиль — 30 км, поэтому расстояние между ними уменьшилось на 7 км. В момент старта автомобиля грузовик был впереди на 42 км.",
+    },
+  ],
+  solution: {
+    id: "truck-car-same-arrival-full-solution",
+    kind: "training-adaptation",
+    text: "За одно и то же время после старта автомобиля грузовик проехал 65 − 42 = 23 км, а автомобиль — 30 км. Значит, за такой промежуток автомобиль сокращает отставание на 30 − 23 = 7 км. В момент старта автомобиля грузовик был впереди на 42 км, поэтому до встречи нужно 42 / 7 = 6 таких промежутков. За них автомобиль проедет 30 × 6 = 180 км. Так как они приехали в город одновременно, расстояние от деревни до города равно 180 км. Ответ: 180.",
+  },
+} as const satisfies ProblemDefinition;
+
+const knightsAllOrNoneProblem = {
+  id: PACK_B_PROBLEM_IDS[1],
+  grade: 5,
+  subject: "mathematics",
+  title: "Рыцари и лжецы",
+  statement:
+    "Путешественник встретил на острове 5 жителей. Каждый из них либо рыцарь, который всегда говорит правду, либо лжец, который всегда лжёт. Каждый из пяти сказал: «По крайней мере один из нас — рыцарь». Сколько рыцарей могло быть среди этих пяти жителей? Выбери все возможные варианты.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf",
+      page: 3,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    options: [
+      { id: "count-0", label: "0" },
+      { id: "count-1", label: "1" },
+      { id: "count-2", label: "2" },
+      { id: "count-3", label: "3" },
+      { id: "count-4", label: "4" },
+      { id: "count-5", label: "5" },
+    ],
+    expectedOptionIds: ["count-0", "count-5"],
+  },
+  hints: [
+    {
+      id: "knights-all-or-none-focus",
+      level: "focus",
+      text: "Все пять жителей произнесли одну и ту же фразу. Значит, её истинность должна согласовываться с типом каждого говорящего.",
+    },
+    {
+      id: "knights-all-or-none-strategy",
+      level: "strategy",
+      text: "Разбери два случая: среди них есть хотя бы один рыцарь или рыцарей нет совсем.",
+    },
+    {
+      id: "knights-all-or-none-next-step",
+      level: "next-step",
+      text: "Если хотя бы один рыцарь есть, общая фраза истинна. Может ли тогда её произнести лжец? А если рыцарей нет, эта фраза ложна.",
+    },
+  ],
+  solution: {
+    id: "knights-all-or-none-full-solution",
+    kind: "training-adaptation",
+    text: "Если среди жителей есть хотя бы один рыцарь, фраза «По крайней мере один из нас — рыцарь» истинна. Тогда каждый, кто её произнёс, говорит правду, поэтому все пять жителей — рыцари. Получаем 5 рыцарей. Если же рыцарей нет, фраза ложна, поэтому все пять лжецов могут её произнести. Получаем 0 рыцарей. Других вариантов нет. Ответ: 0 или 5.",
+  },
+} as const satisfies ProblemDefinition;
+
+const boastfulFishermanStreakProblem = {
+  id: PACK_B_PROBLEM_IDS[2],
+  grade: 5,
+  subject: "mathematics",
+  title: "Хвастливый рыбак",
+  statement:
+    "Хвастливый рыбак каждый день говорит: «Сегодня я поймал пескарей больше, чем позавчера, но меньше, чем 9 дней назад». Какое наибольшее число дней подряд он может говорить правду?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2020/21",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/tasks-math-5-prigl-msk-20-21.pdf",
+      page: 3,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/ans-math-5-prigl-msk-20-21.pdf",
+      page: 5,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "8" },
+  hints: [
+    {
+      id: "boastful-fisherman-streak-focus",
+      level: "focus",
+      text: "Условие «больше, чем позавчера» связывает дни через два шага. Попробуй проследить отдельно две цепочки дней.",
+    },
+    {
+      id: "boastful-fisherman-streak-strategy",
+      level: "strategy",
+      text: "Чтобы доказать верхнюю границу, предположи, что рыбак говорил правду 9 дней подряд, и обозначь эти дни с 3-го по 11-й.",
+    },
+    {
+      id: "boastful-fisherman-streak-next-step",
+      level: "next-step",
+      text: "Из условия про позавчера сравни 10-й день с 8-м, 6-м, 4-м и 2-м, а 11-й — с 9-м, 7-м, 5-м, 3-м и 1-м. Затем используй условие про 9 дней назад.",
+    },
+  ],
+  solution: {
+    id: "boastful-fisherman-streak-full-solution",
+    kind: "training-adaptation",
+    text: "Восемь правдивых дней возможны, например, при уловах по дням: 20, 20, 20, 20, 20, 20, 20, 6, 1, 7, 2, 8, 3, 9, 4, 10, 5. Предположим, что рыбак говорил правду 9 дней подряд — с 3-го по 11-й. Тогда улов в 10-й день больше, чем в 8-й, 6-й, 4-й и 2-й, а в 11-й меньше, чем во 2-й. Значит, улов в 11-й день меньше, чем в 10-й. Но улов в 11-й день больше, чем в 9-й, 7-й, 5-й, 3-й и 1-й, а в 10-й меньше, чем в 1-й. Значит, улов в 10-й день меньше, чем в 11-й. Противоречие: 9 правдивых дней подряд невозможны, а 8 возможны. Ответ: 8.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
@@ -716,6 +886,9 @@ const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [granddaughtersFirstProblem.id]: granddaughtersFirstProblem,
   [cutoutAreaRatioProblem.id]: cutoutAreaRatioProblem,
   [dominoPlacementsProblem.id]: dominoPlacementsProblem,
+  [truckCarSameArrivalProblem.id]: truckCarSameArrivalProblem,
+  [knightsAllOrNoneProblem.id]: knightsAllOrNoneProblem,
+  [boastfulFishermanStreakProblem.id]: boastfulFishermanStreakProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {

@@ -18,6 +18,28 @@ export const PACK_A_PROBLEM_IDS = [
   "cutout-area-ratio",
   "domino-placements",
 ] as const;
+export const PACK_B_NAME = "Связи и закономерности";
+export const PACK_B_PROBLEM_IDS = [
+  "truck-car-same-arrival",
+  "knights-all-or-none",
+  "boastful-fisherman-streak",
+] as const;
+export type PackId = "pack-a" | "pack-b";
+
+export function packProblemIds(packId: PackId) {
+  return packId === "pack-a" ? PACK_A_PROBLEM_IDS : PACK_B_PROBLEM_IDS;
+}
+
+export function packIdFromProblemIds(
+  problemIds: readonly string[],
+): PackId | null {
+  if (problemIds.length !== 3) return null;
+  if (problemIds.every((id, index) => id === PACK_A_PROBLEM_IDS[index]))
+    return "pack-a";
+  if (problemIds.every((id, index) => id === PACK_B_PROBLEM_IDS[index]))
+    return "pack-b";
+  return null;
+}
 
 export type CompletedPracticeProblemFact = Readonly<{
   problemId: string;
@@ -109,10 +131,12 @@ export function validateCompletedEpisode(
       return null;
   } else if (mode === "pack") {
     if (
-      problems.length !== PACK_A_PROBLEM_IDS.length ||
-      !problems.every(
-        (fact, index) =>
-          record(fact) && fact.problemId === PACK_A_PROBLEM_IDS[index],
+      !packIdFromProblemIds(
+        problems.map((fact) =>
+          record(fact) && typeof fact.problemId === "string"
+            ? fact.problemId
+            : "",
+        ),
       )
     )
       return null;

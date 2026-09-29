@@ -29,6 +29,7 @@ vi.mock("@/modules/practice/ui/session-summary", () => ({
 }));
 
 import { startPractice } from "../modules/practice/application/practice-state";
+import { PACK_B_PROBLEM_IDS } from "../modules/practice/application/completed-practice-episode";
 import { HomePracticeContent } from "./home-practice-action";
 import Home from "./page";
 
@@ -91,6 +92,63 @@ const fresh = {
 };
 
 describe("Home Practice precedence", () => {
+  it("shows two explicit pack choices and resumes Pack B from its stored tuple", () => {
+    const render = (
+      unfinishedValue: Parameters<
+        typeof HomePracticeContent
+      >[0]["stored"]["unfinished"],
+      returning = true,
+    ) =>
+      renderToStaticMarkup(
+        <HomePracticeContent
+          stored={{
+            ...fresh,
+            unfinished: unfinishedValue,
+            hasPracticeHistory: returning,
+          }}
+        />,
+      );
+    const returning = render(null);
+    expect(returning).toContain("Разные способы рассуждать");
+    expect(returning).toContain("Связи и закономерности");
+    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(2);
+    expect(returning).toContain('href="/practice/pack"');
+    expect(returning).toContain('href="/practice/pack?pack=pack-b"');
+    expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
+      returning.indexOf("Дополнительная практика"),
+    );
+    expect(render(null, false)).not.toContain("/practice/pack");
+    const active = {
+      ...unfinished,
+      mode: "pack" as const,
+      problemIds: PACK_B_PROBLEM_IDS,
+    };
+    const activeMarkup = render(active);
+    expect(activeMarkup).toContain('href="/practice/pack?pack=pack-b"');
+    expect(activeMarkup).not.toContain("Связи и закономерности");
+    const noNextPack = {
+      sessionId: unfinished.sessionId,
+      mode: "pack" as const,
+      status: "no-next" as const,
+      completedResults: PACK_B_PROBLEM_IDS.map((problemId) => ({
+        ...completed[0],
+        problemId,
+        taskOutcome: "skipped" as const,
+      })),
+    };
+    expect(render(noNextPack)).toContain('href="/practice/pack?pack=pack-b"');
+    const packA = {
+      ...unfinished,
+      mode: "pack" as const,
+      problemIds: [
+        "granddaughters-first",
+        "cutout-area-ratio",
+        "domino-placements",
+      ] as const,
+    };
+    expect(render(packA)).toContain('href="/practice/pack"');
+    expect(render(packA)).not.toContain('href="/practice/pack?pack=pack-b"');
+  });
   it("shows Pack A only for returning learners, below the current action and before latest preview", () => {
     const render = (
       stored: Parameters<typeof HomePracticeContent>[0]["stored"],
