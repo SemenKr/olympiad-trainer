@@ -115,6 +115,12 @@ describe("Home Practice precedence", () => {
     expect(returning).toContain("Разные способы рассуждать");
     expect(returning).toContain("Связи и закономерности");
     expect(returning).toContain("Числа и структуры");
+    expect(returning.indexOf("Разные способы рассуждать")).toBeLessThan(
+      returning.indexOf("Связи и закономерности"),
+    );
+    expect(returning.indexOf("Связи и закономерности")).toBeLessThan(
+      returning.indexOf("Числа и структуры"),
+    );
     expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(3);
     expect(returning).toContain('href="/practice/pack"');
     expect(returning).toContain('href="/practice/pack?pack=pack-b"');

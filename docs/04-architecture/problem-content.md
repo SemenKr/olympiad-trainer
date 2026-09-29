@@ -6,6 +6,12 @@ Repository-authored content is the source of truth for the first 10–100 proble
 
 A small in-memory server catalog resolves definitions by stable product ID. Unknown IDs fail explicitly. A database, CMS, admin UI, content versioning, repository interface, and dependency-injection layer are postponed until a demonstrated need justifies them.
 
+## Ordinary Practice Packs
+
+Ordinary Packs are repository-authored, learner-chosen sets of exactly three problems. A learner-safe static registry owns each Pack ID, display name, and exact ordered problem-ID tuple. Pack routes, Home choices, and session restore derive their identity from that registry. Browser snapshots persist the ordered problem IDs, not a Pack ID; validation accepts only a complete, exact registered tuple. Durable History continues to record these episodes with `mode: pack` and the existing safe episode facts.
+
+The server catalog remains the source for problem statements, protected answers, hints, solutions, and provenance. Browser snapshot validation keeps only the small learner-safe metadata it needs, keyed by problem ID. Pack completion contributes no capability evidence or adaptive facts. This does not introduce a CMS, curriculum model, or recommender.
+
 ## Server and learner boundaries
 
 `ProblemDefinition` never crosses the Server Component boundary. `/practice` resolves it through the catalog and passes an explicit learner-safe projection containing only the product problem ID, title, statement, response kind, ordered hint descriptors (`hintId` and semantic `level`), and the stable solution ID needed for an explicit reveal request. For `multiple-choice-set`, the projection also includes the learner-visible option IDs and labels. Expected answer/set, provenance, unopened hint text, and full-solution text are excluded.

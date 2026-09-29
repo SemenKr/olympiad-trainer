@@ -18,9 +18,8 @@ import {
 } from "../application/practice-progress-evidence";
 import {
   completedEpisodeFacts,
-  PACK_A_PROBLEM_IDS,
-  PACK_B_PROBLEM_IDS,
-  PACK_C_PROBLEM_IDS,
+  PRACTICE_PACKS,
+  packProblemIds,
   packIdFromProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
@@ -103,9 +102,9 @@ const problems = [
   },
 ] as const;
 
-const packProblems = [
-  {
-    id: PACK_A_PROBLEM_IDS[0],
+const packProblemMetadata = {
+  "granddaughters-first": {
+    id: "granddaughters-first",
     title: "Кто пришёл первым?",
     hints: [
       "granddaughters-first-focus",
@@ -115,8 +114,8 @@ const packProblems = [
     solution: "granddaughters-first-full-solution",
     optionIds: ["anya", "bella", "valya", "galya", "dasha"],
   },
-  {
-    id: PACK_A_PROBLEM_IDS[1],
+  "cutout-area-ratio": {
+    id: "cutout-area-ratio",
     title: "Вырезанная фигура",
     hints: [
       "cutout-area-ratio-focus",
@@ -125,8 +124,8 @@ const packProblems = [
     ],
     solution: "cutout-area-ratio-full-solution",
   },
-  {
-    id: PACK_A_PROBLEM_IDS[2],
+  "domino-placements": {
+    id: "domino-placements",
     title: "Сколько прямоугольников?",
     hints: [
       "domino-placements-focus",
@@ -135,11 +134,8 @@ const packProblems = [
     ],
     solution: "domino-placements-full-solution",
   },
-] as const;
-
-const packBProblems = [
-  {
-    id: PACK_B_PROBLEM_IDS[0],
+  "truck-car-same-arrival": {
+    id: "truck-car-same-arrival",
     title: "Одновременно в город",
     hints: [
       "truck-car-same-arrival-focus",
@@ -148,8 +144,8 @@ const packBProblems = [
     ],
     solution: "truck-car-same-arrival-full-solution",
   },
-  {
-    id: PACK_B_PROBLEM_IDS[1],
+  "knights-all-or-none": {
+    id: "knights-all-or-none",
     title: "Рыцари и лжецы",
     hints: [
       "knights-all-or-none-focus",
@@ -166,8 +162,8 @@ const packBProblems = [
       "count-5",
     ],
   },
-  {
-    id: PACK_B_PROBLEM_IDS[2],
+  "boastful-fisherman-streak": {
+    id: "boastful-fisherman-streak",
     title: "Хвастливый рыбак",
     hints: [
       "boastful-fisherman-streak-focus",
@@ -176,11 +172,8 @@ const packBProblems = [
     ],
     solution: "boastful-fisherman-streak-full-solution",
   },
-] as const;
-
-const packCProblems = [
-  {
-    id: PACK_C_PROBLEM_IDS[0],
+  "largest-valid-eight-digit": {
+    id: "largest-valid-eight-digit",
     title: "Самое большое число",
     hints: [
       "largest-valid-eight-digit-focus",
@@ -189,8 +182,8 @@ const packCProblems = [
     ],
     solution: "largest-valid-eight-digit-full-solution",
   },
-  {
-    id: PACK_C_PROBLEM_IDS[1],
+  "three-numbers-digit-sums": {
+    id: "three-numbers-digit-sums",
     title: "Три загадочных числа",
     hints: [
       "three-numbers-digit-sums-focus",
@@ -199,8 +192,8 @@ const packCProblems = [
     ],
     solution: "three-numbers-digit-sums-full-solution",
   },
-  {
-    id: PACK_C_PROBLEM_IDS[2],
+  "mountain-plain-flights": {
+    id: "mountain-plain-flights",
     title: "Рейсы между городами",
     hints: [
       "mountain-plain-flights-focus",
@@ -209,17 +202,12 @@ const packCProblems = [
     ],
     solution: "mountain-plain-flights-full-solution",
   },
-] as const;
+} as const;
 
 function storedPackProblems(problemIds: readonly string[]) {
   const packId = packIdFromProblemIds(problemIds);
-  return packId === "pack-a"
-    ? packProblems
-    : packId === "pack-b"
-      ? packBProblems
-      : packId === "pack-c"
-        ? packCProblems
-        : null;
+  if (!packId) return null;
+  return packProblemIds(packId).map((id) => packProblemMetadata[id]);
 }
 
 const transferProblem = {
@@ -268,9 +256,7 @@ function storedAdaptiveProblem(problemId: string) {
 
 type StoredProblem =
   | (typeof problems)[number]
-  | (typeof packProblems)[number]
-  | (typeof packBProblems)[number]
-  | (typeof packCProblems)[number]
+  | (typeof packProblemMetadata)[keyof typeof packProblemMetadata]
   | (typeof transferProblems)[number]
   | typeof pagesProblem;
 
@@ -1070,7 +1056,7 @@ function activeSessionSnapshot(
     ...(session.mode === "pack" ? { mode: "pack" as const } : {}),
     problemIds:
       session.mode === "pack"
-        ? (session.problemIds ?? PACK_A_PROBLEM_IDS)
+        ? (session.problemIds ?? packProblemIds(PRACTICE_PACKS[0].id))
         : [problems[0].id, problems[1].id, problems[2].id],
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,

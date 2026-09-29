@@ -52,6 +52,7 @@ import PracticePage from "./page";
 import TransferPracticePage from "./transfer/page";
 import PackPracticePage from "./pack/page";
 import { readServerNextUsefulProblem } from "../../app/progress/actions";
+import { PRACTICE_PACKS } from "../../modules/practice/application/completed-practice-episode";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
 let container: HTMLDivElement;
@@ -120,11 +121,49 @@ function savedTransfer(
 }
 
 describe("direct /practice restore", () => {
+  it.each(
+    PRACTICE_PACKS.flatMap((storedPack) =>
+      PRACTICE_PACKS.filter(
+        (requestedPack) => requestedPack.id !== storedPack.id,
+      ).map((requestedPack) => [storedPack, requestedPack] as const),
+    ),
+  )(
+    "keeps stored %s identity when the route requests %s",
+    async (storedPack, requestedPack) => {
+      const route = await PackPracticePage({
+        searchParams: Promise.resolve({ pack: requestedPack.id }),
+      });
+      const props = route.props as ComponentProps<typeof PracticeSession>;
+      const first = props.packs![storedPack.id][0];
+      const snapshot = {
+        sessionId,
+        mode: "pack",
+        problemIds: storedPack.problemIds,
+        activeProblemIndex: 0,
+        completedResults: [],
+        activePractice: startPractice(),
+        ...(first.response.kind === "multiple-choice-set"
+          ? { selectedOptionIds: [] }
+          : { rawAnswer: "" }),
+      };
+      localStorage.setItem(
+        PRACTICE_SESSION_STORAGE_KEY,
+        JSON.stringify(snapshot),
+      );
+      await mountPractice(props);
+      expect(container.querySelector("h1")?.textContent).toBe(first.title);
+      expect(
+        JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+      ).toEqual(snapshot);
+    },
+  );
   it("starts Pack A by default, Pack B only for its literal query, and rejects invalid queries", async () => {
     const a = await PackPracticePage({ searchParams: Promise.resolve({}) });
     const aProps = a.props as ComponentProps<typeof PracticeSession>;
     expect(aProps.startPackId).toBe("pack-a");
-    expect(aProps.packProblems?.map((problem) => problem.problemId)).toEqual([
+    expect(
+      aProps.packs?.["pack-a"].map((problem) => problem.problemId),
+    ).toEqual([
       "granddaughters-first",
       "cutout-area-ratio",
       "domino-placements",
@@ -134,7 +173,9 @@ describe("direct /practice restore", () => {
     });
     const bProps = b.props as ComponentProps<typeof PracticeSession>;
     expect(bProps.startPackId).toBe("pack-b");
-    expect(bProps.packBProblems?.map((problem) => problem.problemId)).toEqual([
+    expect(
+      bProps.packs?.["pack-b"].map((problem) => problem.problemId),
+    ).toEqual([
       "truck-car-same-arrival",
       "knights-all-or-none",
       "boastful-fisherman-streak",
@@ -144,13 +185,26 @@ describe("direct /practice restore", () => {
     });
     const cProps = c.props as ComponentProps<typeof PracticeSession>;
     expect(cProps.startPackId).toBe("pack-c");
-    expect(cProps.packCProblems?.map((problem) => problem.problemId)).toEqual([
+    expect(
+      cProps.packs?.["pack-c"].map((problem) => problem.problemId),
+    ).toEqual([
       "largest-valid-eight-digit",
       "three-numbers-digit-sums",
       "mountain-plain-flights",
     ]);
+    const explicitA = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-a" }),
+    });
+    expect(
+      (explicitA.props as ComponentProps<typeof PracticeSession>).startPackId,
+    ).toBe("pack-a");
     await expect(
       PackPracticePage({ searchParams: Promise.resolve({ pack: "unknown" }) }),
+    ).rejects.toThrow();
+    await expect(
+      PackPracticePage({
+        searchParams: Promise.resolve({ pack: ["pack-a", "pack-b"] }),
+      }),
     ).rejects.toThrow();
     await mountPractice(bProps);
     expect(container.querySelector("h1")?.textContent).toBe(

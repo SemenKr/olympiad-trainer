@@ -2,14 +2,16 @@ import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   ENUMERATION_EXPLORATION_PROBLEM_ID,
   getLearnerSafePracticeProblem,
-  PACK_A_PROBLEM_IDS,
-  PACK_B_PROBLEM_IDS,
-  PACK_C_PROBLEM_IDS,
+  getLearnerSafePackProblems,
   PARROTS_TRANSFER_PROBLEM_ID,
   PRACTICE_SESSION_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { notFound } from "next/navigation";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
+import {
+  packById,
+  PRACTICE_PACKS,
+} from "../../../modules/practice/application/completed-practice-episode";
 
 export default async function PackPracticePage({
   searchParams,
@@ -17,13 +19,9 @@ export default async function PackPracticePage({
   searchParams: Promise<{ pack?: string | string[] }>;
 }) {
   const requested = (await searchParams).pack;
-  if (
-    requested !== undefined &&
-    requested !== "pack-a" &&
-    requested !== "pack-b" &&
-    requested !== "pack-c"
-  )
-    notFound();
+  const pack =
+    requested === undefined ? PRACTICE_PACKS[0] : packById(requested);
+  if (!pack) notFound();
   return (
     <PracticeSession
       problems={
@@ -33,27 +31,7 @@ export default async function PackPracticePage({
           ReturnType<typeof getLearnerSafePracticeProblem>,
         ]
       }
-      packProblems={
-        PACK_A_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
-      packBProblems={
-        PACK_B_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
-      packCProblems={
-        PACK_C_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
+      packs={getLearnerSafePackProblems()}
       transferProblem={getLearnerSafePracticeProblem(
         ADAPTIVE_TRANSFER_PROBLEM_ID,
       )}
@@ -64,13 +42,7 @@ export default async function PackPracticePage({
         ENUMERATION_EXPLORATION_PROBLEM_ID,
       )}
       startMode="pack"
-      startPackId={
-        requested === "pack-b"
-          ? "pack-b"
-          : requested === "pack-c"
-            ? "pack-c"
-            : "pack-a"
-      }
+      startPackId={pack.id}
     />
   );
 }

@@ -7,9 +7,8 @@ import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/ac
 import { readServerAdaptiveAvailability } from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
 import {
-  PACK_A_NAME,
-  PACK_B_NAME,
-  PACK_C_NAME,
+  PRACTICE_PACKS,
+  packHref,
   packIdFromProblemIds,
 } from "../modules/practice/application/completed-practice-episode";
 import {
@@ -137,23 +136,15 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
             className={styles.primary}
             href={
               stored.unfinished.mode === "pack"
-                ? packIdFromProblemIds(
-                    "status" in stored.unfinished
-                      ? stored.unfinished.completedResults.map(
-                          (result) => result.problemId,
-                        )
-                      : stored.unfinished.problemIds,
-                  ) === "pack-b"
-                  ? "/practice/pack?pack=pack-b"
-                  : packIdFromProblemIds(
-                        "status" in stored.unfinished
-                          ? stored.unfinished.completedResults.map(
-                              (result) => result.problemId,
-                            )
-                          : stored.unfinished.problemIds,
-                      ) === "pack-c"
-                    ? "/practice/pack?pack=pack-c"
-                    : "/practice/pack"
+                ? packHref(
+                    packIdFromProblemIds(
+                      "status" in stored.unfinished
+                        ? stored.unfinished.completedResults.map(
+                            (result) => result.problemId,
+                          )
+                        : stored.unfinished.problemIds,
+                    )!,
+                  )
                 : "mode" in stored.unfinished
                   ? "/practice/transfer"
                   : "/practice"
@@ -219,32 +210,23 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
       (stored.hasPracticeHistory || stored.completed !== null) ? (
         <section aria-label="Дополнительная практика" className={styles.pack}>
           <h2>Дополнительная практика</h2>
-          <h3>{PACK_A_NAME}</h3>
-          <p>
-            Три задачи для дополнительной тренировки. Этот набор можно выбрать
-            самому — он не зависит от персональной рекомендации.
-          </p>
-          <Link className={styles.secondary} href="/practice/pack">
-            Решить 3 задачи
-          </Link>
-          <div className={styles["pack-choice"]}>
-            <h3>{PACK_B_NAME}</h3>
-            <Link
-              className={styles.secondary}
-              href="/practice/pack?pack=pack-b"
+          {PRACTICE_PACKS.map((pack, index) => (
+            <div
+              key={pack.id}
+              className={index === 0 ? undefined : styles["pack-choice"]}
             >
-              Решить 3 задачи
-            </Link>
-          </div>
-          <div className={styles["pack-choice"]}>
-            <h3>{PACK_C_NAME}</h3>
-            <Link
-              className={styles.secondary}
-              href="/practice/pack?pack=pack-c"
-            >
-              Решить 3 задачи
-            </Link>
-          </div>
+              <h3>{pack.name}</h3>
+              {index === 0 ? (
+                <p>
+                  Три задачи для дополнительной тренировки. Этот набор можно
+                  выбрать самому — он не зависит от персональной рекомендации.
+                </p>
+              ) : null}
+              <Link className={styles.secondary} href={packHref(pack.id)}>
+                Решить 3 задачи
+              </Link>
+            </div>
+          ))}
         </section>
       ) : null}
       {stored.completed ? (
