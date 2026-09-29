@@ -9,6 +9,7 @@ import type { AdaptiveAvailability } from "@/modules/practice/application/adapti
 import {
   PACK_A_NAME,
   PACK_B_NAME,
+  PACK_C_NAME,
   packIdFromProblemIds,
 } from "../modules/practice/application/completed-practice-episode";
 import {
@@ -144,7 +145,15 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
                       : stored.unfinished.problemIds,
                   ) === "pack-b"
                   ? "/practice/pack?pack=pack-b"
-                  : "/practice/pack"
+                  : packIdFromProblemIds(
+                        "status" in stored.unfinished
+                          ? stored.unfinished.completedResults.map(
+                              (result) => result.problemId,
+                            )
+                          : stored.unfinished.problemIds,
+                      ) === "pack-c"
+                    ? "/practice/pack?pack=pack-c"
+                    : "/practice/pack"
                 : "mode" in stored.unfinished
                   ? "/practice/transfer"
                   : "/practice"
@@ -223,6 +232,15 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
             <Link
               className={styles.secondary}
               href="/practice/pack?pack=pack-b"
+            >
+              Решить 3 задачи
+            </Link>
+          </div>
+          <div className={styles["pack-choice"]}>
+            <h3>{PACK_C_NAME}</h3>
+            <Link
+              className={styles.secondary}
+              href="/practice/pack?pack=pack-c"
             >
               Решить 3 задачи
             </Link>

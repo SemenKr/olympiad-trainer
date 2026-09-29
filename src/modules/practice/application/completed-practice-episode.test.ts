@@ -4,6 +4,7 @@ import {
   validateCompletedEpisode,
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
   packIdFromProblemIds,
 } from "./completed-practice-episode";
 
@@ -20,6 +21,35 @@ const coreIds = [
 ];
 
 describe("completed Practice episode facts", () => {
+  it("accepts only the exact Pack C tuple as safe pack facts", () => {
+    const facts = completedEpisodeFacts(
+      PACK_C_PROBLEM_IDS.map((problemId) => ({ problemId, summary: empty })),
+    );
+    expect(packIdFromProblemIds(PACK_C_PROBLEM_IDS)).toBe("pack-c");
+    expect(validateCompletedEpisode("pack", facts)).toEqual(facts);
+    expect(facts.problems.map((problem) => problem.problemId)).toEqual(
+      PACK_C_PROBLEM_IDS,
+    );
+    expect(facts.problems.every((problem) => problem.checkpoint === null)).toBe(
+      true,
+    );
+    for (const ids of [
+      [...PACK_C_PROBLEM_IDS].reverse(),
+      [PACK_C_PROBLEM_IDS[0], PACK_B_PROBLEM_IDS[1], PACK_C_PROBLEM_IDS[2]],
+      [PACK_C_PROBLEM_IDS[0], PACK_C_PROBLEM_IDS[1], "unknown"],
+    ]) {
+      expect(packIdFromProblemIds(ids)).toBeNull();
+      expect(
+        validateCompletedEpisode("pack", {
+          ...facts,
+          problems: ids.map((problemId) => ({
+            ...facts.problems[0],
+            problemId,
+          })),
+        }),
+      ).toBeNull();
+    }
+  });
   it("accepts only the exact Pack B tuple while preserving Pack A", () => {
     const facts = completedEpisodeFacts(
       PACK_B_PROBLEM_IDS.map((problemId) => ({ problemId, summary: empty })),

@@ -10,6 +10,7 @@ import type { ReasoningCheckpointOptionId } from "../application/reasoning-check
 import {
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
 } from "../application/completed-practice-episode";
 
 type SourceReference = Readonly<{
@@ -21,7 +22,7 @@ type SourceReference = Readonly<{
 type ProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
-  academicYear: "2025/26" | "2024/25" | "2020/21";
+  academicYear: "2025/26" | "2024/25" | "2023/24" | "2021/22" | "2020/21";
   stage: "invitational" | "school";
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
@@ -97,7 +98,7 @@ export const PRACTICE_SESSION_PROBLEM_IDS = [
   "guaranteed-sock-pair",
   "table-impossible-sums",
 ] as const;
-export { PACK_A_PROBLEM_IDS, PACK_B_PROBLEM_IDS };
+export { PACK_A_PROBLEM_IDS, PACK_B_PROBLEM_IDS, PACK_C_PROBLEM_IDS };
 
 const coincidingSeatsProblem = {
   id: CURRENT_PRACTICE_PROBLEM_ID,
@@ -876,6 +877,162 @@ const boastfulFishermanStreakProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const largestValidEightDigitProblem = {
+  id: PACK_C_PROBLEM_IDS[0],
+  grade: 5,
+  subject: "mathematics",
+  title: "Самое большое число",
+  statement:
+    "Найди наибольшее восьмизначное число, которое удовлетворяет двум условиям: любые три подряд идущие цифры различны; произведение любых трёх подряд идущих цифр делится на 20.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/tasks-math-5-sch-msk-23-24.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/ans-math-5-sch-msk-23-24.pdf",
+      page: 3,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "98598598" },
+  hints: [
+    {
+      id: "largest-valid-eight-digit-focus",
+      level: "focus",
+      text: "Чтобы получить самое большое число, выбирай цифры слева направо: сначала максимально возможную первую, затем вторую и так далее.",
+    },
+    {
+      id: "largest-valid-eight-digit-strategy",
+      level: "strategy",
+      text: "Начни с 9 и 8. Теперь подбери максимально возможную третью цифру так, чтобы 9 · 8 · третья цифра делилось на 20 и все три цифры были различны.",
+    },
+    {
+      id: "largest-valid-eight-digit-next-step",
+      level: "next-step",
+      text: "После 9, 8 максимальная третья цифра — 5. Затем снова рассматривай каждую новую тройку: 8, 5, ?; затем 5, ?, ?.",
+    },
+  ],
+  solution: {
+    id: "largest-valid-eight-digit-full-solution",
+    kind: "training-adaptation",
+    text: "Выбираем цифры слева направо, каждый раз берём наибольшую допустимую. Первая цифра — 9. Вторая должна отличаться от неё, поэтому берём 8. После 98 следующая цифра должна дать произведение 9 × 8 × цифра, кратное 20. Для этого нужна цифра 0 или 5; наибольшая — 5. Получили 985. После 85 выбираем 9: это самая большая цифра, она отличается от 8 и 5, а произведение 8 × 5 × 9 = 360 делится на 20. После 59 произведение 5 × 9 × следующая цифра должно делиться на 20. Множитель 5 уже есть, а 9 нечётно, поэтому следующая цифра должна делиться на 4. Из цифр 0, 4, 8 выбираем наибольшую — 8; она отличается от 5 и 9. После 98 снова выбираем наибольшую допустимую цифру 5. Повторяя те же шаги, после 85 дописываем 9, а после 59 — 8. Получаем 98598598. Каждая тройка — перестановка цифр 9, 8, 5; они различны, а их произведение 360 делится на 20. Значит, всё число удовлетворяет условиям. Любое большее восьмизначное число должно иметь большую цифру на первом месте, где оно отличается от 98598598. Но все предыдущие цифры тогда совпадают, а на этом месте мы уже выбрали наибольшую цифру, допустимую при этих предыдущих цифрах и условиях задачи. Поэтому большего подходящего числа нет. Ответ: 98598598.",
+  },
+} as const satisfies ProblemDefinition;
+
+const threeNumbersDigitSumsProblem = {
+  id: PACK_C_PROBLEM_IDS[1],
+  grade: 5,
+  subject: "mathematics",
+  title: "Три загадочных числа",
+  statement:
+    "На доске написано одно трёхзначное число и два двузначных. Сумма чисел, в записи которых есть цифра 7, равна 208. Сумма чисел, в записи которых есть цифра 3, равна 76. Найди сумму всех трёх чисел.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 6,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/prigl/math/tasks-math-5-prigl-msk-21-22.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/prigl/math/sol-math-3-10-prigl-msk-21-22.pdf",
+      page: 11,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "247" },
+  hints: [
+    {
+      id: "three-numbers-digit-sums-focus",
+      level: "focus",
+      text: "Сначала разберись с суммой 76. Может ли в неё входить трёхзначное число?",
+    },
+    {
+      id: "three-numbers-digit-sums-strategy",
+      level: "strategy",
+      text: "Если два двузначных числа дают 76 и оба содержат цифру 3, подумай, какое из них может одновременно содержать и цифру 7.",
+    },
+    {
+      id: "three-numbers-digit-sums-next-step",
+      level: "next-step",
+      text: "Двузначное число, в котором есть и 3, и 7, — это либо 37, либо 73. Проверь оба варианта с суммой 76.",
+    },
+  ],
+  solution: {
+    id: "three-numbers-digit-sums-full-solution",
+    kind: "training-adaptation",
+    text: "Обозначим трёхзначное число A, а двузначные — B и C. В сумму 76 трёхзначное число не входит, поэтому B + C = 76 и оба содержат цифру 3. Сумма 208 содержит A и ровно одно из B и C: без A она меньше 208, а с обоими A = 132, где нет цифры 7. Пусть это B. Тогда B содержит 3 и 7, то есть B = 37 или 73. При B = 73 число C = 3 не двузначное. Значит, B = 37, C = 39, A = 208 − 37 = 171. Сумма 171 + 37 + 39 = 247. Ответ: 247.",
+  },
+} as const satisfies ProblemDefinition;
+
+const mountainPlainFlightsProblem = {
+  id: PACK_C_PROBLEM_IDS[2],
+  grade: 5,
+  subject: "mathematics",
+  title: "Рейсы между городами",
+  statement:
+    "В стране 100 городов: 30 находятся в горной части страны, а 70 — в равнинной. В течение трёх лет каждый год все города разбивали на 50 пар и между городами каждой пары открывали новый авиарейс. Через три года оказалось, что из 150 открытых рейсов ровно 21 соединяет два горных города. Сколько рейсов соединяет два равнинных города?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/prigl/math/tasks-math-5-prigl-msk-21-22.pdf",
+      page: 3,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/prigl/math/sol-math-3-10-prigl-msk-21-22.pdf",
+      page: 13,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "81" },
+  hints: [
+    {
+      id: "mountain-plain-flights-focus",
+      level: "focus",
+      text: "Попробуй считать не сами рейсы, а их концы: каждый рейс соединяет два города.",
+    },
+    {
+      id: "mountain-plain-flights-strategy",
+      level: "strategy",
+      text: "За три года каждый город оказался участником ровно трёх новых рейсов. Сколько концов рейсов приходится на 30 горных городов?",
+    },
+    {
+      id: "mountain-plain-flights-next-step",
+      level: "next-step",
+      text: "У горных городов 30 · 3 = 90 концов рейсов. Рейсы между двумя горными городами используют по два таких конца.",
+    },
+  ],
+  solution: {
+    id: "mountain-plain-flights-full-solution",
+    kind: "training-adaptation",
+    text: "За три года у горных городов 30 × 3 = 90 концов рейсов. 21 рейс между горными городами занимает 42 конца. Остаётся 90 − 42 = 48 концов, значит, есть 48 рейсов между горными и равнинными городами. У равнинных городов 70 × 3 = 210 концов; 48 заняты смешанными рейсами. На рейсы между равнинными городами остаётся 210 − 48 = 162 конца, то есть 162 / 2 = 81 рейс. Ответ: 81.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
@@ -889,6 +1046,9 @@ const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [truckCarSameArrivalProblem.id]: truckCarSameArrivalProblem,
   [knightsAllOrNoneProblem.id]: knightsAllOrNoneProblem,
   [boastfulFishermanStreakProblem.id]: boastfulFishermanStreakProblem,
+  [largestValidEightDigitProblem.id]: largestValidEightDigitProblem,
+  [threeNumbersDigitSumsProblem.id]: threeNumbersDigitSumsProblem,
+  [mountainPlainFlightsProblem.id]: mountainPlainFlightsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {

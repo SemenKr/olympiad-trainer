@@ -24,10 +24,20 @@ export const PACK_B_PROBLEM_IDS = [
   "knights-all-or-none",
   "boastful-fisherman-streak",
 ] as const;
-export type PackId = "pack-a" | "pack-b";
+export const PACK_C_NAME = "Числа и структуры";
+export const PACK_C_PROBLEM_IDS = [
+  "largest-valid-eight-digit",
+  "three-numbers-digit-sums",
+  "mountain-plain-flights",
+] as const;
+export type PackId = "pack-a" | "pack-b" | "pack-c";
 
 export function packProblemIds(packId: PackId) {
-  return packId === "pack-a" ? PACK_A_PROBLEM_IDS : PACK_B_PROBLEM_IDS;
+  return packId === "pack-a"
+    ? PACK_A_PROBLEM_IDS
+    : packId === "pack-b"
+      ? PACK_B_PROBLEM_IDS
+      : PACK_C_PROBLEM_IDS;
 }
 
 export function packIdFromProblemIds(
@@ -38,6 +48,8 @@ export function packIdFromProblemIds(
     return "pack-a";
   if (problemIds.every((id, index) => id === PACK_B_PROBLEM_IDS[index]))
     return "pack-b";
+  if (problemIds.every((id, index) => id === PACK_C_PROBLEM_IDS[index]))
+    return "pack-c";
   return null;
 }
 

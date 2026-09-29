@@ -139,6 +139,16 @@ describe("direct /practice restore", () => {
       "knights-all-or-none",
       "boastful-fisherman-streak",
     ]);
+    const c = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-c" }),
+    });
+    const cProps = c.props as ComponentProps<typeof PracticeSession>;
+    expect(cProps.startPackId).toBe("pack-c");
+    expect(cProps.packCProblems?.map((problem) => problem.problemId)).toEqual([
+      "largest-valid-eight-digit",
+      "three-numbers-digit-sums",
+      "mountain-plain-flights",
+    ]);
     await expect(
       PackPracticePage({ searchParams: Promise.resolve({ pack: "unknown" }) }),
     ).rejects.toThrow();
@@ -224,6 +234,83 @@ describe("direct /practice restore", () => {
     const route = await PackPracticePage({ searchParams: Promise.resolve({}) });
     await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
     expect(container.querySelector("h1")?.textContent).toBe("Рыцари и лжецы");
+    expect(
+      JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+    ).toEqual(snapshot);
+  });
+  it("skips through Pack C, finishes, and keeps its exact latest tuple", async () => {
+    const route = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-c" }),
+    });
+    await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Самое большое число",
+    );
+    for (const title of ["Три загадочных числа", "Рейсы между городами"]) {
+      await act(async () => {
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent?.includes("Пропустить задачу"))
+          ?.click();
+      });
+      expect(container.querySelector("h1")?.textContent).toBe(title);
+    }
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Пропустить задачу"))
+        ?.click();
+    });
+    expect(container.textContent).toContain(
+      "Сейчас больше нет задач в этой тренировке.",
+    );
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Завершить тренировку"))
+        ?.click();
+    });
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(
+      JSON.parse(
+        localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!,
+      ).map((result: { problemId: string }) => result.problemId),
+    ).toEqual([
+      "largest-valid-eight-digit",
+      "three-numbers-digit-sums",
+      "mountain-plain-flights",
+    ]);
+  });
+
+  it("restores stored Pack C even when the route requests Pack B", async () => {
+    const snapshot = {
+      sessionId,
+      mode: "pack",
+      problemIds: [
+        "largest-valid-eight-digit",
+        "three-numbers-digit-sums",
+        "mountain-plain-flights",
+      ],
+      activeProblemIndex: 1,
+      completedResults: [
+        {
+          problemId: "largest-valid-eight-digit",
+          problemTitle: "Самое большое число",
+          summary: getPracticeSummary(finishPractice(startPractice())),
+          taskOutcome: "skipped",
+        },
+      ],
+      activePractice: startPractice(),
+      rawAnswer: "24",
+    };
+    localStorage.setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+    const route = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-b" }),
+    });
+    await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Три загадочных числа",
+    );
     expect(
       JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
     ).toEqual(snapshot);

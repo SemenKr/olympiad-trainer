@@ -121,6 +121,11 @@ type PracticeSessionProps = Readonly<{
     LearnerSafePracticeProblem,
     LearnerSafePracticeProblem,
   ];
+  packCProblems?: readonly [
+    LearnerSafePracticeProblem,
+    LearnerSafePracticeProblem,
+    LearnerSafePracticeProblem,
+  ];
   startPackId?: PackId;
   transferProblem?: LearnerSafePracticeProblem;
   parrotsProblem?: LearnerSafePracticeProblem;
@@ -140,12 +145,15 @@ export function getActivePracticeProblem(
   pagesProblem?: PracticeSessionProps["pagesProblem"],
   packProblems?: PracticeSessionProps["packProblems"],
   packBProblems?: PracticeSessionProps["packBProblems"],
+  packCProblems?: PracticeSessionProps["packCProblems"],
 ): LearnerSafePracticeProblem | null {
   if (isFixedPracticeSession(session))
     return session.mode === "pack"
       ? ((packIdFromProblemIds(session.problemIds ?? []) === "pack-b"
           ? packBProblems
-          : packProblems)?.[session.activeProblemIndex] ?? null)
+          : packIdFromProblemIds(session.problemIds ?? []) === "pack-c"
+            ? packCProblems
+            : packProblems)?.[session.activeProblemIndex] ?? null)
       : problems[session.activeProblemIndex];
   const problem =
     session.problemId === "parrots-guaranteed-colors"
@@ -324,6 +332,7 @@ export function PracticeSession({
   problems,
   packProblems,
   packBProblems,
+  packCProblems,
   startPackId = "pack-a",
   transferProblem,
   parrotsProblem,
@@ -392,7 +401,11 @@ export function PracticeSession({
           if (
             !snapshot &&
             startMode === "pack" &&
-            !(startPackId === "pack-b" ? packBProblems : packProblems)
+            !(startPackId === "pack-b"
+              ? packBProblems
+              : startPackId === "pack-c"
+                ? packCProblems
+                : packProblems)
           ) {
             if (active) setRestoreError(true);
             return;
@@ -405,7 +418,9 @@ export function PracticeSession({
                   : startMode === "pack"
                     ? (startPackId === "pack-b"
                         ? packBProblems!
-                        : packProblems!)[0]
+                        : startPackId === "pack-c"
+                          ? packCProblems!
+                          : packProblems!)[0]
                     : problems[0],
               );
           if (!snapshot && startMode === "transfer") {
@@ -456,6 +471,7 @@ export function PracticeSession({
     problems,
     packProblems,
     packBProblems,
+    packCProblems,
     startPackId,
     adaptiveProblem,
     startMode,
@@ -541,7 +557,10 @@ export function PracticeSession({
     isFixedPracticeSession(sessionState) &&
     packIdFromProblemIds(sessionState.problemIds ?? []) === "pack-b"
       ? packBProblems
-      : packProblems;
+      : isFixedPracticeSession(sessionState) &&
+          packIdFromProblemIds(sessionState.problemIds ?? []) === "pack-c"
+        ? packCProblems
+        : packProblems;
   const activeProblem = getActivePracticeProblem(
     sessionState,
     problems,
@@ -550,6 +569,7 @@ export function PracticeSession({
     pagesProblem,
     packProblems,
     packBProblems,
+    packCProblems,
   );
   if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
   const restoredProblem = activeProblem;
