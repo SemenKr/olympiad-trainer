@@ -18,18 +18,28 @@ import {
   type PracticeProgressEvidence,
 } from "../application/practice-progress-evidence";
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
+import {
+  deriveEnumerationProgressInterpretation,
+  enumerationFacts,
+  type EnumerationEvidenceFact,
+} from "../application/enumeration-progress-evidence";
 
 export const PROGRESS_EVIDENCE_STORAGE_KEY =
   "olympiad-trainer:progress-evidence-v0";
 
 export async function readVerifiedPracticeProgressEvidence(
   verifyFacts: (
-    facts: readonly (GuaranteeEvidenceFact | ImpossibilityEvidenceFact)[],
+    facts: readonly (
+      | GuaranteeEvidenceFact
+      | ImpossibilityEvidenceFact
+      | EnumerationEvidenceFact
+    )[],
   ) => Promise<boolean>,
   storage?: Storage,
 ): Promise<{
   evidence: PracticeProgressEvidence;
   interpretations: readonly [
+    ReasoningCheckpointInterpretation,
     ReasoningCheckpointInterpretation,
     ReasoningCheckpointInterpretation,
   ];
@@ -43,6 +53,7 @@ export async function readVerifiedPracticeProgressEvidence(
       interpretations: [
         deriveGuaranteeProgressInterpretation(empty.guarantee),
         deriveImpossibilityProgressInterpretation(empty.impossibility),
+        deriveEnumerationProgressInterpretation(empty.enumeration),
       ],
     };
   }
@@ -60,9 +71,14 @@ export async function readVerifiedPracticeProgressEvidence(
   const facts = [
     ...guaranteeFacts(buckets.guarantee),
     ...impossibilityFacts(buckets.impossibility),
+    ...enumerationFacts(buckets.enumeration),
   ].filter(
-    (fact): fact is GuaranteeEvidenceFact | ImpossibilityEvidenceFact =>
-      fact !== null,
+    (
+      fact,
+    ): fact is
+      | GuaranteeEvidenceFact
+      | ImpossibilityEvidenceFact
+      | EnumerationEvidenceFact => fact !== null,
   );
   const valid =
     evidence !== null && (facts.length === 0 || (await verifyFacts(facts)));
@@ -77,6 +93,7 @@ export async function readVerifiedPracticeProgressEvidence(
     interpretations: [
       deriveGuaranteeProgressInterpretation(verifiedBuckets.guarantee),
       deriveImpossibilityProgressInterpretation(verifiedBuckets.impossibility),
+      deriveEnumerationProgressInterpretation(verifiedBuckets.enumeration),
     ],
   };
 }

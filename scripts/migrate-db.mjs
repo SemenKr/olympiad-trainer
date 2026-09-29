@@ -19,6 +19,7 @@ try {
     "0002_adaptive_transfer_status.sql",
     "0003_parrots_transfer_status.sql",
     "0004_practice_completed_episodes.sql",
+    "0005_enumeration_exploration.sql",
   ]) {
     const prior = await client.query(
       "SELECT 1 FROM schema_migrations WHERE name = $1",

@@ -10,6 +10,8 @@ export const TRANSFER_EPISODE_PROBLEM_IDS = [
   "brothers-ages-products",
   "parrots-guaranteed-colors",
 ] as const;
+export const EXPLORATION_EPISODE_PROBLEM_ID =
+  "pages-without-digit-one" as const;
 
 export type CompletedPracticeProblemFact = Readonly<{
   problemId: string;
@@ -28,7 +30,7 @@ export type CompletedPracticeEpisodeFactsV1 = Readonly<{
   version: 1;
   problems: readonly CompletedPracticeProblemFact[];
 }>;
-export type CompletedPracticeEpisodeMode = "core" | "transfer";
+export type CompletedPracticeEpisodeMode = "core" | "transfer" | "exploration";
 
 type CompletedResult = Readonly<{
   problemId: string;
@@ -104,6 +106,13 @@ export function validateCompletedEpisode(
       problems.length !== 1 ||
       !record(first) ||
       !TRANSFER_EPISODE_PROBLEM_IDS.some((id) => id === first.problemId)
+    )
+      return null;
+  } else if (mode === "exploration") {
+    if (
+      problems.length !== 1 ||
+      !record(problems[0]) ||
+      problems[0].problemId !== EXPLORATION_EPISODE_PROBLEM_ID
     )
       return null;
   } else return null;

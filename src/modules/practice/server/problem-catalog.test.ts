@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   PARROTS_TRANSFER_PROBLEM_ID,
+  ENUMERATION_EXPLORATION_PROBLEM_ID,
   CURRENT_PRACTICE_PROBLEM_ID,
   assessReasoningCheckpointOption,
   getLearnerSafePracticeProblem,
@@ -464,5 +465,85 @@ describe("learner-safe practice problem projection", () => {
     expect(serialized).not.toContain("Если нужной пары нет");
     expect(serialized).not.toContain("correctOptionId");
     expect(serialized).not.toContain('"options"');
+  });
+
+  it("keeps pages content and canonical assessment server-only", () => {
+    const id = ENUMERATION_EXPLORATION_PROBLEM_ID;
+    const problem = getProblemDefinition(id);
+    expect(PRACTICE_SESSION_PROBLEM_IDS).not.toContain(id);
+    expect(problem).toMatchObject({
+      title: "Страницы без цифры 1",
+      statement:
+        "У Оли тетрадь на 100 страниц. Она нумерует страницы по порядку, но пропускает все числа, в записи которых есть цифра 1. Поэтому первая страница получает номер 2, вторая — 3, …, восьмая — 9, девятая — 20. Какой номер будет у 100-й страницы?",
+      provenance: {
+        olympiad: "Всероссийская олимпиада школьников",
+        subject: "mathematics",
+        academicYear: "2024/25",
+        stage: "school",
+        region: "Moscow",
+        grade: 5,
+        problemNumber: 4,
+        originalSource: {
+          page: 2,
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/tasks-math-5-sch-msk-24-25.pdf",
+        },
+        officialSolution: {
+          page: 3,
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/sol-math-5-sch-msk-24-25.pdf",
+        },
+      },
+      assessment: { kind: "nonnegative-integer", expectedAnswer: "232" },
+      hints: [
+        {
+          level: "focus",
+          text: "Важно не просто найти число без цифры 1, а убедиться, что перед ним находится ровно 99 допустимых номеров.",
+        },
+        {
+          level: "strategy",
+          text: "Разбей подходящие номера на непересекающиеся блоки: сначала однозначные, затем двузначные, затем числа по сотням и десяткам. В каждом блоке посчитай все номера без цифры 1.",
+        },
+        {
+          level: "next-step",
+          text: "До 99 есть 80 допустимых номеров. Все числа от 100 до 199 пропускаются. Затем отдельно посчитай подходящие числа от 200 до 209 и от 220 до 229 — после этих блоков останется найти ещё два допустимых номера.",
+        },
+      ],
+      solution: { kind: "training-adaptation" },
+      reasoningCheckpoint: {
+        id: "pages-without-digit-one-complete-enumeration",
+        correctOptionId: "A",
+      },
+    });
+    expect(problem.solution.text).toContain("230 — 99-й");
+    expect(
+      getRevealedReasoningCheckpoint(id, problem.reasoningCheckpoint!.id),
+    ).toMatchObject({
+      heading: "Проверь рассуждение",
+      question:
+        "Какой способ действительно доказывает, что найденный номер — именно 100-й подходящий, а в подсчёте ничего не пропущено и не посчитано дважды?",
+      options: [
+        {
+          id: "A",
+          text: "Разделить числа на непересекающиеся блоки, в каждом блоке посчитать все числа без цифры 1 и отдельно проверить, что пропущенные промежутки целиком содержат цифру 1.",
+        },
+        {
+          id: "B",
+          text: "Проверить несколько первых подходящих номеров и несколько номеров рядом с найденным ответом.",
+        },
+        {
+          id: "C",
+          text: "Проверить только, что найденное число не содержит цифру 1, а предыдущее неподходящее число содержит.",
+        },
+      ],
+    });
+    expect(
+      assessReasoningCheckpointOption(id, problem.reasoningCheckpoint!.id, "A"),
+    ).toEqual({ outcome: "correct" });
+    expect(
+      assessReasoningCheckpointOption(id, problem.reasoningCheckpoint!.id, "B"),
+    ).toEqual({ outcome: "incorrect" });
+    const safe = JSON.stringify(getLearnerSafePracticeProblem(id));
+    expect(safe).not.toContain("232");
+    expect(safe).not.toContain("Разбей подходящие номера");
+    expect(safe).not.toContain("непересекающиеся блоки");
   });
 });

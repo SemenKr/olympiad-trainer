@@ -1,6 +1,7 @@
 import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   PARROTS_TRANSFER_PROBLEM_ID,
+  ENUMERATION_EXPLORATION_PROBLEM_ID,
   getLearnerSafePracticeProblem,
   PRACTICE_SESSION_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
@@ -15,7 +16,9 @@ export default async function TransferPracticePage({
   const startTransferProblemId =
     requested === PARROTS_TRANSFER_PROBLEM_ID
       ? PARROTS_TRANSFER_PROBLEM_ID
-      : ADAPTIVE_TRANSFER_PROBLEM_ID;
+      : requested === ENUMERATION_EXPLORATION_PROBLEM_ID
+        ? ENUMERATION_EXPLORATION_PROBLEM_ID
+        : ADAPTIVE_TRANSFER_PROBLEM_ID;
   const problems = PRACTICE_SESSION_PROBLEM_IDS.map(
     getLearnerSafePracticeProblem,
   ) as [
@@ -31,6 +34,9 @@ export default async function TransferPracticePage({
       )}
       parrotsProblem={getLearnerSafePracticeProblem(
         PARROTS_TRANSFER_PROBLEM_ID,
+      )}
+      pagesProblem={getLearnerSafePracticeProblem(
+        ENUMERATION_EXPLORATION_PROBLEM_ID,
       )}
       startTransferProblemId={startTransferProblemId}
       startMode="transfer"

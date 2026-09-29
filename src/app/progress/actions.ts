@@ -55,7 +55,11 @@ export async function readServerAdaptiveAvailability() {
 }
 
 export async function readServerProgress(): Promise<
-  readonly [LearnerProgressInterpretation, LearnerProgressInterpretation]
+  readonly [
+    LearnerProgressInterpretation,
+    LearnerProgressInterpretation,
+    LearnerProgressInterpretation,
+  ]
 > {
   const learnerId = await resolveLearnerFromCookie();
   return readLearnerProgress(learnerId);

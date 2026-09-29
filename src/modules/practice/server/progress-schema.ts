@@ -14,6 +14,7 @@ export const learners = pgTable("learners", {
   anonymousTokenHash: text("anonymous_token_hash").notNull().unique(),
   guaranteeEvidence: jsonb("guarantee_evidence").notNull(),
   impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
+  enumerationEvidence: jsonb("enumeration_evidence").notNull(),
   legacyImportHash: text("legacy_import_hash"),
   brothersAgesAttempted: boolean("brothers_ages_attempted")
     .notNull()
@@ -23,6 +24,10 @@ export const learners = pgTable("learners", {
     .default(false),
   parrotsAttempted: boolean("parrots_attempted").notNull().default(false),
   parrotsSolutionExposed: boolean("parrots_solution_exposed")
+    .notNull()
+    .default(false),
+  pagesAttempted: boolean("pages_attempted").notNull().default(false),
+  pagesSolutionExposed: boolean("pages_solution_exposed")
     .notNull()
     .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -55,7 +60,7 @@ export const practiceCompletedEpisodes = pgTable(
       .notNull()
       .references(() => learners.id),
     sessionId: uuid("session_id").notNull(),
-    mode: text("mode").$type<"core" | "transfer">().notNull(),
+    mode: text("mode").$type<"core" | "transfer" | "exploration">().notNull(),
     episodeFacts: jsonb("episode_facts").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true })
       .notNull()

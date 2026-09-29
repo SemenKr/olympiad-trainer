@@ -105,8 +105,11 @@ type PracticeSessionProps = Readonly<{
   ];
   transferProblem?: LearnerSafePracticeProblem;
   parrotsProblem?: LearnerSafePracticeProblem;
+  pagesProblem?: LearnerSafePracticeProblem;
   startTransferProblemId?:
-    "brothers-ages-products" | "parrots-guaranteed-colors";
+    | "brothers-ages-products"
+    | "parrots-guaranteed-colors"
+    | "pages-without-digit-one";
   startMode?: "core" | "transfer";
 }>;
 
@@ -115,12 +118,15 @@ export function getActivePracticeProblem(
   problems: PracticeSessionProps["problems"],
   transferProblem: PracticeSessionProps["transferProblem"],
   parrotsProblem: PracticeSessionProps["parrotsProblem"],
+  pagesProblem?: PracticeSessionProps["pagesProblem"],
 ): LearnerSafePracticeProblem | null {
   if (!("mode" in session)) return problems[session.activeProblemIndex];
   const problem =
     session.problemId === "parrots-guaranteed-colors"
       ? parrotsProblem
-      : transferProblem;
+      : session.problemId === "pages-without-digit-one"
+        ? pagesProblem
+        : transferProblem;
   if (!problem || problem.problemId !== session.problemId) return null;
   return problem;
 }
@@ -241,11 +247,14 @@ export async function finishPracticeSessionAndNavigate(
     sessionId: string;
     contributions: readonly unknown[];
     adaptiveFacts?: {
-      problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+      problemId:
+        | "brothers-ages-products"
+        | "parrots-guaranteed-colors"
+        | "pages-without-digit-one";
       attempted: boolean;
       solutionExposed: boolean;
     };
-    episodeMode?: "core" | "transfer";
+    episodeMode?: "core" | "transfer" | "exploration";
     episodeFacts?: unknown;
   }) =>
     request.episodeFacts
@@ -289,13 +298,16 @@ export function PracticeSession({
   problems,
   transferProblem,
   parrotsProblem,
+  pagesProblem,
   startTransferProblemId = "brothers-ages-products",
   startMode = "core",
 }: PracticeSessionProps) {
   const adaptiveProblem =
     startTransferProblemId === "parrots-guaranteed-colors"
       ? (parrotsProblem ?? problems[0])
-      : (transferProblem ?? problems[0]);
+      : startTransferProblemId === "pages-without-digit-one"
+        ? (pagesProblem ?? problems[0])
+        : (transferProblem ?? problems[0]);
   const router = useRouter();
   const completionLatch = useRef(false);
   const noNextMutationGate = useRef(false);
@@ -333,7 +345,7 @@ export function PracticeSession({
                 sessionId: snapshot.sessionId,
                 ...("mode" in snapshot
                   ? {
-                      mode: "transfer" as const,
+                      mode: snapshot.mode,
                       problemId: snapshot.problemIds[0],
                     }
                   : {}),
@@ -457,6 +469,7 @@ export function PracticeSession({
     problems,
     transferProblem,
     parrotsProblem,
+    pagesProblem,
   );
   if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
   const restoredProblem = activeProblem;
@@ -563,7 +576,7 @@ export function PracticeSession({
       "mode" in sessionState
         ? {
             sessionId: sessionState.sessionId,
-            mode: "transfer",
+            mode: sessionState.mode,
             status: "no-next",
             completedResults: [result],
           }

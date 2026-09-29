@@ -18,6 +18,7 @@ vi.mock("@/app/practice/actions", () => ({
 vi.mock("../../app/progress/actions", () => ({
   importBrowserProgressEvidence: vi.fn(async () => {}),
   persistPracticeFinishEvidence: vi.fn(async () => {}),
+  readServerNextUsefulProblem: vi.fn(async () => null),
 }));
 vi.mock(
   "@/modules/practice/server/problem-catalog",
@@ -43,6 +44,8 @@ import {
   PracticeSession,
 } from "../../modules/practice/ui/practice-session";
 import PracticePage from "./page";
+import TransferPracticePage from "./transfer/page";
+import { readServerNextUsefulProblem } from "../../app/progress/actions";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
 let container: HTMLDivElement;
@@ -111,6 +114,59 @@ function savedTransfer(
 }
 
 describe("direct /practice restore", () => {
+  it("restores the exact saved pages exploration through the core and adaptive routes", async () => {
+    const raw = JSON.stringify({
+      sessionId,
+      mode: "exploration",
+      problemIds: ["pages-without-digit-one"],
+      activeProblemIndex: 0,
+      completedResults: [],
+      activePractice: startPractice(),
+      rawAnswer: "",
+    });
+    localStorage.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+    expect(validatePracticeSessionSnapshot(JSON.parse(raw))).toMatchObject({
+      mode: "exploration",
+    });
+    await mountPractice();
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Страницы без цифры 1",
+    );
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(raw);
+  });
+
+  it("uses the server recommendation for direct pages opening", async () => {
+    const route = await TransferPracticePage({
+      searchParams: Promise.resolve({ problem: "pages-without-digit-one" }),
+    });
+    const props = route.props as ComponentProps<typeof PracticeSession>;
+    vi.mocked(readServerNextUsefulProblem).mockResolvedValueOnce({
+      problemId: "brothers-ages-products",
+      reason: "existing transfer first",
+    });
+    await mountPractice(props);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Не удалось проверить сохранённую тренировку.",
+    );
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    vi.mocked(readServerNextUsefulProblem).mockResolvedValueOnce({
+      problemId: "pages-without-digit-one",
+      reason: "new idea",
+    });
+    await act(async () => {
+      root.render(<PracticeSession {...props} />);
+      container.querySelector("button")?.click();
+    });
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Страницы без цифры 1",
+    );
+    expect(
+      JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+    ).toMatchObject({
+      mode: "exploration",
+      problemIds: ["pages-without-digit-one"],
+    });
+  });
   it.each([
     ["brothers-ages-products", "Возраст братьев"],
     ["parrots-guaranteed-colors", "Попугаи в зоопарке"],

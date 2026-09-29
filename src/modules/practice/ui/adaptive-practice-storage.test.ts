@@ -45,6 +45,102 @@ const observation = {
 };
 
 describe("one adaptive transfer episode", () => {
+  it("preserves pages exploration identity through pause, lost Finish response, and retry", async () => {
+    const store = storage();
+    const session = startAdaptivePracticeSession("pages-without-digit-one");
+    expect(session.mode).toBe("exploration");
+    const answer = {
+      rawAnswer: "232",
+      status: "correct" as const,
+      practice: recordAnswerResult(startPractice(), {
+        status: "correct",
+        normalizedAnswer: "232",
+      }),
+    };
+    const pagesObservation = {
+      checkpointId: "pages-without-digit-one-complete-enumeration" as const,
+      selectedOptionId: "A" as const,
+      outcome: "correct" as const,
+      validSubmissionCountAtSubmit: 1,
+    };
+    expect(await createPracticeSessionSnapshot(session, answer, store)).toBe(
+      true,
+    );
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        answer,
+        store,
+        pagesObservation,
+      ),
+    ).toBe(true);
+    expect(await readPracticeSessionSnapshot(store)).toMatchObject({
+      mode: "exploration",
+      problemIds: ["pages-without-digit-one"],
+      reasoningCheckpointObservation: pagesObservation,
+    });
+    const result = {
+      problemId: "pages-without-digit-one",
+      problemTitle: "Страницы без цифры 1",
+      summary: {
+        outcome: "eventually-correct" as const,
+        validSubmissionCount: 1,
+        hintExposures: [],
+        solutionExposure: null,
+      },
+      reasoningCheckpointObservation: pagesObservation,
+      firstCorrectSubmissionCount: 1,
+    };
+    const requests: ServerPracticeFinishPayload[] = [];
+    expect(
+      await completePracticeSession(
+        session,
+        answer,
+        [result],
+        store,
+        async (request) => {
+          requests.push(request);
+          throw new Error("response lost");
+        },
+      ),
+    ).toBe(false);
+    expect(requests[0]).toMatchObject({
+      adaptiveFacts: {
+        problemId: "pages-without-digit-one",
+        attempted: true,
+        solutionExposed: false,
+      },
+      episodeMode: "exploration",
+      episodeFacts: { problems: [{ problemId: "pages-without-digit-one" }] },
+      contributions: [
+        {
+          bucket: "enumeration",
+          value: { problemId: "pages-without-digit-one" },
+        },
+      ],
+    });
+    expect(await readPracticeSessionSnapshot(store)).toMatchObject({
+      mode: "exploration",
+      problemIds: ["pages-without-digit-one"],
+    });
+    expect(
+      await completePracticeSession(
+        session,
+        answer,
+        [result],
+        store,
+        async (request) => {
+          requests.push(request);
+        },
+      ),
+    ).toBe(true);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(
+      validateLatestCompletedResults(
+        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
+      ),
+    ).toEqual([result]);
+  });
   it("preserves exact parrots identity through pause, pending Finish, and retry", async () => {
     const store = storage();
     const session = startAdaptivePracticeSession("parrots-guaranteed-colors");

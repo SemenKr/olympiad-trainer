@@ -22,8 +22,11 @@ export type PracticeSessionState = Readonly<{
 
 export type AdaptivePracticeSessionState = Readonly<{
   sessionId: string;
-  mode: "transfer";
-  problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+  mode: "transfer" | "exploration";
+  problemId:
+    | "brothers-ages-products"
+    | "parrots-guaranteed-colors"
+    | "pages-without-digit-one";
   activeProblemIndex: 0;
   completedResults: readonly [];
 }>;
@@ -39,7 +42,7 @@ export type NoNextPracticeSessionState = Readonly<{
 
 export type AdaptiveNoNextPracticeSessionState = Readonly<{
   sessionId: string;
-  mode: "transfer";
+  mode: "transfer" | "exploration";
   status: "no-next";
   completedResults: readonly [PracticeSessionResult];
 }>;
@@ -52,7 +55,7 @@ export function startAdaptivePracticeSession(
 ): AdaptivePracticeSessionState {
   return {
     sessionId: crypto.randomUUID(),
-    mode: "transfer",
+    mode: problemId === "pages-without-digit-one" ? "exploration" : "transfer",
     problemId,
     activeProblemIndex: 0,
     completedResults: [],

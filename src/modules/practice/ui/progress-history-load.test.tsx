@@ -35,6 +35,11 @@ describe("durable history on Progress reload", () => {
         progressGroup: null,
         conclusion: "Вывод 2",
       },
+      {
+        learnerLabel: "Проверять все возможные случаи",
+        progressGroup: null,
+        conclusion: "Вывод 3",
+      },
     ]);
     vi.mocked(readServerRecentPracticeEpisodes).mockResolvedValue([
       {
@@ -75,6 +80,11 @@ describe("durable history on Progress reload", () => {
     vi.mocked(readServerProgress).mockResolvedValue([
       { learnerLabel: "A", progressGroup: null, conclusion: "B" },
       { learnerLabel: "C", progressGroup: null, conclusion: "D" },
+      {
+        learnerLabel: "Проверять все возможные случаи",
+        progressGroup: null,
+        conclusion: "E",
+      },
     ]);
     vi.mocked(readServerRecentPracticeEpisodes).mockRejectedValue(
       new Error("Invalid history"),

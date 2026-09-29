@@ -199,7 +199,7 @@ export async function verifyPersistedGuaranteeEvidenceFacts(
 export async function verifyPersistedPracticeProgressEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
-  if (!Array.isArray(facts) || facts.length > 14) return false;
+  if (!Array.isArray(facts) || facts.length > 17) return false;
   let valid = true;
   for (const fact of facts) {
     if (
@@ -207,7 +207,8 @@ export async function verifyPersistedPracticeProgressEvidenceFacts(
       (fact.problemId !== "guaranteed-sock-pair" &&
         fact.problemId !== "table-impossible-sums" &&
         fact.problemId !== "brothers-ages-products" &&
-        fact.problemId !== "parrots-guaranteed-colors") ||
+        fact.problemId !== "parrots-guaranteed-colors" &&
+        fact.problemId !== "pages-without-digit-one") ||
       !record(fact.observation) ||
       typeof fact.observation.checkpointId !== "string" ||
       typeof fact.observation.selectedOptionId !== "string" ||

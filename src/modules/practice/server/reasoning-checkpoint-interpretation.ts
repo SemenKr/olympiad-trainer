@@ -8,6 +8,26 @@ export function getReasoningCheckpointInterpretation(
   outcome: "correct" | "incorrect",
   problemId: string = "guaranteed-sock-pair",
 ): ReasoningCheckpointInterpretation {
+  if (problemId === "pages-without-digit-one") {
+    const base = {
+      capability: "Систематически перебирать случаи и обосновывать полноту",
+      learnerLabel: "Проверять все возможные случаи",
+    };
+    if (outcome !== "correct" || summary.solutionExposure !== null)
+      return {
+        ...base,
+        progressGroup: null,
+        conclusion: "Проверенного выбора способа полного перебора пока нет.",
+      };
+    return {
+      ...base,
+      progressGroup: "Начинаю разбираться",
+      conclusion:
+        summary.hintExposures.length === 0
+          ? "Без подсказок ты верно выбрал способ перебора, в котором каждый подходящий случай учитывается ровно один раз. Пока это показывает распознавание полного перебора, а не умение самостоятельно строить такой разбор в новой задаче."
+          : "После подсказок ты верно выбрал способ, который не пропускает подходящие случаи и не считает их дважды. Самостоятельное построение полного перебора пока не проверено.",
+    };
+  }
   if (problemId === "parrots-guaranteed-colors") {
     const base = {
       capability:

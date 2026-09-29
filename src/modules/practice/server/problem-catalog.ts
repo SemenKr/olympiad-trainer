@@ -311,6 +311,8 @@ const tableImpossibleSumsProblem = {
 
 export const ADAPTIVE_TRANSFER_PROBLEM_ID = "brothers-ages-products" as const;
 export const PARROTS_TRANSFER_PROBLEM_ID = "parrots-guaranteed-colors" as const;
+export const ENUMERATION_EXPLORATION_PROBLEM_ID =
+  "pages-without-digit-one" as const;
 
 const brothersAgesProductsProblem = {
   id: ADAPTIVE_TRANSFER_PROBLEM_ID,
@@ -458,12 +460,86 @@ const parrotsGuaranteedColorsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const pagesWithoutDigitOneProblem = {
+  id: ENUMERATION_EXPLORATION_PROBLEM_ID,
+  grade: 5,
+  subject: "mathematics",
+  title: "Страницы без цифры 1",
+  statement:
+    "У Оли тетрадь на 100 страниц. Она нумерует страницы по порядку, но пропускает все числа, в записи которых есть цифра 1. Поэтому первая страница получает номер 2, вторая — 3, …, восьмая — 9, девятая — 20. Какой номер будет у 100-й страницы?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 4,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/tasks-math-5-sch-msk-24-25.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/sol-math-5-sch-msk-24-25.pdf",
+      page: 3,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "232" },
+  hints: [
+    {
+      id: "pages-without-digit-one-focus-count",
+      level: "focus",
+      text: "Важно не просто найти число без цифры 1, а убедиться, что перед ним находится ровно 99 допустимых номеров.",
+    },
+    {
+      id: "pages-without-digit-one-strategy-blocks",
+      level: "strategy",
+      text: "Разбей подходящие номера на непересекающиеся блоки: сначала однозначные, затем двузначные, затем числа по сотням и десяткам. В каждом блоке посчитай все номера без цифры 1.",
+    },
+    {
+      id: "pages-without-digit-one-next-step-count",
+      level: "next-step",
+      text: "До 99 есть 80 допустимых номеров. Все числа от 100 до 199 пропускаются. Затем отдельно посчитай подходящие числа от 200 до 209 и от 220 до 229 — после этих блоков останется найти ещё два допустимых номера.",
+    },
+  ],
+  solution: {
+    id: "pages-without-digit-one-full-solution",
+    kind: "training-adaptation",
+    text: "Номера 2–9 дают 8 подходящих чисел. Двузначных чисел без цифры 1: 8 × 9 = 72. Значит, до 99 включительно есть 80 допустимых номеров. Числа 100–199 не подходят. Среди 200–209 подходит 9 чисел (кроме 201), всего 89. Числа 210–219 не подходят. Среди 220–229 подходит ещё 9 чисел (кроме 221), всего 98. Число 230 — 99-й допустимый номер, 231 не подходит, а 232 — 100-й. Ответ: 232.",
+  },
+  reasoningCheckpoint: {
+    id: "pages-without-digit-one-complete-enumeration",
+    heading: "Проверь рассуждение",
+    question:
+      "Какой способ действительно доказывает, что найденный номер — именно 100-й подходящий, а в подсчёте ничего не пропущено и не посчитано дважды?",
+    options: [
+      {
+        id: "A",
+        text: "Разделить числа на непересекающиеся блоки, в каждом блоке посчитать все числа без цифры 1 и отдельно проверить, что пропущенные промежутки целиком содержат цифру 1.",
+      },
+      {
+        id: "B",
+        text: "Проверить несколько первых подходящих номеров и несколько номеров рядом с найденным ответом.",
+      },
+      {
+        id: "C",
+        text: "Проверить только, что найденное число не содержит цифру 1, а предыдущее неподходящее число содержит.",
+      },
+    ],
+    correctOptionId: "A",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
   [tableImpossibleSumsProblem.id]: tableImpossibleSumsProblem,
   [brothersAgesProductsProblem.id]: brothersAgesProductsProblem,
   [parrotsGuaranteedColorsProblem.id]: parrotsGuaranteedColorsProblem,
+  [pagesWithoutDigitOneProblem.id]: pagesWithoutDigitOneProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {

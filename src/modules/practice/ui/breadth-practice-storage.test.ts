@@ -207,6 +207,7 @@ describe("fixed three-problem persistence", () => {
     expect(progress.interpretations.map((item) => item.progressGroup)).toEqual([
       "Начинаю разбираться",
       "Начинаю разбираться",
+      null,
     ]);
     expect(
       guaranteeSockSlots(progressEvidenceBuckets(progress.evidence).guarantee)

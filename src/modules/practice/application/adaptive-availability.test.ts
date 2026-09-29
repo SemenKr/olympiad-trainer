@@ -9,6 +9,10 @@ import {
   emptyImpossibilityProgressEvidence,
 } from "./impossibility-progress-evidence";
 import { classifyAdaptiveAvailability } from "./adaptive-availability";
+import {
+  appendEnumerationEvidence,
+  emptyEnumerationProgressEvidence,
+} from "./enumeration-progress-evidence";
 
 const unattempted = {
   brothersAttempted: false,
@@ -97,5 +101,104 @@ describe("adaptive availability", () => {
     expect(
       classifyAdaptiveAvailability(emptyGuarantee, incorrect, unattempted),
     ).toEqual({ status: "insufficient-evidence" });
+  });
+
+  it("offers pages only after completed history and both transfer rules, then suppresses consumed exploration", () => {
+    const emptyEnumeration = emptyEnumerationProgressEvidence();
+    const expected = {
+      status: "recommendation",
+      problemId: "pages-without-digit-one",
+      reason:
+        "В твоём прогрессе пока нет проверяемой работы с таким типом рассуждения. Эта задача даст возможность попробовать новую идею.",
+    };
+    expect(
+      classifyAdaptiveAvailability(
+        emptyGuarantee,
+        emptyImpossibility,
+        unattempted,
+        emptyEnumeration,
+        false,
+      ),
+    ).toEqual({ status: "insufficient-evidence" });
+    expect(
+      classifyAdaptiveAvailability(
+        emptyGuarantee,
+        emptyImpossibility,
+        unattempted,
+        emptyEnumeration,
+        true,
+      ),
+    ).toEqual(expected);
+    expect(expected.reason).not.toMatch(/перебор|блок|разби|полнот/i);
+    const guarantee = appendGuaranteeEvidence(emptyGuarantee, sock)!;
+    const impossibility = appendImpossibilityEvidence(
+      emptyImpossibility,
+      table,
+    )!;
+    expect(
+      classifyAdaptiveAvailability(
+        guarantee,
+        impossibility,
+        unattempted,
+        emptyEnumeration,
+        true,
+      ),
+    ).toMatchObject({ problemId: "brothers-ages-products" });
+    expect(
+      classifyAdaptiveAvailability(
+        guarantee,
+        impossibility,
+        { ...unattempted, brothersAttempted: true },
+        emptyEnumeration,
+        true,
+      ),
+    ).toMatchObject({ problemId: "parrots-guaranteed-colors" });
+    for (const status of [
+      { pagesAttempted: true },
+      { pagesSolutionExposed: true },
+    ])
+      expect(
+        classifyAdaptiveAvailability(
+          emptyGuarantee,
+          emptyImpossibility,
+          { ...unattempted, ...status },
+          emptyEnumeration,
+          true,
+        ),
+      ).toEqual({ status: "insufficient-evidence" });
+    const positive = appendEnumerationEvidence(emptyEnumeration, {
+      problemId: "pages-without-digit-one",
+      observation: {
+        checkpointId: "pages-without-digit-one-complete-enumeration",
+        selectedOptionId: "A",
+        outcome: "correct",
+        validSubmissionCountAtSubmit: 1,
+      },
+      hintLevelsExposedBeforeCheckpoint: [],
+      solutionExposedBeforeCheckpoint: false,
+    })!;
+    expect(
+      classifyAdaptiveAvailability(
+        emptyGuarantee,
+        emptyImpossibility,
+        unattempted,
+        positive,
+        true,
+      ),
+    ).toEqual({ status: "insufficient-evidence" });
+    expect(
+      classifyAdaptiveAvailability(
+        emptyGuarantee,
+        emptyImpossibility,
+        {
+          ...unattempted,
+          brothersAttempted: true,
+          parrotsAttempted: true,
+          pagesAttempted: true,
+        },
+        emptyEnumeration,
+        true,
+      ),
+    ).toEqual({ status: "transfer-exhausted" });
   });
 });
