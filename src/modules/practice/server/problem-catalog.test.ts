@@ -14,6 +14,7 @@ import {
   PRACTICE_SESSION_PROBLEM_IDS,
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
   getRevealedPracticeHint,
   getRevealedPracticeSolution,
 } from "./problem-catalog";
@@ -54,6 +55,80 @@ const checkpointOptions = [
 ];
 
 describe("practice problem catalog", () => {
+  it("explains the maximal continuation and rules out every larger eight-digit number", () => {
+    const { text } = getProblemDefinition("largest-valid-eight-digit").solution;
+    for (const argument of [
+      "После 85 выбираем 9: это самая большая цифра",
+      "следующая цифра должна делиться на 4",
+      "Из цифр 0, 4, 8 выбираем наибольшую — 8",
+      "После 98 снова выбираем наибольшую допустимую цифру 5",
+      "на первом месте, где оно отличается от 98598598",
+      "все предыдущие цифры тогда совпадают",
+      "наибольшую цифру, допустимую при этих предыдущих цифрах и условиях задачи",
+      "Поэтому большего подходящего числа нет",
+    ]) {
+      expect(text).toContain(argument);
+    }
+  });
+  it("keeps Pack C sourced, ordered, numeric, and protected", () => {
+    expect(PACK_C_PROBLEM_IDS).toEqual([
+      "largest-valid-eight-digit",
+      "three-numbers-digit-sums",
+      "mountain-plain-flights",
+    ]);
+    const expected = [
+      ["Самое большое число", "2023/24", "school", 5, 2, 3, "98598598"],
+      ["Три загадочных числа", "2021/22", "invitational", 6, 2, 11, "247"],
+      ["Рейсы между городами", "2021/22", "invitational", 8, 3, 13, "81"],
+    ] as const;
+    PACK_C_PROBLEM_IDS.forEach((id, index) => {
+      const definition = getProblemDefinition(id);
+      const [
+        title,
+        academicYear,
+        stage,
+        problemNumber,
+        taskPage,
+        solutionPage,
+        answer,
+      ] = expected[index];
+      expect(definition.title).toBe(title);
+      expect(definition.provenance).toMatchObject({
+        olympiad: "Всероссийская олимпиада школьников",
+        subject: "mathematics",
+        region: "Moscow",
+        grade: 5,
+        academicYear,
+        stage,
+        problemNumber,
+        originalSource: { reference: "I", page: taskPage },
+        officialSolution: { reference: "IS", page: solutionPage },
+      });
+      expect(definition.provenance).not.toHaveProperty("variant");
+      expect(definition.assessment).toEqual({
+        kind: "nonnegative-integer",
+        expectedAnswer: answer,
+      });
+      expect(definition.reasoningCheckpoint).toBeUndefined();
+      expect(definition.hints.map((hint) => hint.level)).toEqual([
+        "focus",
+        "strategy",
+        "next-step",
+      ]);
+      definition.hints.forEach((hint) =>
+        expect(getRevealedPracticeHint(id, hint.id).text).toBe(hint.text),
+      );
+      expect(getRevealedPracticeSolution(id, definition.solution.id).text).toBe(
+        definition.solution.text,
+      );
+      expect(JSON.stringify(getLearnerSafePracticeProblem(id))).not.toContain(
+        answer,
+      );
+      expect(JSON.stringify(getLearnerSafePracticeProblem(id))).not.toContain(
+        definition.solution.text,
+      );
+    });
+  });
   it("keeps Pack B in fixed order with sourced protected assessment and support", () => {
     expect(PACK_B_PROBLEM_IDS).toEqual([
       "truck-car-same-arrival",

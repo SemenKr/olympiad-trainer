@@ -131,6 +131,103 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("keeps Pack C history under one immutable receipt without capability or adaptive changes", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const beforeProgress = await readLearnerProgress(id);
+    const beforeAvailability = (await readAdaptiveAvailability(id))
+      .availability;
+    const sessionId = randomUUID();
+    const pack = {
+      mode: "pack" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          noAnswer("largest-valid-eight-digit"),
+          noAnswer("three-numbers-digit-sums"),
+          noAnswer("mountain-plain-flights"),
+        ],
+      },
+    };
+    await persistFinishContributions(id, sessionId, [], undefined, pack);
+    await persistFinishContributions(id, sessionId, [], undefined, pack);
+    expect(await readLearnerProgress(id)).toEqual(beforeProgress);
+    expect((await readAdaptiveAvailability(id)).availability).toEqual(
+      beforeAvailability,
+    );
+    expect((await readRecentPracticeEpisodes(id))[0]).toMatchObject({
+      mode: "pack",
+      problems: [
+        {
+          problemTitle: "Самое большое число",
+        },
+        {
+          problemTitle: "Три загадочных числа",
+        },
+        {
+          problemTitle: "Рейсы между городами",
+        },
+      ],
+    });
+    const receiptRows = await getProgressDb()
+      .select()
+      .from(practiceFinishReceipts)
+      .where(
+        and(
+          eq(practiceFinishReceipts.learnerId, id),
+          eq(practiceFinishReceipts.sessionId, sessionId),
+        ),
+      );
+    const episodeRows = await getProgressDb()
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, id),
+          eq(practiceCompletedEpisodes.sessionId, sessionId),
+        ),
+      );
+    expect(receiptRows).toHaveLength(1);
+    expect(receiptRows[0].episodeMode).toBe("pack");
+    expect(episodeRows).toHaveLength(1);
+    expect(episodeRows[0].episodeFacts).toEqual(pack.facts);
+    await expect(
+      persistFinishContributions(id, sessionId, [], undefined, {
+        ...pack,
+        facts: {
+          ...pack.facts,
+          problems: [
+            {
+              ...pack.facts.problems[0],
+              validSubmissionCount: 1,
+              outcome: "incorrect-only" as const,
+            },
+            ...pack.facts.problems.slice(1),
+          ],
+        },
+      }),
+    ).rejects.toThrow("Session contribution changed after Finish.");
+    await getProgressDb()
+      .delete(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, id),
+          eq(practiceCompletedEpisodes.sessionId, sessionId),
+        ),
+      );
+    await persistFinishContributions(id, sessionId, [], undefined, pack);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(practiceCompletedEpisodes.sessionId, sessionId),
+          ),
+        ),
+    ).toHaveLength(0);
+  });
   it("stores Pack B once in history without changing progress or adaptive availability", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);

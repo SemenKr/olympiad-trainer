@@ -24,6 +24,22 @@ const correctSummary = {
 };
 
 describe("reasoning checkpoint server boundary", () => {
+  it.each([
+    ["largest-valid-eight-digit", "98598598"],
+    ["three-numbers-digit-sums", "247"],
+    ["mountain-plain-flights", "81"],
+  ] as const)(
+    "assesses Pack C numeric answer for %s on the server",
+    async (id, answer) => {
+      await expect(submitPracticeAnswer(id, answer)).resolves.toEqual({
+        status: "correct",
+        normalizedAnswer: answer,
+      });
+      await expect(submitPracticeAnswer(id, "0")).resolves.toMatchObject({
+        status: "incorrect",
+      });
+    },
+  );
   it("keeps the brothers answer and checkpoint canonical on the server", async () => {
     const id = "brothers-ages-products";
     const checkpoint = "brothers-ages-products-youngest-lower-bound";

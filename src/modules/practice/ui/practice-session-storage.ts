@@ -20,6 +20,7 @@ import {
   completedEpisodeFacts,
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
   packIdFromProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
@@ -177,13 +178,48 @@ const packBProblems = [
   },
 ] as const;
 
+const packCProblems = [
+  {
+    id: PACK_C_PROBLEM_IDS[0],
+    title: "Самое большое число",
+    hints: [
+      "largest-valid-eight-digit-focus",
+      "largest-valid-eight-digit-strategy",
+      "largest-valid-eight-digit-next-step",
+    ],
+    solution: "largest-valid-eight-digit-full-solution",
+  },
+  {
+    id: PACK_C_PROBLEM_IDS[1],
+    title: "Три загадочных числа",
+    hints: [
+      "three-numbers-digit-sums-focus",
+      "three-numbers-digit-sums-strategy",
+      "three-numbers-digit-sums-next-step",
+    ],
+    solution: "three-numbers-digit-sums-full-solution",
+  },
+  {
+    id: PACK_C_PROBLEM_IDS[2],
+    title: "Рейсы между городами",
+    hints: [
+      "mountain-plain-flights-focus",
+      "mountain-plain-flights-strategy",
+      "mountain-plain-flights-next-step",
+    ],
+    solution: "mountain-plain-flights-full-solution",
+  },
+] as const;
+
 function storedPackProblems(problemIds: readonly string[]) {
   const packId = packIdFromProblemIds(problemIds);
   return packId === "pack-a"
     ? packProblems
     : packId === "pack-b"
       ? packBProblems
-      : null;
+      : packId === "pack-c"
+        ? packCProblems
+        : null;
 }
 
 const transferProblem = {
@@ -234,6 +270,7 @@ type StoredProblem =
   | (typeof problems)[number]
   | (typeof packProblems)[number]
   | (typeof packBProblems)[number]
+  | (typeof packCProblems)[number]
   | (typeof transferProblems)[number]
   | typeof pagesProblem;
 

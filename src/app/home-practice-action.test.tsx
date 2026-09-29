@@ -29,7 +29,10 @@ vi.mock("@/modules/practice/ui/session-summary", () => ({
 }));
 
 import { startPractice } from "../modules/practice/application/practice-state";
-import { PACK_B_PROBLEM_IDS } from "../modules/practice/application/completed-practice-episode";
+import {
+  PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
+} from "../modules/practice/application/completed-practice-episode";
 import { HomePracticeContent } from "./home-practice-action";
 import Home from "./page";
 
@@ -111,9 +114,11 @@ describe("Home Practice precedence", () => {
     const returning = render(null);
     expect(returning).toContain("Разные способы рассуждать");
     expect(returning).toContain("Связи и закономерности");
-    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(2);
+    expect(returning).toContain("Числа и структуры");
+    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(3);
     expect(returning).toContain('href="/practice/pack"');
     expect(returning).toContain('href="/practice/pack?pack=pack-b"');
+    expect(returning).toContain('href="/practice/pack?pack=pack-c"');
     expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
       returning.indexOf("Дополнительная практика"),
     );
@@ -137,6 +142,19 @@ describe("Home Practice precedence", () => {
       })),
     };
     expect(render(noNextPack)).toContain('href="/practice/pack?pack=pack-b"');
+    expect(render({ ...active, problemIds: PACK_C_PROBLEM_IDS })).toContain(
+      'href="/practice/pack?pack=pack-c"',
+    );
+    expect(
+      render({
+        ...noNextPack,
+        completedResults: PACK_C_PROBLEM_IDS.map((problemId) => ({
+          ...completed[0],
+          problemId,
+          taskOutcome: "skipped" as const,
+        })),
+      }),
+    ).toContain('href="/practice/pack?pack=pack-c"');
     const packA = {
       ...unfinished,
       mode: "pack" as const,

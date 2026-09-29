@@ -9,6 +9,7 @@ import {
 import {
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
 } from "../application/completed-practice-episode";
 import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
 import {
@@ -77,6 +78,21 @@ const packBResult = (
 ) => ({
   problemId: PACK_B_PROBLEM_IDS[index],
   problemTitle: packBTitles[index],
+  summary,
+  ...(skipped ? { taskOutcome: "skipped" as const } : {}),
+});
+const packCTitles = [
+  "Самое большое число",
+  "Три загадочных числа",
+  "Рейсы между городами",
+];
+const packCResult = (
+  index: number,
+  summary = emptySummary,
+  skipped = false,
+) => ({
+  problemId: PACK_C_PROBLEM_IDS[index],
+  problemTitle: packCTitles[index],
   summary,
   ...(skipped ? { taskOutcome: "skipped" as const } : {}),
 });
@@ -470,6 +486,163 @@ describe("Pack B Practice snapshot and Finish", () => {
     const noNext = skipFinalPracticeSession(
       third,
       packBResult(2, emptySummary, true),
+    )!;
+    expect(await saveNoNextPracticeSessionSnapshot(noNext, store)).toBe(true);
+    expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);
+    expect(
+      await completePracticeSession(
+        noNext,
+        null,
+        noNext.completedResults,
+        store,
+        async (request) => {
+          expect(request.episodeMode).toBe("pack");
+          expect(request.contributions).toEqual([]);
+          expect(request).not.toHaveProperty("adaptiveFacts");
+        },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("Pack C Practice snapshot and Finish", () => {
+  it("restores its exact active problem and retries immutable Finish without contributions", async () => {
+    const store = storage();
+    const first = startPackPracticeSession("pack-c");
+    const blank = {
+      rawAnswer: "",
+      status: "typing" as const,
+      practice: startPractice(),
+    };
+    expect(await createPracticeSessionSnapshot(first, blank, store)).toBe(true);
+    const initial = await readPracticeSessionSnapshot(store);
+    expect(initial).toMatchObject({
+      mode: "pack",
+      problemIds: PACK_C_PROBLEM_IDS,
+    });
+    expect(initial).not.toHaveProperty("packId");
+    const second = advancePracticeSession(
+      first,
+      packCResult(0, emptySummary, true),
+    )!;
+    const answer = {
+      rawAnswer: "24",
+      status: "typing" as const,
+      practice: startPractice(),
+    };
+    expect(await savePracticeSessionSnapshot(second, answer, store)).toBe(true);
+    const restored = await readPracticeSessionSnapshot(store);
+    expect(restored).toMatchObject({
+      problemIds: PACK_C_PROBLEM_IDS,
+      activeProblemIndex: 1,
+      rawAnswer: "24",
+    });
+    expect(
+      restored && !("status" in restored) && getStoredProblemTitle(restored),
+    ).toBe("Три загадочных числа");
+    for (const ids of [
+      [...PACK_C_PROBLEM_IDS].reverse(),
+      [PACK_C_PROBLEM_IDS[0], PACK_B_PROBLEM_IDS[1], PACK_C_PROBLEM_IDS[2]],
+      [PACK_C_PROBLEM_IDS[0], PACK_C_PROBLEM_IDS[1], "unknown"],
+    ])
+      expect(
+        validatePracticeSessionSnapshot({ ...restored, problemIds: ids }),
+      ).toBeNull();
+    const third = advancePracticeSession(
+      second,
+      packCResult(1, emptySummary, true),
+    )!;
+    const finalPractice = recordAnswerResult(startPractice(), {
+      status: "correct",
+      normalizedAnswer: "81",
+    });
+    const finalAnswer = {
+      rawAnswer: "81",
+      status: "correct" as const,
+      practice: finalPractice,
+    };
+    expect(await savePracticeSessionSnapshot(third, finalAnswer, store)).toBe(
+      true,
+    );
+    const results = [
+      ...third.completedResults,
+      packCResult(2, getPracticeSummary(finishPractice(finalPractice))),
+    ];
+    expect(validateLatestCompletedResults(results)).toEqual(results);
+    expect(results.map(getPracticeProgressContribution)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    const requests: ServerPracticeFinishPayload[] = [];
+    expect(
+      await completePracticeSession(
+        third,
+        finalAnswer,
+        results,
+        store,
+        async (request) => {
+          requests.push(request);
+          throw new Error("response lost");
+        },
+      ),
+    ).toBe(false);
+    expect(requests[0]).toMatchObject({
+      episodeMode: "pack",
+      contributions: [],
+      episodeFacts: {
+        problems: PACK_C_PROBLEM_IDS.map((problemId) => ({
+          problemId,
+          checkpoint: null,
+        })),
+      },
+    });
+    expect(requests[0]).not.toHaveProperty("adaptiveFacts");
+    expect(
+      await completePracticeSession(
+        third,
+        finalAnswer,
+        results,
+        store,
+        async (request) => {
+          requests.push(request);
+        },
+      ),
+    ).toBe(true);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(
+      (
+        await readVerifiedLatestCompletedResults(
+          async () => ({ valid: false }),
+          store,
+        )
+      ).value,
+    ).toEqual(results);
+  });
+
+  it("finishes after a final skip with no next problem", async () => {
+    const store = storage();
+    const first = startPackPracticeSession("pack-c");
+    const blank = {
+      rawAnswer: "",
+      status: "typing" as const,
+      practice: startPractice(),
+    };
+    expect(await createPracticeSessionSnapshot(first, blank, store)).toBe(true);
+    const second = advancePracticeSession(
+      first,
+      packCResult(0, emptySummary, true),
+    )!;
+    expect(await savePracticeSessionSnapshot(second, blank, store)).toBe(true);
+    const third = advancePracticeSession(
+      second,
+      packCResult(1, emptySummary, true),
+    )!;
+    expect(await savePracticeSessionSnapshot(third, blank, store)).toBe(true);
+    const noNext = skipFinalPracticeSession(
+      third,
+      packCResult(2, emptySummary, true),
     )!;
     expect(await saveNoNextPracticeSessionSnapshot(noNext, store)).toBe(true);
     expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);

@@ -6,6 +6,7 @@ import {
   PRACTICE_SESSION_PROBLEM_IDS,
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
+  PACK_C_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
 
@@ -28,6 +29,13 @@ export default function PracticePage() {
       }
       packBProblems={
         PACK_B_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
+          ReturnType<typeof getLearnerSafePracticeProblem>,
+          ReturnType<typeof getLearnerSafePracticeProblem>,
+          ReturnType<typeof getLearnerSafePracticeProblem>,
+        ]
+      }
+      packCProblems={
+        PACK_C_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
           ReturnType<typeof getLearnerSafePracticeProblem>,
           ReturnType<typeof getLearnerSafePracticeProblem>,
           ReturnType<typeof getLearnerSafePracticeProblem>,
