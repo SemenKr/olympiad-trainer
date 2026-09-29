@@ -12,45 +12,69 @@ export const TRANSFER_EPISODE_PROBLEM_IDS = [
 ] as const;
 export const EXPLORATION_EPISODE_PROBLEM_ID =
   "pages-without-digit-one" as const;
-export const PACK_A_NAME = "Разные способы рассуждать";
-export const PACK_A_PROBLEM_IDS = [
-  "granddaughters-first",
-  "cutout-area-ratio",
-  "domino-placements",
-] as const;
-export const PACK_B_NAME = "Связи и закономерности";
-export const PACK_B_PROBLEM_IDS = [
-  "truck-car-same-arrival",
-  "knights-all-or-none",
-  "boastful-fisherman-streak",
-] as const;
-export const PACK_C_NAME = "Числа и структуры";
-export const PACK_C_PROBLEM_IDS = [
-  "largest-valid-eight-digit",
-  "three-numbers-digit-sums",
-  "mountain-plain-flights",
-] as const;
-export type PackId = "pack-a" | "pack-b" | "pack-c";
+export const PRACTICE_PACKS = [
+  {
+    id: "pack-a",
+    name: "Разные способы рассуждать",
+    problemIds: [
+      "granddaughters-first",
+      "cutout-area-ratio",
+      "domino-placements",
+    ],
+  },
+  {
+    id: "pack-b",
+    name: "Связи и закономерности",
+    problemIds: [
+      "truck-car-same-arrival",
+      "knights-all-or-none",
+      "boastful-fisherman-streak",
+    ],
+  },
+  {
+    id: "pack-c",
+    name: "Числа и структуры",
+    problemIds: [
+      "largest-valid-eight-digit",
+      "three-numbers-digit-sums",
+      "mountain-plain-flights",
+    ],
+  },
+] as const satisfies readonly Readonly<{
+  id: string;
+  name: string;
+  problemIds: readonly [string, string, string];
+}>[];
+export type PackId = (typeof PRACTICE_PACKS)[number]["id"];
+export const PACK_A_PROBLEM_IDS = PRACTICE_PACKS[0].problemIds;
+export const PACK_B_PROBLEM_IDS = PRACTICE_PACKS[1].problemIds;
+export const PACK_C_PROBLEM_IDS = PRACTICE_PACKS[2].problemIds;
+
+export function packById(
+  value: unknown,
+): (typeof PRACTICE_PACKS)[number] | null {
+  return PRACTICE_PACKS.find((pack) => pack.id === value) ?? null;
+}
+
+export function packHref(packId: PackId): string {
+  return packId === PRACTICE_PACKS[0].id
+    ? "/practice/pack"
+    : `/practice/pack?pack=${packId}`;
+}
 
 export function packProblemIds(packId: PackId) {
-  return packId === "pack-a"
-    ? PACK_A_PROBLEM_IDS
-    : packId === "pack-b"
-      ? PACK_B_PROBLEM_IDS
-      : PACK_C_PROBLEM_IDS;
+  return packById(packId)!.problemIds;
 }
 
 export function packIdFromProblemIds(
   problemIds: readonly string[],
 ): PackId | null {
   if (problemIds.length !== 3) return null;
-  if (problemIds.every((id, index) => id === PACK_A_PROBLEM_IDS[index]))
-    return "pack-a";
-  if (problemIds.every((id, index) => id === PACK_B_PROBLEM_IDS[index]))
-    return "pack-b";
-  if (problemIds.every((id, index) => id === PACK_C_PROBLEM_IDS[index]))
-    return "pack-c";
-  return null;
+  return (
+    PRACTICE_PACKS.find((pack) =>
+      pack.problemIds.every((id, index) => id === problemIds[index]),
+    )?.id ?? null
+  );
 }
 
 export type CompletedPracticeProblemFact = Readonly<{

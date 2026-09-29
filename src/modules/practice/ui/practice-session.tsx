@@ -111,21 +111,16 @@ type PracticeSessionProps = Readonly<{
     LearnerSafePracticeProblem,
     LearnerSafePracticeProblem,
   ];
-  packProblems?: readonly [
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-  ];
-  packBProblems?: readonly [
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-  ];
-  packCProblems?: readonly [
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-    LearnerSafePracticeProblem,
-  ];
+  packs?: Readonly<
+    Record<
+      PackId,
+      readonly [
+        LearnerSafePracticeProblem,
+        LearnerSafePracticeProblem,
+        LearnerSafePracticeProblem,
+      ]
+    >
+  >;
   startPackId?: PackId;
   transferProblem?: LearnerSafePracticeProblem;
   parrotsProblem?: LearnerSafePracticeProblem;
@@ -143,18 +138,15 @@ export function getActivePracticeProblem(
   transferProblem: PracticeSessionProps["transferProblem"],
   parrotsProblem: PracticeSessionProps["parrotsProblem"],
   pagesProblem?: PracticeSessionProps["pagesProblem"],
-  packProblems?: PracticeSessionProps["packProblems"],
-  packBProblems?: PracticeSessionProps["packBProblems"],
-  packCProblems?: PracticeSessionProps["packCProblems"],
+  packs?: PracticeSessionProps["packs"],
 ): LearnerSafePracticeProblem | null {
-  if (isFixedPracticeSession(session))
-    return session.mode === "pack"
-      ? ((packIdFromProblemIds(session.problemIds ?? []) === "pack-b"
-          ? packBProblems
-          : packIdFromProblemIds(session.problemIds ?? []) === "pack-c"
-            ? packCProblems
-            : packProblems)?.[session.activeProblemIndex] ?? null)
-      : problems[session.activeProblemIndex];
+  if (isFixedPracticeSession(session)) {
+    if (session.mode !== "pack") return problems[session.activeProblemIndex];
+    const packId = packIdFromProblemIds(session.problemIds ?? []);
+    return packId
+      ? (packs?.[packId][session.activeProblemIndex] ?? null)
+      : null;
+  }
   const problem =
     session.problemId === "parrots-guaranteed-colors"
       ? parrotsProblem
@@ -330,9 +322,7 @@ export async function finishPracticeSessionAndNavigate(
 
 export function PracticeSession({
   problems,
-  packProblems,
-  packBProblems,
-  packCProblems,
+  packs,
   startPackId = "pack-a",
   transferProblem,
   parrotsProblem,
@@ -398,15 +388,7 @@ export function PracticeSession({
               : startMode === "pack"
                 ? startPackPracticeSession(startPackId)
                 : startPracticeSession();
-          if (
-            !snapshot &&
-            startMode === "pack" &&
-            !(startPackId === "pack-b"
-              ? packBProblems
-              : startPackId === "pack-c"
-                ? packCProblems
-                : packProblems)
-          ) {
+          if (!snapshot && startMode === "pack" && !packs?.[startPackId]) {
             if (active) setRestoreError(true);
             return;
           }
@@ -416,11 +398,7 @@ export function PracticeSession({
                 startMode === "transfer"
                   ? adaptiveProblem
                   : startMode === "pack"
-                    ? (startPackId === "pack-b"
-                        ? packBProblems!
-                        : startPackId === "pack-c"
-                          ? packCProblems!
-                          : packProblems!)[0]
+                    ? packs![startPackId][0]
                     : problems[0],
               );
           if (!snapshot && startMode === "transfer") {
@@ -469,9 +447,7 @@ export function PracticeSession({
   }, [
     restoreRetry,
     problems,
-    packProblems,
-    packBProblems,
-    packCProblems,
+    packs,
     startPackId,
     adaptiveProblem,
     startMode,
@@ -553,23 +529,17 @@ export function PracticeSession({
   }
 
   const { session: sessionState } = loaded;
-  const activePackProblems =
-    isFixedPracticeSession(sessionState) &&
-    packIdFromProblemIds(sessionState.problemIds ?? []) === "pack-b"
-      ? packBProblems
-      : isFixedPracticeSession(sessionState) &&
-          packIdFromProblemIds(sessionState.problemIds ?? []) === "pack-c"
-        ? packCProblems
-        : packProblems;
+  const activePackId = isFixedPracticeSession(sessionState)
+    ? packIdFromProblemIds(sessionState.problemIds ?? [])
+    : null;
+  const activePackProblems = activePackId ? packs?.[activePackId] : null;
   const activeProblem = getActivePracticeProblem(
     sessionState,
     problems,
     transferProblem,
     parrotsProblem,
     pagesProblem,
-    packProblems,
-    packBProblems,
-    packCProblems,
+    packs,
   );
   if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
   const restoredProblem = activeProblem;

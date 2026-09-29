@@ -11,6 +11,8 @@ import {
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
   PACK_C_PROBLEM_IDS,
+  PRACTICE_PACKS,
+  type PackId,
 } from "../application/completed-practice-episode";
 
 type SourceReference = Readonly<{
@@ -1100,6 +1102,43 @@ export function getLearnerSafePracticeProblem(
         }
       : {}),
   };
+}
+
+export function getLearnerSafePackProblems(): Readonly<
+  Record<
+    PackId,
+    readonly [
+      LearnerSafePracticeProblem,
+      LearnerSafePracticeProblem,
+      LearnerSafePracticeProblem,
+    ]
+  >
+> {
+  const packs: Partial<
+    Record<
+      PackId,
+      readonly [
+        LearnerSafePracticeProblem,
+        LearnerSafePracticeProblem,
+        LearnerSafePracticeProblem,
+      ]
+    >
+  > = {};
+  for (const pack of PRACTICE_PACKS) {
+    packs[pack.id] = [
+      getLearnerSafePracticeProblem(pack.problemIds[0]),
+      getLearnerSafePracticeProblem(pack.problemIds[1]),
+      getLearnerSafePracticeProblem(pack.problemIds[2]),
+    ];
+  }
+  return packs as Record<
+    PackId,
+    readonly [
+      LearnerSafePracticeProblem,
+      LearnerSafePracticeProblem,
+      LearnerSafePracticeProblem,
+    ]
+  >;
 }
 
 function getReasoningCheckpointDefinition(

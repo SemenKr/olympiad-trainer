@@ -1,12 +1,10 @@
 import {
   getLearnerSafePracticeProblem,
+  getLearnerSafePackProblems,
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   PARROTS_TRANSFER_PROBLEM_ID,
   ENUMERATION_EXPLORATION_PROBLEM_ID,
   PRACTICE_SESSION_PROBLEM_IDS,
-  PACK_A_PROBLEM_IDS,
-  PACK_B_PROBLEM_IDS,
-  PACK_C_PROBLEM_IDS,
 } from "@/modules/practice/server/problem-catalog";
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
 
@@ -20,27 +18,7 @@ export default function PracticePage() {
   return (
     <PracticeSession
       problems={problems}
-      packProblems={
-        PACK_A_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
-      packBProblems={
-        PACK_B_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
-      packCProblems={
-        PACK_C_PROBLEM_IDS.map(getLearnerSafePracticeProblem) as [
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-          ReturnType<typeof getLearnerSafePracticeProblem>,
-        ]
-      }
+      packs={getLearnerSafePackProblems()}
       transferProblem={getLearnerSafePracticeProblem(
         ADAPTIVE_TRANSFER_PROBLEM_ID,
       )}
