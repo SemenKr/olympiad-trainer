@@ -21,6 +21,7 @@ type ProgressLoad =
       interpretations: readonly [
         LearnerProgressInterpretation,
         LearnerProgressInterpretation,
+        LearnerProgressInterpretation,
       ];
       episodes: readonly RecentPracticeEpisode[];
     };

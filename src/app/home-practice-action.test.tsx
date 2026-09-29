@@ -91,6 +91,39 @@ const fresh = {
 };
 
 describe("Home Practice precedence", () => {
+  it("links pages exploration without revealing its strategy and keeps consumed no-next copy", () => {
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{
+          unfinished: null,
+          completed: null,
+          hasPracticeHistory: true,
+          availability: {
+            status: "recommendation",
+            problemId: "pages-without-digit-one",
+            reason:
+              "В твоём прогрессе пока нет проверяемой работы с таким типом рассуждения. Эта задача даст возможность попробовать новую идею.",
+          },
+        }}
+      />,
+    );
+    expect(markup).toContain(
+      "/practice/transfer?problem=pages-without-digit-one",
+    );
+    expect(markup).toContain("Страницы без цифры 1");
+    expect(markup).not.toMatch(/перебор|непересекающ|блоки/);
+    const consumed = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{
+          unfinished: null,
+          completed: null,
+          hasPracticeHistory: true,
+          availability: exhausted,
+        }}
+      />,
+    );
+    expect(consumed).toContain("Новых подходящих задач пока нет");
+  });
   it("links a parrots recommendation to its explicit transfer identity", () => {
     const markup = renderToStaticMarkup(
       <HomePracticeContent

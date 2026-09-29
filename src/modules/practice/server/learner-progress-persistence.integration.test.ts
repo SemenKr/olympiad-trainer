@@ -8,6 +8,7 @@ import {
   type GuaranteeEvidenceContribution,
 } from "../application/guarantee-progress-evidence";
 import { emptyImpossibilityProgressEvidence } from "../application/impossibility-progress-evidence";
+import { emptyEnumerationProgressEvidence } from "../application/enumeration-progress-evidence";
 import {
   findOrCreateLearner,
   importLegacyProgress,
@@ -75,6 +76,17 @@ const parrots = {
   hintLevelsExposedBeforeCheckpoint: [] as const,
   solutionExposedBeforeCheckpoint: false as const,
 };
+const enumeration = {
+  problemId: "pages-without-digit-one" as const,
+  observation: {
+    checkpointId: "pages-without-digit-one-complete-enumeration" as const,
+    selectedOptionId: "A" as const,
+    outcome: "correct" as const,
+    validSubmissionCountAtSubmit: 1,
+  },
+  hintLevelsExposedBeforeCheckpoint: [] as const,
+  solutionExposedBeforeCheckpoint: false as const,
+};
 
 const noAnswer = (problemId: string) => ({
   problemId,
@@ -114,10 +126,322 @@ async function learner() {
     .where(eq(learners.id, id));
   expect(row.anonymousTokenHash).toBe(tokenHash);
   expect(JSON.stringify(row)).not.toContain(token);
+  expect(row.enumerationEvidence).toEqual(emptyEnumerationProgressEvidence());
   return id;
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("requires a server Finish before pages and stores an exact completed exploration idempotently", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [],
+      undefined,
+      coreEpisode,
+    );
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
+    const sessionId = randomUUID();
+    const episode = {
+      mode: "exploration" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          {
+            ...noAnswer("pages-without-digit-one"),
+            skipped: true,
+          },
+        ],
+      },
+    };
+    const finish = {
+      problemId: "pages-without-digit-one" as const,
+      attempted: true,
+      solutionExposed: false,
+    };
+    await persistFinishContributions(id, sessionId, [], finish, episode);
+    await persistFinishContributions(id, sessionId, [], finish, episode);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.pagesAttempted).toBe(true);
+    expect(row.enumerationEvidence).toEqual(emptyEnumerationProgressEvidence());
+    expect((await readRecentPracticeEpisodes(id))[0]).toMatchObject({
+      mode: "exploration",
+      problems: [{ problemTitle: "Страницы без цифры 1", skipped: true }],
+    });
+    const episodes = await getProgressDb()
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, id),
+          eq(practiceCompletedEpisodes.sessionId, sessionId),
+        ),
+      );
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0].episodeFacts).toEqual(episode.facts);
+    expect(JSON.stringify(episodes[0].episodeFacts)).not.toMatch(
+      /Разделить числа|232/,
+    );
+    await getProgressDb()
+      .delete(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, id),
+          eq(practiceCompletedEpisodes.sessionId, sessionId),
+        ),
+      );
+    await persistFinishContributions(id, sessionId, [], finish, episode);
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(practiceCompletedEpisodes.sessionId, sessionId),
+          ),
+        ),
+    ).toHaveLength(0);
+    await expect(
+      persistFinishContributions(id, sessionId, [], finish, {
+        ...episode,
+        facts: {
+          ...episode.facts,
+          problems: [
+            {
+              ...episode.facts.problems[0],
+              hintLevelsExposed: ["focus"] as const,
+            },
+          ],
+        },
+      }),
+    ).rejects.toThrow("changed after Finish");
+  });
+
+  it("persists canonical enumeration evidence and immutable Finish with bounded Progress wording", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [],
+      undefined,
+      coreEpisode,
+    );
+    const sessionId = randomUUID();
+    const episode = {
+      mode: "exploration" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          {
+            ...noAnswer("pages-without-digit-one"),
+            outcome: "eventually-correct" as const,
+            validSubmissionCount: 1,
+            checkpoint: {
+              checkpointId: enumeration.observation.checkpointId,
+              outcome: "correct" as const,
+            },
+          },
+        ],
+      },
+    };
+    const finish = {
+      problemId: "pages-without-digit-one" as const,
+      attempted: true,
+      solutionExposed: false,
+    };
+    const contribution = [{ bucket: "enumeration", value: enumeration }];
+    await persistFinishContributions(
+      id,
+      sessionId,
+      contribution,
+      finish,
+      episode,
+    );
+    await persistFinishContributions(
+      id,
+      sessionId,
+      contribution,
+      finish,
+      episode,
+    );
+    expect((await readLearnerProgress(id))[2]).toMatchObject({
+      learnerLabel: "Проверять все возможные случаи",
+      progressGroup: "Начинаю разбираться",
+      conclusion:
+        "Без подсказок ты верно выбрал способ перебора, в котором каждый подходящий случай учитывается ровно один раз. Пока это показывает распознавание полного перебора, а не умение самостоятельно строить такой разбор в новой задаче.",
+    });
+    expect(await readNextUsefulProblem(id)).toBeNull();
+    await expect(
+      persistFinishContributions(
+        id,
+        sessionId,
+        [
+          {
+            bucket: "enumeration",
+            value: {
+              ...enumeration,
+              hintLevelsExposedBeforeCheckpoint: ["focus"],
+            },
+          },
+        ],
+        finish,
+        episode,
+      ),
+    ).rejects.toThrow("changed after Finish");
+    await expect(
+      persistFinishContributions(
+        id,
+        randomUUID(),
+        [
+          {
+            bucket: "enumeration",
+            value: {
+              ...enumeration,
+              observation: {
+                ...enumeration.observation,
+                selectedOptionId: "B",
+              },
+            },
+          },
+        ],
+        finish,
+        episode,
+      ),
+    ).rejects.toThrow("Invalid Practice contribution");
+  });
+
+  it("records pages solution exposure without positive evidence and suppresses repeats", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [],
+      undefined,
+      coreEpisode,
+    );
+    const episode = {
+      mode: "exploration" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          {
+            ...noAnswer("pages-without-digit-one"),
+            outcome: "incorrect-only" as const,
+            validSubmissionCount: 1,
+            hintLevelsExposed: ["focus", "strategy", "next-step"] as const,
+            solutionExposed: true,
+          },
+        ],
+      },
+    };
+    await persistFinishContributions(
+      id,
+      randomUUID(),
+      [],
+      {
+        problemId: "pages-without-digit-one",
+        attempted: true,
+        solutionExposed: true,
+      },
+      episode,
+    );
+    const [row] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(row.pagesAttempted).toBe(true);
+    expect(row.pagesSolutionExposed).toBe(true);
+    expect(row.enumerationEvidence).toEqual(emptyEnumerationProgressEvidence());
+    expect((await readLearnerProgress(id))[2].progressGroup).toBeNull();
+    expect(await readNextUsefulProblem(id)).toBeNull();
+  });
+
+  it.each(["hinted-correct", "incorrect-only"] as const)(
+    "keeps %s pages checkpoint interpretation bounded",
+    async (caseName) => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      await persistFinishContributions(
+        id,
+        randomUUID(),
+        [],
+        undefined,
+        coreEpisode,
+      );
+      const correct = caseName === "hinted-correct";
+      const observation = correct
+        ? enumeration.observation
+        : {
+            ...enumeration.observation,
+            selectedOptionId: "B" as const,
+            outcome: "incorrect" as const,
+          };
+      const episode = {
+        mode: "exploration" as const,
+        facts: {
+          version: 1 as const,
+          problems: [
+            {
+              ...noAnswer("pages-without-digit-one"),
+              outcome: "eventually-correct" as const,
+              validSubmissionCount: 1,
+              hintLevelsExposed: ["focus"] as const,
+              checkpoint: {
+                checkpointId: observation.checkpointId,
+                outcome: observation.outcome,
+              },
+            },
+          ],
+        },
+      };
+      await persistFinishContributions(
+        id,
+        randomUUID(),
+        [
+          {
+            bucket: "enumeration",
+            value: {
+              ...enumeration,
+              observation,
+              hintLevelsExposedBeforeCheckpoint: ["focus"],
+            },
+          },
+        ],
+        {
+          problemId: "pages-without-digit-one",
+          attempted: true,
+          solutionExposed: false,
+        },
+        episode,
+      );
+      expect((await readLearnerProgress(id))[2]).toMatchObject(
+        correct
+          ? {
+              progressGroup: "Начинаю разбираться",
+              conclusion:
+                "После подсказок ты верно выбрал способ, который не пропускает подходящие случаи и не считает их дважды. Самостоятельное построение полного перебора пока не проверено.",
+            }
+          : {
+              progressGroup: null,
+              conclusion:
+                "Проверенного выбора способа полного перебора пока нет.",
+            },
+      );
+      expect(await readNextUsefulProblem(id)).toBeNull();
+    },
+  );
   it("writes a core episode with its receipt, keeps first completion time on retry, and rejects changed facts", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);
@@ -391,8 +715,11 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       hasPracticeHistory: false,
     });
     await persistFinishContributions(id, randomUUID(), []);
-    expect(await readAdaptiveAvailability(id)).toEqual({
-      availability: { status: "insufficient-evidence" },
+    expect(await readAdaptiveAvailability(id)).toMatchObject({
+      availability: {
+        status: "recommendation",
+        problemId: "pages-without-digit-one",
+      },
       hasPracticeHistory: true,
     });
   });
@@ -433,8 +760,11 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       attempted: true,
       solutionExposed: false,
     });
-    expect(await readAdaptiveAvailability(id)).toEqual({
-      availability: { status: "insufficient-evidence" },
+    expect(await readAdaptiveAvailability(id)).toMatchObject({
+      availability: {
+        status: "recommendation",
+        problemId: "pages-without-digit-one",
+      },
       hasPracticeHistory: true,
     });
     await persistFinishContributions(id, randomUUID(), [], {
@@ -442,8 +772,11 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       attempted: true,
       solutionExposed: false,
     });
-    expect(await readAdaptiveAvailability(id)).toEqual({
-      availability: { status: "transfer-exhausted" },
+    expect(await readAdaptiveAvailability(id)).toMatchObject({
+      availability: {
+        status: "recommendation",
+        problemId: "pages-without-digit-one",
+      },
       hasPracticeHistory: true,
     });
   });
@@ -479,7 +812,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       await persistFinishContributions(id, sessionId, contributions, facts);
       await persistFinishContributions(id, sessionId, contributions, facts);
       expect((await readLearnerProgress(id))[0].progressGroup).toBe(group);
-      expect(await readNextUsefulProblem(id)).toBeNull();
+      expect(await readNextUsefulProblem(id)).toMatchObject({
+        problemId: "pages-without-digit-one",
+      });
       await persistFinishContributions(id, randomUUID(), [
         {
           bucket: "guarantee",
@@ -548,7 +883,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     };
     await persistFinishContributions(id, sessionId, [], facts);
     await persistFinishContributions(id, sessionId, [], facts);
-    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
     expect((await readLearnerProgress(id))[0].progressGroup).toBe(
       "Начинаю разбираться",
     );
@@ -598,7 +935,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
         },
       },
     ]);
-    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
     expect((await readLearnerProgress(id))[0].progressGroup).toBe(
       "Начинаю разбираться",
     );
@@ -797,7 +1136,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     const facts = { attempted: true, solutionExposed: false };
     await persistFinishContributions(id, sessionId, contributions, facts);
     await persistFinishContributions(id, sessionId, contributions, facts);
-    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
     const [row] = await getProgressDb()
       .select()
       .from(learners)
@@ -850,7 +1191,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
         solutionExposed: false,
       }),
     ).rejects.toThrow("changed after Finish");
-    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
     const [row] = await getProgressDb()
       .select()
       .from(learners)
@@ -875,7 +1218,9 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       attempted: true,
       solutionExposed: true,
     });
-    expect(await readNextUsefulProblem(id)).toBeNull();
+    expect(await readNextUsefulProblem(id)).toMatchObject({
+      problemId: "pages-without-digit-one",
+    });
     const first = randomUUID();
     const second = randomUUID();
     await Promise.all([

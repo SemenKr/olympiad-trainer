@@ -27,6 +27,7 @@ import {
   TABLE_REASONING_CHECKPOINT_ID,
   BROTHERS_REASONING_CHECKPOINT_ID,
   PARROTS_REASONING_CHECKPOINT_ID,
+  PAGES_REASONING_CHECKPOINT_ID,
   type ReasoningCheckpointInterpretation,
   type ReasoningCheckpointObservation,
   type ReasoningCheckpointVerification,
@@ -120,13 +121,32 @@ const parrotsProblem = {
   solution: "parrots-guaranteed-colors-full-solution",
 } as const;
 
+const pagesProblem = {
+  id: "pages-without-digit-one",
+  title: "Страницы без цифры 1",
+  hints: [
+    "pages-without-digit-one-focus-count",
+    "pages-without-digit-one-strategy-blocks",
+    "pages-without-digit-one-next-step-count",
+  ],
+  solution: "pages-without-digit-one-full-solution",
+} as const;
+
 const transferProblems = [transferProblem, parrotsProblem] as const;
 function storedTransferProblem(problemId: string) {
   return transferProblems.find((problem) => problem.id === problemId);
 }
+function storedAdaptiveProblem(problemId: string) {
+  return (
+    storedTransferProblem(problemId) ??
+    (problemId === pagesProblem.id ? pagesProblem : undefined)
+  );
+}
 
 type StoredProblem =
-  (typeof problems)[number] | (typeof transferProblems)[number];
+  | (typeof problems)[number]
+  | (typeof transferProblems)[number]
+  | typeof pagesProblem;
 
 type PracticeSessionSnapshotBase = Readonly<{
   sessionId: string;
@@ -142,8 +162,12 @@ type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
 
 type AdaptivePracticeSessionSnapshot = Readonly<{
   sessionId: string;
-  mode: "transfer";
-  problemIds: readonly ["brothers-ages-products" | "parrots-guaranteed-colors"];
+  mode: "transfer" | "exploration";
+  problemIds: readonly [
+    | "brothers-ages-products"
+    | "parrots-guaranteed-colors"
+    | "pages-without-digit-one",
+  ];
   activeProblemIndex: 0;
   completedResults: readonly [];
   activePractice: ActivePractice;
@@ -299,7 +323,10 @@ function validReasoningCheckpointObservation(
           value.checkpointId === BROTHERS_REASONING_CHECKPOINT_ID) ||
         (problem.id === "parrots-guaranteed-colors" &&
           record(value) &&
-          value.checkpointId === PARROTS_REASONING_CHECKPOINT_ID)) &&
+          value.checkpointId === PARROTS_REASONING_CHECKPOINT_ID) ||
+        (problem.id === "pages-without-digit-one" &&
+          record(value) &&
+          value.checkpointId === PAGES_REASONING_CHECKPOINT_ID)) &&
     record(value) &&
     exactKeys(value, [
       "checkpointId",
@@ -386,10 +413,10 @@ export function validateLatestCompletedResults(
   if (
     Array.isArray(value) &&
     value.length === 1 &&
-    storedTransferProblem(value[0]?.problemId) &&
+    storedAdaptiveProblem(value[0]?.problemId) &&
     validResult(
       value[0],
-      storedTransferProblem(value[0].problemId)!,
+      storedAdaptiveProblem(value[0].problemId)!,
       true,
       true,
     )
@@ -585,7 +612,10 @@ function validateSessionShape(
 export function validatePracticeSessionSnapshot(
   value: unknown,
 ): UnfinishedPracticeSessionSnapshot | null {
-  if (record(value) && value.mode === "transfer") {
+  if (
+    record(value) &&
+    (value.mode === "transfer" || value.mode === "exploration")
+  ) {
     if (!validSessionId(value.sessionId)) return null;
     if (value.status === "no-next")
       return exactKeys(value, [
@@ -596,10 +626,12 @@ export function validatePracticeSessionSnapshot(
       ]) &&
         Array.isArray(value.completedResults) &&
         value.completedResults.length === 1 &&
-        storedTransferProblem(value.completedResults[0]?.problemId) &&
+        storedAdaptiveProblem(value.completedResults[0]?.problemId) &&
+        (value.mode === "exploration") ===
+          (value.completedResults[0].problemId === pagesProblem.id) &&
         validResult(
           value.completedResults[0],
-          storedTransferProblem(value.completedResults[0].problemId)!,
+          storedAdaptiveProblem(value.completedResults[0].problemId)!,
           true,
           true,
         ) &&
@@ -620,20 +652,22 @@ export function validatePracticeSessionSnapshot(
     return exactKeys(value, keys) &&
       Array.isArray(value.problemIds) &&
       value.problemIds.length === 1 &&
-      storedTransferProblem(value.problemIds[0]) !== undefined &&
+      storedAdaptiveProblem(value.problemIds[0]) !== undefined &&
+      (value.mode === "exploration") ===
+        (value.problemIds[0] === pagesProblem.id) &&
       value.activeProblemIndex === 0 &&
       Array.isArray(value.completedResults) &&
       value.completedResults.length === 0 &&
       validActivePractice(
         value.activePractice,
-        storedTransferProblem(value.problemIds[0])!,
+        storedAdaptiveProblem(value.problemIds[0])!,
       ) &&
       typeof value.rawAnswer === "string" &&
       (!Object.hasOwn(value, "reasoningCheckpointObservation") ||
         (value.activePractice.solutionExposure === null &&
           validReasoningCheckpointObservation(
             value.reasoningCheckpointObservation,
-            storedTransferProblem(value.problemIds[0])!,
+            storedAdaptiveProblem(value.problemIds[0])!,
             value.activePractice.submissions.length,
             value.activePractice.submissions.findIndex(
               (submission: { outcome: string }) =>
@@ -800,7 +834,7 @@ export async function readVerifiedPracticeSessionSnapshot(
       ? null
       : await verifyCheckpoint(
           ("mode" in snapshot
-            ? storedTransferProblem(snapshot.problemIds[0])!
+            ? storedAdaptiveProblem(snapshot.problemIds[0])!
             : problems[snapshot.activeProblemIndex]
           ).id,
           snapshot.reasoningCheckpointObservation,
@@ -835,7 +869,7 @@ function activeSessionSnapshot(
   if ("mode" in session)
     return {
       sessionId: session.sessionId,
-      mode: "transfer",
+      mode: session.mode,
       problemIds: [session.problemId],
       activeProblemIndex: 0,
       completedResults: [],
@@ -1060,7 +1094,10 @@ export type ServerPracticeFinishPayload = Readonly<{
   episodeMode?: CompletedPracticeEpisodeMode;
   episodeFacts?: CompletedPracticeEpisodeFactsV1;
   adaptiveFacts?: Readonly<{
-    problemId: "brothers-ages-products" | "parrots-guaranteed-colors";
+    problemId:
+      | "brothers-ages-products"
+      | "parrots-guaranteed-colors"
+      | "pages-without-digit-one";
     attempted: boolean;
     solutionExposed: boolean;
   }>;
@@ -1124,7 +1161,7 @@ function readServerPracticeFinishRequest(
               sessionId: unfinished.sessionId,
               ...("mode" in unfinished
                 ? {
-                    mode: "transfer" as const,
+                    mode: unfinished.mode,
                     problemId: unfinished.problemIds[0],
                   }
                 : {}),
@@ -1138,7 +1175,7 @@ function readServerPracticeFinishRequest(
       .map(getPracticeProgressContribution)
       .filter((entry) => entry !== null);
     const adaptiveFacts = adaptiveFinishFacts(unfinished, results);
-    const mode = "mode" in unfinished ? "transfer" : "core";
+    const mode = "mode" in unfinished ? unfinished.mode : "core";
     const expectedEpisode = completedEpisodeFacts(results);
     const legacyBrothersFacts =
       adaptiveFacts?.problemId === "brothers-ages-products"
@@ -1178,7 +1215,7 @@ function adaptiveFinishFacts(
   const result = results.length === 1 ? results[0] : null;
   if (
     !result ||
-    !storedTransferProblem(result.problemId) ||
+    !storedAdaptiveProblem(result.problemId) ||
     (!("status" in session) &&
       result.problemId !==
         ("problemIds" in session ? session.problemIds[0] : session.problemId))
@@ -1186,8 +1223,12 @@ function adaptiveFinishFacts(
     return undefined;
   return {
     problemId: result.problemId as
-      "brothers-ages-products" | "parrots-guaranteed-colors",
-    attempted: result.summary.validSubmissionCount > 0,
+      | "brothers-ages-products"
+      | "parrots-guaranteed-colors"
+      | "pages-without-digit-one",
+    attempted:
+      result.problemId === "pages-without-digit-one" ||
+      result.summary.validSubmissionCount > 0,
     solutionExposed: result.summary.solutionExposure !== null,
   };
 }
@@ -1424,7 +1465,7 @@ function readPendingPracticeProgressFinish(
               sessionId: unfinished.sessionId,
               ...("mode" in unfinished
                 ? {
-                    mode: "transfer" as const,
+                    mode: unfinished.mode,
                     problemId: unfinished.problemIds[0],
                   }
                 : {}),
@@ -1592,7 +1633,7 @@ async function completeServerBackedPracticeSession(
         .map(getPracticeProgressContribution)
         .filter((entry) => entry !== null);
       const adaptiveFacts = adaptiveFinishFacts(session, results);
-      const episodeMode = "mode" in session ? "transfer" : "core";
+      const episodeMode = "mode" in session ? session.mode : "core";
       const episodeFacts = completedEpisodeFacts(results);
       if (
         !validateLatestCompletedResults(results) ||
@@ -1991,6 +2032,6 @@ export function getStoredProblemTitle(
   snapshot: PracticeSessionSnapshot,
 ): string {
   return "mode" in snapshot
-    ? storedTransferProblem(snapshot.problemIds[0])!.title
+    ? storedAdaptiveProblem(snapshot.problemIds[0])!.title
     : problems[snapshot.activeProblemIndex].title;
 }

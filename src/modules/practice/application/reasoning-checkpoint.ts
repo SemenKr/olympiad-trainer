@@ -8,6 +8,8 @@ export const BROTHERS_REASONING_CHECKPOINT_ID =
   "brothers-ages-products-youngest-lower-bound" as const;
 export const PARROTS_REASONING_CHECKPOINT_ID =
   "parrots-guaranteed-colors-guarantee-argument" as const;
+export const PAGES_REASONING_CHECKPOINT_ID =
+  "pages-without-digit-one-complete-enumeration" as const;
 
 export type ReasoningCheckpointOptionId = "A" | "B" | "C";
 
@@ -18,7 +20,8 @@ export function isKnownReasoningCheckpointId(
     value === SOCK_REASONING_CHECKPOINT_ID ||
     value === TABLE_REASONING_CHECKPOINT_ID ||
     value === BROTHERS_REASONING_CHECKPOINT_ID ||
-    value === PARROTS_REASONING_CHECKPOINT_ID
+    value === PARROTS_REASONING_CHECKPOINT_ID ||
+    value === PAGES_REASONING_CHECKPOINT_ID
   );
 }
 
@@ -27,7 +30,8 @@ export type ReasoningCheckpointObservation = Readonly<{
     | typeof SOCK_REASONING_CHECKPOINT_ID
     | typeof TABLE_REASONING_CHECKPOINT_ID
     | typeof BROTHERS_REASONING_CHECKPOINT_ID
-    | typeof PARROTS_REASONING_CHECKPOINT_ID;
+    | typeof PARROTS_REASONING_CHECKPOINT_ID
+    | typeof PAGES_REASONING_CHECKPOINT_ID;
   selectedOptionId: ReasoningCheckpointOptionId;
   outcome: "correct" | "incorrect";
   validSubmissionCountAtSubmit: number;

@@ -147,12 +147,16 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
             href={
               stored.availability.problemId === "parrots-guaranteed-colors"
                 ? "/practice/transfer?problem=parrots-guaranteed-colors"
-                : "/practice/transfer"
+                : stored.availability.problemId === "pages-without-digit-one"
+                  ? "/practice/transfer?problem=pages-without-digit-one"
+                  : "/practice/transfer"
             }
           >
             {stored.availability.problemId === "parrots-guaranteed-colors"
               ? "Попугаи в зоопарке"
-              : "Возраст братьев"}
+              : stored.availability.problemId === "pages-without-digit-one"
+                ? "Страницы без цифры 1"
+                : "Возраст братьев"}
           </Link>
         </section>
       ) : progressIsPrimary ? (

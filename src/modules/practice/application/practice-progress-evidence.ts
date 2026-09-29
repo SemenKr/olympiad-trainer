@@ -16,6 +16,14 @@ import {
 } from "./impossibility-progress-evidence";
 import type { PracticeSummary } from "./practice-state";
 import type { ReasoningCheckpointObservation } from "./reasoning-checkpoint";
+import {
+  appendEnumerationEvidence,
+  emptyEnumerationProgressEvidence,
+  getEnumerationEvidenceContribution,
+  validateEnumerationProgressEvidence,
+  type EnumerationEvidenceContribution,
+  type EnumerationProgressEvidence,
+} from "./enumeration-progress-evidence";
 
 export type TwoBucketProgressEvidence = Readonly<{
   version: 2;
@@ -23,8 +31,17 @@ export type TwoBucketProgressEvidence = Readonly<{
   impossibility: ImpossibilityProgressEvidence;
 }>;
 
+export type ThreeBucketProgressEvidence = Readonly<{
+  version: 3;
+  guarantee: GuaranteeProgressEvidence;
+  impossibility: ImpossibilityProgressEvidence;
+  enumeration: EnumerationProgressEvidence;
+}>;
+
 export type PracticeProgressEvidence =
-  GuaranteeProgressEvidence | TwoBucketProgressEvidence;
+  | GuaranteeProgressEvidence
+  | TwoBucketProgressEvidence
+  | ThreeBucketProgressEvidence;
 
 type ContributingResult =
   | {
@@ -40,7 +57,8 @@ export type PracticeProgressContribution =
   | Readonly<{
       bucket: "impossibility";
       value: ImpossibilityEvidenceContribution;
-    }>;
+    }>
+  | Readonly<{ bucket: "enumeration"; value: EnumerationEvidenceContribution }>;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -51,6 +69,23 @@ export function validatePracticeProgressEvidence(
 ): PracticeProgressEvidence | null {
   const legacy = validateGuaranteeProgressEvidence(value);
   if (legacy) return legacy;
+  if (record(value) && value.version === 3) {
+    if (
+      Object.keys(value).length !== 4 ||
+      !Object.hasOwn(value, "guarantee") ||
+      !Object.hasOwn(value, "impossibility") ||
+      !Object.hasOwn(value, "enumeration")
+    )
+      return null;
+    const guarantee = validateGuaranteeProgressEvidence(value.guarantee);
+    const impossibility = validateImpossibilityProgressEvidence(
+      value.impossibility,
+    );
+    const enumeration = validateEnumerationProgressEvidence(value.enumeration);
+    return guarantee && impossibility && enumeration
+      ? { version: 3, guarantee, impossibility, enumeration }
+      : null;
+  }
   if (
     !record(value) ||
     value.version !== 2 ||
@@ -70,10 +105,18 @@ export function validatePracticeProgressEvidence(
 
 export function progressEvidenceBuckets(value: PracticeProgressEvidence) {
   return "guarantee" in value
-    ? { guarantee: value.guarantee, impossibility: value.impossibility }
+    ? {
+        guarantee: value.guarantee,
+        impossibility: value.impossibility,
+        enumeration:
+          "enumeration" in value
+            ? value.enumeration
+            : emptyEnumerationProgressEvidence(),
+      }
     : {
         guarantee: value,
         impossibility: emptyImpossibilityProgressEvidence(),
+        enumeration: emptyEnumerationProgressEvidence(),
       };
 }
 
@@ -83,15 +126,30 @@ export function getPracticeProgressContribution(
   const guarantee = getGuaranteeEvidenceContribution(result);
   if (guarantee) return { bucket: "guarantee", value: guarantee };
   const impossibility = getImpossibilityEvidenceContribution(result);
-  return impossibility
-    ? { bucket: "impossibility", value: impossibility }
-    : null;
+  if (impossibility) return { bucket: "impossibility", value: impossibility };
+  const enumeration = getEnumerationEvidenceContribution(result);
+  return enumeration ? { bucket: "enumeration", value: enumeration } : null;
 }
 
 export function appendPracticeProgressEvidence(
   current: PracticeProgressEvidence,
   contribution: PracticeProgressContribution,
 ): PracticeProgressEvidence | null {
+  if (contribution.bucket === "enumeration") {
+    const buckets = progressEvidenceBuckets(current);
+    const next = appendEnumerationEvidence(
+      buckets.enumeration,
+      contribution.value,
+    );
+    return next
+      ? {
+          version: 3,
+          guarantee: buckets.guarantee,
+          impossibility: buckets.impossibility,
+          enumeration: next,
+        }
+      : null;
+  }
   if (contribution.bucket === "guarantee") {
     const next = appendGuaranteeEvidence(
       "guarantee" in current ? current.guarantee : current,
@@ -107,6 +165,13 @@ export function appendPracticeProgressEvidence(
     contribution.value,
   );
   if (!next) return null;
+  if ("enumeration" in current)
+    return {
+      version: 3,
+      guarantee: current.guarantee,
+      impossibility: next,
+      enumeration: current.enumeration,
+    };
   return {
     version: 2,
     guarantee: "guarantee" in current ? current.guarantee : current,
