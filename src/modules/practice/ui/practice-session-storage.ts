@@ -18,6 +18,7 @@ import {
 } from "../application/practice-progress-evidence";
 import {
   completedEpisodeFacts,
+  PACK_A_PROBLEM_IDS,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
@@ -99,6 +100,40 @@ const problems = [
   },
 ] as const;
 
+const packProblems = [
+  {
+    id: PACK_A_PROBLEM_IDS[0],
+    title: "Кто пришёл первым?",
+    hints: [
+      "granddaughters-first-focus",
+      "granddaughters-first-strategy",
+      "granddaughters-first-next-step",
+    ],
+    solution: "granddaughters-first-full-solution",
+    optionIds: ["anya", "bella", "valya", "galya", "dasha"],
+  },
+  {
+    id: PACK_A_PROBLEM_IDS[1],
+    title: "Вырезанная фигура",
+    hints: [
+      "cutout-area-ratio-focus",
+      "cutout-area-ratio-strategy",
+      "cutout-area-ratio-next-step",
+    ],
+    solution: "cutout-area-ratio-full-solution",
+  },
+  {
+    id: PACK_A_PROBLEM_IDS[2],
+    title: "Сколько прямоугольников?",
+    hints: [
+      "domino-placements-focus",
+      "domino-placements-strategy",
+      "domino-placements-next-step",
+    ],
+    solution: "domino-placements-full-solution",
+  },
+] as const;
+
 const transferProblem = {
   id: "brothers-ages-products",
   title: "Возраст братьев",
@@ -145,6 +180,7 @@ function storedAdaptiveProblem(problemId: string) {
 
 type StoredProblem =
   | (typeof problems)[number]
+  | (typeof packProblems)[number]
   | (typeof transferProblems)[number]
   | typeof pagesProblem;
 
@@ -158,7 +194,11 @@ type PracticeSessionSnapshotBase = Readonly<{
 }>;
 
 type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
-  Readonly<{ rawAnswer?: string; selectedOptionIds?: readonly string[] }>;
+  Readonly<{
+    mode?: "pack";
+    rawAnswer?: string;
+    selectedOptionIds?: readonly string[];
+  }>;
 
 type AdaptivePracticeSessionSnapshot = Readonly<{
   sessionId: string;
@@ -412,6 +452,19 @@ export function validateLatestCompletedResults(
 ): readonly PracticeSessionResult[] | null {
   if (
     Array.isArray(value) &&
+    value.length === packProblems.length &&
+    value.every((result, index) =>
+      validResult(
+        result,
+        packProblems[index],
+        index === packProblems.length - 1,
+        index === packProblems.length - 1,
+      ),
+    )
+  )
+    return value as readonly PracticeSessionResult[];
+  if (
+    Array.isArray(value) &&
     value.length === 1 &&
     storedAdaptiveProblem(value[0]?.problemId) &&
     validResult(
@@ -502,8 +555,7 @@ function validStoredSubmissionAnswer(
   answer: string,
   problem: StoredProblem,
 ): boolean {
-  if (problem.id !== "table-impossible-sums")
-    return /^(?:0|[1-9][0-9]*)$/.test(answer);
+  if (!("optionIds" in problem)) return /^(?:0|[1-9][0-9]*)$/.test(answer);
   try {
     return (
       normalizeMultipleChoiceSetAnswer(
@@ -516,15 +568,16 @@ function validStoredSubmissionAnswer(
   }
 }
 
-function validSelectedOptionIds(value: unknown): value is string[] {
+function validSelectedOptionIds(
+  value: unknown,
+  problem: StoredProblem,
+): value is string[] {
   if (!Array.isArray(value)) return false;
-  const known = problems[2].optionIds;
+  if (!("optionIds" in problem)) return false;
+  const known: readonly string[] = problem.optionIds;
   return (
     value.length <= known.length &&
-    value.every(
-      (id) =>
-        typeof id === "string" && known.includes(id as (typeof known)[number]),
-    ) &&
+    value.every((id) => typeof id === "string" && known.includes(id)) &&
     new Set(value).size === value.length &&
     JSON.stringify(value) ===
       JSON.stringify(known.filter((id) => value.includes(id)))
@@ -534,16 +587,27 @@ function validSelectedOptionIds(value: unknown): value is string[] {
 function validateSessionShape(
   value: unknown,
   length: 2 | 3,
+  mode?: "pack",
 ): Record<string, unknown> | null {
+  const sessionProblems: readonly StoredProblem[] =
+    mode === "pack" ? packProblems : problems;
   if (record(value) && value.status === "no-next") {
-    return exactKeys(value, ["sessionId", "status", "completedResults"]) &&
+    return exactKeys(value, [
+      "sessionId",
+      ...(mode === "pack" ? ["mode"] : []),
+      "status",
+      "completedResults",
+    ]) &&
+      (mode === "pack"
+        ? value.mode === "pack"
+        : !Object.hasOwn(value, "mode")) &&
       validSessionId(value.sessionId) &&
       Array.isArray(value.completedResults) &&
       value.completedResults.length === length &&
       value.completedResults.every((result, index) =>
         validResult(
           result,
-          problems[index],
+          sessionProblems[index],
           index === length - 1,
           index === length - 1,
         ),
@@ -559,25 +623,26 @@ function validateSessionShape(
     !validSessionId(value.sessionId) ||
     !Array.isArray(value.problemIds) ||
     value.problemIds.length !== length ||
-    !value.problemIds.every((id, index) => id === problems[index].id) ||
+    !value.problemIds.every((id, index) => id === sessionProblems[index].id) ||
+    (mode === "pack" ? value.mode !== "pack" : Object.hasOwn(value, "mode")) ||
     !validCount(value.activeProblemIndex, length - 1) ||
     !Array.isArray(value.completedResults) ||
     value.completedResults.length !== value.activeProblemIndex ||
     !value.completedResults.every((result, index) =>
-      validResult(result, problems[index], false),
+      validResult(result, sessionProblems[index], false),
     ) ||
     !validActivePractice(
       value.activePractice,
-      problems[value.activeProblemIndex],
+      sessionProblems[value.activeProblemIndex],
     )
   )
     return null;
 
-  const problem = problems[value.activeProblemIndex];
-  const answerKey =
-    problem.id === "table-impossible-sums" ? "selectedOptionIds" : "rawAnswer";
+  const problem = sessionProblems[value.activeProblemIndex];
+  const answerKey = "optionIds" in problem ? "selectedOptionIds" : "rawAnswer";
   const keys = [
     "sessionId",
+    ...(mode === "pack" ? ["mode"] : []),
     "problemIds",
     "activeProblemIndex",
     "completedResults",
@@ -601,7 +666,7 @@ function validateSessionShape(
         ))) ||
     (answerKey === "rawAnswer"
       ? typeof value.rawAnswer !== "string"
-      : !validSelectedOptionIds(value.selectedOptionIds))
+      : !validSelectedOptionIds(value.selectedOptionIds, problem))
   ) {
     return null;
   }
@@ -612,6 +677,9 @@ function validateSessionShape(
 export function validatePracticeSessionSnapshot(
   value: unknown,
 ): UnfinishedPracticeSessionSnapshot | null {
+  if (record(value) && value.mode === "pack")
+    return validateSessionShape(value, 3, "pack") as
+      CorePracticeSessionSnapshot | NoNextPracticeSessionSnapshot | null;
   if (
     record(value) &&
     (value.mode === "transfer" || value.mode === "exploration")
@@ -833,9 +901,11 @@ export async function readVerifiedPracticeSessionSnapshot(
     "status" in snapshot || !snapshot.reasoningCheckpointObservation
       ? null
       : await verifyCheckpoint(
-          ("mode" in snapshot
+          ("mode" in snapshot && snapshot.mode !== "pack"
             ? storedAdaptiveProblem(snapshot.problemIds[0])!
-            : problems[snapshot.activeProblemIndex]
+            : snapshot.mode === "pack"
+              ? packProblems[snapshot.activeProblemIndex]
+              : problems[snapshot.activeProblemIndex]
           ).id,
           snapshot.reasoningCheckpointObservation,
           getPracticeSummary(finishPractice(snapshot.activePractice)),
@@ -866,7 +936,7 @@ function activeSessionSnapshot(
   answer: PracticeAnswerState,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): PracticeSessionSnapshot {
-  if ("mode" in session)
+  if (session.mode === "transfer" || session.mode === "exploration")
     return {
       sessionId: session.sessionId,
       mode: session.mode,
@@ -881,7 +951,11 @@ function activeSessionSnapshot(
     };
   return {
     sessionId: session.sessionId,
-    problemIds: [problems[0].id, problems[1].id, problems[2].id],
+    ...(session.mode === "pack" ? { mode: "pack" as const } : {}),
+    problemIds:
+      session.mode === "pack"
+        ? [packProblems[0].id, packProblems[1].id, packProblems[2].id]
+        : [problems[0].id, problems[1].id, problems[2].id],
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,
     activePractice: answer.practice,
@@ -1159,12 +1233,14 @@ function readServerPracticeFinishRequest(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...("mode" in unfinished
+              ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
                     mode: unfinished.mode,
                     problemId: unfinished.problemIds[0],
                   }
-                : {}),
+                : unfinished.mode === "pack"
+                  ? { mode: "pack" as const }
+                  : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
             } as ActivePracticeSessionState,
@@ -1211,7 +1287,8 @@ function adaptiveFinishFacts(
     | UnfinishedPracticeSessionSnapshot,
   results: readonly PracticeSessionResult[],
 ): ServerPracticeFinishPayload["adaptiveFacts"] {
-  if (!("mode" in session)) return undefined;
+  if (session.mode !== "transfer" && session.mode !== "exploration")
+    return undefined;
   const result = results.length === 1 ? results[0] : null;
   if (
     !result ||
@@ -1463,12 +1540,14 @@ function readPendingPracticeProgressFinish(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...("mode" in unfinished
+              ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
                     mode: unfinished.mode,
                     problemId: unfinished.problemIds[0],
                   }
-                : {}),
+                : unfinished.mode === "pack"
+                  ? { mode: "pack" as const }
+                  : {}),
               activeProblemIndex: unfinished.activeProblemIndex,
               completedResults: unfinished.completedResults,
             } as ActivePracticeSessionState,
@@ -2031,7 +2110,9 @@ export function restoreAnswerState(
 export function getStoredProblemTitle(
   snapshot: PracticeSessionSnapshot,
 ): string {
-  return "mode" in snapshot
+  return "mode" in snapshot && snapshot.mode !== "pack"
     ? storedAdaptiveProblem(snapshot.problemIds[0])!.title
-    : problems[snapshot.activeProblemIndex].title;
+    : snapshot.mode === "pack"
+      ? packProblems[snapshot.activeProblemIndex].title
+      : problems[snapshot.activeProblemIndex].title;
 }

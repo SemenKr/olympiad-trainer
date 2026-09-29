@@ -12,6 +12,12 @@ export const TRANSFER_EPISODE_PROBLEM_IDS = [
 ] as const;
 export const EXPLORATION_EPISODE_PROBLEM_ID =
   "pages-without-digit-one" as const;
+export const PACK_A_NAME = "Разные способы рассуждать";
+export const PACK_A_PROBLEM_IDS = [
+  "granddaughters-first",
+  "cutout-area-ratio",
+  "domino-placements",
+] as const;
 
 export type CompletedPracticeProblemFact = Readonly<{
   problemId: string;
@@ -30,7 +36,8 @@ export type CompletedPracticeEpisodeFactsV1 = Readonly<{
   version: 1;
   problems: readonly CompletedPracticeProblemFact[];
 }>;
-export type CompletedPracticeEpisodeMode = "core" | "transfer" | "exploration";
+export type CompletedPracticeEpisodeMode =
+  "core" | "transfer" | "exploration" | "pack";
 
 type CompletedResult = Readonly<{
   problemId: string;
@@ -100,6 +107,15 @@ export function validateCompletedEpisode(
       )
     )
       return null;
+  } else if (mode === "pack") {
+    if (
+      problems.length !== PACK_A_PROBLEM_IDS.length ||
+      !problems.every(
+        (fact, index) =>
+          record(fact) && fact.problemId === PACK_A_PROBLEM_IDS[index],
+      )
+    )
+      return null;
   } else if (mode === "transfer") {
     const first = problems[0];
     if (
@@ -152,7 +168,8 @@ export function validateCompletedEpisode(
           fact.checkpoint !== null)) ||
       (fact.solutionExposed &&
         (fact.validSubmissionCount === 0 ||
-          fact.hintLevelsExposed.length !== 3))
+          fact.hintLevelsExposed.length !== 3)) ||
+      (mode === "pack" && fact.checkpoint !== null)
     )
       return null;
     if (

@@ -132,7 +132,11 @@ export function RecentPracticeHistory({
         {episodes.map((episode, index) => (
           <li key={`${episode.completedAt}-${index}`}>
             <h3>
-              {episode.mode === "core" ? "Тренировка" : "Дополнительная задача"}
+              {episode.mode === "core"
+                ? "Тренировка"
+                : episode.mode === "pack"
+                  ? "Дополнительная практика"
+                  : "Дополнительная задача"}
             </h3>
             <time dateTime={episode.completedAt}>
               {new Date(episode.completedAt).toLocaleString("ru-RU")}

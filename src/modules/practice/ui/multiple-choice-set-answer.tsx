@@ -8,12 +8,14 @@ import styles from "./short-numeric-answer.module.scss";
 export function MultipleChoiceSetAnswer({
   state,
   options,
+  instruction = "Выбери все подходящие варианты.",
   onOptionToggle,
   onSubmit,
   locked = false,
 }: Readonly<{
   state: MultipleChoiceSetAnswerState;
   options: readonly Readonly<{ id: string; label: string }>[];
+  instruction?: string;
   onOptionToggle: (optionId: string) => void;
   onSubmit: () => void;
   locked?: boolean;
@@ -81,7 +83,7 @@ export function MultipleChoiceSetAnswer({
         >
           <legend>Ответ</legend>
           <p className={styles.helper} id={helperId}>
-            Выбери все подходящие варианты.
+            {instruction}
           </p>
           {options.map((option) => (
             <label className={styles.choice} key={option.id}>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   completedEpisodeFacts,
   validateCompletedEpisode,
+  PACK_A_PROBLEM_IDS,
 } from "./completed-practice-episode";
 
 const empty = {
@@ -17,6 +18,35 @@ const coreIds = [
 ];
 
 describe("completed Practice episode facts", () => {
+  it("accepts only exact Pack A order without checkpoints or protected data", () => {
+    const facts = completedEpisodeFacts(
+      PACK_A_PROBLEM_IDS.map((problemId) => ({
+        problemId,
+        summary: empty,
+        answer: "private answer",
+      })),
+    );
+    expect(validateCompletedEpisode("pack", facts)).toEqual(facts);
+    expect(JSON.stringify(facts)).not.toContain("private answer");
+    expect(
+      validateCompletedEpisode("pack", {
+        ...facts,
+        problems: [...facts.problems].reverse(),
+      }),
+    ).toBeNull();
+    expect(
+      validateCompletedEpisode("pack", {
+        ...facts,
+        problems: [
+          {
+            ...facts.problems[0],
+            checkpoint: { checkpointId: "made-up", outcome: "correct" },
+          },
+          ...facts.problems.slice(1),
+        ],
+      }),
+    ).toBeNull();
+  });
   it("constructs the exact core order without protected result content", () => {
     const facts = completedEpisodeFacts(
       coreIds.map((problemId) => ({

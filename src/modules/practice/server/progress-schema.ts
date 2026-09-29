@@ -46,6 +46,9 @@ export const practiceFinishReceipts = pgTable(
       .references(() => learners.id),
     sessionId: uuid("session_id").notNull(),
     contributionHash: text("contribution_hash").notNull(),
+    episodeMode: text("episode_mode").$type<
+      "core" | "transfer" | "exploration" | "pack"
+    >(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -60,7 +63,9 @@ export const practiceCompletedEpisodes = pgTable(
       .notNull()
       .references(() => learners.id),
     sessionId: uuid("session_id").notNull(),
-    mode: text("mode").$type<"core" | "transfer" | "exploration">().notNull(),
+    mode: text("mode")
+      .$type<"core" | "transfer" | "exploration" | "pack">()
+      .notNull(),
     episodeFacts: jsonb("episode_facts").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true })
       .notNull()

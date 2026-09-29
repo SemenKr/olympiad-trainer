@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
 import { readServerAdaptiveAvailability } from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
+import { PACK_A_NAME } from "../modules/practice/application/completed-practice-episode";
 import {
   getStoredProblemTitle,
   readVerifiedLatestCompletedResults,
@@ -130,7 +131,11 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           <Link
             className={styles.primary}
             href={
-              "mode" in stored.unfinished ? "/practice/transfer" : "/practice"
+              stored.unfinished.mode === "pack"
+                ? "/practice/pack"
+                : "mode" in stored.unfinished
+                  ? "/practice/transfer"
+                  : "/practice"
             }
           >
             {"status" in stored.unfinished
@@ -189,6 +194,20 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           </Link>
         </section>
       )}
+      {!stored.unfinished &&
+      (stored.hasPracticeHistory || stored.completed !== null) ? (
+        <section aria-label="Дополнительная практика" className={styles.pack}>
+          <h2>Дополнительная практика</h2>
+          <h3>{PACK_A_NAME}</h3>
+          <p>
+            Три задачи для дополнительной тренировки. Этот набор можно выбрать
+            самому — он не зависит от персональной рекомендации.
+          </p>
+          <Link className={styles.secondary} href="/practice/pack">
+            Решить 3 задачи
+          </Link>
+        </section>
+      ) : null}
       {stored.completed ? (
         <section aria-label="Последняя тренировка" className={styles.latest}>
           <h2>Последняя тренировка</h2>

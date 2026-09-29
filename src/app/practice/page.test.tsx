@@ -181,7 +181,8 @@ describe("direct /practice restore", () => {
       rawAnswer: "",
     });
     expect(snapshot).not.toBeNull();
-    if (!snapshot || !("mode" in snapshot) || "status" in snapshot) return;
+    if (!snapshot || snapshot.mode !== "transfer" || "status" in snapshot)
+      return;
 
     const { problems, transferProblem, parrotsProblem } = pageProblems();
     const problem = getActivePracticeProblem(

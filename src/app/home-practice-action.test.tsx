@@ -91,6 +91,48 @@ const fresh = {
 };
 
 describe("Home Practice precedence", () => {
+  it("shows Pack A only for returning learners, below the current action and before latest preview", () => {
+    const render = (
+      stored: Parameters<typeof HomePracticeContent>[0]["stored"],
+    ) => renderToStaticMarkup(<HomePracticeContent stored={stored} />);
+    expect(render(fresh)).not.toContain("/practice/pack");
+    const returning = render({ ...fresh, hasPracticeHistory: true });
+    expect(returning).toContain("Дополнительная практика");
+    expect(returning).toContain("Разные способы рассуждать");
+    expect(returning).toContain(
+      "Три задачи для дополнительной тренировки. Этот набор можно выбрать самому — он не зависит от персональной рекомендации.",
+    );
+    expect(returning).toContain("Решить 3 задачи");
+    expect(returning).toContain("/practice/pack");
+    expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
+      returning.indexOf("Разные способы рассуждать"),
+    );
+    expect(render({ ...fresh, completed })).toContain("/practice/pack");
+    expect(
+      render({ ...fresh, unfinished, hasPracticeHistory: true }),
+    ).not.toContain("/practice/pack");
+    expect(
+      render({ ...fresh, unfinished: noNext, hasPracticeHistory: true }),
+    ).not.toContain("/practice/pack");
+    expect(
+      render({ ...fresh, availability: exhausted, hasPracticeHistory: true }),
+    ).toContain("/practice/pack");
+    const recommended = render({
+      ...fresh,
+      completed,
+      availability: {
+        status: "recommendation",
+        problemId: "brothers-ages-products",
+        reason: "Рекомендация",
+      },
+    });
+    expect(recommended.indexOf("Следующая полезная задача")).toBeLessThan(
+      recommended.indexOf("Разные способы рассуждать"),
+    );
+    expect(recommended.indexOf("Разные способы рассуждать")).toBeLessThan(
+      recommended.indexOf("Последняя тренировка"),
+    );
+  });
   it("links pages exploration without revealing its strategy and keeps consumed no-next copy", () => {
     const markup = renderToStaticMarkup(
       <HomePracticeContent

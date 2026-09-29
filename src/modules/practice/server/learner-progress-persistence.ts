@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import {
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
@@ -477,13 +477,15 @@ export async function persistFinishContributions(
     const checked = validateCompletedEpisode(candidate.mode, candidate.facts);
     if (
       !checked ||
-      (candidate.mode !== "core") !== (adaptiveFacts !== undefined) ||
-      (candidate.mode !== "core" &&
+      (candidate.mode === "transfer" || candidate.mode === "exploration") !==
+        (adaptiveFacts !== undefined) ||
+      (candidate.mode === "pack" && ordered.length !== 0) ||
+      ((candidate.mode === "transfer" || candidate.mode === "exploration") &&
         candidate.mode !==
           (adaptiveProblemId === "pages-without-digit-one"
             ? "exploration"
             : "transfer")) ||
-      (candidate.mode !== "core" &&
+      ((candidate.mode === "transfer" || candidate.mode === "exploration") &&
         (checked.problems[0].problemId !== adaptiveProblemId ||
           (adaptiveProblemId === "pages-without-digit-one" ||
             checked.problems[0].validSubmissionCount > 0) !==
@@ -617,9 +619,12 @@ export async function persistFinishContributions(
           ORDER BY completed_at DESC, session_id DESC OFFSET 50
         )`);
     }
-    await tx
-      .insert(practiceFinishReceipts)
-      .values({ learnerId, sessionId, contributionHash });
+    await tx.insert(practiceFinishReceipts).values({
+      learnerId,
+      sessionId,
+      contributionHash,
+      episodeMode: completedEpisode?.mode ?? null,
+    });
   });
 }
 
@@ -734,6 +739,19 @@ export async function readAdaptiveAvailability(learnerId: string): Promise<
     .from(practiceFinishReceipts)
     .where(eq(practiceFinishReceipts.learnerId, learnerId))
     .limit(1);
+  const [adaptiveReceipt] = await getProgressDb()
+    .select({ sessionId: practiceFinishReceipts.sessionId })
+    .from(practiceFinishReceipts)
+    .where(
+      and(
+        eq(practiceFinishReceipts.learnerId, learnerId),
+        or(
+          isNull(practiceFinishReceipts.episodeMode),
+          ne(practiceFinishReceipts.episodeMode, "pack"),
+        ),
+      ),
+    )
+    .limit(1);
   const hasPracticeHistory =
     hasVerifiedFacts || hasTransferAttempt || !!receipt;
   const availability = classifyAdaptiveAvailability(
@@ -748,7 +766,7 @@ export async function readAdaptiveAvailability(learnerId: string): Promise<
       pagesSolutionExposed: row.pagesSolutionExposed,
     },
     enumeration,
-    !!receipt,
+    !!adaptiveReceipt,
   );
   return {
     availability,

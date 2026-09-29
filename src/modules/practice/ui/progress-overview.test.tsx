@@ -96,6 +96,31 @@ async function renderEvidence(evidence?: GuaranteeProgressEvidenceV0) {
 }
 
 describe("Progress overview", () => {
+  it("labels Pack A as additional Practice in recent history", () => {
+    const markup = renderToStaticMarkup(
+      <RecentPracticeHistory
+        episodes={[
+          {
+            mode: "pack",
+            completedAt: "2026-09-29T12:00:00.000Z",
+            problems: [
+              {
+                problemTitle: "Кто пришёл первым?",
+                outcome: "eventually-correct",
+                skipped: false,
+                validSubmissionCount: 1,
+                hintLevelsExposed: [],
+                solutionExposed: false,
+                checkpoint: null,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(markup).toContain("Дополнительная практика");
+    expect(markup).toContain("Кто пришёл первым?");
+  });
   it("omits empty durable history and uses factual status precedence", () => {
     expect(renderToStaticMarkup(<RecentPracticeHistory episodes={[]} />)).toBe(
       "",

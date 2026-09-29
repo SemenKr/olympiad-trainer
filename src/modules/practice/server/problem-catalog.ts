@@ -7,6 +7,7 @@ import type {
   RevealedReasoningCheckpoint,
 } from "../application/practice-problem-presentation";
 import type { ReasoningCheckpointOptionId } from "../application/reasoning-checkpoint";
+import { PACK_A_PROBLEM_IDS } from "../application/completed-practice-episode";
 
 type SourceReference = Readonly<{
   reference: "I" | "IS";
@@ -74,6 +75,7 @@ export type ProblemDefinition = Readonly<{
     | Readonly<{ kind: "nonnegative-integer"; expectedAnswer: string }>
     | Readonly<{
         kind: "multiple-choice-set";
+        instruction?: string;
         options: readonly Readonly<{ id: string; label: string }>[];
         expectedOptionIds: readonly string[];
       }>;
@@ -92,6 +94,7 @@ export const PRACTICE_SESSION_PROBLEM_IDS = [
   "guaranteed-sock-pair",
   "table-impossible-sums",
 ] as const;
+export { PACK_A_PROBLEM_IDS };
 
 const coincidingSeatsProblem = {
   id: CURRENT_PRACTICE_PROBLEM_ID,
@@ -533,6 +536,176 @@ const pagesWithoutDigitOneProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const granddaughtersFirstProblem = {
+  id: PACK_A_PROBLEM_IDS[0],
+  grade: 5,
+  subject: "mathematics",
+  title: "Кто пришёл первым?",
+  statement:
+    "Пять внучек — Аня, Белла, Валя, Галя и Даша — пришли навестить бабушку. Аня пришла позже Беллы. Валя пришла раньше Гали и Даши. Известно также, что Валя не была первой. Кто пришёл первым?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери один вариант.",
+    options: [
+      { id: "anya", label: "Аня" },
+      { id: "bella", label: "Белла" },
+      { id: "valya", label: "Валя" },
+      { id: "galya", label: "Галя" },
+      { id: "dasha", label: "Даша" },
+    ],
+    expectedOptionIds: ["bella"],
+  },
+  hints: [
+    {
+      id: "granddaughters-first-focus",
+      level: "focus",
+      text: "Начни с тех, кто точно не мог прийти первым.",
+    },
+    {
+      id: "granddaughters-first-strategy",
+      level: "strategy",
+      text: "Используй каждое условие как причину исключить кандидата.",
+    },
+    {
+      id: "granddaughters-first-next-step",
+      level: "next-step",
+      text: "Аня позже Беллы, поэтому Аня не первая. Галя и Даша позже Вали, поэтому они тоже не первые. Валя по условию не первая. Кто остаётся?",
+    },
+  ],
+  solution: {
+    id: "granddaughters-first-full-solution",
+    kind: "training-adaptation",
+    text: "Аня не могла быть первой, потому что пришла позже Беллы. Галя и Даша не могли быть первыми, потому что Валя пришла раньше каждой из них. Валя по условию тоже не была первой. Остаётся только Белла. Ответ: Белла.",
+  },
+} as const satisfies ProblemDefinition;
+
+const cutoutAreaRatioProblem = {
+  id: PACK_A_PROBLEM_IDS[1],
+  grade: 5,
+  subject: "mathematics",
+  title: "Вырезанная фигура",
+  statement:
+    "Серая фигура состоит из 5 одинаковых больших квадратов. Из неё вырезали фигуру, состоящую из 5 одинаковых маленьких квадратов. Сторона каждого маленького квадрата в 2 раза меньше стороны большого. Площадь вырезанной части равна 46. Найди площадь оставшейся части.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 4,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+      page: 3,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 3,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "138" },
+  hints: [
+    {
+      id: "cutout-area-ratio-focus",
+      level: "focus",
+      text: "Если сторона квадрата уменьшается в 2 раза, подумай, во сколько раз уменьшается его площадь.",
+    },
+    {
+      id: "cutout-area-ratio-strategy",
+      level: "strategy",
+      text: "Сравни площадь одного маленького квадрата с площадью одного большого. Затем учти, что и тех и других по пять.",
+    },
+    {
+      id: "cutout-area-ratio-next-step",
+      level: "next-step",
+      text: "Площадь маленького квадрата составляет 1/4 площади большого. Значит, вся вырезанная часть составляет 1/4 исходной площади, а оставшаяся — 3/4.",
+    },
+  ],
+  solution: {
+    id: "cutout-area-ratio-full-solution",
+    kind: "training-adaptation",
+    text: "Если сторона маленького квадрата в 2 раза меньше, его площадь в 4 раза меньше площади большого квадрата. Больших и маленьких квадратов одинаковое количество — по 5, поэтому площадь вырезанной части составляет четверть площади исходной фигуры. Значит, оставшаяся часть в 3 раза больше вырезанной: 46 × 3 = 138. Ответ: 138.",
+  },
+} as const satisfies ProblemDefinition;
+
+const dominoPlacementsProblem = {
+  id: PACK_A_PROBLEM_IDS[2],
+  grade: 5,
+  subject: "mathematics",
+  title: "Сколько прямоугольников?",
+  statement:
+    "Из клетчатого прямоугольника 10 × n можно по линиям сетки вырезать горизонтальный или вертикальный прямоугольник 1 × 2 ровно 275 способами. Чему равно n?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+      page: 5,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+      page: 6,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "15" },
+  hints: [
+    {
+      id: "domino-placements-focus",
+      level: "focus",
+      text: "Прямоугольник 1 × 2 можно расположить двумя способами: горизонтально и вертикально. Посчитай их отдельно.",
+    },
+    {
+      id: "domino-placements-strategy",
+      level: "strategy",
+      text: "Если считать, что есть 10 столбцов и n строк, сколько горизонтальных положений есть в одной строке? А сколько вертикальных — в одном столбце?",
+    },
+    {
+      id: "domino-placements-next-step",
+      level: "next-step",
+      text: "Горизонтальных способов: 9n. Вертикальных: 10(n − 1). Их сумма равна 275.",
+    },
+  ],
+  solution: {
+    id: "domino-placements-full-solution",
+    kind: "training-adaptation",
+    text: "В каждой из n строк горизонтальный прямоугольник 1 × 2 можно поставить в 9 положениях, поэтому горизонтальных способов 9n. В каждом из 10 столбцов вертикальных положений n − 1, поэтому их 10(n − 1). Получаем 9n + 10(n − 1) = 275. Тогда 19n − 10 = 275, 19n = 285, n = 15. Ответ: 15.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
@@ -540,6 +713,9 @@ const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [brothersAgesProductsProblem.id]: brothersAgesProductsProblem,
   [parrotsGuaranteedColorsProblem.id]: parrotsGuaranteedColorsProblem,
   [pagesWithoutDigitOneProblem.id]: pagesWithoutDigitOneProblem,
+  [granddaughtersFirstProblem.id]: granddaughtersFirstProblem,
+  [cutoutAreaRatioProblem.id]: cutoutAreaRatioProblem,
+  [dominoPlacementsProblem.id]: dominoPlacementsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {
@@ -570,6 +746,9 @@ export function getLearnerSafePracticeProblem(
       problem.assessment.kind === "multiple-choice-set"
         ? {
             kind: "multiple-choice-set",
+            ...(problem.assessment.instruction
+              ? { instruction: problem.assessment.instruction }
+              : {}),
             options: problem.assessment.options.map(({ id, label }) => ({
               id,
               label,

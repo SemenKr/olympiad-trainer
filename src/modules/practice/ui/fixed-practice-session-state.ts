@@ -16,6 +16,7 @@ export type { PracticeSessionResult };
 
 export type PracticeSessionState = Readonly<{
   sessionId: string;
+  mode?: "pack";
   activeProblemIndex: 0 | 1 | 2;
   completedResults: readonly PracticeSessionResult[];
 }>;
@@ -36,6 +37,7 @@ export type ActivePracticeSessionState =
 
 export type NoNextPracticeSessionState = Readonly<{
   sessionId: string;
+  mode?: "pack";
   status: "no-next";
   completedResults: readonly PracticeSessionResult[];
 }>;
@@ -70,6 +72,16 @@ export function startPracticeSession(): PracticeSessionState {
   };
 }
 
+export function startPackPracticeSession(): PracticeSessionState {
+  return { ...startPracticeSession(), mode: "pack" };
+}
+
+export function isFixedPracticeSession(
+  state: ActivePracticeSessionState,
+): state is PracticeSessionState {
+  return !("mode" in state) || state.mode === "pack";
+}
+
 export function advancePracticeSession(
   state: PracticeSessionState,
   result: PracticeSessionResult,
@@ -81,6 +93,7 @@ export function advancePracticeSession(
     return null;
   return {
     sessionId: state.sessionId,
+    ...(state.mode === "pack" ? { mode: "pack" as const } : {}),
     activeProblemIndex: (state.activeProblemIndex + 1) as 1 | 2,
     completedResults: [...state.completedResults, result],
   };
@@ -105,6 +118,7 @@ export function skipFinalPracticeSession(
     return null;
   return {
     sessionId: state.sessionId,
+    ...(state.mode === "pack" ? { mode: "pack" as const } : {}),
     status: "no-next",
     completedResults: [
       state.completedResults[0],

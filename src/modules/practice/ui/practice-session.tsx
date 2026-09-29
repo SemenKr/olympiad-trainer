@@ -14,6 +14,7 @@ import {
 } from "@/app/practice/actions";
 import {
   persistPracticeFinishEvidence,
+  readServerAdaptiveAvailability,
   readServerNextUsefulProblem,
 } from "../../../app/progress/actions";
 
@@ -70,6 +71,7 @@ import {
   createPracticeSessionSnapshot,
   isCurrentPracticeFinish,
   readVerifiedPracticeSessionSnapshot,
+  readVerifiedLatestCompletedResults,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
@@ -90,7 +92,9 @@ import {
   requestPracticeSkip,
   skipFinalPracticeSession,
   startPracticeSession,
+  startPackPracticeSession,
   startAdaptivePracticeSession,
+  isFixedPracticeSession,
   type ActivePracticeSessionState,
   type FinishedPracticeSessionState,
   type PracticeSessionResult,
@@ -103,6 +107,11 @@ type PracticeSessionProps = Readonly<{
     LearnerSafePracticeProblem,
     LearnerSafePracticeProblem,
   ];
+  packProblems?: readonly [
+    LearnerSafePracticeProblem,
+    LearnerSafePracticeProblem,
+    LearnerSafePracticeProblem,
+  ];
   transferProblem?: LearnerSafePracticeProblem;
   parrotsProblem?: LearnerSafePracticeProblem;
   pagesProblem?: LearnerSafePracticeProblem;
@@ -110,7 +119,7 @@ type PracticeSessionProps = Readonly<{
     | "brothers-ages-products"
     | "parrots-guaranteed-colors"
     | "pages-without-digit-one";
-  startMode?: "core" | "transfer";
+  startMode?: "core" | "transfer" | "pack";
 }>;
 
 export function getActivePracticeProblem(
@@ -119,8 +128,12 @@ export function getActivePracticeProblem(
   transferProblem: PracticeSessionProps["transferProblem"],
   parrotsProblem: PracticeSessionProps["parrotsProblem"],
   pagesProblem?: PracticeSessionProps["pagesProblem"],
+  packProblems?: PracticeSessionProps["packProblems"],
 ): LearnerSafePracticeProblem | null {
-  if (!("mode" in session)) return problems[session.activeProblemIndex];
+  if (isFixedPracticeSession(session))
+    return session.mode === "pack"
+      ? (packProblems?.[session.activeProblemIndex] ?? null)
+      : problems[session.activeProblemIndex];
   const problem =
     session.problemId === "parrots-guaranteed-colors"
       ? parrotsProblem
@@ -254,7 +267,7 @@ export async function finishPracticeSessionAndNavigate(
       attempted: boolean;
       solutionExposed: boolean;
     };
-    episodeMode?: "core" | "transfer" | "exploration";
+    episodeMode?: "core" | "transfer" | "exploration" | "pack";
     episodeFacts?: unknown;
   }) =>
     request.episodeFacts
@@ -296,6 +309,7 @@ export async function finishPracticeSessionAndNavigate(
 
 export function PracticeSession({
   problems,
+  packProblems,
   transferProblem,
   parrotsProblem,
   pagesProblem,
@@ -315,6 +329,7 @@ export function PracticeSession({
   const [completionPending, setCompletionPending] = useState(false);
   const [noNextStorageError, setNoNextStorageError] = useState(false);
   const [restoreError, setRestoreError] = useState(false);
+  const [packUnavailable, setPackUnavailable] = useState(false);
   const [restoreRetry, setRestoreRetry] = useState(0);
   const [loaded, setLoaded] = useState<
     | {
@@ -343,28 +358,53 @@ export function PracticeSession({
           const session: ActivePracticeSessionState = snapshot
             ? ({
                 sessionId: snapshot.sessionId,
-                ...("mode" in snapshot
+                ...("mode" in snapshot && snapshot.mode !== "pack"
                   ? {
                       mode: snapshot.mode,
                       problemId: snapshot.problemIds[0],
                     }
-                  : {}),
+                  : snapshot.mode === "pack"
+                    ? { mode: "pack" as const }
+                    : {}),
                 activeProblemIndex: snapshot.activeProblemIndex,
                 completedResults: snapshot.completedResults,
               } as ActivePracticeSessionState)
             : startMode === "transfer"
               ? startAdaptivePracticeSession(startTransferProblemId)
-              : startPracticeSession();
+              : startMode === "pack"
+                ? startPackPracticeSession()
+                : startPracticeSession();
+          if (!snapshot && startMode === "pack" && !packProblems) {
+            if (active) setRestoreError(true);
+            return;
+          }
           const answer = snapshot
             ? restoreAnswerState(snapshot)
             : createPracticeAnswerState(
-                startMode === "transfer" ? adaptiveProblem : problems[0],
+                startMode === "transfer"
+                  ? adaptiveProblem
+                  : startMode === "pack"
+                    ? packProblems![0]
+                    : problems[0],
               );
           if (!snapshot && startMode === "transfer") {
             await ensureServerProgressImported();
             const recommendation = await readServerNextUsefulProblem();
             if (recommendation?.problemId !== startTransferProblemId) {
               if (active) setRestoreError(true);
+              return;
+            }
+          }
+          if (!snapshot && startMode === "pack") {
+            await ensureServerProgressImported();
+            const [availability, completed] = await Promise.all([
+              readServerAdaptiveAvailability(),
+              readVerifiedLatestCompletedResults(
+                verifyPersistedReasoningCheckpointObservation,
+              ),
+            ]);
+            if (!availability.hasPracticeHistory && !completed.value) {
+              if (active) setPackUnavailable(true);
               return;
             }
           }
@@ -393,6 +433,7 @@ export function PracticeSession({
   }, [
     restoreRetry,
     problems,
+    packProblems,
     adaptiveProblem,
     startMode,
     startTransferProblemId,
@@ -404,6 +445,15 @@ export function PracticeSession({
   };
 
   if (restoreError) return <PracticeRestoreError onRetry={retryRestore} />;
+
+  if (packUnavailable)
+    return (
+      <main>
+        <h1>Дополнительная практика</h1>
+        <p>Сначала заверши первую тренировку.</p>
+        <Link href="/practice">Начать тренировку</Link>
+      </main>
+    );
 
   if (!loaded) {
     return <main aria-busy="true">Загружаем тренировку…</main>;
@@ -470,6 +520,7 @@ export function PracticeSession({
     transferProblem,
     parrotsProblem,
     pagesProblem,
+    packProblems,
   );
   if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
   const restoredProblem = activeProblem;
@@ -492,14 +543,15 @@ export function PracticeSession({
       observation ?? undefined,
       firstCorrectSubmissionCount,
     );
-    const nextSession =
-      "mode" in sessionState
-        ? null
-        : advancePracticeSession(sessionState, result);
+    const nextSession = isFixedPracticeSession(sessionState)
+      ? advancePracticeSession(sessionState, result)
+      : null;
 
     if (!nextSession) return false;
     const nextAnswer = createPracticeAnswerState(
-      problems[nextSession.activeProblemIndex],
+      nextSession.mode === "pack"
+        ? packProblems![nextSession.activeProblemIndex]
+        : problems[nextSession.activeProblemIndex],
     );
     if (!(await savePracticeSessionSnapshot(nextSession, nextAnswer)))
       return false;
@@ -529,10 +581,9 @@ export function PracticeSession({
       observation ?? undefined,
       firstCorrectSubmissionCount,
     );
-    const results =
-      "mode" in sessionState
-        ? [result]
-        : finishPracticeSession(sessionState, result);
+    const results = isFixedPracticeSession(sessionState)
+      ? finishPracticeSession(sessionState, result)
+      : [result];
     return finishPracticeSessionAndNavigate(
       completionLatch,
       sessionState,
@@ -552,14 +603,15 @@ export function PracticeSession({
       summary,
       "skipped",
     );
-    const nextSession =
-      "mode" in sessionState
-        ? null
-        : advancePracticeSession(sessionState, result);
+    const nextSession = isFixedPracticeSession(sessionState)
+      ? advancePracticeSession(sessionState, result)
+      : null;
 
     if (nextSession) {
       const answer = createPracticeAnswerState(
-        problems[nextSession.activeProblemIndex],
+        nextSession.mode === "pack"
+          ? packProblems![nextSession.activeProblemIndex]
+          : problems[nextSession.activeProblemIndex],
       );
       if (!(await savePracticeSessionSnapshot(nextSession, answer)))
         return false;
@@ -573,14 +625,14 @@ export function PracticeSession({
     }
 
     const noNextSession: FinishedPracticeSessionState | null =
-      "mode" in sessionState
-        ? {
+      isFixedPracticeSession(sessionState)
+        ? skipFinalPracticeSession(sessionState, result)
+        : {
             sessionId: sessionState.sessionId,
             mode: sessionState.mode,
             status: "no-next",
             completedResults: [result],
-          }
-        : skipFinalPracticeSession(sessionState, result);
+          };
     if (
       !noNextSession ||
       !(await saveNoNextPracticeSessionSnapshot(noNextSession))
@@ -613,7 +665,8 @@ export function PracticeSession({
       completionLatch={completionLatch}
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
       hasNextProblem={
-        !("mode" in sessionState) && sessionState.activeProblemIndex < 2
+        isFixedPracticeSession(sessionState) &&
+        sessionState.activeProblemIndex < 2
       }
       key={activeProblem.problemId}
       initialAnswerState={loaded.answer}
@@ -1282,6 +1335,7 @@ function PracticeProblemEpisode({
           {problem.response.kind === "multiple-choice-set" &&
           isMultipleChoiceSetAnswerState(answerState) ? (
             <MultipleChoiceSetAnswer
+              instruction={problem.response.instruction}
               locked={checkpointAssessmentPending || transitionPending}
               onOptionToggle={handleOptionToggle}
               onSubmit={handleAnswerSubmit}
