@@ -71,6 +71,24 @@
     }
   }
 
+  .pack {
+    margin-top: var(--ot-space-32);
+    padding-top: var(--ot-space-24);
+    border-top: var(--ot-border-width-default) solid
+      var(--ot-color-border-default);
+
+    h2 {
+      margin: 0 0 var(--ot-space-12);
+      color: var(--ot-color-text-secondary);
+      font-size: var(--ot-font-size-label);
+    }
+
+    h3 {
+      margin: 0 0 var(--ot-space-12);
+      font-size: var(--ot-font-size-heading);
+    }
+  }
+
   .secondary {
     display: flex;
     width: fit-content;

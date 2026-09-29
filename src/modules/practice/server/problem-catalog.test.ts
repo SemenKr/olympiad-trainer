@@ -12,6 +12,9 @@ import {
   getProblemDefinition,
   getRevealedReasoningCheckpoint,
   PRACTICE_SESSION_PROBLEM_IDS,
+  PACK_A_PROBLEM_IDS,
+  getRevealedPracticeHint,
+  getRevealedPracticeSolution,
 } from "./problem-catalog";
 
 const focusText =
@@ -50,6 +53,102 @@ const checkpointOptions = [
 ];
 
 describe("practice problem catalog", () => {
+  it("keeps Pack A in its fixed order with protected answers and three protected support levels", () => {
+    expect(PACK_A_PROBLEM_IDS).toEqual([
+      "granddaughters-first",
+      "cutout-area-ratio",
+      "domino-placements",
+    ]);
+    const titles = [
+      "Кто пришёл первым?",
+      "Вырезанная фигура",
+      "Сколько прямоугольников?",
+    ];
+    const numbers = [3, 4, 7];
+    const taskPages = [2, 3, 5];
+    const solutionPages = [2, 3, 6];
+    const answers = [["bella"], "138", "15"];
+    const hints = [
+      [
+        "Начни с тех, кто точно не мог прийти первым.",
+        "Используй каждое условие как причину исключить кандидата.",
+        "Аня позже Беллы, поэтому Аня не первая. Галя и Даша позже Вали, поэтому они тоже не первые. Валя по условию не первая. Кто остаётся?",
+      ],
+      [
+        "Если сторона квадрата уменьшается в 2 раза, подумай, во сколько раз уменьшается его площадь.",
+        "Сравни площадь одного маленького квадрата с площадью одного большого. Затем учти, что и тех и других по пять.",
+        "Площадь маленького квадрата составляет 1/4 площади большого. Значит, вся вырезанная часть составляет 1/4 исходной площади, а оставшаяся — 3/4.",
+      ],
+      [
+        "Прямоугольник 1 × 2 можно расположить двумя способами: горизонтально и вертикально. Посчитай их отдельно.",
+        "Если считать, что есть 10 столбцов и n строк, сколько горизонтальных положений есть в одной строке? А сколько вертикальных — в одном столбце?",
+        "Горизонтальных способов: 9n. Вертикальных: 10(n − 1). Их сумма равна 275.",
+      ],
+    ];
+    const solutions = [
+      "Аня не могла быть первой, потому что пришла позже Беллы. Галя и Даша не могли быть первыми, потому что Валя пришла раньше каждой из них. Валя по условию тоже не была первой. Остаётся только Белла. Ответ: Белла.",
+      "Если сторона маленького квадрата в 2 раза меньше, его площадь в 4 раза меньше площади большого квадрата. Больших и маленьких квадратов одинаковое количество — по 5, поэтому площадь вырезанной части составляет четверть площади исходной фигуры. Значит, оставшаяся часть в 3 раза больше вырезанной: 46 × 3 = 138. Ответ: 138.",
+      "В каждой из n строк горизонтальный прямоугольник 1 × 2 можно поставить в 9 положениях, поэтому горизонтальных способов 9n. В каждом из 10 столбцов вертикальных положений n − 1, поэтому их 10(n − 1). Получаем 9n + 10(n − 1) = 275. Тогда 19n − 10 = 275, 19n = 285, n = 15. Ответ: 15.",
+    ];
+    PACK_A_PROBLEM_IDS.forEach((id, index) => {
+      const definition = getProblemDefinition(id);
+      const learner = getLearnerSafePracticeProblem(id);
+      expect(definition.title).toBe(titles[index]);
+      expect(definition.provenance).toMatchObject({
+        olympiad: "Всероссийская олимпиада школьников",
+        subject: "mathematics",
+        academicYear: "2025/26",
+        stage: "invitational",
+        region: "Moscow",
+        grade: 5,
+        variant: 1,
+        problemNumber: numbers[index],
+        originalSource: {
+          reference: "I",
+          page: taskPages[index],
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/tasks-math-5-prigl-msk-25-26.pdf",
+        },
+        officialSolution: {
+          reference: "IS",
+          page: solutionPages[index],
+          url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/prigl/math/sol-math-5-prigl-msk-25-26.pdf",
+        },
+      });
+      expect(definition.reasoningCheckpoint).toBeUndefined();
+      expect(definition.assessment.kind).toBe(
+        index === 0 ? "multiple-choice-set" : "nonnegative-integer",
+      );
+      expect(
+        definition.assessment.kind === "multiple-choice-set"
+          ? definition.assessment.expectedOptionIds
+          : definition.assessment.expectedAnswer,
+      ).toEqual(answers[index]);
+      expect(definition.hints.map((hint) => hint.text)).toEqual(hints[index]);
+      definition.hints.forEach((hint) =>
+        expect(getRevealedPracticeHint(id, hint.id).text).toBe(hint.text),
+      );
+      expect(getRevealedPracticeSolution(id, definition.solution.id).text).toBe(
+        solutions[index],
+      );
+      expect(JSON.stringify(learner)).not.toContain(solutions[index]);
+      expect(JSON.stringify(learner)).not.toContain(
+        JSON.stringify(answers[index]),
+      );
+    });
+    expect(
+      getLearnerSafePracticeProblem(PACK_A_PROBLEM_IDS[0]).response,
+    ).toEqual({
+      kind: "multiple-choice-set",
+      instruction: "Выбери один вариант.",
+      options: [
+        { id: "anya", label: "Аня" },
+        { id: "bella", label: "Белла" },
+        { id: "valya", label: "Валя" },
+        { id: "galya", label: "Галя" },
+        { id: "dasha", label: "Даша" },
+      ],
+    });
+  });
   it("keeps parrots outside core with protected answer and canonical checkpoint", () => {
     const problem = getProblemDefinition(PARROTS_TRANSFER_PROBLEM_ID);
     expect(PRACTICE_SESSION_PROBLEM_IDS).not.toContain(

@@ -145,6 +145,55 @@ describe("reasoning checkpoint server boundary", () => {
 });
 
 describe("practice answer server boundary", () => {
+  it("assesses Pack A through existing set and integer checkers with protected support", async () => {
+    await expect(
+      submitPracticeAnswer("granddaughters-first", ["bella"]),
+    ).resolves.toEqual({
+      status: "correct",
+      normalizedAnswer: '["bella"]',
+    });
+    await expect(
+      submitPracticeAnswer("granddaughters-first", ["bella", "anya"]),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      submitPracticeAnswer("granddaughters-first", ["bella", "bella"]),
+    ).resolves.toEqual({ status: "invalid" });
+    await expect(
+      submitPracticeAnswer("cutout-area-ratio", "138"),
+    ).resolves.toMatchObject({ status: "correct" });
+    await expect(
+      submitPracticeAnswer("cutout-area-ratio", "46"),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      submitPracticeAnswer("domino-placements", "15"),
+    ).resolves.toMatchObject({ status: "correct" });
+    await expect(
+      submitPracticeAnswer("domino-placements", "14"),
+    ).resolves.toMatchObject({ status: "incorrect" });
+    await expect(
+      revealPracticeHint("granddaughters-first", "granddaughters-first-focus"),
+    ).resolves.toMatchObject({
+      level: "focus",
+      text: "Начни с тех, кто точно не мог прийти первым.",
+    });
+    await expect(
+      revealPracticeSolution(
+        "domino-placements",
+        "domino-placements-full-solution",
+      ),
+    ).resolves.toMatchObject({
+      solutionId: "domino-placements-full-solution",
+    });
+    await expect(
+      revealPracticeSolution(
+        "domino-placements",
+        "cutout-area-ratio-full-solution",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      revealReasoningCheckpoint("domino-placements", "made-up"),
+    ).rejects.toThrow();
+  });
   it("checks table sets on the server without returning protected expected IDs", async () => {
     await expect(
       submitPracticeAnswer("table-impossible-sums", ["sum-20"]),

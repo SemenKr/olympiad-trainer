@@ -36,6 +36,7 @@ export type LearnerSafePracticeProblem = Readonly<{
     | Readonly<{ kind: "short-numeric" }>
     | Readonly<{
         kind: "multiple-choice-set";
+        instruction?: string;
         options: readonly Readonly<{ id: string; label: string }>[];
       }>;
   hints: readonly [
