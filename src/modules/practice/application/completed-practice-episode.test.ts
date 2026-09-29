@@ -27,7 +27,14 @@ const coreIds = [
 
 describe("completed Practice episode facts", () => {
   it("derives Pack identity, navigation, and strict reverse lookup from the learner-safe registry", () => {
-    const ids: PackId[] = ["pack-a", "pack-b", "pack-c"];
+    const ids: PackId[] = [
+      "pack-a",
+      "pack-b",
+      "pack-c",
+      "pack-d",
+      "pack-e",
+      "pack-f",
+    ];
     expect(PRACTICE_PACKS).toEqual([
       {
         id: "pack-a",
@@ -56,6 +63,33 @@ describe("completed Practice episode facts", () => {
           "mountain-plain-flights",
         ],
       },
+      {
+        id: "pack-d",
+        name: "Считаем по устройству",
+        problemIds: [
+          "exact-coin-payments",
+          "odd-neighbor-sugar-cubes",
+          "last-student-friends",
+        ],
+      },
+      {
+        id: "pack-e",
+        name: "Условия и противоречия",
+        problemIds: [
+          "lineup-six-hooligans",
+          "two-true-journalists",
+          "neighbor-comparison-codes",
+        ],
+      },
+      {
+        id: "pack-f",
+        name: "Модели и стратегии",
+        problemIds: [
+          "five-piles-stones",
+          "untouched-matchstick-figures",
+          "mountain-numbers-over-77777",
+        ],
+      },
     ]);
     expect(PRACTICE_PACKS.map((pack) => pack.id)).toEqual(ids);
     expect(PRACTICE_PACKS.every((pack) => pack.problemIds.length === 3)).toBe(
@@ -81,6 +115,29 @@ describe("completed Practice episode facts", () => {
       [PACK_A_PROBLEM_IDS[0], PACK_A_PROBLEM_IDS[1], "unknown"],
     ])
       expect(packIdFromProblemIds(invalid)).toBeNull();
+    for (const pack of PRACTICE_PACKS.slice(3)) {
+      const next =
+        PRACTICE_PACKS[
+          (PRACTICE_PACKS.indexOf(pack) + 1) % PRACTICE_PACKS.length
+        ];
+      for (const invalid of [
+        pack.problemIds.slice(0, 2),
+        [...pack.problemIds].reverse(),
+        [pack.problemIds[0], pack.problemIds[0], pack.problemIds[2]],
+        [pack.problemIds[0], next.problemIds[1], pack.problemIds[2]],
+        [pack.problemIds[0], pack.problemIds[1], "unknown"],
+      ]) {
+        expect(packIdFromProblemIds(invalid)).toBeNull();
+        const facts = completedEpisodeFacts(
+          invalid.map((problemId) => ({ problemId, summary: empty })),
+        );
+        expect(validateCompletedEpisode("pack", facts)).toBeNull();
+      }
+      const facts = completedEpisodeFacts(
+        pack.problemIds.map((problemId) => ({ problemId, summary: empty })),
+      );
+      expect(validateCompletedEpisode("pack", facts)).toEqual(facts);
+    }
   });
   it("accepts only the exact Pack C tuple as safe pack facts", () => {
     const facts = completedEpisodeFacts(

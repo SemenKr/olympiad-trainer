@@ -40,6 +40,33 @@ export const PRACTICE_PACKS = [
       "mountain-plain-flights",
     ],
   },
+  {
+    id: "pack-d",
+    name: "Считаем по устройству",
+    problemIds: [
+      "exact-coin-payments",
+      "odd-neighbor-sugar-cubes",
+      "last-student-friends",
+    ],
+  },
+  {
+    id: "pack-e",
+    name: "Условия и противоречия",
+    problemIds: [
+      "lineup-six-hooligans",
+      "two-true-journalists",
+      "neighbor-comparison-codes",
+    ],
+  },
+  {
+    id: "pack-f",
+    name: "Модели и стратегии",
+    problemIds: [
+      "five-piles-stones",
+      "untouched-matchstick-figures",
+      "mountain-numbers-over-77777",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

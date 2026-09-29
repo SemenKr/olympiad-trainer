@@ -121,6 +121,29 @@ function savedTransfer(
 }
 
 describe("direct /practice restore", () => {
+  it.each(PRACTICE_PACKS.slice(3))(
+    "starts $id from the registry tuple without route changes",
+    async (pack) => {
+      const route = await PackPracticePage({
+        searchParams: Promise.resolve({ pack: pack.id }),
+      });
+      const props = route.props as ComponentProps<typeof PracticeSession>;
+      expect(props.startPackId).toBe(pack.id);
+      expect(
+        props.packs?.[pack.id].map((problem) => problem.problemId),
+      ).toEqual(pack.problemIds);
+      await mountPractice(props);
+      expect(container.querySelector("h1")?.textContent).toBe(
+        props.packs?.[pack.id][0].title,
+      );
+      expect(
+        JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+      ).toMatchObject({
+        mode: "pack",
+        problemIds: pack.problemIds,
+      });
+    },
+  );
   it.each(
     PRACTICE_PACKS.flatMap((storedPack) =>
       PRACTICE_PACKS.filter(

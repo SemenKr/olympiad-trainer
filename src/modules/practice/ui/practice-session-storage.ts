@@ -202,6 +202,113 @@ const packProblemMetadata = {
     ],
     solution: "mountain-plain-flights-full-solution",
   },
+  "exact-coin-payments": {
+    id: "exact-coin-payments",
+    title: "Пирожок без сдачи",
+    hints: [
+      "exact-coin-payments-focus",
+      "exact-coin-payments-strategy",
+      "exact-coin-payments-next-step",
+    ],
+    solution: "exact-coin-payments-full-solution",
+  },
+  "odd-neighbor-sugar-cubes": {
+    id: "odd-neighbor-sugar-cubes",
+    title: "Кубики с нечётным числом соседей",
+    hints: [
+      "odd-neighbor-sugar-cubes-focus",
+      "odd-neighbor-sugar-cubes-strategy",
+      "odd-neighbor-sugar-cubes-next-step",
+    ],
+    solution: "odd-neighbor-sugar-cubes-full-solution",
+  },
+  "last-student-friends": {
+    id: "last-student-friends",
+    title: "Сколько друзей у последнего?",
+    hints: [
+      "last-student-friends-focus",
+      "last-student-friends-strategy",
+      "last-student-friends-next-step",
+    ],
+    solution: "last-student-friends-full-solution",
+  },
+  "lineup-six-hooligans": {
+    id: "lineup-six-hooligans",
+    title: "Правдивые и лжецы в шеренге",
+    hints: [
+      "lineup-six-hooligans-focus",
+      "lineup-six-hooligans-strategy",
+      "lineup-six-hooligans-next-step",
+    ],
+    solution: "lineup-six-hooligans-full-solution",
+  },
+  "two-true-journalists": {
+    id: "two-true-journalists",
+    title: "Два правдивых журналиста",
+    hints: [
+      "two-true-journalists-focus",
+      "two-true-journalists-strategy",
+      "two-true-journalists-next-step",
+    ],
+    solution: "two-true-journalists-full-solution",
+    optionIds: [
+      "goals-10",
+      "goals-11",
+      "goals-12",
+      "goals-13",
+      "goals-14",
+      "goals-15",
+      "goals-16",
+      "goals-17",
+      "goals-18",
+    ],
+  },
+  "neighbor-comparison-codes": {
+    id: "neighbor-comparison-codes",
+    title: "Код соседних цифр",
+    hints: [
+      "neighbor-comparison-codes-focus",
+      "neighbor-comparison-codes-strategy",
+      "neighbor-comparison-codes-next-step",
+    ],
+    solution: "neighbor-comparison-codes-full-solution",
+    optionIds: [
+      "code-0112102011",
+      "code-1021021020",
+      "code-1101111111",
+      "code-1201201020",
+    ],
+  },
+  "five-piles-stones": {
+    id: "five-piles-stones",
+    title: "Пять кучек камней",
+    hints: [
+      "five-piles-stones-focus",
+      "five-piles-stones-strategy",
+      "five-piles-stones-next-step",
+    ],
+    solution: "five-piles-stones-full-solution",
+  },
+  "untouched-matchstick-figures": {
+    id: "untouched-matchstick-figures",
+    title: "Нетронутые фигурки",
+    hints: [
+      "untouched-matchstick-figures-focus",
+      "untouched-matchstick-figures-strategy",
+      "untouched-matchstick-figures-next-step",
+    ],
+    solution: "untouched-matchstick-figures-full-solution",
+  },
+  "mountain-numbers-over-77777": {
+    id: "mountain-numbers-over-77777",
+    title: "Сколько чисел-горок?",
+    hints: [
+      "mountain-numbers-over-77777-focus",
+      "mountain-numbers-over-77777-strategy",
+      "mountain-numbers-over-77777-next-step",
+    ],
+    solution: "mountain-numbers-over-77777-full-solution",
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {
