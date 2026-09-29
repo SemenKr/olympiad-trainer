@@ -13,6 +13,7 @@ import {
   getRevealedReasoningCheckpoint,
   PRACTICE_SESSION_PROBLEM_IDS,
   PACK_A_PROBLEM_IDS,
+  PACK_B_PROBLEM_IDS,
   getRevealedPracticeHint,
   getRevealedPracticeSolution,
 } from "./problem-catalog";
@@ -53,6 +54,109 @@ const checkpointOptions = [
 ];
 
 describe("practice problem catalog", () => {
+  it("keeps Pack B in fixed order with sourced protected assessment and support", () => {
+    expect(PACK_B_PROBLEM_IDS).toEqual([
+      "truck-car-same-arrival",
+      "knights-all-or-none",
+      "boastful-fisherman-streak",
+    ]);
+    expect(getProblemDefinition("truck-car-same-arrival").statement).toContain(
+      "из деревни по той же дороге с постоянной скоростью выехал автомобиль.",
+    );
+    const expected = [
+      {
+        title: "Одновременно в город",
+        year: "2024/25",
+        stage: "school",
+        number: 7,
+        taskPage: 2,
+        solutionPage: 4,
+        answer: "180",
+        folder: "2024-25/school/math",
+        solutionFile: "sol-math-5-sch-msk-24-25.pdf",
+      },
+      {
+        title: "Рыцари и лжецы",
+        year: "2024/25",
+        stage: "invitational",
+        number: 5,
+        taskPage: 2,
+        solutionPage: 3,
+        answer: ["count-0", "count-5"],
+        folder: "2024-25/prigl/math",
+        solutionFile: "sol-math-5-prigl-msk-24-25.pdf",
+      },
+      {
+        title: "Хвастливый рыбак",
+        year: "2020/21",
+        stage: "invitational",
+        number: 8,
+        taskPage: 3,
+        solutionPage: 5,
+        answer: "8",
+        folder: "2020-21/prigl/math",
+        solutionFile: "ans-math-5-prigl-msk-20-21.pdf",
+      },
+    ] as const;
+    PACK_B_PROBLEM_IDS.forEach((id, index) => {
+      const definition = getProblemDefinition(id);
+      const learner = getLearnerSafePracticeProblem(id);
+      const item = expected[index];
+      expect(definition.title).toBe(item.title);
+      expect(definition.provenance).toMatchObject({
+        olympiad: "Всероссийская олимпиада школьников",
+        subject: "mathematics",
+        academicYear: item.year,
+        stage: item.stage,
+        region: "Moscow",
+        grade: 5,
+        problemNumber: item.number,
+        originalSource: { reference: "I", page: item.taskPage },
+        officialSolution: { reference: "IS", page: item.solutionPage },
+      });
+      expect(definition.provenance).not.toHaveProperty("variant");
+      expect(definition.provenance.originalSource.url).toContain(item.folder);
+      expect(definition.provenance.officialSolution.url).toContain(
+        item.solutionFile,
+      );
+      expect(definition.reasoningCheckpoint).toBeUndefined();
+      expect(definition.assessment.kind).toBe(
+        index === 1 ? "multiple-choice-set" : "nonnegative-integer",
+      );
+      expect(
+        definition.assessment.kind === "multiple-choice-set"
+          ? definition.assessment.expectedOptionIds
+          : definition.assessment.expectedAnswer,
+      ).toEqual(item.answer);
+      expect(definition.hints.map((hint) => hint.level)).toEqual([
+        "focus",
+        "strategy",
+        "next-step",
+      ]);
+      definition.hints.forEach((hint) =>
+        expect(getRevealedPracticeHint(id, hint.id).text).toBe(hint.text),
+      );
+      expect(getRevealedPracticeSolution(id, definition.solution.id).text).toBe(
+        definition.solution.text,
+      );
+      expect(JSON.stringify(learner)).not.toContain(definition.solution.text);
+      expect(JSON.stringify(learner)).not.toContain(
+        JSON.stringify(item.answer),
+      );
+    });
+    expect(
+      getProblemDefinition(PACK_B_PROBLEM_IDS[1]).assessment,
+    ).toMatchObject({
+      options: [
+        { id: "count-0", label: "0" },
+        { id: "count-1", label: "1" },
+        { id: "count-2", label: "2" },
+        { id: "count-3", label: "3" },
+        { id: "count-4", label: "4" },
+        { id: "count-5", label: "5" },
+      ],
+    });
+  });
   it("keeps Pack A in its fixed order with protected answers and three protected support levels", () => {
     expect(PACK_A_PROBLEM_IDS).toEqual([
       "granddaughters-first",

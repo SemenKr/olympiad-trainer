@@ -19,6 +19,10 @@ vi.mock("../../app/progress/actions", () => ({
   importBrowserProgressEvidence: vi.fn(async () => {}),
   persistPracticeFinishEvidence: vi.fn(async () => {}),
   readServerNextUsefulProblem: vi.fn(async () => null),
+  readServerAdaptiveAvailability: vi.fn(async () => ({
+    availability: { status: "insufficient-evidence" },
+    hasPracticeHistory: true,
+  })),
 }));
 vi.mock(
   "@/modules/practice/server/problem-catalog",
@@ -36,6 +40,7 @@ import {
   startPractice,
 } from "../../modules/practice/application/practice-state";
 import {
+  PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
   validatePracticeSessionSnapshot,
 } from "../../modules/practice/ui/practice-session-storage";
@@ -45,6 +50,7 @@ import {
 } from "../../modules/practice/ui/practice-session";
 import PracticePage from "./page";
 import TransferPracticePage from "./transfer/page";
+import PackPracticePage from "./pack/page";
 import { readServerNextUsefulProblem } from "../../app/progress/actions";
 
 const sessionId = "00000000-0000-4000-8000-000000000001";
@@ -114,6 +120,114 @@ function savedTransfer(
 }
 
 describe("direct /practice restore", () => {
+  it("starts Pack A by default, Pack B only for its literal query, and rejects invalid queries", async () => {
+    const a = await PackPracticePage({ searchParams: Promise.resolve({}) });
+    const aProps = a.props as ComponentProps<typeof PracticeSession>;
+    expect(aProps.startPackId).toBe("pack-a");
+    expect(aProps.packProblems?.map((problem) => problem.problemId)).toEqual([
+      "granddaughters-first",
+      "cutout-area-ratio",
+      "domino-placements",
+    ]);
+    const b = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-b" }),
+    });
+    const bProps = b.props as ComponentProps<typeof PracticeSession>;
+    expect(bProps.startPackId).toBe("pack-b");
+    expect(bProps.packBProblems?.map((problem) => problem.problemId)).toEqual([
+      "truck-car-same-arrival",
+      "knights-all-or-none",
+      "boastful-fisherman-streak",
+    ]);
+    await expect(
+      PackPracticePage({ searchParams: Promise.resolve({ pack: "unknown" }) }),
+    ).rejects.toThrow();
+    await mountPractice(bProps);
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Одновременно в город",
+    );
+    expect(
+      JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+    ).toMatchObject({
+      mode: "pack",
+      problemIds: [
+        "truck-car-same-arrival",
+        "knights-all-or-none",
+        "boastful-fisherman-streak",
+      ],
+    });
+  });
+
+  it("skips through Pack B in order and finishes its three-result Summary", async () => {
+    const route = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-b" }),
+    });
+    await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
+    for (const title of ["Рыцари и лжецы", "Хвастливый рыбак"]) {
+      await act(async () => {
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent?.includes("Пропустить задачу"))
+          ?.click();
+      });
+      expect(container.querySelector("h1")?.textContent).toBe(title);
+    }
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Пропустить задачу"))
+        ?.click();
+    });
+    expect(container.textContent).toContain(
+      "Сейчас больше нет задач в этой тренировке.",
+    );
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Завершить тренировку"))
+        ?.click();
+    });
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(
+      JSON.parse(
+        localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!,
+      ).map((result: { problemId: string }) => result.problemId),
+    ).toEqual([
+      "truck-car-same-arrival",
+      "knights-all-or-none",
+      "boastful-fisherman-streak",
+    ]);
+  });
+
+  it("restores stored Pack B even when the route requests Pack A", async () => {
+    const snapshot = {
+      sessionId,
+      mode: "pack",
+      problemIds: [
+        "truck-car-same-arrival",
+        "knights-all-or-none",
+        "boastful-fisherman-streak",
+      ],
+      activeProblemIndex: 1,
+      completedResults: [
+        {
+          problemId: "truck-car-same-arrival",
+          problemTitle: "Одновременно в город",
+          summary: getPracticeSummary(finishPractice(startPractice())),
+          taskOutcome: "skipped",
+        },
+      ],
+      activePractice: startPractice(),
+      selectedOptionIds: ["count-0"],
+    };
+    localStorage.setItem(
+      PRACTICE_SESSION_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+    const route = await PackPracticePage({ searchParams: Promise.resolve({}) });
+    await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
+    expect(container.querySelector("h1")?.textContent).toBe("Рыцари и лжецы");
+    expect(
+      JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
+    ).toEqual(snapshot);
+  });
   it("restores the exact saved pages exploration through the core and adaptive routes", async () => {
     const raw = JSON.stringify({
       sessionId,

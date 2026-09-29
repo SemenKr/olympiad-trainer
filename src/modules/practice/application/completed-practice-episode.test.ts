@@ -3,6 +3,8 @@ import {
   completedEpisodeFacts,
   validateCompletedEpisode,
   PACK_A_PROBLEM_IDS,
+  PACK_B_PROBLEM_IDS,
+  packIdFromProblemIds,
 } from "./completed-practice-episode";
 
 const empty = {
@@ -18,6 +20,30 @@ const coreIds = [
 ];
 
 describe("completed Practice episode facts", () => {
+  it("accepts only the exact Pack B tuple while preserving Pack A", () => {
+    const facts = completedEpisodeFacts(
+      PACK_B_PROBLEM_IDS.map((problemId) => ({ problemId, summary: empty })),
+    );
+    expect(packIdFromProblemIds(PACK_A_PROBLEM_IDS)).toBe("pack-a");
+    expect(packIdFromProblemIds(PACK_B_PROBLEM_IDS)).toBe("pack-b");
+    expect(validateCompletedEpisode("pack", facts)).toEqual(facts);
+    for (const ids of [
+      [...PACK_B_PROBLEM_IDS].reverse(),
+      [PACK_B_PROBLEM_IDS[0], PACK_A_PROBLEM_IDS[1], PACK_B_PROBLEM_IDS[2]],
+      PACK_B_PROBLEM_IDS.slice(0, 2),
+    ]) {
+      expect(packIdFromProblemIds(ids)).toBeNull();
+      expect(
+        validateCompletedEpisode("pack", {
+          ...facts,
+          problems: ids.map((problemId) => ({
+            ...facts.problems[0],
+            problemId,
+          })),
+        }),
+      ).toBeNull();
+    }
+  });
   it("accepts only exact Pack A order without checkpoints or protected data", () => {
     const facts = completedEpisodeFacts(
       PACK_A_PROBLEM_IDS.map((problemId) => ({
