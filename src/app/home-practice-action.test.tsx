@@ -32,6 +32,7 @@ import { startPractice } from "../modules/practice/application/practice-state";
 import {
   PACK_B_PROBLEM_IDS,
   PACK_C_PROBLEM_IDS,
+  PRACTICE_PACKS,
 } from "../modules/practice/application/completed-practice-episode";
 import { HomePracticeContent } from "./home-practice-action";
 import Home from "./page";
@@ -95,7 +96,7 @@ const fresh = {
 };
 
 describe("Home Practice precedence", () => {
-  it("shows two explicit pack choices and resumes Pack B from its stored tuple", () => {
+  it("shows registry Pack choices and resumes Pack B from its stored tuple", () => {
     const render = (
       unfinishedValue: Parameters<
         typeof HomePracticeContent
@@ -115,16 +116,21 @@ describe("Home Practice precedence", () => {
     expect(returning).toContain("Разные способы рассуждать");
     expect(returning).toContain("Связи и закономерности");
     expect(returning).toContain("Числа и структуры");
+    expect(returning).toContain("Считаем по устройству");
+    expect(returning).toContain("Условия и противоречия");
+    expect(returning).toContain("Модели и стратегии");
     expect(returning.indexOf("Разные способы рассуждать")).toBeLessThan(
       returning.indexOf("Связи и закономерности"),
     );
     expect(returning.indexOf("Связи и закономерности")).toBeLessThan(
       returning.indexOf("Числа и структуры"),
     );
-    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(3);
+    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(6);
     expect(returning).toContain('href="/practice/pack"');
     expect(returning).toContain('href="/practice/pack?pack=pack-b"');
     expect(returning).toContain('href="/practice/pack?pack=pack-c"');
+    for (const id of ["pack-d", "pack-e", "pack-f"])
+      expect(returning).toContain(`href="/practice/pack?pack=${id}"`);
     expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
       returning.indexOf("Дополнительная практика"),
     );
@@ -161,6 +167,21 @@ describe("Home Practice precedence", () => {
         })),
       }),
     ).toContain('href="/practice/pack?pack=pack-c"');
+    for (const pack of PRACTICE_PACKS.slice(3)) {
+      expect(render({ ...active, problemIds: pack.problemIds })).toContain(
+        `href="/practice/pack?pack=${pack.id}"`,
+      );
+      expect(
+        render({
+          ...noNextPack,
+          completedResults: pack.problemIds.map((problemId) => ({
+            ...completed[0],
+            problemId,
+            taskOutcome: "skipped" as const,
+          })),
+        }),
+      ).toContain(`href="/practice/pack?pack=${pack.id}"`);
+    }
     const packA = {
       ...unfinished,
       mode: "pack" as const,

@@ -24,7 +24,8 @@ type SourceReference = Readonly<{
 type ProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
-  academicYear: "2025/26" | "2024/25" | "2023/24" | "2021/22" | "2020/21";
+  academicYear:
+    "2025/26" | "2024/25" | "2023/24" | "2022/23" | "2021/22" | "2020/21";
   stage: "invitational" | "school";
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
@@ -1035,6 +1036,513 @@ const mountainPlainFlightsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const exactCoinPaymentsProblem = {
+  id: "exact-coin-payments",
+  grade: 5,
+  subject: "mathematics",
+  title: "Пирожок без сдачи",
+  statement:
+    "У Дениса есть много десятирублёвых, двухрублёвых и однорублёвых монет. Монет каждого вида больше 20. Сколькими способами Денис может заплатить без сдачи за пирожок стоимостью 16 рублей? Использовать монеты каждого вида необязательно.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2022/23",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 10,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 10,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "13" },
+  hints: [
+    {
+      id: "exact-coin-payments-focus",
+      level: "focus",
+      text: "Раздели все способы на два непересекающихся случая: десятирублёвая монета используется или не используется.",
+    },
+    {
+      id: "exact-coin-payments-strategy",
+      level: "strategy",
+      text: "Если 10 рублей уже набраны, остаётся получить 6 рублей монетами по 2 и 1. Без десятирублёвой монеты нужно набрать все 16 рублей этими двумя видами монет.",
+    },
+    {
+      id: "exact-coin-payments-next-step",
+      level: "next-step",
+      text: "В первом случае двухрублёвых монет может быть от 0 до 3, а во втором — от 0 до 8. После выбора их количества число однорублёвых монет определяется однозначно.",
+    },
+  ],
+  solution: {
+    id: "exact-coin-payments-full-solution",
+    kind: "training-adaptation",
+    text: "Десятирублёвых монет может быть не больше одной. Если взять одну, останется набрать 6 рублей: двухрублёвых монет может быть 0, 1, 2 или 3, а число однорублёвых затем определяется однозначно. Это 4 способа. Если не брать десятирублёвую, для 16 рублей можно взять от 0 до 8 двухрублёвых монет — 9 способов. Случаи не пересекаются, поэтому всего 4 + 9 = 13 способов. Ответ: 13.",
+  },
+} as const satisfies ProblemDefinition;
+
+const oddNeighborSugarCubesProblem = {
+  id: "odd-neighbor-sugar-cubes",
+  grade: 5,
+  subject: "mathematics",
+  title: "Кубики с нечётным числом соседей",
+  statement:
+    "Из 125 одинаковых кубиков сахара сложили большой куб 5 × 5 × 5. Соседями считаются маленькие кубики, имеющие общую грань. Пончик съел все кубики, у которых нечётное число соседей. Сколько кубиков он съел?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/tasks-math-5-prigl-msk-23-24.pdf",
+      page: 11,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/sol-math-5-prigl-msk-23-24.pdf",
+      page: 7,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "62" },
+  hints: [
+    {
+      id: "odd-neighbor-sugar-cubes-focus",
+      level: "focus",
+      text: "Число соседей зависит от положения кубика: внутри большого куба, на грани, на ребре или в вершине.",
+    },
+    {
+      id: "odd-neighbor-sugar-cubes-strategy",
+      level: "strategy",
+      text: "Разбей все маленькие кубики на эти четыре непересекающихся типа и определи число соседей для каждого типа.",
+    },
+    {
+      id: "odd-neighbor-sugar-cubes-next-step",
+      level: "next-step",
+      text: "Внутренний кубик имеет 6 соседей, кубик на грани вне рёбер — 5, на ребре вне вершин — 4, а в вершине — 3. Нужны только типы с нечётным числом соседей.",
+    },
+  ],
+  solution: {
+    id: "odd-neighbor-sugar-cubes-full-solution",
+    kind: "training-adaptation",
+    text: "Внутренние кубики имеют по 6 соседей, а кубики на рёбрах вне вершин — по 4, поэтому они не подходят. У кубиков внутри каждой грани по 5 соседей: на шести гранях их 6 × 3 × 3 = 54. В каждой из 8 вершин кубик имеет по 3 соседа. Оба числа нечётны, значит, Пончик съел 54 + 8 = 62 кубика. Ответ: 62.",
+  },
+} as const satisfies ProblemDefinition;
+
+const lastStudentFriendsProblem = {
+  id: "last-student-friends",
+  grade: 5,
+  subject: "mathematics",
+  title: "Сколько друзей у последнего?",
+  statement:
+    "В классе 31 ученик. У трёх из них ровно по 3 друга, у следующих трёх — по 6, у следующих трёх — по 9, и так далее, вплоть до трёх учеников, у каждого из которых по 30 друзей. Сколько друзей у 31-го ученика? Дружба между людьми взаимна.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2022/23",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 11,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 12,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "15" },
+  hints: [
+    {
+      id: "last-student-friends-focus",
+      level: "focus",
+      text: "Начни с трёх учеников, у каждого из которых по 30 друзей. С кем они обязаны дружить в классе из 31 человека?",
+    },
+    {
+      id: "last-student-friends-strategy",
+      level: "strategy",
+      text: "Мысленно убери этих троих. У каждого оставшегося число друзей уменьшится на 3. Что тогда произойдёт с учениками, у которых сначала было по 3 друга?",
+    },
+    {
+      id: "last-student-friends-next-step",
+      level: "next-step",
+      text: "После удаления трёх самых общительных и трёх учеников, оставшихся без друзей, возникает та же структура на 6 учеников меньше. Повтори такое сокращение несколько раз.",
+    },
+  ],
+  solution: {
+    id: "last-student-friends-full-solution",
+    kind: "training-adaptation",
+    text: "Трое учеников с 30 друзьями дружат со всеми, поэтому после их удаления число друзей каждого оставшегося уменьшается на 3. Ученики, имевшие по 3 друга, становятся изолированными; их тоже удаляем. Получается такая же задача, но учеников на 6 меньше, а положительные степени уменьшаются на 3. Повторяем это сокращение пять раз. Степень 31-го ученика x становится равной x − 15. В конце остаётся только он, без друзей, значит x − 15 = 0. Ответ: 15.",
+  },
+} as const satisfies ProblemDefinition;
+
+const lineupSixHooligansProblem = {
+  id: "lineup-six-hooligans",
+  grade: 5,
+  subject: "mathematics",
+  title: "Правдивые и лжецы в шеренге",
+  statement:
+    "На уроке физкультуры в шеренгу встали 25 учеников. Каждый из них либо отличник, который всегда говорит правду, либо хулиган, который всегда врёт. Отличник Влад стоит на 13-м месте. Все остальные сказали: «Между мной и Владом ровно 6 хулиганов». Сколько хулиганов в шеренге?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2022/23",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 2,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 8,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 8,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "12" },
+  hints: [
+    {
+      id: "lineup-six-hooligans-focus",
+      level: "focus",
+      text: "Сначала посмотри на учеников на местах с 7-го по 12-е. Между каждым из них и Владом физически находится меньше шести человек.",
+    },
+    {
+      id: "lineup-six-hooligans-strategy",
+      level: "strategy",
+      text: "Их утверждение не может быть правдой. Определи их тип, а затем проверь, что говорит ученик на 6-м месте.",
+    },
+    {
+      id: "lineup-six-hooligans-next-step",
+      level: "next-step",
+      text: "Места 7–12 занимают шесть хулиганов. Поэтому между учеником №6 и Владом действительно ровно шесть хулиганов. После этого рассуждение продолжается к началу шеренги. Справа от Влада работает симметричный аргумент.",
+    },
+  ],
+  solution: {
+    id: "lineup-six-hooligans-full-solution",
+    kind: "training-adaptation",
+    text: "Между Владом и каждым учеником на местах 7–12 меньше шести человек, поэтому их высказывания ложны: все шестеро — хулиганы. Между учеником №6 и Владом как раз эти шесть хулиганов, значит, ученик №6 говорит правду. То же верно для мест 1–5: между каждым из них и Владом по-прежнему ровно шесть хулиганов, так что они отличники. Симметрично справа от Влада хулиганы стоят на местах 14–19, а ученики 20–25 говорят правду. Всего хулиганов 6 + 6 = 12. Ответ: 12.",
+  },
+} as const satisfies ProblemDefinition;
+
+const twoTrueJournalistsProblem = {
+  id: "two-true-journalists",
+  grade: 5,
+  subject: "mathematics",
+  title: "Два правдивых журналиста",
+  statement:
+    "Три журналиста спорят о том, сколько шайб забила сборная Германии. Первый: «Больше 10, но меньше 17». Второй: «Больше 11, но меньше 18». Третий: «Число шайб нечётное». Известно, что правы ровно два журналиста. Какие из чисел 10, 11, 12, 13, 14, 15, 16, 17, 18 могли быть числом забитых шайб? Выбери все подходящие варианты.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/school/math/tasks-math-4-11-msk-sch-21-22.pdf",
+      page: 6,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/school/math/sol-math-4-11-msk-sch-21-22.pdf",
+      page: 11,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери все подходящие варианты.",
+    options: [
+      { id: "goals-10", label: "10" },
+      { id: "goals-11", label: "11" },
+      { id: "goals-12", label: "12" },
+      { id: "goals-13", label: "13" },
+      { id: "goals-14", label: "14" },
+      { id: "goals-15", label: "15" },
+      { id: "goals-16", label: "16" },
+      { id: "goals-17", label: "17" },
+      { id: "goals-18", label: "18" },
+    ],
+    expectedOptionIds: [
+      "goals-11",
+      "goals-12",
+      "goals-14",
+      "goals-16",
+      "goals-17",
+    ],
+  },
+  hints: [
+    {
+      id: "two-true-journalists-focus",
+      level: "focus",
+      text: "Разбей числа по границам 10, 11, 17 и 18. Отдельно учитывай чётность.",
+    },
+    {
+      id: "two-true-journalists-strategy",
+      level: "strategy",
+      text: "Сначала проверь граничные значения 11 и 17. Затем рассмотри все числа от 12 до 16 вместе.",
+    },
+    {
+      id: "two-true-journalists-next-step",
+      level: "next-step",
+      text: "Для чисел от 12 до 16 первые два утверждения истинны одновременно. Чтобы истинных утверждений осталось ровно два, третье должно быть ложным.",
+    },
+  ],
+  solution: {
+    id: "two-true-journalists-full-solution",
+    kind: "training-adaptation",
+    text: "При 11 шайбах истинны первое и третье утверждения. Для чисел от 12 до 16 первые два утверждения истинны, поэтому третье должно быть ложным: подходят только чётные 12, 14 и 16. При 17 шайбах истинны второе и третье утверждения. Для 10 и 18 правдивых высказываний меньше двух, а для 13 и 15 их три. Ответ: 11, 12, 14, 16, 17.",
+  },
+} as const satisfies ProblemDefinition;
+
+const neighborComparisonCodesProblem = {
+  id: "neighbor-comparison-codes",
+  grade: 5,
+  subject: "mathematics",
+  title: "Код соседних цифр",
+  statement:
+    "Катя записала десятизначное число, в котором все цифры различны. Затем каждую цифру она заменила количеством соседних с ней цифр, которые меньше неё. Какие последовательности могли получиться? Выбери все подходящие варианты.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 6,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/tasks-math-5-prigl-msk-23-24.pdf",
+      page: 13,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/sol-math-5-prigl-msk-23-24.pdf",
+      page: 8,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери все подходящие варианты.",
+    options: [
+      { id: "code-0112102011", label: "0112102011" },
+      { id: "code-1021021020", label: "1021021020" },
+      { id: "code-1101111111", label: "1101111111" },
+      { id: "code-1201201020", label: "1201201020" },
+    ],
+    expectedOptionIds: [
+      "code-0112102011",
+      "code-1021021020",
+      "code-1101111111",
+    ],
+  },
+  hints: [
+    {
+      id: "neighbor-comparison-codes-focus",
+      level: "focus",
+      text: "У крайней цифры только один сосед, а у внутренней — два. Код 2 означает, что оба соседа меньше текущей цифры.",
+    },
+    {
+      id: "neighbor-comparison-codes-strategy",
+      level: "strategy",
+      text: "Сначала проверь последовательность, начинающуюся с 120. Первые два символа уже задают два сравнения первой и второй цифр.",
+    },
+    {
+      id: "neighbor-comparison-codes-next-step",
+      level: "next-step",
+      text: "Начальная 1 требует, чтобы первая цифра была больше второй. Следующая 2 требует, чтобы вторая цифра была больше обоих соседей, в том числе первой. Получается противоречие.",
+    },
+  ],
+  solution: {
+    id: "neighbor-comparison-codes-full-solution",
+    kind: "training-adaptation",
+    text: "Код 1201201020 невозможен: первая 1 требует, чтобы первая цифра была больше второй, а следующая 2 — чтобы вторая была больше первой и третьей. Это противоречие. Для остальных последовательностей есть примеры: 2679108345 даёт 0112102011, 5496382170 даёт 1021021020, 9801234567 даёт 1101111111. Эти числа десятизначные, и все их цифры различны. Значит, подходят ровно первые три варианта.",
+  },
+} as const satisfies ProblemDefinition;
+
+const fivePilesStonesProblem = {
+  id: "five-piles-stones",
+  grade: 5,
+  subject: "mathematics",
+  title: "Пять кучек камней",
+  statement:
+    "Камни разложили в пять кучек. В пятой кучке в 6 раз больше камней, чем в третьей. Во второй в 2 раза больше камней, чем в третьей и пятой вместе. В первой в 3 раза меньше камней, чем в пятой, и на 10 меньше, чем в четвёртой. В четвёртой в 2 раза меньше камней, чем во второй. Сколько всего камней в пяти кучках?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 6,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/school/math/tasks-math-4-11-msk-sch-21-22.pdf",
+      page: 5,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2021-22/school/math/sol-math-4-11-msk-sch-21-22.pdf",
+      page: 11,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "60" },
+  hints: [
+    {
+      id: "five-piles-stones-focus",
+      level: "focus",
+      text: "Возьми количество камней в третьей кучке за одну условную часть.",
+    },
+    {
+      id: "five-piles-stones-strategy",
+      level: "strategy",
+      text: "Вырази через эту часть пятую, затем вторую, первую и четвёртую кучки.",
+    },
+    {
+      id: "five-piles-stones-next-step",
+      level: "next-step",
+      text: "Если в третьей кучке x камней, то в пятой 6x, во второй 14x, в первой 2x, а в четвёртой 7x. Используй условие о разнице 10 между первой и четвёртой.",
+    },
+  ],
+  solution: {
+    id: "five-piles-stones-full-solution",
+    kind: "training-adaptation",
+    text: "Пусть в третьей кучке x камней. Тогда в пятой 6x, во второй 2(x + 6x) = 14x, в первой 6x / 3 = 2x, а в четвёртой 14x / 2 = 7x. Четвёртая превышает первую на 10 камней, значит 7x − 2x = 5x = 10 и x = 2. В кучках соответственно 4, 28, 2, 14 и 12 камней. Их сумма равна 60. Ответ: 60.",
+  },
+} as const satisfies ProblemDefinition;
+
+const untouchedMatchstickFiguresProblem = {
+  id: "untouched-matchstick-figures",
+  grade: 5,
+  subject: "mathematics",
+  title: "Нетронутые фигурки",
+  statement:
+    "Из спичек сложены 12 отдельных фигурок: 3 треугольника, 4 квадрата и 5 пятиугольников. У фигур нет общих сторон. Петя и Вася по очереди забирают по одной спичке. Каждый делает 5 ходов, первым ходит Петя. Вася хочет, чтобы нетронутых фигур осталось как можно меньше, а Петя — как можно больше. Сколько нетронутых фигур останется, если оба действуют наилучшим образом?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 1,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/tasks-math-5-prigl-msk-22-23.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/sol-math-5-prigl-msk-22-23.pdf",
+      page: 1,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "6" },
+  hints: [
+    {
+      id: "untouched-matchstick-figures-focus",
+      level: "focus",
+      text: "Фигура перестаёт быть нетронутой после первой же взятой из неё спички. Поэтому считай прежде всего число затронутых фигур, а не число спичек.",
+    },
+    {
+      id: "untouched-matchstick-figures-strategy",
+      level: "strategy",
+      text: "После первого хода Петя может стараться брать спички только из уже затронутых фигур. Вася, наоборот, на каждом своём ходу может выбирать новую фигуру.",
+    },
+    {
+      id: "untouched-matchstick-figures-next-step",
+      level: "next-step",
+      text: "После первого хода Петя берёт спичку из любой уже затронутой фигуры, в которой ещё есть спички. Если Вася начинает новую фигуру, в ней остаются спички для следующего хода Пети. Поэтому Петя вынужден начать новую фигуру только после хода Васи в уже затронутой фигуре. Сравни число таких ходов с числом новых фигур Васи.",
+    },
+  ],
+  solution: {
+    id: "untouched-matchstick-figures-full-solution",
+    kind: "training-adaptation",
+    text: "Первым ходом Петя затрагивает одну фигуру. После этого он берёт спичку из любой уже затронутой фигуры, в которой ещё есть спички, если такая фигура существует. Если Вася начинает новую фигуру, после его хода в ней остаётся не меньше двух спичек: изначально в каждой фигуре их не меньше трёх. Поэтому следующим ходом Петя может взять спичку из уже затронутой фигуры. Начать новую фигуру после своего первого хода Петя вынужден только сразу после хода Васи в уже затронутой фигуре, когда во всех затронутых фигурах спички закончились. Пусть за пять ходов Вася начал k новых фигур. Тогда остальные 5 − k его ходов были в уже затронутых фигурах. Петя начинает не больше 1 + (5 − k) фигур, а вместе они затрагивают не больше k + 1 + (5 − k) = 6 фигур. Значит, Петя гарантирует не меньше шести нетронутых фигур. С другой стороны, Вася может на каждом из пяти ходов выбирать ещё нетронутую фигуру. Если такая фигура есть, он затрагивает её; если нет, уже затронуты все 12 фигур. Поэтому вместе с первой фигурой Пети Вася гарантирует не меньше 6 затронутых фигур. При наилучшей игре затронуты ровно 6 из 12, а нетронуты 12 − 6 = 6 фигур. Ответ: 6.",
+  },
+} as const satisfies ProblemDefinition;
+
+const mountainNumbersOver77777Problem = {
+  id: "mountain-numbers-over-77777",
+  grade: 5,
+  subject: "mathematics",
+  title: "Сколько чисел-горок?",
+  statement:
+    "Пятизначное число называется горкой, если первые три его цифры идут в порядке строгого возрастания, а последние три — в порядке строгого убывания. Например, 13760 и 28932 — горки, а 78821 и 86521 — нет. Сколько существует горок, которые больше 77777?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/tasks-math-5-prigl-msk-22-23.pdf",
+      page: 16,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/sol-math-5-prigl-msk-22-23.pdf",
+      page: 17,
+    },
+  },
+  assessment: { kind: "nonnegative-integer", expectedAnswer: "36" },
+  hints: [
+    {
+      id: "mountain-numbers-over-77777-focus",
+      level: "focus",
+      text: "Сначала найди первые три цифры. Чтобы число было больше 77777, его первая цифра должна быть не меньше 7, но после неё ещё нужны две строго большие цифры.",
+    },
+    {
+      id: "mountain-numbers-over-77777-strategy",
+      level: "strategy",
+      text: "Проверь, может ли первая цифра быть 8 или 9. После этого станет ясно, какие три первые цифры вынуждены стоять в числе.",
+    },
+    {
+      id: "mountain-numbers-over-77777-next-step",
+      level: "next-step",
+      text: "Начало обязательно равно 789. Для двух последних мест нужно выбрать две разные цифры из 0–8 и расположить их в убывающем порядке.",
+    },
+  ],
+  solution: {
+    id: "mountain-numbers-over-77777-full-solution",
+    kind: "training-adaptation",
+    text: "Первая цифра должна быть не меньше 7, иначе число меньше 77777. Если она равна 8 или 9, для двух строго больших цифр места уже нет. Значит, начало вынужденно равно 789. Последние две цифры должны быть меньше 9 и идти в порядке строгого убывания. Выбираем любые две различные цифры из 0–8; для каждой пары подходит ровно один порядок. Таких пар C(9, 2) = 36 (то же число даёт сумма 1 + 2 + ⋯ + 8). Ответ: 36.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
@@ -1051,6 +1559,15 @@ const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [largestValidEightDigitProblem.id]: largestValidEightDigitProblem,
   [threeNumbersDigitSumsProblem.id]: threeNumbersDigitSumsProblem,
   [mountainPlainFlightsProblem.id]: mountainPlainFlightsProblem,
+  [exactCoinPaymentsProblem.id]: exactCoinPaymentsProblem,
+  [oddNeighborSugarCubesProblem.id]: oddNeighborSugarCubesProblem,
+  [lastStudentFriendsProblem.id]: lastStudentFriendsProblem,
+  [lineupSixHooligansProblem.id]: lineupSixHooligansProblem,
+  [twoTrueJournalistsProblem.id]: twoTrueJournalistsProblem,
+  [neighborComparisonCodesProblem.id]: neighborComparisonCodesProblem,
+  [fivePilesStonesProblem.id]: fivePilesStonesProblem,
+  [untouchedMatchstickFiguresProblem.id]: untouchedMatchstickFiguresProblem,
+  [mountainNumbersOver77777Problem.id]: mountainNumbersOver77777Problem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {
