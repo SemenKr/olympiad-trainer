@@ -15,7 +15,7 @@ This file is global guidance and navigation, not complete project documentation.
 - [docs/README.md](docs/README.md): documentation index.
 - [Project vision](docs/00-project/project-vision.md): product goals and scope.
 - Relevant docs/: research, product, architecture and decisions.
-- [Agent System v1](docs/05-development/agent-system.md): roles, handoffs and preserved project conventions.
+- [Agent System v2](docs/05-development/agent-system.md): roles, orchestrated workflow, handoffs and preserved project conventions.
 - [Skill sources](tools/codex/skills/): focused reusable workflows; repository-local, not globally installed.
 
 Read only documents relevant to the task.
@@ -41,7 +41,7 @@ Prefer a modular monolith until separate services have a demonstrated need.
 Domain/business logic must not depend on React, Next.js APIs, database clients or browser APIs.
 Separate framework, application, domain and persistence concerns only where useful.
 Avoid layers created only to satisfy patterns and empty architectural scaffolding.
-Stack, persistence and implementation conventions are in [Agent System v1](docs/05-development/agent-system.md#preserved-project-conventions), not reusable skills.
+Stack, persistence and implementation conventions are in [Agent System v2](docs/05-development/agent-system.md#preserved-project-conventions), not reusable skills.
 Architectural proposals require human adoption before dependent implementation.
 
 ## Domain and content
@@ -62,7 +62,7 @@ Prefer references and short descriptions; bulk copying needs explicit scope and 
 Full copyrighted statements require a permitted, explicit need.
 Training and simulation differ; preserve applicable official constraints in simulation.
 Help the learner think, encourage retries, and avoid premature full solutions.
-Learning/UX details remain authoritative in Agent System v1 and project vision.
+Learning/UX details remain authoritative in Agent System v2 and project vision.
 
 ## Quality expectations
 
@@ -93,8 +93,8 @@ Use the selected role skill and [handoff contract](docs/05-development/agent-sys
 Planner and Reviewer are strictly read-only; Reviewer never fixes its findings.
 Researcher, Architect and QA are read-only by default with only their documented scoped exceptions.
 Implementer changes only approved files and cannot change product requirements.
-Multi-agent work requires explicit authorization and safe task/file ownership.
-This system defines workflows, not an orchestrator or automatic runtime.
+Multi-agent work requires explicit authorization and safe task/file ownership. Invoking [orchestrate-task](tools/codex/skills/orchestrate-task/SKILL.md) authorizes Coordinator delegation and routine handoffs only inside the original task's scope and permissions; role permissions remain unchanged.
+The Coordinator follows the [bounded correction loop and human gates](docs/05-development/agent-system.md#correction-loop). No automatic merge or worktrees. This system defines a session workflow, not a runtime or external orchestrator.
 
 ## Definition of Done
 
