@@ -67,6 +67,33 @@ export const PRACTICE_PACKS = [
       "mountain-numbers-over-77777",
     ],
   },
+  {
+    id: "pack-g",
+    name: "Границы и подсчёт",
+    problemIds: [
+      "nonadjacent-row-seating",
+      "eighteen-piece-pie-cuts",
+      "multiples-prefix-count",
+    ],
+  },
+  {
+    id: "pack-h",
+    name: "Пропорции и баланс",
+    problemIds: [
+      "rabbit-carrot-shortfall",
+      "grade-average-fives",
+      "magic-forest-coin-difference",
+    ],
+  },
+  {
+    id: "pack-i",
+    name: "Порядок и связи",
+    problemIds: [
+      "four-houses-distance-cases",
+      "ivanov-older-brother-count",
+      "cube-red-face-sums",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

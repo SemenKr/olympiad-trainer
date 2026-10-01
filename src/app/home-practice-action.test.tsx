@@ -142,12 +142,16 @@ describe("Home Practice precedence", () => {
     expect(returning.indexOf("Связи и закономерности")).toBeLessThan(
       returning.indexOf("Числа и структуры"),
     );
-    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(6);
+    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(
+      PRACTICE_PACKS.length,
+    );
     expect(returning).toContain('href="/practice/pack"');
     expect(returning).toContain('href="/practice/pack?pack=pack-b"');
     expect(returning).toContain('href="/practice/pack?pack=pack-c"');
-    for (const id of ["pack-d", "pack-e", "pack-f"])
-      expect(returning).toContain(`href="/practice/pack?pack=${id}"`);
+    for (const pack of PRACTICE_PACKS.slice(3)) {
+      expect(returning).toContain(pack.name);
+      expect(returning).toContain(`href="/practice/pack?pack=${pack.id}"`);
+    }
     expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
       returning.indexOf("Дополнительная практика"),
     );

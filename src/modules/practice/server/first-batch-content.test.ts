@@ -215,12 +215,12 @@ const batch = [
 ] as const;
 
 describe("first batch content", () => {
-  it("brings the production corpus to 24 distinct problem definitions", () => {
+  it("preserves the first 24 distinct production problem definitions", () => {
     const ids = [
       ...CORE_EPISODE_PROBLEM_IDS,
       ...TRANSFER_EPISODE_PROBLEM_IDS,
       EXPLORATION_EPISODE_PROBLEM_ID,
-      ...PRACTICE_PACKS.flatMap((pack) => pack.problemIds),
+      ...PRACTICE_PACKS.slice(0, 6).flatMap((pack) => pack.problemIds),
     ];
     expect(ids).toHaveLength(24);
     expect(new Set(ids).size).toBe(24);
@@ -228,7 +228,7 @@ describe("first batch content", () => {
   });
   it("adds exactly nine protected Grade-5 definitions and resolves them through the generic Pack projection", () => {
     const packs = getLearnerSafePackProblems();
-    const selected = PRACTICE_PACKS.slice(3);
+    const selected = PRACTICE_PACKS.slice(3, 6);
     expect(selected.map((pack) => pack.id)).toEqual([
       "pack-d",
       "pack-e",
