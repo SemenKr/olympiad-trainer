@@ -414,6 +414,122 @@ const packProblemMetadata = {
     ],
     solution: "cube-red-face-sums-full-solution",
   },
+  "chocolate-promotion-price": {
+    id: "chocolate-promotion-price",
+    title: "Цена шоколадки",
+    hints: [
+      "chocolate-promotion-price-focus",
+      "chocolate-promotion-price-strategy",
+      "chocolate-promotion-price-next-step",
+    ],
+    solution: "chocolate-promotion-price-full-solution",
+  },
+  "school-lesson-teacher-count": {
+    id: "school-lesson-teacher-count",
+    title: "Сколько учителей?",
+    hints: [
+      "school-lesson-teacher-count-focus",
+      "school-lesson-teacher-count-strategy",
+      "school-lesson-teacher-count-next-step",
+    ],
+    solution: "school-lesson-teacher-count-full-solution",
+  },
+  "soldier-figures-guarantee": {
+    id: "soldier-figures-guarantee",
+    title: "Лучники и мечники",
+    hints: [
+      "soldier-figures-guarantee-focus",
+      "soldier-figures-guarantee-strategy",
+      "soldier-figures-guarantee-next-step",
+    ],
+    solution: "soldier-figures-guarantee-full-solution",
+  },
+  "apple-harvest-assignments": {
+    id: "apple-harvest-assignments",
+    title: "Урожай яблок",
+    hints: [
+      "apple-harvest-assignments-focus",
+      "apple-harvest-assignments-strategy",
+      "apple-harvest-assignments-next-step",
+    ],
+    solution: "apple-harvest-assignments-full-solution",
+    optionIds: [
+      "alena-19",
+      "borya-11",
+      "vera-11",
+      "polina-24",
+      "alena-24",
+      "vera-17",
+    ],
+  },
+  "liar-council-maximum": {
+    id: "liar-council-maximum",
+    title: "Заседание на острове",
+    hints: [
+      "liar-council-maximum-focus",
+      "liar-council-maximum-strategy",
+      "liar-council-maximum-next-step",
+    ],
+    solution: "liar-council-maximum-full-solution",
+  },
+  "central-coin-column": {
+    id: "central-coin-column",
+    title: "Монеты в среднем столбце",
+    hints: [
+      "central-coin-column-focus",
+      "central-coin-column-strategy",
+      "central-coin-column-next-step",
+    ],
+    solution: "central-coin-column-full-solution",
+  },
+  "five-fridays-calendar": {
+    id: "five-fridays-calendar",
+    title: "Пять пятниц",
+    hints: [
+      "five-fridays-calendar-focus",
+      "five-fridays-calendar-strategy",
+      "five-fridays-calendar-next-step",
+    ],
+    solution: "five-fridays-calendar-full-solution",
+    optionIds: [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ],
+  },
+  "circular-table-seat-count": {
+    id: "circular-table-seat-count",
+    title: "Места за круглым столом",
+    hints: [
+      "circular-table-seat-count-focus",
+      "circular-table-seat-count-strategy",
+      "circular-table-seat-count-next-step",
+    ],
+    solution: "circular-table-seat-count-full-solution",
+  },
+  "balanced-six-groups": {
+    id: "balanced-six-groups",
+    title: "Шесть групп кружка",
+    hints: [
+      "balanced-six-groups-focus",
+      "balanced-six-groups-strategy",
+      "balanced-six-groups-next-step",
+    ],
+    solution: "balanced-six-groups-full-solution",
+    optionIds: [
+      "total-74",
+      "total-76",
+      "total-77",
+      "total-78",
+      "total-79",
+      "total-80",
+      "total-82",
+    ],
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {

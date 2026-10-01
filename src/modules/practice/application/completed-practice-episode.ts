@@ -94,6 +94,33 @@ export const PRACTICE_PACKS = [
       "cube-red-face-sums",
     ],
   },
+  {
+    id: "pack-j",
+    name: "Набор J: считаем и сравниваем",
+    problemIds: [
+      "chocolate-promotion-price",
+      "school-lesson-teacher-count",
+      "soldier-figures-guarantee",
+    ],
+  },
+  {
+    id: "pack-k",
+    name: "Набор K: выводы и доказательства",
+    problemIds: [
+      "apple-harvest-assignments",
+      "liar-council-maximum",
+      "central-coin-column",
+    ],
+  },
+  {
+    id: "pack-l",
+    name: "Набор L: порядок и варианты",
+    problemIds: [
+      "five-fridays-calendar",
+      "circular-table-seat-count",
+      "balanced-six-groups",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;
