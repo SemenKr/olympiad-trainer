@@ -1,0 +1,22 @@
+CREATE TABLE knowledge_support_attempts (
+  learner_id uuid NOT NULL REFERENCES learners(id),
+  practice_session_id uuid NOT NULL,
+  carrier_problem_id text NOT NULL CHECK (carrier_problem_id = 'five-piles-stones'),
+  topic_id text NOT NULL CHECK (topic_id = 'multiplicative-additive-comparisons'),
+  diagnostic_selected_option_id text NOT NULL CHECK (diagnostic_selected_option_id IN ('A', 'B', 'C', 'D')),
+  diagnostic_outcome text NOT NULL CHECK (diagnostic_outcome IN ('correct', 'incorrect')),
+  lesson_opened boolean NOT NULL DEFAULT false,
+  micro_check_selected_option_id text CHECK (micro_check_selected_option_id IN ('A', 'B', 'C', 'D')),
+  micro_check_outcome text CHECK (micro_check_outcome IN ('correct', 'incorrect')),
+  diagnostic_completed_at timestamptz NOT NULL DEFAULT now(),
+  lesson_opened_at timestamptz,
+  micro_check_completed_at timestamptz,
+  PRIMARY KEY (learner_id, practice_session_id, topic_id),
+  CHECK ((diagnostic_selected_option_id = 'A') = (diagnostic_outcome = 'correct')),
+  CHECK (lesson_opened = (lesson_opened_at IS NOT NULL)),
+  CHECK (NOT lesson_opened OR diagnostic_outcome = 'incorrect'),
+  CHECK ((micro_check_selected_option_id IS NULL) = (micro_check_outcome IS NULL)),
+  CHECK ((micro_check_outcome IS NULL) = (micro_check_completed_at IS NULL)),
+  CHECK (micro_check_outcome IS NULL OR lesson_opened),
+  CHECK ((micro_check_selected_option_id = 'A') = (micro_check_outcome = 'correct'))
+);

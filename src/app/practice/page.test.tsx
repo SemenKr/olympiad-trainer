@@ -6,6 +6,11 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("./knowledge-support-actions", () => ({
+  readKnowledgeSupport: vi.fn(async () => null),
+  readKnowledgeSupportEligibility: vi.fn(async () => false),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));

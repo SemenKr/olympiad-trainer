@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { KnowledgeSupport } from "../../knowledge-support/ui/knowledge-support";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   revealReasoningCheckpoint,
@@ -170,6 +171,7 @@ function PracticeRestoreError({ onRetry }: Readonly<{ onRetry: () => void }>) {
 }
 
 type PracticeProblemEpisodeProps = Readonly<{
+  sessionId: string;
   problem: LearnerSafePracticeProblem;
   hasNextProblem: boolean;
   focusHeadingOnMount: boolean;
@@ -681,6 +683,7 @@ export function PracticeSession({
 
   return (
     <PracticeProblemEpisode
+      sessionId={sessionState.sessionId}
       completionLatch={completionLatch}
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
       hasNextProblem={
@@ -719,6 +722,7 @@ export function PracticeSession({
 }
 
 function PracticeProblemEpisode({
+  sessionId,
   problem,
   hasNextProblem,
   focusHeadingOnMount,
@@ -786,6 +790,7 @@ function PracticeProblemEpisode({
   const episodeActiveRef = useRef(true);
   const transitionGate = useRef(false);
   const stableWriteTail = useRef<Promise<void>>(Promise.resolve());
+  const stableWriteSucceeded = useRef(true);
   const submissionGate = useRef(false);
   const hintRevealGate = useRef(false);
   const solutionRevealGate = useRef(false);
@@ -964,11 +969,15 @@ function PracticeProblemEpisode({
     stableWriteTail.current = stableWriteTail.current.then(async () => {
       if (!episodeActiveRef.current || completionLatch.current) return;
       try {
-        if (!(await onStableChange(nextState, observation)))
-          setStorageError("save");
+        stableWriteSucceeded.current = await onStableChange(
+          nextState,
+          observation,
+        );
+        if (!stableWriteSucceeded.current) setStorageError("save");
         else
           setStorageError((current) => (current === "save" ? null : current));
       } catch {
+        stableWriteSucceeded.current = false;
         if (episodeActiveRef.current) setStorageError("save");
       }
     });
@@ -1347,7 +1356,7 @@ function PracticeProblemEpisode({
     }
   }
 
-  return (
+  const renderPractice = (knowledgeOffer: ReactNode) => (
     <TaskShell
       answerRail={
         <div className={styles["answer-rail"]}>
@@ -1492,6 +1501,8 @@ function PracticeProblemEpisode({
             </section>
           ) : null}
 
+          {knowledgeOffer}
+
           {canOpenCheckpoint && !revealedCheckpoint ? (
             <button
               className={styles["hint-action"]}
@@ -1622,5 +1633,45 @@ function PracticeProblemEpisode({
         <p>{problem.statement}</p>
       </TaskBlockText>
     </TaskShell>
+  );
+
+  return (
+    <KnowledgeSupport
+      sessionId={sessionId}
+      problemId={problem.problemId}
+      practice={answerState.practice}
+      busy={
+        isPending ||
+        supportRevealPending ||
+        restorePending ||
+        restoreFailed ||
+        transitionPending ||
+        checkpointAssessmentPending ||
+        checkpointRevealPending ||
+        storageError !== null
+      }
+      beforeOpen={async () => {
+        let pendingWrite;
+        do {
+          pendingWrite = stableWriteTail.current;
+          await pendingWrite;
+        } while (pendingWrite !== stableWriteTail.current);
+        return (
+          stableWriteSucceeded.current &&
+          episodeActiveRef.current &&
+          !completionLatch.current &&
+          !transitionGate.current &&
+          !submissionGate.current &&
+          !hintRevealGate.current &&
+          !solutionRevealGate.current &&
+          !checkpointAssessmentGate.current &&
+          !checkpointRevealGate.current &&
+          !restorePendingRef.current
+        );
+      }}
+      onReturn={() => problemHeadingRef.current?.focus()}
+    >
+      {renderPractice}
+    </KnowledgeSupport>
   );
 }

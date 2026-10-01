@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 
 vi.mock("server-only", () => ({}));
+vi.mock("../../../app/practice/knowledge-support-actions", () => ({
+  readKnowledgeSupport: vi.fn(async () => null),
+  readKnowledgeSupportEligibility: vi.fn(async () => false),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));

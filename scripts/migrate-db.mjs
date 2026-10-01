@@ -21,6 +21,7 @@ try {
     "0004_practice_completed_episodes.sql",
     "0005_enumeration_exploration.sql",
     "0006_content_scale_pack_a.sql",
+    "0007_knowledge_support.sql",
   ]) {
     const prior = await client.query(
       "SELECT 1 FROM schema_migrations WHERE name = $1",
