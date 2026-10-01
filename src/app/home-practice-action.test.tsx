@@ -96,6 +96,23 @@ const fresh = {
 };
 
 describe("Home Practice precedence", () => {
+  it("links the latest Summary using its persisted completed session identity", () => {
+    const completedSessionId = "00000000-0000-4000-8000-000000000002";
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{ ...fresh, completed, completedSessionId }}
+      />,
+    );
+    expect(markup).toContain(
+      `href="/practice/summary?session=${completedSessionId}"`,
+    );
+    const legacy = renderToStaticMarkup(
+      <HomePracticeContent stored={{ ...fresh, completed }} />,
+    );
+    expect(legacy).toContain('href="/practice/summary"');
+    expect(legacy).not.toContain("?session=");
+  });
+
   it("shows registry Pack choices and resumes Pack B from its stored tuple", () => {
     const render = (
       unfinishedValue: Parameters<

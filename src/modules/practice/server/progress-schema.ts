@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -79,4 +80,23 @@ export const practiceCompletedEpisodes = pgTable(
       table.sessionId.desc(),
     ),
   ],
+);
+
+export const practiceJourneyAwards = pgTable(
+  "practice_journey_awards",
+  {
+    learnerId: uuid("learner_id")
+      .notNull()
+      .references(() => learners.id),
+    sessionId: uuid("session_id").notNull(),
+    earnedXp: integer("earned_xp").notNull(),
+    totalXp: integer("total_xp").notNull(),
+    newlyReachedMilestone: text("newly_reached_milestone").$type<
+      "Первый шаг" | "50 XP практики" | "100 XP практики" | null
+    >(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.learnerId, table.sessionId] })],
 );

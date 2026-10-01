@@ -1,0 +1,49 @@
+.journey {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-10);
+  padding: var(--ot-space-16);
+  background: var(--ot-color-primary-soft);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-12);
+  overflow-wrap: anywhere;
+
+  h2,
+  p,
+  ul {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: var(--ot-font-size-body);
+    line-height: var(--ot-line-height-body);
+  }
+
+  p,
+  li {
+    color: var(--ot-color-text-secondary);
+    font-size: var(--ot-font-size-body);
+    line-height: var(--ot-line-height-body);
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ot-space-6);
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--ot-space-12);
+  }
+}
+
+.total {
+  color: var(--ot-color-primary) !important;
+  font-size: var(--ot-font-size-heading) !important;
+  font-weight: 700;
+}

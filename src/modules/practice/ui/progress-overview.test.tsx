@@ -7,6 +7,8 @@ vi.mock("@/app/practice/actions", () => ({
 vi.mock("../../../app/progress/actions", () => ({
   importBrowserProgressEvidence: vi.fn(async () => {}),
   readServerProgress: vi.fn(),
+  readServerRecentPracticeEpisodes: vi.fn(async () => []),
+  readServerPracticeJourney: vi.fn(async () => 0),
 }));
 
 import {

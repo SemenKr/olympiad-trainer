@@ -593,7 +593,7 @@ describe("guarantee Progress evidence", () => {
     );
     vi.mocked(persistPracticeFinishEvidence)
       .mockRejectedValueOnce(new Error("Database unavailable"))
-      .mockResolvedValueOnce();
+      .mockResolvedValueOnce(null);
     const latch = { current: false };
     const navigate = vi.fn();
     await seedStoredLegacyFinish(storage);
@@ -706,7 +706,7 @@ describe("guarantee Progress evidence", () => {
         });
         throw new Error("Response lost after commit");
       })
-      .mockResolvedValueOnce();
+      .mockResolvedValueOnce(null);
     const latch = { current: false };
     expect(
       await finishPracticeSessionAndNavigate(
@@ -776,7 +776,7 @@ describe("guarantee Progress evidence", () => {
         });
         throw new Error("Response lost after commit");
       })
-      .mockResolvedValueOnce();
+      .mockResolvedValueOnce(null);
     const latch = { current: false };
     const navigate = vi.fn();
     await seedStoredLegacyFinish(storage);

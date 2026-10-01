@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
-import { readServerAdaptiveAvailability } from "@/app/progress/actions";
+import {
+  readServerAdaptiveAvailability,
+  readServerPracticeJourney,
+} from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
 import {
   PRACTICE_PACKS,
@@ -23,12 +26,14 @@ import {
 } from "@/modules/practice/ui/session-summary";
 import type { PracticeSessionResult } from "@/modules/practice/ui/two-problem-session-state";
 import { ensureServerProgressImported } from "@/modules/practice/ui/server-progress-import";
+import { HomePracticeJourney } from "../modules/practice/ui/practice-journey";
 
 import styles from "./page.module.scss";
 
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
+  completedSessionId?: string | null;
   availability: AdaptiveAvailability;
   hasPracticeHistory: boolean;
 }>;
@@ -66,6 +71,7 @@ export function HomePracticeAction() {
             setStored({
               unfinished: unfinished.value,
               completed: completed.value,
+              completedSessionId: completed.sessionId,
               ...adaptive,
             });
         })
@@ -206,6 +212,7 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           </Link>
         </section>
       )}
+      <HomePracticeJourneyLoader />
       {!stored.unfinished &&
       (stored.hasPracticeHistory || stored.completed !== null) ? (
         <section aria-label="Дополнительная практика" className={styles.pack}>
@@ -243,7 +250,14 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
               </li>
             ))}
           </ol>
-          <Link className={styles.secondary} href="/practice/summary">
+          <Link
+            className={styles.secondary}
+            href={
+              stored.completedSessionId
+                ? `/practice/summary?session=${stored.completedSessionId}`
+                : "/practice/summary"
+            }
+          >
             Посмотреть итоги
           </Link>
         </section>
@@ -255,4 +269,19 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
       ) : null}
     </>
   );
+}
+
+function HomePracticeJourneyLoader() {
+  const [totalXp, setTotalXp] = useState<number | null>(null);
+  useEffect(() => {
+    let active = true;
+    void readServerPracticeJourney().then(
+      (value) => active && setTotalXp(value),
+      () => active && setTotalXp(0),
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+  return totalXp === null ? null : <HomePracticeJourney totalXp={totalXp} />;
 }

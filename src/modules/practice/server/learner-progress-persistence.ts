@@ -45,6 +45,10 @@ import {
 } from "../application/practice-progress-evidence";
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
 import {
+  calculatePracticeJourneyFinish,
+  type PracticeJourneyFinish,
+} from "../application/practice-journey";
+import {
   assessReasoningCheckpointOption,
   getProblemDefinition,
 } from "./problem-catalog";
@@ -53,6 +57,7 @@ import {
   learners,
   practiceCompletedEpisodes,
   practiceFinishReceipts,
+  practiceJourneyAwards,
 } from "./progress-schema";
 
 const NO_LOCAL_EVIDENCE = "no-browser-progress-evidence-v1";
@@ -405,7 +410,7 @@ export async function persistFinishContributions(
   input: unknown,
   adaptiveFacts?: unknown,
   episode?: unknown,
-): Promise<void> {
+): Promise<PracticeJourneyFinish | null> {
   if (
     typeof sessionId !== "string" ||
     !SESSION_ID.test(sessionId) ||
@@ -529,7 +534,7 @@ export async function persistFinishContributions(
           : { contributions: ordered, adaptiveFacts },
     ),
   );
-  await getProgressDb().transaction(async (tx) => {
+  return getProgressDb().transaction(async (tx) => {
     const [learner] = await tx
       .select()
       .from(learners)
@@ -549,7 +554,20 @@ export async function persistFinishContributions(
     if (receipt) {
       if (receipt.contributionHash !== contributionHash)
         throw new Error("Session contribution changed after Finish.");
-      return;
+      const [award] = await tx
+        .select({
+          earnedXp: practiceJourneyAwards.earnedXp,
+          totalXp: practiceJourneyAwards.totalXp,
+          newlyReachedMilestone: practiceJourneyAwards.newlyReachedMilestone,
+        })
+        .from(practiceJourneyAwards)
+        .where(
+          and(
+            eq(practiceJourneyAwards.learnerId, learnerId),
+            eq(practiceJourneyAwards.sessionId, sessionId),
+          ),
+        );
+      return award ?? null;
     }
     let current = {
       version: 3 as const,
@@ -619,13 +637,62 @@ export async function persistFinishContributions(
           ORDER BY completed_at DESC, session_id DESC OFFSET 50
         )`);
     }
+    let journeyFinish: PracticeJourneyFinish | null = null;
+    if (completedEpisode) {
+      const priorAwards = await tx
+        .select({ earnedXp: practiceJourneyAwards.earnedXp })
+        .from(practiceJourneyAwards)
+        .where(eq(practiceJourneyAwards.learnerId, learnerId));
+      const previousTotalXp = priorAwards.reduce(
+        (total, award) => total + award.earnedXp,
+        0,
+      );
+      journeyFinish = calculatePracticeJourneyFinish(
+        completedEpisode.facts,
+        previousTotalXp,
+      );
+      await tx.insert(practiceJourneyAwards).values({
+        learnerId,
+        sessionId,
+        ...journeyFinish,
+      });
+    }
     await tx.insert(practiceFinishReceipts).values({
       learnerId,
       sessionId,
       contributionHash,
       episodeMode: completedEpisode?.mode ?? null,
     });
+    return journeyFinish;
   });
+}
+
+export async function readPracticeJourneyTotal(learnerId: string) {
+  const rows = await getProgressDb()
+    .select({ earnedXp: practiceJourneyAwards.earnedXp })
+    .from(practiceJourneyAwards)
+    .where(eq(practiceJourneyAwards.learnerId, learnerId));
+  return rows.reduce((total, award) => total + award.earnedXp, 0);
+}
+
+export async function readPracticeJourneyFinish(
+  learnerId: string,
+  sessionId: string,
+): Promise<PracticeJourneyFinish | null> {
+  const [award] = await getProgressDb()
+    .select({
+      earnedXp: practiceJourneyAwards.earnedXp,
+      totalXp: practiceJourneyAwards.totalXp,
+      newlyReachedMilestone: practiceJourneyAwards.newlyReachedMilestone,
+    })
+    .from(practiceJourneyAwards)
+    .where(
+      and(
+        eq(practiceJourneyAwards.learnerId, learnerId),
+        eq(practiceJourneyAwards.sessionId, sessionId),
+      ),
+    );
+  return award ?? null;
 }
 
 export type RecentPracticeEpisode = Readonly<{

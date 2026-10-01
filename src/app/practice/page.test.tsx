@@ -280,7 +280,7 @@ describe("direct /practice restore", () => {
     expect(
       JSON.parse(
         localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!,
-      ).map((result: { problemId: string }) => result.problemId),
+      ).results.map((result: { problemId: string }) => result.problemId),
     ).toEqual([
       "truck-car-same-arrival",
       "knights-all-or-none",
@@ -353,7 +353,7 @@ describe("direct /practice restore", () => {
     expect(
       JSON.parse(
         localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!,
-      ).map((result: { problemId: string }) => result.problemId),
+      ).results.map((result: { problemId: string }) => result.problemId),
     ).toEqual([
       "largest-valid-eight-digit",
       "three-numbers-digit-sums",
