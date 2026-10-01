@@ -1,0 +1,54 @@
+.surface,
+.offer {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-16);
+  padding: var(--ot-space-20);
+  background: var(--ot-color-surface-soft);
+  border: 1px solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-20);
+  overflow-wrap: anywhere;
+
+  button {
+    min-height: 44px;
+    padding: var(--ot-space-12);
+    color: var(--ot-color-text-primary);
+    background: var(--ot-color-surface);
+    border: 1px solid var(--ot-color-border-default);
+    border-radius: var(--ot-radius-10);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :where(button, input):focus-visible {
+    outline: 2px solid var(--ot-color-text-primary);
+    outline-offset: 3px;
+  }
+
+  fieldset {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--ot-space-12);
+    padding: var(--ot-space-12);
+    border: 1px solid var(--ot-color-border-default);
+  }
+
+  label {
+    display: flex;
+    min-height: 44px;
+    align-items: baseline;
+    gap: var(--ot-space-12);
+    cursor: pointer;
+  }
+}
+
+.surface {
+  width: min(100%, 680px);
+  margin-inline: auto;
+}
+
+.copy {
+  white-space: pre-wrap;
+}
