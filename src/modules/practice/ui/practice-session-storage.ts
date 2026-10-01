@@ -309,6 +309,111 @@ const packProblemMetadata = {
     ],
     solution: "mountain-numbers-over-77777-full-solution",
   },
+  "nonadjacent-row-seating": {
+    id: "nonadjacent-row-seating",
+    title: "Рассадка без соседей",
+    hints: [
+      "nonadjacent-row-seating-focus",
+      "nonadjacent-row-seating-strategy",
+      "nonadjacent-row-seating-next-step",
+    ],
+    solution: "nonadjacent-row-seating-full-solution",
+  },
+  "eighteen-piece-pie-cuts": {
+    id: "eighteen-piece-pie-cuts",
+    title: "18 кусков пирога",
+    hints: [
+      "eighteen-piece-pie-cuts-focus",
+      "eighteen-piece-pie-cuts-strategy",
+      "eighteen-piece-pie-cuts-next-step",
+    ],
+    solution: "eighteen-piece-pie-cuts-full-solution",
+  },
+  "multiples-prefix-count": {
+    id: "multiples-prefix-count",
+    title: "Числа на доске",
+    hints: [
+      "multiples-prefix-count-focus",
+      "multiples-prefix-count-strategy",
+      "multiples-prefix-count-next-step",
+    ],
+    solution: "multiples-prefix-count-full-solution",
+  },
+  "rabbit-carrot-shortfall": {
+    id: "rabbit-carrot-shortfall",
+    title: "Морковь для кроликов",
+    hints: [
+      "rabbit-carrot-shortfall-focus",
+      "rabbit-carrot-shortfall-strategy",
+      "rabbit-carrot-shortfall-next-step",
+    ],
+    solution: "rabbit-carrot-shortfall-full-solution",
+  },
+  "grade-average-fives": {
+    id: "grade-average-fives",
+    title: "Средний балл",
+    hints: [
+      "grade-average-fives-focus",
+      "grade-average-fives-strategy",
+      "grade-average-fives-next-step",
+    ],
+    solution: "grade-average-fives-full-solution",
+  },
+  "magic-forest-coin-difference": {
+    id: "magic-forest-coin-difference",
+    title: "Монеты на деревьях",
+    hints: [
+      "magic-forest-coin-difference-focus",
+      "magic-forest-coin-difference-strategy",
+      "magic-forest-coin-difference-next-step",
+    ],
+    solution: "magic-forest-coin-difference-full-solution",
+  },
+  "four-houses-distance-cases": {
+    id: "four-houses-distance-cases",
+    title: "Четыре дома",
+    hints: [
+      "four-houses-distance-cases-focus",
+      "four-houses-distance-cases-strategy",
+      "four-houses-distance-cases-next-step",
+    ],
+    solution: "four-houses-distance-cases-full-solution",
+    optionIds: [
+      "distance-600",
+      "distance-900",
+      "distance-1200",
+      "distance-1800",
+      "distance-2400",
+    ],
+  },
+  "ivanov-older-brother-count": {
+    id: "ivanov-older-brother-count",
+    title: "Старший брат",
+    hints: [
+      "ivanov-older-brother-count-focus",
+      "ivanov-older-brother-count-strategy",
+      "ivanov-older-brother-count-next-step",
+    ],
+    solution: "ivanov-older-brother-count-full-solution",
+    optionIds: [
+      "children-4",
+      "children-6",
+      "children-8",
+      "children-10",
+      "children-12",
+      "children-14",
+    ],
+  },
+  "cube-red-face-sums": {
+    id: "cube-red-face-sums",
+    title: "Числа на гранях куба",
+    hints: [
+      "cube-red-face-sums-focus",
+      "cube-red-face-sums-strategy",
+      "cube-red-face-sums-next-step",
+    ],
+    solution: "cube-red-face-sums-full-solution",
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {

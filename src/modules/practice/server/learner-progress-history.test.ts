@@ -15,6 +15,8 @@ vi.mock("./progress-db", () => ({
 }));
 
 import { readRecentPracticeEpisodes } from "./learner-progress-persistence";
+import { PRACTICE_PACKS } from "../application/completed-practice-episode";
+import { getLearnerSafePracticeProblem } from "./problem-catalog";
 
 const checkpointId = "guaranteed-sock-pair-guarantee-argument";
 function storedRow(outcome: "correct" | "incorrect") {
@@ -44,6 +46,51 @@ function storedRow(outcome: "correct" | "incorrect") {
 }
 
 describe("public Practice history projection", () => {
+  it.each(PRACTICE_PACKS)(
+    "projects $id through ordinary Pack history without protected content or adaptive facts",
+    async (pack) => {
+      const row = {
+        learnerId: "private-learner",
+        sessionId: "private-session",
+        contributionHash: "private-hash",
+        mode: "pack",
+        completedAt: new Date("2026-10-01T09:00:00.000Z"),
+        facts: {
+          version: 1,
+          problems: pack.problemIds.map((problemId) => ({
+            problemId,
+            outcome: "eventually-correct",
+            skipped: false,
+            validSubmissionCount: 1,
+            hintLevelsExposed: [],
+            solutionExposed: false,
+            checkpoint: null,
+          })),
+        },
+      };
+      readRows.mockResolvedValueOnce([row]);
+      const history = await readRecentPracticeEpisodes("private-learner");
+      expect(history).toEqual([
+        {
+          mode: "pack",
+          completedAt: "2026-10-01T09:00:00.000Z",
+          problems: pack.problemIds.map((problemId) => ({
+            problemTitle: getLearnerSafePracticeProblem(problemId).title,
+            outcome: "eventually-correct",
+            skipped: false,
+            validSubmissionCount: 1,
+            hintLevelsExposed: [],
+            solutionExposed: false,
+            checkpoint: null,
+          })),
+        },
+      ]);
+      expect(JSON.stringify(history)).not.toMatch(
+        /problemId|expectedAnswer|expectedOptionIds|adaptiveFacts|checkpointId|private-/,
+      );
+    },
+  );
+
   it.each(["correct", "incorrect"] as const)(
     "returns factual %s checkpoint outcome without internal identifiers",
     async (outcome) => {

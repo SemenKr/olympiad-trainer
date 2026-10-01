@@ -34,6 +34,9 @@ describe("completed Practice episode facts", () => {
       "pack-d",
       "pack-e",
       "pack-f",
+      "pack-g",
+      "pack-h",
+      "pack-i",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -88,6 +91,33 @@ describe("completed Practice episode facts", () => {
           "five-piles-stones",
           "untouched-matchstick-figures",
           "mountain-numbers-over-77777",
+        ],
+      },
+      {
+        id: "pack-g",
+        name: "Границы и подсчёт",
+        problemIds: [
+          "nonadjacent-row-seating",
+          "eighteen-piece-pie-cuts",
+          "multiples-prefix-count",
+        ],
+      },
+      {
+        id: "pack-h",
+        name: "Пропорции и баланс",
+        problemIds: [
+          "rabbit-carrot-shortfall",
+          "grade-average-fives",
+          "magic-forest-coin-difference",
+        ],
+      },
+      {
+        id: "pack-i",
+        name: "Порядок и связи",
+        problemIds: [
+          "four-houses-distance-cases",
+          "ivanov-older-brother-count",
+          "cube-red-face-sums",
         ],
       },
     ]);

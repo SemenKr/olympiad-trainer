@@ -1543,6 +1543,552 @@ const mountainNumbersOver77777Problem = {
   },
 } as const satisfies ProblemDefinition;
 
+const nonadjacentRowSeatingProblem = {
+  id: "nonadjacent-row-seating",
+  grade: 5,
+  subject: "mathematics",
+  title: "Рассадка без соседей",
+  statement:
+    "В аудитории 16 рядов. В первом ряду 10 мест, во втором — 11, в третьем — 12 и так далее, в последнем — 25 мест. Участников рассадили так, что никакие два участника не сидят на соседних местах в одном ряду. Какое наибольшее количество участников можно так рассадить?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "144",
+  },
+  hints: [
+    {
+      id: "nonadjacent-row-seating-focus",
+      level: "focus",
+      text: "Сначала реши задачу для одного ряда: сколько человек максимум можно посадить в ряд из n мест, если два соседних места нельзя занимать одновременно?",
+    },
+    {
+      id: "nonadjacent-row-seating-strategy",
+      level: "strategy",
+      text: "Разбей места на пары: 1–2, 3–4 и так далее. Из каждой пары можно занять не больше одного места. Если мест нечётное, в конце останется ещё одно место.",
+    },
+    {
+      id: "nonadjacent-row-seating-next-step",
+      level: "next-step",
+      text: "Для рядов от 10 до 25 получаются максимумы 5, 6, 6, 7, 7, …, 12, 12, 13. Сложи их и проверь, что такая рассадка действительно возможна, например на местах с нечётными номерами.",
+    },
+  ],
+  solution: {
+    id: "nonadjacent-row-seating-full-solution",
+    kind: "training-adaptation",
+    text: "В ряду из 10 мест можно посадить не больше 5 человек: разобьём места на пары 1–2, 3–4, …, 9–10, и в каждой паре можно занять не больше одного места.\n\nАналогично в ряду из n мест максимум получается, если занимать места 1, 3, 5, … .\n\nДля рядов от 10 до 25 максимумы равны:\n\n5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13.\n\nИх сумма равна 144.\n\nТакая рассадка достижима: в каждом ряду можно занять все места с нечётными номерами.\n\nОтвет: 144.",
+  },
+} as const satisfies ProblemDefinition;
+
+const eighteenPiecePieCutsProblem = {
+  id: "eighteen-piece-pie-cuts",
+  grade: 5,
+  subject: "mathematics",
+  title: "18 кусков пирога",
+  statement:
+    "Пекарь испёк большой прямоугольный пирог. Каждый разрез он делает по прямой от одного края пирога до противоположного, параллельно одной из сторон пирога. Какое наименьшее число разрезов нужно сделать, чтобы получить ровно 18 прямоугольных частей?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 4,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf",
+      page: 3,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "7",
+  },
+  hints: [
+    {
+      id: "eighteen-piece-pie-cuts-focus",
+      level: "focus",
+      text: "После всех вертикальных и горизонтальных разрезов куски образуют прямоугольную сетку.",
+    },
+    {
+      id: "eighteen-piece-pie-cuts-strategy",
+      level: "strategy",
+      text: "Если получилось a столбцов и b строк, то частей будет a · b = 18. Сколько разрезов нужно для a столбцов и b строк?",
+    },
+    {
+      id: "eighteen-piece-pie-cuts-next-step",
+      level: "next-step",
+      text: "Проверь разложения 18 = 1 · 18, 2 · 9 и 3 · 6. Для каждого случая посчитай (a − 1) + (b − 1).",
+    },
+  ],
+  solution: {
+    id: "eighteen-piece-pie-cuts-full-solution",
+    kind: "training-adaptation",
+    text: "Если получилось a столбцов и b строк, частей будет a · b = 18, а разрезов:\n\n(a − 1) + (b − 1).\n\nВозможные разложения 18:\n\n1 · 18: нужно 17 разрезов;\n\n2 · 9: нужно 1 + 8 = 9 разрезов;\n\n3 · 6: нужно 2 + 5 = 7 разрезов.\n\nЗначит, меньше всего — 7.\n\nИ это достижимо: двумя разрезами получить 3 столбца и пятью — 6 строк.\n\nОтвет: 7.",
+  },
+} as const satisfies ProblemDefinition;
+
+const multiplesPrefixCountProblem = {
+  id: "multiples-prefix-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Числа на доске",
+  statement:
+    "Учитель выписал на доску несколько подряд идущих натуральных чисел, начиная с 1. Ровно 17 из них делятся на 3, а ровно 3 из них делятся на 13. Сколько чисел выписал учитель?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/tasks-math-5-sch-msk-23-24.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/ans-math-5-sch-msk-23-24.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "51",
+  },
+  hints: [
+    {
+      id: "multiples-prefix-count-focus",
+      level: "focus",
+      text: "Если записано ровно 17 чисел, кратных 3, то 17-е кратное 3 уже попало на доску, а 18-е — ещё нет.",
+    },
+    {
+      id: "multiples-prefix-count-strategy",
+      level: "strategy",
+      text: "Получай границы для последнего записанного числа отдельно из условия про 3 и отдельно из условия про 13.",
+    },
+    {
+      id: "multiples-prefix-count-next-step",
+      level: "next-step",
+      text: "17-е кратное 3 равно 51, а 18-е — 54. Третье кратное 13 равно 39, а четвёртое — 52.",
+    },
+  ],
+  solution: {
+    id: "multiples-prefix-count-full-solution",
+    kind: "training-adaptation",
+    text: "Из условия про делимость на 3:\n\n51 ≤ N < 54,\n\nпоэтому N равно 51, 52 или 53.\n\nИз условия про 13:\n\nтретье кратное — 39, а четвёртое — 52, поэтому:\n\n39 ≤ N < 52.\n\nЕдинственное значение, удовлетворяющее обоим условиям, — 51.\n\nОтвет: 51.",
+  },
+} as const satisfies ProblemDefinition;
+
+const rabbitCarrotShortfallProblem = {
+  id: "rabbit-carrot-shortfall",
+  grade: 5,
+  subject: "mathematics",
+  title: "Морковь для кроликов",
+  statement:
+    "На ферме живут 630 кроликов. Фермер дал им морковь из расчёта 3 кг на 70 кроликов, а нужно было давать 7 кг на 90 кроликов. Сколько килограммов моркови нужно добавить, чтобы общее количество соответствовало правильной норме?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/tasks-math-5-sch-msk-23-24.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/school/math/ans-math-5-sch-msk-23-24.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "22",
+  },
+  hints: [
+    {
+      id: "rabbit-carrot-shortfall-focus",
+      level: "focus",
+      text: "Отдельно найди, сколько моркови фермер уже дал всем 630 кроликам и сколько должен был дать по правильной норме.",
+    },
+    {
+      id: "rabbit-carrot-shortfall-strategy",
+      level: "strategy",
+      text: "630 делится и на 70, и на 90. Найди количество групп кроликов для каждой нормы.",
+    },
+    {
+      id: "rabbit-carrot-shortfall-next-step",
+      level: "next-step",
+      text: "По первой норме получается 630 : 70 = 9 групп, то есть 27 кг. По правильной — 630 : 90 = 7 групп, то есть 49 кг.",
+    },
+  ],
+  solution: {
+    id: "rabbit-carrot-shortfall-full-solution",
+    kind: "training-adaptation",
+    text: "Уже выдано:\n\n(630 : 70) · 3 = 9 · 3 = 27 кг.\n\nПо правильной норме нужно:\n\n(630 : 90) · 7 = 7 · 7 = 49 кг.\n\nНужно добавить:\n\n49 − 27 = 22 кг.\n\nОтвет: 22.",
+  },
+} as const satisfies ProblemDefinition;
+
+const gradeAverageFivesProblem = {
+  id: "grade-average-fives",
+  grade: 5,
+  subject: "mathematics",
+  title: "Средний балл",
+  statement:
+    "У Ирины в журнале стоят три тройки и две двойки. После этого она стала получать только пятёрки. Какое наименьшее количество пятёрок ей нужно получить, чтобы средний балл стал ровно 4?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2020/21",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/tasks-math-5-prigl-msk-20-21.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/ans-math-5-prigl-msk-20-21.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "7",
+  },
+  hints: [
+    {
+      id: "grade-average-fives-focus",
+      level: "focus",
+      text: "Средний балл 4 означает, что общая сумма всех оценок должна быть в 4 раза больше количества оценок.",
+    },
+    {
+      id: "grade-average-fives-strategy",
+      level: "strategy",
+      text: "Сейчас у Ирины 5 оценок с общей суммой 13. Сравни эту сумму с той, которая нужна пяти оценкам для среднего балла 4.",
+    },
+    {
+      id: "grade-average-fives-next-step",
+      level: "next-step",
+      text: "Для пяти оценок до среднего 4 не хватает 20 − 13 = 7 баллов. Каждая новая пятёрка по сравнению с новой «средней четвёркой» уменьшает этот недостаток ровно на 1.",
+    },
+  ],
+  solution: {
+    id: "grade-average-fives-full-solution",
+    kind: "training-adaptation",
+    text: "Сейчас у Ирины 5 оценок:\n\n3 + 3 + 3 + 2 + 2 = 13.\n\nЕсли бы средний балл этих пяти оценок уже был 4, их сумма была бы:\n\n5 · 4 = 20.\n\nНе хватает 7 баллов.\n\nКаждая новая пятёрка одновременно добавляет новую оценку и увеличивает нужную для среднего 4 сумму на 4. Поэтому пятёрка уменьшает недостаток ровно на:\n\n5 − 4 = 1.\n\nЧтобы убрать недостаток 7, нужно 7 пятёрок.\n\nПроверка: оценок станет 12, сумма:\n\n13 + 7 · 5 = 48,\n\nа:\n\n48 : 12 = 4.\n\nОтвет: 7.",
+  },
+} as const satisfies ProblemDefinition;
+
+const magicForestCoinDifferenceProblem = {
+  id: "magic-forest-coin-difference",
+  grade: 5,
+  subject: "mathematics",
+  title: "Монеты на деревьях",
+  statement:
+    "В волшебном лесу на некоторых деревьях растут монеты. Деревьев без монет в 2 раза больше, чем деревьев, на которых растут по 3 монеты. На трёх деревьях растут по 2 монеты, на четырёх деревьях — по 4 монеты, а больше 4 монет ни на одном дереве не растёт.\n\nНа сколько общее число монет больше числа деревьев?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2020/21",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/tasks-math-5-prigl-msk-20-21.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/ans-math-5-prigl-msk-20-21.pdf",
+      page: 3,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "15",
+  },
+  hints: [
+    {
+      id: "magic-forest-coin-difference-focus",
+      level: "focus",
+      text: "Сравнивай не два неизвестных итога, а вклад каждого дерева в разность «монеты − одно дерево».",
+    },
+    {
+      id: "magic-forest-coin-difference-strategy",
+      level: "strategy",
+      text: "Дерево без монет даёт вклад −1; с одной монетой — 0; с двумя — +1; с тремя — +2; с четырьмя — +3.",
+    },
+    {
+      id: "magic-forest-coin-difference-next-step",
+      level: "next-step",
+      text: "Если деревьев с тремя монетами x, то деревьев без монет 2x. Их вклады +2x и −2x взаимно уничтожаются.",
+    },
+  ],
+  solution: {
+    id: "magic-forest-coin-difference-full-solution",
+    kind: "training-adaptation",
+    text: "Посчитаем вклад каждого дерева в разность:\n\nчисло монет − число деревьев.\n\nДерево:\n\nбез монет даёт −1;\n\nс одной монетой — 0;\n\nс двумя — +1;\n\nс тремя — +2;\n\nс четырьмя — +3.\n\nПусть деревьев с тремя монетами x. Тогда деревьев без монет 2x.\n\nИх общий вклад:\n\nx · 2 − 2x · 1 = 0.\n\nДеревья с одной монетой тоже ничего не меняют.\n\nТри дерева с двумя монетами дают:\n\n3 · 1 = 3,\n\nа четыре дерева с четырьмя монетами:\n\n4 · 3 = 12.\n\nПоэтому разность равна:\n\n3 + 12 = 15.\n\nОтвет: 15.",
+  },
+} as const satisfies ProblemDefinition;
+
+const fourHousesDistanceCasesProblem = {
+  id: "four-houses-distance-cases",
+  grade: 5,
+  subject: "mathematics",
+  title: "Четыре дома",
+  statement:
+    "Дома Андрея, Бори, Вовы и Глеба расположены на одной прямой улице в некотором порядке. Расстояние между домами Андрея и Бори равно 600 м, и расстояние между домами Вовы и Глеба тоже равно 600 м.\n\nРасстояние между домами Андрея и Глеба в 3 раза больше расстояния между домами Бори и Вовы.\n\nКакие значения могло иметь расстояние между домами Андрея и Глеба? Выбери все подходящие варианты.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2020/21",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/school/math/tasks-math-4-11-sch-msk-20-21.pdf",
+      page: 5,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/school/math/ans-math-4-11-sch-msk-20-21.pdf",
+      page: 10,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери все подходящие варианты.",
+    options: [
+      {
+        id: "distance-600",
+        label: "600 м",
+      },
+      {
+        id: "distance-900",
+        label: "900 м",
+      },
+      {
+        id: "distance-1200",
+        label: "1200 м",
+      },
+      {
+        id: "distance-1800",
+        label: "1800 м",
+      },
+      {
+        id: "distance-2400",
+        label: "2400 м",
+      },
+    ],
+    expectedOptionIds: ["distance-900", "distance-1800"],
+  },
+  hints: [
+    {
+      id: "four-houses-distance-cases-focus",
+      level: "focus",
+      text: "Можно считать, что дом Андрея находится левее дома Бори. Сначала выясни, в каком порядке относительно друг друга могут находиться дома Вовы и Глеба.",
+    },
+    {
+      id: "four-houses-distance-cases-strategy",
+      level: "strategy",
+      text: "Если Глеб находился бы левее Вовы на 600 м, расстояния АГ и БВ оказались бы равны, а по условию одно должно быть в 3 раза больше другого.",
+    },
+    {
+      id: "four-houses-distance-cases-next-step",
+      level: "next-step",
+      text: "Остаются два существенных порядка: А–Б–В–Г и А–В–Б–Г. Обозначь расстояние БВ через x и используй АБ = ВГ = 600.",
+    },
+  ],
+  solution: {
+    id: "four-houses-distance-cases-full-solution",
+    kind: "training-adaptation",
+    text: "Можно считать, что Андрей живёт левее Бори.\n\nИз условия следует, что Вова должен находиться левее Глеба; противоположное направление дало бы АГ = БВ.\n\nПервый случай: А–Б–В–Г.\n\nПусть БВ = x. Тогда:\n\nАГ = 600 + x + 600.\n\nПо условию:\n\n1200 + x = 3x,\n\nпоэтому:\n\nx = 600,\n\nа:\n\nАГ = 1800.\n\nВторой случай: А–В–Б–Г.\n\nЗдесь БВ = x, а крайние части равны 600 − x. Поэтому:\n\nАГ = (600 − x) + x + (600 − x) = 1200 − x.\n\nПолучаем:\n\n1200 − x = 3x,\n\nx = 300,\n\nАГ = 900.\n\nОстальные взаимные порядки дают АГ ≤ БВ и условию АГ = 3 · БВ не удовлетворяют.\n\nОтвет: 900 м и 1800 м.",
+  },
+} as const satisfies ProblemDefinition;
+
+const ivanovOlderBrotherCountProblem = {
+  id: "ivanov-older-brother-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Старший брат",
+  statement:
+    "В многодетной семье Ивановых нет близнецов. Каждый ребёнок сказал: «У меня есть старший брат».\n\nОказалось, что правду сказали ровно 6 детей. Мальчиков в семье на 4 больше, чем девочек.\n\nКакие из чисел 4, 6, 8, 10, 12, 14 могли быть общим числом детей? Выбери все подходящие варианты.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2022/23",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 13,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 13,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери все подходящие варианты.",
+    options: [
+      {
+        id: "children-4",
+        label: "4",
+      },
+      {
+        id: "children-6",
+        label: "6",
+      },
+      {
+        id: "children-8",
+        label: "8",
+      },
+      {
+        id: "children-10",
+        label: "10",
+      },
+      {
+        id: "children-12",
+        label: "12",
+      },
+      {
+        id: "children-14",
+        label: "14",
+      },
+    ],
+    expectedOptionIds: ["children-8", "children-10"],
+  },
+  hints: [
+    {
+      id: "ivanov-older-brother-count-focus",
+      level: "focus",
+      text: "Пусть мальчиков x. Тогда девочек x − 4. Самый старший мальчик не имеет старшего брата, а остальные x − 1 мальчиков точно имеют.",
+    },
+    {
+      id: "ivanov-older-brother-count-strategy",
+      level: "strategy",
+      text: "Используй число правдивых ответов, чтобы сначала отбросить слишком большое и слишком маленькое x.",
+    },
+    {
+      id: "ivanov-older-brother-count-next-step",
+      level: "next-step",
+      text: "Если x ≥ 8, уже как минимум 7 мальчиков говорят правду. Если x ≤ 5, даже вместе со всеми девочками правду могут сказать не больше пяти детей. Остаются x = 6 и x = 7.",
+    },
+  ],
+  solution: {
+    id: "ivanov-older-brother-count-full-solution",
+    kind: "training-adaptation",
+    text: "Пусть в семье x мальчиков. Девочек тогда x − 4.\n\nСамый старший мальчик не имеет старшего брата. Все остальные x − 1 мальчиков старшего брата имеют и говорят правду.\n\nЕсли x ≥ 8, уже как минимум 7 мальчиков говорят правду — слишком много.\n\nЕсли x ≤ 5, девочек не больше одной, поэтому правдивых ответов может быть не больше:\n\n(x − 1) + (x − 4) = 2x − 5 ≤ 5.\n\nЗначит, остаются x = 6 и x = 7.\n\nПри x = 6 девочек 2, всего детей 8. Это возможно, например если самый старший ребёнок — девочка, затем идёт самый старший мальчик, а вторая девочка младше него. Тогда правду говорят пять младших мальчиков и одна девочка.\n\nПри x = 7 девочек 3, всего детей 10. Это возможно, если все три девочки старше всех мальчиков: тогда правду говорят ровно шесть мальчиков.\n\nОтвет: 8 и 10.",
+  },
+} as const satisfies ProblemDefinition;
+
+const cubeRedFaceSumsProblem = {
+  id: "cube-red-face-sums",
+  grade: 5,
+  subject: "mathematics",
+  title: "Числа на гранях куба",
+  statement:
+    "У куба три грани покрасили в красный цвет, а три — в белый. На каждой грани написано некоторое число.\n\nДля каждой красной грани сложили числа, написанные на четырёх соседних с ней гранях. Получились три суммы: 33, 36 и 39.\n\nНайди сумму всех шести чисел, написанных на гранях куба.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf",
+      page: 9,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "54",
+  },
+  hints: [
+    {
+      id: "cube-red-face-sums-focus",
+      level: "focus",
+      text: "Сначала выясни, как расположены три красные грани. Могут ли среди них быть две противоположные?",
+    },
+    {
+      id: "cube-red-face-sums-strategy",
+      level: "strategy",
+      text: "У двух противоположных граней одни и те же четыре соседние грани. Тогда суммы для них были бы одинаковыми, но 33, 36 и 39 различны.",
+    },
+    {
+      id: "cube-red-face-sums-next-step",
+      level: "next-step",
+      text: "Значит, три красные грани имеют общую вершину. Сложи 33 + 36 + 39 и посчитай, сколько раз число на каждой из шести граней попадёт в эту общую сумму.",
+    },
+  ],
+  solution: {
+    id: "cube-red-face-sums-full-solution",
+    kind: "training-adaptation",
+    text: "Если бы две красные грани были противоположными, у них были бы одни и те же четыре соседние грани. Их суммы тогда совпали бы.\n\nНо 33, 36 и 39 различны. Значит, противоположных красных граней нет.\n\nПоэтому три красные грани имеют общую вершину: выбрана по одной грани из каждой пары противоположных.\n\nКаждая грань куба соседствует ровно с двумя из этих трёх красных граней.\n\nПоэтому в сумме:\n\n33 + 36 + 39 = 108\n\nкаждое из шести написанных чисел посчитано ровно два раза.\n\nСледовательно, сумма всех чисел:\n\n108 : 2 = 54.\n\nОтвет: 54.",
+  },
+} as const satisfies ProblemDefinition;
+
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [coincidingSeatsProblem.id]: coincidingSeatsProblem,
   [guaranteedSockPairProblem.id]: guaranteedSockPairProblem,
@@ -1568,6 +2114,15 @@ const problemCatalog: Readonly<Record<string, ProblemDefinition>> = {
   [fivePilesStonesProblem.id]: fivePilesStonesProblem,
   [untouchedMatchstickFiguresProblem.id]: untouchedMatchstickFiguresProblem,
   [mountainNumbersOver77777Problem.id]: mountainNumbersOver77777Problem,
+  [nonadjacentRowSeatingProblem.id]: nonadjacentRowSeatingProblem,
+  [eighteenPiecePieCutsProblem.id]: eighteenPiecePieCutsProblem,
+  [multiplesPrefixCountProblem.id]: multiplesPrefixCountProblem,
+  [rabbitCarrotShortfallProblem.id]: rabbitCarrotShortfallProblem,
+  [gradeAverageFivesProblem.id]: gradeAverageFivesProblem,
+  [magicForestCoinDifferenceProblem.id]: magicForestCoinDifferenceProblem,
+  [fourHousesDistanceCasesProblem.id]: fourHousesDistanceCasesProblem,
+  [ivanovOlderBrotherCountProblem.id]: ivanovOlderBrotherCountProblem,
+  [cubeRedFaceSumsProblem.id]: cubeRedFaceSumsProblem,
 };
 
 export function getProblemDefinition(problemId: string): ProblemDefinition {
