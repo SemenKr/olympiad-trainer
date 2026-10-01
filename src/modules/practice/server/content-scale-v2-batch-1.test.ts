@@ -414,13 +414,14 @@ const batch = [
 
 describe("Content Scale v2 — Batch 1", () => {
   it("resolves 33 distinct production Grade-5 problems with nine ordinary Packs", () => {
+    const historicalPacks = PRACTICE_PACKS.slice(0, 9);
     const ids = [
       ...CORE_EPISODE_PROBLEM_IDS,
       ...TRANSFER_EPISODE_PROBLEM_IDS,
       EXPLORATION_EPISODE_PROBLEM_ID,
-      ...PRACTICE_PACKS.flatMap((pack) => pack.problemIds),
+      ...historicalPacks.flatMap((pack) => pack.problemIds),
     ];
-    expect(PRACTICE_PACKS).toHaveLength(9);
+    expect(historicalPacks).toHaveLength(9);
     expect(ids).toHaveLength(33);
     expect(new Set(ids).size).toBe(33);
     for (const id of ids) {
@@ -431,9 +432,9 @@ describe("Content Scale v2 — Batch 1", () => {
       });
     }
     const problems = getLearnerSafePackProblems();
-    expect(PRACTICE_PACKS.slice(6).flatMap((pack) => pack.problemIds)).toEqual(
-      batch.map((item) => item.id),
-    );
+    expect(
+      PRACTICE_PACKS.slice(6, 9).flatMap((pack) => pack.problemIds),
+    ).toEqual(batch.map((item) => item.id));
     for (const pack of PRACTICE_PACKS) {
       expect(problems[pack.id]).toEqual(
         pack.problemIds.map(getLearnerSafePracticeProblem),
