@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(),
+  readServerPracticeJourney: vi.fn(async () => 70),
 }));
 vi.mock("./server-progress-import", () => ({
   ensureServerProgressImported: vi.fn(async () => {}),
@@ -14,6 +15,7 @@ vi.mock("./server-progress-import", () => ({
 import {
   readServerProgress,
   readServerRecentPracticeEpisodes,
+  readServerPracticeJourney,
 } from "../../../app/progress/actions";
 import { ProgressOverview } from "./progress-overview";
 
@@ -68,6 +70,17 @@ describe("durable history on Progress reload", () => {
       expect(container.textContent).toContain("Недавняя работа");
       expect(container.textContent).toContain("Дополнительная задача");
       expect(container.textContent).toContain("Возраст братьев");
+      expect(container.textContent).toContain("Путь практики");
+      expect(container.textContent).toContain(
+        "XP отмечает практику, а не уровень знаний.",
+      );
+      expect(
+        container.textContent!.indexOf("Как гарантировать результат"),
+      ).toBeLessThan(container.textContent!.indexOf("Путь практики"));
+      expect(container.textContent!.indexOf("Путь практики")).toBeLessThan(
+        container.textContent!.indexOf("Недавняя работа"),
+      );
+      expect(readServerPracticeJourney).toHaveBeenCalled();
       expect(container.textContent).toContain("Как гарантировать результат");
       await act(async () => {
         root.unmount();

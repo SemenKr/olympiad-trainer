@@ -13,7 +13,7 @@ import {
   PRACTICE_SESSION_STORAGE_KEY,
   readPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
-  validateLatestCompletedResults,
+  readLatestCompletedResults,
   type ServerPracticeFinishPayload,
 } from "./practice-session-storage";
 
@@ -135,11 +135,11 @@ describe("one adaptive transfer episode", () => {
       ),
     ).toBe(true);
     expect(requests[1]).toEqual(requests[0]);
+    expect(readLatestCompletedResults(store)).toEqual([result]);
     expect(
-      validateLatestCompletedResults(
-        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
-      ),
-    ).toEqual([result]);
+      JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!)
+        .sessionId,
+    ).toBe(session.sessionId);
   });
   it("preserves exact parrots identity through pause, pending Finish, and retry", async () => {
     const store = storage();
@@ -231,11 +231,11 @@ describe("one adaptive transfer episode", () => {
       ),
     ).toBe(true);
     expect(requests[1]).toEqual(requests[0]);
+    expect(readLatestCompletedResults(store)).toEqual([result]);
     expect(
-      validateLatestCompletedResults(
-        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
-      ),
-    ).toEqual([result]);
+      JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!)
+        .sessionId,
+    ).toBe(session.sessionId);
   });
   it("persists an immutable exact Finish request before a lost server response", async () => {
     const store = storage();
@@ -314,11 +314,11 @@ describe("one adaptive transfer episode", () => {
     ).toBe(true);
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    expect(readLatestCompletedResults(store)).toEqual([result]);
     expect(
-      validateLatestCompletedResults(
-        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
-      ),
-    ).toEqual([result]);
+      JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!)
+        .sessionId,
+    ).toBe(session.sessionId);
   });
 
   it("records an attempted no-checkpoint episode without positive evidence", async () => {
@@ -524,11 +524,11 @@ describe("one adaptive transfer episode", () => {
       expect(store.getItem(requestKey)).toBeNull();
       expect(requests).toHaveLength(1);
       expect(await readPracticeSessionSnapshot(store)).toBeNull();
+      expect(readLatestCompletedResults(store)).toEqual([result]);
       expect(
-        validateLatestCompletedResults(
-          JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
-        ),
-      ).toEqual([result]);
+        JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!)
+          .sessionId,
+      ).toBe(session.sessionId);
     },
   );
 });

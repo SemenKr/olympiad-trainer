@@ -9,7 +9,10 @@ import {
   readLearnerProgress,
   readRecentPracticeEpisodes,
   readNextUsefulProblem,
+  readPracticeJourneyFinish,
+  readPracticeJourneyTotal,
 } from "../../modules/practice/server/learner-progress-persistence";
+import type { PracticeJourneyFinish } from "../../modules/practice/application/practice-journey";
 
 export async function importBrowserProgressEvidence(
   raw: string | null,
@@ -23,10 +26,10 @@ export async function persistPracticeFinishEvidence(
   contributions: unknown,
   adaptiveFacts?: unknown,
   episode?: unknown,
-): Promise<void> {
+): Promise<PracticeJourneyFinish | null> {
   const learnerId = await resolveLearnerFromCookie();
   if (episode !== undefined)
-    await persistFinishContributions(
+    return persistFinishContributions(
       learnerId,
       sessionId,
       contributions,
@@ -34,14 +37,28 @@ export async function persistPracticeFinishEvidence(
       episode,
     );
   else if (adaptiveFacts === undefined)
-    await persistFinishContributions(learnerId, sessionId, contributions);
+    return persistFinishContributions(learnerId, sessionId, contributions);
   else
-    await persistFinishContributions(
+    return persistFinishContributions(
       learnerId,
       sessionId,
       contributions,
       adaptiveFacts,
     );
+}
+
+export async function readServerPracticeJourney() {
+  return readPracticeJourneyTotal(await resolveLearnerFromCookie());
+}
+
+export async function readServerPracticeJourneyFinish(sessionId: string) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      sessionId,
+    )
+  )
+    return null;
+  return readPracticeJourneyFinish(await resolveLearnerFromCookie(), sessionId);
 }
 
 export async function readServerNextUsefulProblem() {

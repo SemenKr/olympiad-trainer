@@ -1290,6 +1290,35 @@ export async function clearPracticeSessionSnapshot(
   }
 }
 
+type LatestCompletedSummary = Readonly<{
+  sessionId: string | null;
+  results: readonly PracticeSessionResult[];
+}>;
+
+function validateLatestCompletedSummary(
+  value: unknown,
+): LatestCompletedSummary | null {
+  if (Array.isArray(value)) {
+    const results = validateLatestCompletedResults(value);
+    return results ? { sessionId: null, results } : null;
+  }
+  if (
+    !record(value) ||
+    !exactKeys(value, ["sessionId", "results"]) ||
+    !validSessionId(value.sessionId)
+  )
+    return null;
+  const results = validateLatestCompletedResults(value.results);
+  return results ? { sessionId: value.sessionId, results } : null;
+}
+
+function serializeLatestCompletedSummary(
+  results: readonly PracticeSessionResult[],
+  sessionId: string,
+) {
+  return JSON.stringify({ sessionId, results });
+}
+
 export function readLatestCompletedResults(
   storage?: Storage,
 ): readonly PracticeSessionResult[] | null {
@@ -1297,7 +1326,7 @@ export function readLatestCompletedResults(
     const store = storage ?? window.localStorage;
     const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     if (raw === null) return null;
-    return validateLatestCompletedResults(JSON.parse(raw));
+    return validateLatestCompletedSummary(JSON.parse(raw))?.results ?? null;
   } catch {
     return null;
   }
@@ -1306,10 +1335,21 @@ export function readLatestCompletedResults(
 export async function readVerifiedLatestCompletedResults(
   verifyCheckpoint: VerifyCheckpoint,
   storage?: Storage,
-): Promise<VerifiedCheckpointData<readonly PracticeSessionResult[] | null>> {
+): Promise<
+  VerifiedCheckpointData<readonly PracticeSessionResult[] | null> & {
+    sessionId?: string | null;
+  }
+> {
   const store = storage ?? window.localStorage;
   const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
-  const results = readLatestCompletedResults(store);
+  let summary: LatestCompletedSummary | null = null;
+  try {
+    summary =
+      raw === null ? null : validateLatestCompletedSummary(JSON.parse(raw));
+  } catch {
+    return { value: null, interpretation: null };
+  }
+  const results = summary?.results;
   if (!results) return { value: null, interpretation: null };
 
   const verification = await verifyResultObservations(
@@ -1326,6 +1366,7 @@ export async function readVerifiedLatestCompletedResults(
   );
   return {
     value: results,
+    sessionId: summary?.sessionId ?? null,
     interpretation:
       interpretations.find(
         (item) => item.learnerLabel === "Как гарантировать результат",
@@ -1342,12 +1383,19 @@ export async function readVerifiedLatestCompletedResults(
 export function saveLatestCompletedResults(
   results: readonly PracticeSessionResult[],
   storage?: Storage,
+  sessionId?: string,
 ): boolean {
-  if (!validateLatestCompletedResults(results)) return false;
+  if (
+    !validateLatestCompletedResults(results) ||
+    (sessionId !== undefined && !validSessionId(sessionId))
+  )
+    return false;
   try {
     (storage ?? window.localStorage).setItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
-      JSON.stringify(results),
+      sessionId === undefined
+        ? JSON.stringify(results)
+        : serializeLatestCompletedSummary(results, sessionId),
     );
     return true;
   } catch {
@@ -1431,9 +1479,12 @@ function readServerPracticeFinishRequest(
     const unfinished = validatePracticeSessionSnapshot(
       JSON.parse(value.unfinishedBefore),
     );
-    const results = validateLatestCompletedResults(
+    const summary = validateLatestCompletedSummary(
       JSON.parse(value.completedAfter),
     );
+    const results = summary?.results;
+    if (summary?.sessionId && summary.sessionId !== value.sessionId)
+      return null;
     if (!unfinished || unfinished.sessionId !== value.sessionId || !results)
       return null;
     const expected =
@@ -1728,9 +1779,12 @@ function readPendingPracticeProgressFinish(
     const unfinished = validatePracticeSessionSnapshot(
       JSON.parse(value.unfinishedBefore),
     );
-    const completed = validateLatestCompletedResults(
+    const summary = validateLatestCompletedSummary(
       JSON.parse(value.completedAfter),
     );
+    const completed = summary?.results;
+    if (summary?.sessionId && summary.sessionId !== value.sessionId)
+      return null;
     const serverBacked = value.serverBacked === true;
     const progressAfter = serverBacked
       ? null
@@ -1904,7 +1958,7 @@ async function completeServerBackedPracticeSession(
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   store: Storage,
-  serverPersist: (request: ServerPracticeFinishPayload) => Promise<void>,
+  serverPersist: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean> {
   return withPracticeSessionLock(async () => {
     const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
@@ -1916,7 +1970,10 @@ async function completeServerBackedPracticeSession(
     )
       return false;
     if (!request) {
-      const completedAfter = JSON.stringify(results);
+      const completedAfter = serializeLatestCompletedSummary(
+        results,
+        session.sessionId,
+      );
       const unfinishedBefore = expectedUnfinishedForFinish(
         session,
         answer,
@@ -2066,10 +2123,17 @@ async function completeServerBackedPracticeSession(
         writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null);
       return false;
     };
-    const completed = validateLatestCompletedResults(
+    const completed = validateLatestCompletedSummary(
       JSON.parse(request.completedAfter),
     );
-    if (!completed || !saveLatestCompletedResults(completed, store))
+    if (
+      !completed ||
+      !saveLatestCompletedResults(
+        completed.results,
+        store,
+        completed.sessionId ?? undefined,
+      )
+    )
       return rollback();
     if (!clearPracticeSessionSnapshotInsideLock(store)) return rollback();
     const durable = readPracticeFinishValues(store);
@@ -2092,21 +2156,21 @@ export function completePracticeSession(
   answer: PracticeAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<void>,
+  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean>;
 export function completePracticeSession(
   session: FinishedPracticeSessionState,
   answer: null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<void>,
+  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean>;
 export async function completePracticeSession(
   session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<void>,
+  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean> {
   if (!serverPersist && !validateLatestCompletedResults(results)) return false;
   if ("status" in session && !validatePracticeSessionSnapshot(session))

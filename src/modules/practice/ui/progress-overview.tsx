@@ -6,12 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   readServerProgress,
   readServerRecentPracticeEpisodes,
+  readServerPracticeJourney,
 } from "../../../app/progress/actions";
 
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
 import type { RecentPracticeEpisode } from "../server/learner-progress-persistence";
 import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./progress-overview.module.scss";
+import { ProgressPracticeJourney } from "./practice-journey";
 
 type ProgressLoad =
   | { status: "loading" }
@@ -24,6 +26,7 @@ type ProgressLoad =
         LearnerProgressInterpretation,
       ];
       episodes: readonly RecentPracticeEpisode[];
+      journeyTotalXp: number;
     };
 
 export function ProgressOverview() {
@@ -40,10 +43,17 @@ export function ProgressOverview() {
           Promise.all([
             readServerProgress(),
             readServerRecentPracticeEpisodes(),
+            readServerPracticeJourney(),
           ]),
         )
-        .then(([interpretations, episodes]) => {
-          if (active) setLoad({ status: "ready", interpretations, episodes });
+        .then(([interpretations, episodes, journeyTotalXp]) => {
+          if (active)
+            setLoad({
+              status: "ready",
+              interpretations,
+              episodes,
+              journeyTotalXp,
+            });
         })
         .catch(() => {
           if (active) setLoad({ status: "error" });
@@ -94,6 +104,7 @@ export function ProgressOverview() {
               key={interpretation.learnerLabel}
             />
           ))}
+          <ProgressPracticeJourney totalXp={load.journeyTotalXp} />
           <RecentPracticeHistory episodes={load.episodes} />
         </>
       )}

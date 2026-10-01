@@ -5,12 +5,14 @@ import type { PracticeSummary } from "../application/practice-state";
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
+import type { PracticeJourneyFinish } from "../application/practice-journey";
 
 type SessionSummaryProps = Readonly<{
   results: readonly PracticeSessionResult[];
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  journeyFinish?: PracticeJourneyFinish | null;
 }>;
 
 export function getPracticeRemainingText(
@@ -83,6 +85,7 @@ export function SessionSummary({
   reasoningInterpretation,
   tableInterpretation,
   headingRef,
+  journeyFinish,
 }: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
     const label = getPracticeResultLabel(result.summary, result.taskOutcome);
@@ -195,6 +198,20 @@ export function SessionSummary({
             <p>{tableReasoning.progressGroup}</p>
           ) : null}
           <p>{tableReasoning.conclusion}</p>
+        </section>
+      ) : null}
+
+      {journeyFinish && journeyFinish.earnedXp > 0 ? (
+        <section aria-live="polite" className={styles.section}>
+          <h2>Путь практики</h2>
+          <p>+{journeyFinish.earnedXp} XP за эту тренировку</p>
+          <p>Всего {journeyFinish.totalXp} XP</p>
+          {journeyFinish.newlyReachedMilestone ? (
+            <>
+              <h3>Новая отметка пути</h3>
+              <p>{journeyFinish.newlyReachedMilestone}</p>
+            </>
+          ) : null}
         </section>
       ) : null}
 

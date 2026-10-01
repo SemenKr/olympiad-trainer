@@ -17,12 +17,16 @@ import {
   readAdaptiveAvailability,
   readLearnerProgress,
   readNextUsefulProblem,
+  readPracticeJourneyTotal,
+  readPracticeJourneyFinish,
 } from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
+import { validateCompletedEpisode } from "../application/completed-practice-episode";
 import {
   learners,
   practiceCompletedEpisodes,
   practiceFinishReceipts,
+  practiceJourneyAwards,
 } from "./progress-schema";
 import { and, eq } from "drizzle-orm";
 
@@ -115,6 +119,34 @@ const transferEpisode = (
   facts: { version: 1 as const, problems: [noAnswer(problemId)] },
 });
 
+const positiveXpEpisode = {
+  ...coreEpisode,
+  facts: {
+    ...coreEpisode.facts,
+    problems: [
+      {
+        ...noAnswer("coinciding-seats"),
+        outcome: "incorrect-only" as const,
+        validSubmissionCount: 3,
+      },
+      {
+        ...noAnswer("guaranteed-sock-pair"),
+        outcome: "incorrect-only" as const,
+        validSubmissionCount: 1,
+        hintLevelsExposed: ["focus", "strategy", "next-step"],
+        solutionExposed: true,
+      },
+      noAnswer("table-impossible-sums"),
+    ],
+  },
+};
+
+it("validates the positive XP integration fixture without PostgreSQL", () => {
+  expect(
+    validateCompletedEpisode(positiveXpEpisode.mode, positiveXpEpisode.facts),
+  ).toEqual(positiveXpEpisode.facts);
+});
+
 async function learner() {
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -131,6 +163,100 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("records zero XP for Skip-only Finish and no reward without an episode", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const withoutEpisode = randomUUID();
+    expect(await persistFinishContributions(id, withoutEpisode, [])).toBeNull();
+    expect(await readPracticeJourneyTotal(id)).toBe(0);
+
+    const skipped = {
+      ...coreEpisode,
+      facts: {
+        ...coreEpisode.facts,
+        problems: coreEpisode.facts.problems.map((problem) => ({
+          ...problem,
+          skipped: true,
+        })),
+      },
+    };
+    const skippedSessionId = randomUUID();
+    const result = await persistFinishContributions(
+      id,
+      skippedSessionId,
+      [],
+      undefined,
+      skipped,
+    );
+    expect(result).toEqual({
+      earnedXp: 0,
+      totalXp: 0,
+      newlyReachedMilestone: null,
+    });
+    expect(await readPracticeJourneyFinish(id, skippedSessionId)).toEqual(
+      result,
+    );
+  });
+
+  it("awards Journey XP once in the Finish receipt transaction without changing learning state", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    await persistFinishContributions(id, randomUUID(), []);
+    const beforeProgress = await readLearnerProgress(id);
+    const beforeAvailability = await readAdaptiveAvailability(id);
+    const [beforeLearner] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    const sessionId = randomUUID();
+    const facts = positiveXpEpisode;
+    const first = await persistFinishContributions(
+      id,
+      sessionId,
+      [],
+      undefined,
+      facts,
+    );
+    const retry = await persistFinishContributions(
+      id,
+      sessionId,
+      [],
+      undefined,
+      facts,
+    );
+    expect(first).toEqual({
+      earnedXp: 20,
+      totalXp: 20,
+      newlyReachedMilestone: "Первый шаг",
+    });
+    expect(retry).toEqual(first);
+    expect(await readPracticeJourneyFinish(id, sessionId)).toEqual(first);
+    expect(await readPracticeJourneyTotal(id)).toBe(20);
+    expect(await readLearnerProgress(id)).toEqual(beforeProgress);
+    expect(await readAdaptiveAvailability(id)).toEqual(beforeAvailability);
+    const [afterLearner] = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, id));
+    expect(afterLearner).toMatchObject({
+      guaranteeEvidence: beforeLearner.guaranteeEvidence,
+      impossibilityEvidence: beforeLearner.impossibilityEvidence,
+      enumerationEvidence: beforeLearner.enumerationEvidence,
+      brothersAgesAttempted: beforeLearner.brothersAgesAttempted,
+      brothersAgesSolutionExposed: beforeLearner.brothersAgesSolutionExposed,
+      parrotsAttempted: beforeLearner.parrotsAttempted,
+      parrotsSolutionExposed: beforeLearner.parrotsSolutionExposed,
+      pagesAttempted: beforeLearner.pagesAttempted,
+      pagesSolutionExposed: beforeLearner.pagesSolutionExposed,
+    });
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceJourneyAwards)
+        .where(eq(practiceJourneyAwards.learnerId, id)),
+    ).toHaveLength(1);
+  });
+
   it("keeps Pack C history under one immutable receipt without capability or adaptive changes", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);

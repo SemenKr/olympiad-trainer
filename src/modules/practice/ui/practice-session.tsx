@@ -500,7 +500,9 @@ export function PracticeSession({
             noNextSession.completedResults,
             () => {
               setCompletionPending(true);
-              router.push("/practice/summary");
+              router.push(
+                `/practice/summary?session=${noNextSession.sessionId}`,
+              );
             },
           ).then((completed) => {
             if (!completed) {
@@ -612,7 +614,7 @@ export function PracticeSession({
       results,
       () => {
         setCompletionPending(true);
-        router.push("/practice/summary");
+        router.push(`/practice/summary?session=${sessionState.sessionId}`);
       },
     );
   }

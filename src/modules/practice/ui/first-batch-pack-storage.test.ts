@@ -293,7 +293,7 @@ describe("first batch through generic Pack storage and Finish", () => {
       expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
       expect(
         JSON.parse(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)!),
-      ).toEqual(results);
+      ).toEqual({ sessionId: third.sessionId, results });
       expect(
         (
           await readVerifiedLatestCompletedResults(

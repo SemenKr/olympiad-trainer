@@ -97,6 +97,56 @@ describe("SessionSummary", () => {
       expect(markup).not.toContain("слаб");
     }
   });
+
+  it("shows nonzero Journey XP before actions and hides zero XP", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        results={[
+          {
+            problemId: "coinciding-seats",
+            problemTitle,
+            summary: {
+              outcome: "incorrect-only",
+              validSubmissionCount: 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+        ]}
+        reasoningInterpretation={{
+          capability: "capability",
+          learnerLabel: "Раздел способности",
+          progressGroup: null,
+          conclusion: "Вывод",
+        }}
+        journeyFinish={{
+          earnedXp: 20,
+          totalXp: 50,
+          newlyReachedMilestone: "50 XP практики",
+        }}
+      />,
+    );
+    expect(markup).toContain("+20 XP за эту тренировку");
+    expect(markup).toContain("Всего 50 XP");
+    expect(markup).toContain("Новая отметка пути");
+    expect(markup.indexOf("Раздел способности")).toBeLessThan(
+      markup.indexOf("Путь практики"),
+    );
+    expect(markup.indexOf("Путь практики")).toBeLessThan(
+      markup.indexOf("На главную"),
+    );
+    const noReward = renderToStaticMarkup(
+      <SessionSummary
+        results={[]}
+        journeyFinish={{
+          earnedXp: 0,
+          totalXp: 0,
+          newlyReachedMilestone: null,
+        }}
+      />,
+    );
+    expect(noReward).not.toContain("XP за эту тренировку");
+  });
   it("omits task results when there are no valid submissions", () => {
     const markup = renderSummary("no-valid-submissions");
 

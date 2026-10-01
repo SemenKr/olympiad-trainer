@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
-import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
+import { verifyPersistedReasoningCheckpointObservation } from "../../../app/practice/actions";
 
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
 import { readVerifiedLatestCompletedResults } from "./practice-session-storage";
 import { SessionSummary } from "./session-summary";
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
+import { readServerPracticeJourneyFinish } from "../../../app/progress/actions";
+import type { PracticeJourneyFinish } from "../application/practice-journey";
 
 export function LatestCompletedSummary() {
   const [results, setResults] = useState<
@@ -21,6 +23,8 @@ export function LatestCompletedSummary() {
     useState<ReasoningCheckpointInterpretation | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadRetry, setLoadRetry] = useState(0);
+  const [journeyFinish, setJourneyFinish] =
+    useState<PracticeJourneyFinish | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export function LatestCompletedSummary() {
         .then(
           ({
             value,
+            sessionId,
             interpretation: verifiedInterpretation,
             tableInterpretation: verifiedTableInterpretation,
           }) => {
@@ -40,6 +45,15 @@ export function LatestCompletedSummary() {
             setInterpretation(verifiedInterpretation);
             setTableInterpretation(verifiedTableInterpretation ?? null);
             setResults(value);
+            setJourneyFinish(null);
+            if (sessionId && active)
+              void readServerPracticeJourneyFinish(sessionId)
+                .then((reward) => {
+                  if (active) setJourneyFinish(reward);
+                })
+                .catch(() => {
+                  if (active) setJourneyFinish(null);
+                });
           },
         )
         .catch(() => {
@@ -86,6 +100,7 @@ export function LatestCompletedSummary() {
       reasoningInterpretation={interpretation}
       tableInterpretation={tableInterpretation}
       results={results}
+      journeyFinish={journeyFinish}
     />
   );
 }
@@ -95,11 +110,13 @@ export function LatestCompletedSummaryContent({
   headingRef,
   reasoningInterpretation,
   tableInterpretation,
+  journeyFinish = null,
 }: {
   results: readonly PracticeSessionResult[] | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
+  journeyFinish?: PracticeJourneyFinish | null;
 }) {
   if (!results) {
     return (
@@ -118,6 +135,7 @@ export function LatestCompletedSummaryContent({
       reasoningInterpretation={reasoningInterpretation}
       tableInterpretation={tableInterpretation}
       results={results}
+      journeyFinish={journeyFinish}
     />
   );
 }
