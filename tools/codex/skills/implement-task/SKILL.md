@@ -11,7 +11,7 @@ Deliver the approved behavior with the smallest sufficient diff.
 
 ## Required inputs
 
-The shared handoff/result context: Task ID, Revision, Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done, Allowed actions, Status. Revision records the inspected/base commit and relevant branch/working-tree state; use not applicable for non-repository work. Assignment Status may be absent until assessment. Include approved plan/decisions and permitted file areas. A direct explicit implementation request can supply the approval; a Planner READY or Architect recommendation alone cannot.
+Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Include approved plan/decisions and permitted file areas. A direct explicit implementation request can supply the approval; a Planner READY or Architect recommendation alone cannot.
 
 ## Allowed actions
 
@@ -26,12 +26,12 @@ Do not change product requirements or unapproved architecture, perform unrelated
 1. Inspect repository state, relevant files and approved plan; protect concurrent/unrelated work.
 2. Identify the minimal authorized changes and implement them.
 3. If requirements or architecture must change, report evidence and stop dependent work with NEEDS DECISION.
-4. Run relevant checks; correct failures within approved scope.
+4. Run targeted checks; reuse only applicable ledger evidence matching revision/environment/inputs, labeling reuse. Correct failures within scope; coordinated post-review corrections obey the task-wide limit.
 5. Inspect final diff/status and report behavior, checks, risks and limitations.
 
 ## Output contract
 
-Include the shared handoff/result context (unchanged supplied fields may be referenced), with explicit Task ID, actual inspected Revision and completion Status. Report resulting behavior, changed files, validation outcomes and remaining issues/decisions. Distinguish the inspected base from resulting working-tree state. End with PASS, NEEDS CHANGES, NEEDS DECISION or BLOCKED. PASS does not authorize a commit, push or next task.
+Reference the unchanged authority contract; give explicit Task ID, actual inspected Revision/content fingerprint and completion Status, followed by concise work/findings/check deltas and material limits. Report resulting behavior, changed files, validation outcomes and remaining issues/decisions. Distinguish the inspected base from resulting working-tree state. End with PASS, NEEDS CHANGES, NEEDS DECISION or BLOCKED. PASS does not authorize a commit, push or next task.
 
 ## Completion checks
 

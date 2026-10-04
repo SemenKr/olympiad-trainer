@@ -11,7 +11,7 @@ Identify the smallest sufficient change and its risks before implementation.
 
 ## Required inputs
 
-The shared handoff/result context: Task ID, Revision, Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done, Allowed actions, Status. Revision records the inspected/base commit and relevant branch/working-tree state; use not applicable for non-repository work. Assignment Status may be absent until assessment. Read the current repository guide; inspect only relevant evidence. Resolve material missing inputs before planning dependent work.
+Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Read the current repository guide; inspect only relevant evidence. Resolve material missing inputs before planning dependent work.
 
 ## Allowed actions
 
@@ -31,7 +31,7 @@ Strictly read-only: do not modify files, implement, stage, commit, push or mutat
 
 ## Output contract
 
-Include the shared handoff/result context (unchanged supplied fields may be referenced), with explicit Task ID, actual inspected Revision and completion Status. Report inspected evidence, affected areas, ordered plan, validation, risks and remaining human decisions. End with READY, NEEDS DECISION or BLOCKED; READY means reviewable plan, not execution approval.
+Reference the unchanged authority contract; give explicit Task ID, actual inspected Revision/content fingerprint and completion Status, followed by concise work/findings/check deltas and material limits. Report inspected evidence, affected areas, ordered plan, validation, risks and remaining human decisions. End with READY, NEEDS DECISION or BLOCKED; READY means reviewable plan, not execution approval.
 
 ## Completion checks
 

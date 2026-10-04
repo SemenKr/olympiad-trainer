@@ -10,3 +10,4 @@ Thumbs.db
 .idea/
 next-env.d.ts
 *.tsbuildinfo
+.agent-tasks/

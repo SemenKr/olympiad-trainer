@@ -18,7 +18,9 @@ This file is global guidance and navigation, not complete project documentation.
 - [Agent System v2](docs/05-development/agent-system.md): roles, orchestrated workflow, handoffs and preserved project conventions.
 - [Skill sources](tools/codex/skills/): focused reusable workflows; repository-local, not globally installed.
 
-Read only documents relevant to the task.
+Read only documents relevant to the task; read unchanged references once per agent context.
+On coordinated resume, discover `.agent-tasks/<TaskID>.md` before reporting missing context and apply the [resume procedure](docs/05-development/agent-system.md#local-task-capsule-and-resume).
+Use supplied evidence and targeted searches before repeating exploration.
 Current explicit task instructions take precedence over this guide and skill procedures.
 Report conflicts between authoritative documents instead of silently choosing one.
 Skills do not approve scope, product requirements, architecture or Git actions.
