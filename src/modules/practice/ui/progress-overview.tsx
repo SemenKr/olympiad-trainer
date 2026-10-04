@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { HomeNavigation } from "../../../app/home-navigation";
 
 import {
   readServerProgress,
@@ -77,7 +78,9 @@ export function ProgressOverview() {
 
   return (
     <main aria-busy={load.status === "loading"} className={styles.progress}>
+      <HomeNavigation current="Мой прогресс" />
       <header className={styles.header}>
+        <p className={styles.eyebrow}>5 класс · математика</p>
         <h1 ref={headingRef} tabIndex={-1}>
           Мой прогресс
         </h1>
@@ -104,26 +107,52 @@ export function ProgressOverview() {
           </button>
         </div>
       ) : (
-        <>
-          <ReviewEntry
-            available={load.reviewAvailable}
-            actionClassName={styles.primary}
-            className={styles.capability}
-          />
-          {load.interpretations.map((interpretation) => (
-            <ProgressEvidenceContent
-              interpretation={interpretation}
-              key={interpretation.learnerLabel}
+        <div className={styles.content}>
+          <div className={styles.next}>
+            <ReviewEntry
+              available={load.reviewAvailable}
+              actionClassName={styles.primary}
+              className={styles["next-action"]}
             />
-          ))}
-          <ProgressPracticeJourney totalXp={load.journeyTotalXp} />
-          <RecentPracticeHistory episodes={load.episodes} />
-        </>
+          </div>
+          <section
+            className={styles.evidence}
+            aria-labelledby="evidence-heading"
+          >
+            <h2 id="evidence-heading">Что уже получается</h2>
+            {load.interpretations.map((interpretation) => (
+              <ProgressEvidenceContent
+                interpretation={interpretation}
+                key={interpretation.learnerLabel}
+              />
+            ))}
+          </section>
+          <div className={styles.journey}>
+            <ProgressPracticeJourney
+              totalXp={load.journeyTotalXp}
+              className={styles["journey-card"]}
+            />
+          </div>
+          <section className={styles.destinations}>
+            <h2>Хочешь ещё?</h2>
+            <Link className={styles.secondary} href="/practice/choose">
+              Выбрать тренировку
+            </Link>
+            <Link className={styles.secondary} href="/">
+              На главную
+            </Link>
+          </section>
+          <div className={styles.recent}>
+            <RecentPracticeHistory episodes={load.episodes} />
+          </div>
+        </div>
       )}
 
-      <Link className={styles.secondary} href="/">
-        На главную
-      </Link>
+      {load.status !== "ready" ? (
+        <Link className={styles.secondary} href="/">
+          На главную
+        </Link>
+      ) : null}
     </main>
   );
 }
@@ -196,10 +225,12 @@ export function ProgressEvidenceContent({
 }) {
   return (
     <section className={styles.capability}>
-      <h2>{interpretation.learnerLabel}</h2>
-      <p className={styles.group}>
+      <p
+        className={`${styles.group} ${interpretation.progressGroup === "Получается в разных задачах" ? styles.transfer : interpretation.progressGroup ? styles.recognized : styles.unknown}`}
+      >
         {interpretation.progressGroup ?? "Пока рано сказать"}
       </p>
+      <h3>{interpretation.learnerLabel}</h3>
       <p>{interpretation.conclusion}</p>
     </section>
   );

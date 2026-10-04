@@ -1,5 +1,7 @@
 # Progress Wireframes — v0.1
 
+The implemented layout hierarchy is now described in [Summary + Progress — UX v1](summary-progress-v1.md). Earlier wireframes remain historical context; evidence and reconfirmation semantics are retained.
+
 ## Purpose and handoff context
 
 - **Task ID:** OT-003.5.

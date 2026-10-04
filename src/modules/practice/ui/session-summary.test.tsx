@@ -126,7 +126,8 @@ describe("SessionSummary", () => {
         }}
       />,
     );
-    expect(markup).toContain("+20 XP за эту тренировку");
+    expect(markup).toContain("+20 XP");
+    expect(markup).toContain("За эту тренировку");
     expect(markup).toContain("Всего 50 XP");
     expect(markup).toContain("Новая отметка пути");
     expect(markup.indexOf("Раздел способности")).toBeLessThan(
@@ -145,7 +146,7 @@ describe("SessionSummary", () => {
         }}
       />,
     );
-    expect(noReward).not.toContain("XP за эту тренировку");
+    expect(noReward).not.toContain("За эту тренировку");
   });
   it("omits task results when there are no valid submissions", () => {
     const markup = renderSummary("no-valid-submissions");

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RefObject } from "react";
+import { HomeNavigation } from "../../../app/home-navigation";
 
 import type { PracticeSummary } from "../application/practice-state";
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
@@ -151,87 +152,108 @@ export function SessionSummary({
 
   return (
     <main className={styles.summary}>
-      <header className={styles.header}>
-        <p className={styles.eyebrow}>Итоги тренировки</p>
-        <h1 ref={headingRef} tabIndex={-1}>
-          {mode === "review"
-            ? "Повторная попытка завершена"
-            : "Тренировка завершена"}
-        </h1>
-      </header>
+      <HomeNavigation current="Итоги" />
+      <div className={styles.content}>
+        <div className={styles.learning}>
+          <header className={styles.header}>
+            <p className={styles.eyebrow}>Итоги тренировки</p>
+            <h1 ref={headingRef} tabIndex={-1}>
+              {mode === "review"
+                ? "Повторная попытка завершена"
+                : "Тренировка завершена"}
+            </h1>
+            <p>
+              Здесь только факты об этой тренировке — не оценка твоих
+              способностей.
+            </p>
+          </header>
 
-      {mode === "review" ? (
-        <p>
-          Это отдельная попытка знакомой задачи. Она не меняет выводы о навыках
-          и выбор следующей полезной задачи.
-        </p>
-      ) : null}
-      {showSuccessOverview ? (
-        <section className={styles.section}>
-          <h2>Что получилось</h2>
-          <p>{overview}</p>
-        </section>
-      ) : null}
+          {mode === "review" ? (
+            <p>
+              Это отдельная попытка знакомой задачи. Она не меняет выводы о
+              навыках и выбор следующей полезной задачи.
+            </p>
+          ) : null}
+          {showSuccessOverview ? (
+            <section className={`${styles.section} ${styles.success}`}>
+              <h2>Что получилось</h2>
+              <p>{overview}</p>
+            </section>
+          ) : null}
 
-      {remainingText ? (
-        <section className={styles.section}>
-          <h2>Что осталось</h2>
-          <p>{remainingText}</p>
-        </section>
-      ) : null}
+          {remainingText ? (
+            <section className={styles.section}>
+              <h2>Что осталось</h2>
+              <p>{remainingText}</p>
+            </section>
+          ) : null}
 
-      {presentedResults.length > 0 ? (
-        <section className={styles.section}>
-          <h2>Результаты задач</h2>
-          <div className={styles.results}>
-            {presentedResults.map((result) => (
-              <div className={styles.result} key={result.problemId}>
-                <h3>{result.label}</h3>
-                <p>{result.problemTitle}</p>
+          {presentedResults.length > 0 ? (
+            <section className={styles.section}>
+              <h2>Результаты задач</h2>
+              <div className={styles.results}>
+                {presentedResults.map((result) => (
+                  <div className={styles.result} key={result.problemId}>
+                    <h3>{result.problemTitle}</h3>
+                    <p>{result.label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </section>
+          ) : null}
+
+          {reasoning ? (
+            <section className={styles.section}>
+              <h2>{reasoning.learnerLabel}</h2>
+              {reasoning.progressGroup ? (
+                <p>{reasoning.progressGroup}</p>
+              ) : null}
+              <p>{reasoning.conclusion}</p>
+            </section>
+          ) : null}
+          {tableReasoning ? (
+            <section className={styles.section}>
+              <h2>{tableReasoning.learnerLabel}</h2>
+              {tableReasoning.progressGroup ? (
+                <p>{tableReasoning.progressGroup}</p>
+              ) : null}
+              <p>{tableReasoning.conclusion}</p>
+            </section>
+          ) : null}
+        </div>
+        <aside
+          className={styles.sidebar}
+          aria-label="Путь практики и следующие действия"
+        >
+          {journeyFinish && journeyFinish.earnedXp > 0 ? (
+            <section aria-live="polite" className={styles.section}>
+              <h2>Путь практики</h2>
+              <p className={styles.xp}>+{journeyFinish.earnedXp} XP</p>
+              <p>За эту тренировку</p>
+              <p>Всего {journeyFinish.totalXp} XP</p>
+              <p>XP показывает участие, а не уровень знаний.</p>
+              {journeyFinish.newlyReachedMilestone ? (
+                <>
+                  <h3>Новая отметка пути</h3>
+                  <p>{journeyFinish.newlyReachedMilestone}</p>
+                </>
+              ) : null}
+            </section>
+          ) : null}
+
+          <div
+            aria-label="Действия после тренировки"
+            className={styles.actions}
+          >
+            <h2>Что дальше</h2>
+            <Link className={styles.primary} href="/">
+              На главную
+            </Link>
+            <Link className={styles.secondary} href="/progress">
+              Мой прогресс
+            </Link>
           </div>
-        </section>
-      ) : null}
-
-      {reasoning ? (
-        <section className={styles.section}>
-          <h2>{reasoning.learnerLabel}</h2>
-          {reasoning.progressGroup ? <p>{reasoning.progressGroup}</p> : null}
-          <p>{reasoning.conclusion}</p>
-        </section>
-      ) : null}
-      {tableReasoning ? (
-        <section className={styles.section}>
-          <h2>{tableReasoning.learnerLabel}</h2>
-          {tableReasoning.progressGroup ? (
-            <p>{tableReasoning.progressGroup}</p>
-          ) : null}
-          <p>{tableReasoning.conclusion}</p>
-        </section>
-      ) : null}
-
-      {journeyFinish && journeyFinish.earnedXp > 0 ? (
-        <section aria-live="polite" className={styles.section}>
-          <h2>Путь практики</h2>
-          <p>+{journeyFinish.earnedXp} XP за эту тренировку</p>
-          <p>Всего {journeyFinish.totalXp} XP</p>
-          {journeyFinish.newlyReachedMilestone ? (
-            <>
-              <h3>Новая отметка пути</h3>
-              <p>{journeyFinish.newlyReachedMilestone}</p>
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      <div aria-label="Действия после тренировки" className={styles.actions}>
-        <Link className={styles.primary} href="/">
-          На главную
-        </Link>
-        <Link className={styles.secondary} href="/progress">
-          Мой прогресс
-        </Link>
+        </aside>
       </div>
     </main>
   );
