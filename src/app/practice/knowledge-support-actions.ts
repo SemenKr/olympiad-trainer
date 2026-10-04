@@ -1,5 +1,7 @@
 "use server";
 
+import { requireSimulationAssistanceAllowed } from "../../modules/simulation/server/assistance-guard";
+
 import { resolveLearnerFromCookie } from "../../modules/practice/server/learner-identity";
 import {
   requireOptionId,
@@ -18,11 +20,13 @@ import {
 import { MICRO_CORRECT } from "../../modules/knowledge-support/domain/content";
 
 export async function readKnowledgeSupport(sessionId: string) {
+  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   return readSupportObservation(await resolveLearnerFromCookie(), sessionId);
 }
 
 export async function readKnowledgeSupportEligibility(context: unknown) {
+  await requireSimulationAssistanceAllowed();
   return requireDiagnosticEligibility(context);
 }
 
@@ -31,6 +35,7 @@ export async function submitKnowledgeDiagnostic(
   selectedOptionId: unknown,
   context: unknown,
 ) {
+  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
   const eligible = requireDiagnosticEligibility(context);
@@ -44,6 +49,7 @@ export async function submitKnowledgeDiagnostic(
 }
 
 export async function openKnowledgeLesson(sessionId: string) {
+  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   const observation = await persistSupportStep(
     await resolveLearnerFromCookie(),
@@ -58,6 +64,7 @@ export async function submitKnowledgeMicroCheck(
   sessionId: string,
   selectedOptionId: unknown,
 ) {
+  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
   const observation = await persistSupportStep(

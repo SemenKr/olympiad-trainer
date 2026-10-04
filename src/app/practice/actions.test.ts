@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("../../modules/simulation/server/assistance-guard", () => ({
+  requireSimulationAssistanceAllowed: vi.fn(async () => {}),
+}));
 
 import {
   revealReasoningCheckpoint,

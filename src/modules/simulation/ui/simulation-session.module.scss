@@ -1,0 +1,100 @@
+.simulation {
+  width: min(100% - 2rem, 48rem);
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+  overflow-wrap: anywhere;
+
+  h1 {
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+  }
+
+  p {
+    line-height: 1.65;
+  }
+
+  a {
+    color: var(--ot-color-primary);
+  }
+
+  button {
+    min-height: 44px;
+    margin: 0.25rem;
+    padding: 0.65rem 1rem;
+    color: var(--ot-color-text-primary);
+    background: var(--ot-color-surface);
+    border: 1px solid var(--ot-color-border-strong);
+    border-radius: var(--ot-radius-12);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+
+  button[aria-current] {
+    color: var(--ot-color-text-on-primary);
+    background: var(--ot-color-primary);
+  }
+
+  label {
+    display: block;
+    margin: 1rem 0 0.5rem;
+    font-weight: 600;
+  }
+
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1rem;
+    color: var(--ot-color-text-primary);
+    background: var(--ot-color-surface);
+    border: 1px solid var(--ot-color-border-strong);
+    border-radius: var(--ot-radius-12);
+    font: inherit;
+    line-height: 1.65;
+    resize: vertical;
+  }
+
+  :is(button, textarea, a):focus-visible {
+    outline: 3px solid var(--ot-color-primary);
+    outline-offset: 3px;
+  }
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  align-items: center;
+}
+
+.toolbar [role="timer"] {
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.statement {
+  white-space: pre-wrap;
+}
+
+.note {
+  color: var(--ot-color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.confirmation,
+.submission {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--ot-color-surface-soft);
+  border: 1px solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-12);
+}

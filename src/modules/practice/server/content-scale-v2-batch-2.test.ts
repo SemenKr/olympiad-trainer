@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("../../simulation/server/assistance-guard", () => ({
+  requireSimulationAssistanceAllowed: vi.fn(async () => {}),
+}));
 
 import { submitPracticeAnswer } from "../../../app/practice/actions";
 import {

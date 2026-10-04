@@ -1,5 +1,7 @@
 "use server";
 
+import { requireSimulationAssistanceAllowed } from "../../modules/simulation/server/assistance-guard";
+
 import type {
   RevealedPracticeHint,
   RevealedPracticeSolution,
@@ -55,6 +57,7 @@ export async function submitPracticeAnswer(
   problemId: unknown,
   rawAnswer: unknown,
 ): Promise<NumericAnswerResult> {
+  await requireSimulationAssistanceAllowed(problemId);
   const problem = getProblemDefinition(
     requireIdentifier(problemId, "practice problem ID"),
   );
@@ -77,6 +80,7 @@ export async function revealPracticeHint(
   problemId: unknown,
   hintId: unknown,
 ): Promise<RevealedPracticeHint> {
+  await requireSimulationAssistanceAllowed(problemId);
   return getRevealedPracticeHint(
     requireIdentifier(problemId, "practice problem ID"),
     requireIdentifier(hintId, "hint ID"),
@@ -87,6 +91,7 @@ export async function revealPracticeSolution(
   problemId: unknown,
   solutionId: unknown,
 ): Promise<RevealedPracticeSolution> {
+  await requireSimulationAssistanceAllowed(problemId);
   return getRevealedPracticeSolution(
     requireIdentifier(problemId, "practice problem ID"),
     requireIdentifier(solutionId, "solution ID"),
@@ -97,6 +102,7 @@ export async function revealReasoningCheckpoint(
   problemId: unknown,
   checkpointId: unknown,
 ): Promise<RevealedReasoningCheckpoint> {
+  await requireSimulationAssistanceAllowed(problemId);
   return getRevealedReasoningCheckpoint(
     requireIdentifier(problemId, "practice problem ID"),
     requireIdentifier(checkpointId, "reasoning checkpoint ID"),
@@ -112,6 +118,7 @@ export async function submitReasoningCheckpointOption(
   outcome: "correct" | "incorrect";
   interpretation: ReasoningCheckpointInterpretation;
 }> {
+  await requireSimulationAssistanceAllowed(problemId);
   const context = requireReasoningSummary(summary);
   const assessed = assessReasoningCheckpointOption(
     requireIdentifier(problemId, "practice problem ID"),
