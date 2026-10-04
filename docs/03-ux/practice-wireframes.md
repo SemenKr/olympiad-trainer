@@ -1,5 +1,7 @@
 # Practice Wireframes — v0.1
 
+For the adopted UX v1 Practice shell and media placement, see [Practice Shell + ProblemMedia](practice-shell-media-v1.md). Its Figma-based responsive rules supersede this document's earlier desktop layout recommendation; existing learning behavior remains unchanged.
+
 ## Purpose and handoff context
 
 - **Task ID:** OT-003.2.

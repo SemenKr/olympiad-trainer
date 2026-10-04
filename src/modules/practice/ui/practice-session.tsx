@@ -85,6 +85,7 @@ import {
 import { ShortNumericAnswer } from "./short-numeric-answer";
 import { TaskBlockText } from "./task-block";
 import { TaskShell } from "./task-shell";
+import { ProblemMedia } from "./problem-media";
 import {
   advancePracticeSession,
   createPracticeSessionResult,
@@ -174,6 +175,7 @@ function PracticeRestoreError({ onRetry }: Readonly<{ onRetry: () => void }>) {
 }
 
 type PracticeProblemEpisodeProps = Readonly<{
+  position?: string;
   review?: boolean;
   sessionId: string;
   problem: LearnerSafePracticeProblem;
@@ -714,6 +716,11 @@ export function PracticeSession({
 
   return (
     <PracticeProblemEpisode
+      position={
+        isFixedPracticeSession(sessionState)
+          ? `Задача ${sessionState.activeProblemIndex + 1} из 3`
+          : undefined
+      }
       sessionId={sessionState.sessionId}
       completionLatch={completionLatch}
       focusHeadingOnMount={sessionState.activeProblemIndex > 0}
@@ -754,6 +761,7 @@ export function PracticeSession({
 }
 
 function PracticeProblemEpisode({
+  position,
   review,
   sessionId,
   problem,
@@ -1391,43 +1399,12 @@ function PracticeProblemEpisode({
 
   const renderPractice = (knowledgeOffer: ReactNode) => (
     <TaskShell
-      answerRail={
-        <div className={styles["answer-rail"]}>
-          {problem.response.kind === "multiple-choice-set" &&
-          isMultipleChoiceSetAnswerState(answerState) ? (
-            <MultipleChoiceSetAnswer
-              instruction={problem.response.instruction}
-              locked={checkpointAssessmentPending || transitionPending}
-              onOptionToggle={handleOptionToggle}
-              onSubmit={handleAnswerSubmit}
-              options={problem.response.options}
-              state={answerState}
-            />
-          ) : !isMultipleChoiceSetAnswerState(answerState) ? (
-            <ShortNumericAnswer
-              onAnswerChange={handleAnswerChange}
-              onSubmit={handleAnswerSubmit}
-              state={answerState}
-              locked={checkpointAssessmentPending || transitionPending}
-            />
+      context={position ?? (review ? "Повторная попытка" : "Тренировка")}
+      learningSupport={
+        <div className={styles["learning-support"]}>
+          {revealedHints.length > 0 ? (
+            <h2 className={styles["support-heading"]}>Помощь к этой задаче</h2>
           ) : null}
-
-          {storageError ? (
-            <p aria-atomic="true" className={styles["hint-error"]} role="alert">
-              {storageError === "pause"
-                ? "Не удалось сохранить тренировку. Попробуй ещё раз."
-                : storageError === "save"
-                  ? "Не удалось сохранить тренировку. Попробуй ещё раз."
-                  : storageError === "next"
-                    ? "Не удалось перейти к следующей задаче. Попробуй ещё раз."
-                    : storageError === "skip"
-                      ? "Не удалось пропустить задачу. Попробуй ещё раз."
-                      : storageError === "checkpoint"
-                        ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
-                        : "Не удалось завершить тренировку. Попробуй ещё раз."}
-            </p>
-          ) : null}
-
           {hintRevealFailed ? <PracticeHintRevealError /> : null}
           {restorePending ? (
             <p role="status">Восстанавливаем открытые подсказки и решение…</p>
@@ -1460,26 +1437,6 @@ function PracticeProblemEpisode({
               </h2>
               <p>{revealedFocusHint.text}</p>
             </aside>
-          ) : canOpenFocusHint ? (
-            <button
-              className={styles["hint-action"]}
-              disabled={pendingHintId === focusHint.hintId}
-              onClick={handleFocusHintOpen}
-              type="button"
-            >
-              Подсказка
-            </button>
-          ) : null}
-
-          {canOpenStrategyHint ? (
-            <button
-              className={styles["hint-action"]}
-              disabled={pendingHintId === strategyHint.hintId}
-              onClick={handleStrategyHintOpen}
-              type="button"
-            >
-              Следующая подсказка
-            </button>
           ) : null}
 
           {revealedStrategyHint ? (
@@ -1489,17 +1446,6 @@ function PracticeProblemEpisode({
               </h2>
               <p>{revealedStrategyHint.text}</p>
             </aside>
-          ) : null}
-
-          {canOpenNextStepHint ? (
-            <button
-              className={styles["hint-action"]}
-              disabled={pendingHintId === nextStepHint.hintId}
-              onClick={handleNextStepHintOpen}
-              type="button"
-            >
-              Следующая подсказка
-            </button>
           ) : null}
 
           {revealedNextStepHint ? (
@@ -1513,18 +1459,6 @@ function PracticeProblemEpisode({
 
           {solutionRevealFailed ? <PracticeSolutionRevealError /> : null}
 
-          {canOpenSolution ? (
-            <button
-              aria-busy={isSolutionRevealPending}
-              className={styles["hint-action"]}
-              disabled={isSolutionRevealPending}
-              onClick={handleSolutionOpen}
-              type="button"
-            >
-              Показать решение
-            </button>
-          ) : null}
-
           {revealedSolution ? (
             <section className={styles.solution}>
               <h2 ref={solutionHeadingRef} tabIndex={-1}>
@@ -1535,17 +1469,6 @@ function PracticeProblemEpisode({
           ) : null}
 
           {knowledgeOffer}
-
-          {canOpenCheckpoint && !revealedCheckpoint ? (
-            <button
-              className={styles["hint-action"]}
-              disabled={checkpointRevealPending}
-              onClick={() => void handleCheckpointReveal()}
-              type="button"
-            >
-              Дополнительный вопрос
-            </button>
-          ) : null}
 
           {canOpenCheckpoint && revealedCheckpoint ? (
             <section className={styles.checkpoint}>
@@ -1597,6 +1520,101 @@ function PracticeProblemEpisode({
               ) : null}
               <p>{checkpointInterpretation.conclusion}</p>
             </section>
+          ) : null}
+        </div>
+      }
+      answerRail={
+        <div className={styles["answer-rail"]}>
+          {position ? <p className={styles.position}>{position}</p> : null}
+          {problem.response.kind === "multiple-choice-set" &&
+          isMultipleChoiceSetAnswerState(answerState) ? (
+            <MultipleChoiceSetAnswer
+              instruction={problem.response.instruction}
+              locked={checkpointAssessmentPending || transitionPending}
+              onOptionToggle={handleOptionToggle}
+              onSubmit={handleAnswerSubmit}
+              options={problem.response.options}
+              state={answerState}
+            />
+          ) : !isMultipleChoiceSetAnswerState(answerState) ? (
+            <ShortNumericAnswer
+              onAnswerChange={handleAnswerChange}
+              onSubmit={handleAnswerSubmit}
+              state={answerState}
+              locked={checkpointAssessmentPending || transitionPending}
+            />
+          ) : null}
+
+          {storageError ? (
+            <p aria-atomic="true" className={styles["hint-error"]} role="alert">
+              {storageError === "pause"
+                ? "Не удалось сохранить тренировку. Попробуй ещё раз."
+                : storageError === "save"
+                  ? "Не удалось сохранить тренировку. Попробуй ещё раз."
+                  : storageError === "next"
+                    ? "Не удалось перейти к следующей задаче. Попробуй ещё раз."
+                    : storageError === "skip"
+                      ? "Не удалось пропустить задачу. Попробуй ещё раз."
+                      : storageError === "checkpoint"
+                        ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
+                        : "Не удалось завершить тренировку. Попробуй ещё раз."}
+            </p>
+          ) : null}
+
+          {canOpenFocusHint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={pendingHintId === focusHint.hintId}
+              onClick={handleFocusHintOpen}
+              type="button"
+            >
+              Подсказка
+            </button>
+          ) : null}
+
+          {canOpenStrategyHint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={pendingHintId === strategyHint.hintId}
+              onClick={handleStrategyHintOpen}
+              type="button"
+            >
+              Следующая подсказка
+            </button>
+          ) : null}
+
+          {canOpenNextStepHint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={pendingHintId === nextStepHint.hintId}
+              onClick={handleNextStepHintOpen}
+              type="button"
+            >
+              Следующая подсказка
+            </button>
+          ) : null}
+
+          {canOpenSolution ? (
+            <button
+              aria-busy={isSolutionRevealPending}
+              className={styles["hint-action"]}
+              disabled={isSolutionRevealPending}
+              onClick={handleSolutionOpen}
+              type="button"
+            >
+              Показать решение
+            </button>
+          ) : null}
+
+          {canOpenCheckpoint && !revealedCheckpoint ? (
+            <button
+              className={styles["hint-action"]}
+              disabled={checkpointRevealPending}
+              onClick={() => void handleCheckpointReveal()}
+              type="button"
+            >
+              Дополнительный вопрос
+            </button>
           ) : null}
 
           {canSkipProblem ? (
@@ -1655,9 +1673,7 @@ function PracticeProblemEpisode({
       }
       header={
         <header className={styles.header}>
-          <p className={styles.eyebrow}>
-            {review ? "Повторная попытка" : "Тренировка"}
-          </p>
+          <p className={styles.eyebrow}>5 КЛАСС · МАТЕМАТИКА</p>
           <h1 ref={problemHeadingRef} tabIndex={-1}>
             {problem.title}
           </h1>
@@ -1667,11 +1683,22 @@ function PracticeProblemEpisode({
       <TaskBlockText title="Условие задачи">
         <p>{problem.statement}</p>
       </TaskBlockText>
+      {problem.media ? <ProblemMedia media={problem.media} /> : null}
     </TaskShell>
   );
 
   return (
     <KnowledgeSupport
+      renderSurface={(surface) => (
+        <TaskShell
+          backAction={null}
+          finishAction={null}
+          header={null}
+          answerRail={null}
+        >
+          {surface}
+        </TaskShell>
+      )}
       sessionId={sessionId}
       problemId={problem.problemId}
       practice={answerState.practice}
