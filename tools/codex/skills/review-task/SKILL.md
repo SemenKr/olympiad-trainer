@@ -11,7 +11,7 @@ Find evidence-based reasons the change should not be accepted.
 
 ## Required inputs
 
-The shared handoff/result context: Task ID, Revision, Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done, Allowed actions, Status. Revision records the inspected/base commit and relevant branch/working-tree state; use not applicable for non-repository work. Assignment Status may be absent until assessment. Include the diff/revision, expected behavior and optional lenses: domain, architecture, frontend, UX/accessibility, data/security.
+Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Include the diff/revision, expected behavior and optional lenses: domain, architecture, frontend, UX/accessibility, data/security.
 
 ## Allowed actions
 
@@ -31,40 +31,17 @@ Never fix findings or modify files, tests, index, branches, commits or external 
 
 ## Output contract
 
-Use this report template; headings inside the fenced block belong to the report, not to this skill:
+Use this compact report; omit empty headings:
 
-~~~markdown
-## Review context
-
-* Task ID: <supplied ID or not supplied>
-* Revision: <inspected/base commit and relevant branch/working-tree state>
-* Lenses: <selected lenses>
-* Handoff: <shared Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done and Allowed actions, or reference to unchanged supplied context>
-
-## Critical
-
-<findings or None>
-
-## Major
-
-<findings or None>
-
-## Minor
-
-<findings or None>
-
-## Questions
-
-<questions or None>
-
-## Verification gaps
-
-<gaps or None>
-
-## Verdict
-
-PASS / NEEDS CHANGES
+~~~text
+Review context: Task ID; actual revision/content fingerprint; selected lenses; authority path/version.
+Findings: populated Critical / Major / Minor categories, each with location, evidence and impact.
+Questions / verification gaps: populated categories, marking blocking versus non-blocking gaps.
+Empty categories: one line listing those with no findings.
+Verdict: PASS / NEEDS CHANGES
 ~~~
+
+Re-review reports resolved/open/new deltas and affected verification, retaining unresolved findings. Reuse checks only under ledger rules; independently inspect the actual current diff. Author checks never constitute independent review.
 
 Keep metadata only in Review context. Verdict supplies the shared completion Status. Questions distinguish uncertainty from defects. Unresolved Critical/Major issues or evidence gaps preventing acceptance mean NEEDS CHANGES; PASS may still disclose Minor findings and non-blocking gaps. A verdict never authorizes a commit.
 

@@ -11,7 +11,7 @@ Make a real architectural choice reviewable through alternatives, trade-offs and
 
 ## Required inputs
 
-The shared handoff/result context: Task ID, Revision, Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done, Allowed actions, Status. Revision records the inspected/base commit and relevant branch/working-tree state; use not applicable for non-repository work. Assignment Status may be absent until assessment. Include the concrete problem, current architecture/evidence and relevant approved decisions.
+Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Include the concrete problem, current architecture/evidence and relevant approved decisions.
 
 ## Allowed actions
 
@@ -31,7 +31,7 @@ Do not implement a recommendation, change product requirements or silently adopt
 
 ## Output contract
 
-Include the shared handoff/result context (unchanged supplied fields may be referenced), with explicit Task ID, actual inspected Revision and completion Status. Report problem/evidence, alternatives, trade-offs, recommendation, consequences, validation needs and remaining decisions. End with READY, NEEDS CHANGES, NEEDS DECISION or BLOCKED. READY is a reviewable proposal, not architecture approval.
+Reference the unchanged authority contract; give explicit Task ID, actual inspected Revision/content fingerprint and completion Status, followed by concise work/findings/check deltas and material limits. Report problem/evidence, alternatives, trade-offs, recommendation, consequences, validation needs and remaining decisions. End with READY, NEEDS CHANGES, NEEDS DECISION or BLOCKED. READY is a reviewable proposal, not architecture approval.
 
 ## Completion checks
 

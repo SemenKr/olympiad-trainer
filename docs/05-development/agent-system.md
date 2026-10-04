@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide reusable role workflows for Olympiad Trainer with one Coordinator routing a bounded user task through existing roles. The human owns product/domain requirements, architecture decisions and Git publication. Coordination uses session tools and plain-text handoffs; it adds no runtime, backend, queue, external orchestrator or persistent state store. A role is a working contract, not a separate application or guaranteed technical sandbox.
+Provide reusable role workflows for Olympiad Trainer with one Coordinator routing a bounded user task through existing roles. The human owns product/domain requirements, architecture decisions and Git publication. Coordination uses session tools and plain-text handoffs; it adds no runtime, backend, queue, external orchestrator or state framework. A role is a working contract, not a separate application or guaranteed technical sandbox.
 
 [AGENTS.md](../../AGENTS.md) supplies global rules. [Skill sources](../../tools/codex/skills/) supply reusable procedures; they are repository-local source files, not installed global skills. Load the selected SKILL.md explicitly by path when it is not available in the session skill catalog. Do not claim automatic discovery or installation.
 
@@ -27,7 +27,7 @@ Read-only means no authored file, index, branch, commit, dependency, service or 
 
 ## Shared handoff contract
 
-Every task/handoff and result carries this shared context in plain text; role-specific findings follow it:
+Record this full authority contract once at intake in the local capsule (or recoverable supplied contract for manual/read-only work). Assignments/results reference its path/version and carry only deltas; role findings follow:
 
 ~~~text
 Task ID:
@@ -46,11 +46,11 @@ Use the human-provided Task ID; if absent, say not supplied rather than inventin
 
 Populate fields from current instructions and repository evidence. Do not manufacture approval or fill missing requirements with guesses. Ask only when the missing input blocks a safe concrete next action; continue independent permitted work. Material scope, requirement or architectural uncertainty needs a human decision.
 
-Each result preserves the shared context above and adds work or findings, validation and limitations, and remaining decisions. Context may be concise or reference an unchanged supplied handoff; Task ID, actual inspected Revision and completion Status must be explicit. An implementation result lists changed files and relevant checks; a review identifies file/section or line and impact. Subsequent roles receive the same contract plus prior results and remaining gaps.
+Each result references the unchanged authority contract and adds concise work/findings, check deltas, limitations and remaining decisions; Task ID, actual inspected Revision and completion Status must be explicit. An implementation result lists changed files and relevant checks; a review identifies file/section or line and impact. Subsequent roles receive the same contract plus prior results and remaining gaps.
 
 ### Coordinator assignment metadata
 
-Keep the shared contract unchanged. Coordinator appends these fields to each role assignment:
+Keep the shared authority contract unchanged unless the human changes it. Supply its recoverable path/version plus these assignment deltas:
 
 ~~~text
 Assigned role and skill path:
@@ -60,11 +60,30 @@ Relevant prior results and open findings:
 Correction cycle: 0 / 1 / 2
 ~~~
 
-Supply the handoff explicitly rather than relying only on inherited conversation. Include relevant guide/skill paths, adopted decisions and the source of existing authorization in Inputs/Allowed actions. Each subtask may narrow the original scope and permissions, never broaden them. Preserve the original Goal, Out of scope, Constraints and Definition of Done, with bounded subtask details in the assignment metadata.
+Supply the contract reference and deltas explicitly rather than relying on inherited conversation. Default to fresh child context (`fork_turns="none"` when supported). Each agent reads AGENTS.md, its selected skill and relevant system sections once per context, plus only task-relevant evidence; do not copy full conversations/docs trees or repeat broad exploration. Include relevant guide/skill paths, adopted decisions and the source of existing authorization in Inputs/Allowed actions. Each subtask may narrow the original scope and permissions, never broaden them. Preserve the original Goal, Out of scope, Constraints and Definition of Done, with bounded subtask details in the assignment metadata.
 
 Revision must distinguish the base commit from the inspected working tree, including branch, unrelated/concurrent changes and a diff/content fingerprint for relevant uncommitted work. HEAD alone does not identify uncommitted changes. Results refer to the supplied contract and report the actual inspected revision; Implementer also identifies the resulting work. Coordinator carries unresolved findings, permission limits and the task-wide correction count into subsequent assignments.
 
-Keep routing context in session messages. After interruption or context loss, reconstruct the handoff, revision and correction count before resuming; do not assume missing consequential authorization or reset the count. Only an explicit human decision can expand authority, and its source must be recorded in the updated handoff. Durable report files require their own authorized scope.
+Keep routing context/counter in the capsule below and messages concise. Only explicit human decisions expand authority. Additional durable reports require authorized scope.
+
+### Local task capsule and resume
+
+Use gitignored `.agent-tasks/<TaskID>.md`: one human-readable file, no runtime/helper/state framework. It survives new runs in the same checkout, not deleted files or other clones. Use the supplied human Task ID; request an identifier only when persistence needs one, never invent backlog items.
+
+The Coordinator is the sole writer. Invoked orchestration authorizes this workflow-metadata exception only, never implementation. Explicitly read-only tasks forbid writes unless separately authorized; return a recoverable compact handoff and disclose that persistence limit instead. Create at intake and maintain:
+
+- The full concise authority contract, original user authorization/provenance and all permission limits.
+- Branch/base/HEAD, dirty status and relevant tracked/authored untracked content fingerprint (sorted paths plus SHA-256 of bytes, for example). HEAD or filename lists alone are insufficient. Disclose unrelated changes; exclude capsule metadata from self-referential fingerprints.
+- Stage/next action, assigned/in-flight work, open findings and task-wide cycle 0/1/2, including dispatched correction/outcome.
+- Exact proposal texts with immutable version/content fingerprint and proposed/adopted/rejected status. Tie human adoption text/source to that exact version; persist every proposal before pausing. "Eight accepted" cannot replace texts. References must be locally/durably recoverable, never inaccessible chat-only evidence. Do not invent historical decisions or claim retroactive recovery.
+- Check ledger: command/scope, outcome, applicable fingerprint, environment/inputs, evidence path or concise output, and tested/inferred/untested limits. Review ledger: independent identity, revision, verdict, findings/gaps.
+- Pending gates and explicit publication authority/outcomes (commit/push/PR identifiers where applicable); distinguish intended from confirmed actions.
+
+Update before delegation, correction increment/dispatch and human gates, immediately after human adoption, and after results/publication. Write a temporary sibling then atomically replace; confirm success before dependent actions. Persist count increment and dispatch intent together before sending correction. A failed write blocks dependent dispatch/publication; report it.
+
+Resume by discovering the Task ID capsule before reporting missing context. Verify authority, branch/base/HEAD, dirty fingerprints and evidence availability against Git/files. Reconcile counter, stage and in-flight outcomes conservatively: an in-flight dispatched correction consumes its recorded cycle; inspect uncertain operations before continuing, never blindly replay publication/work, reset the count or trust stale PASS. Missing/ambiguous consequential authority means NEEDS DECISION; continue independent permitted inspection.
+
+Bound active capsules to current authority/decisions, unresolved findings, latest applicable evidence and necessary counter/publication history. Summarize superseded detail without losing adoption provenance/counter history. Retain blocked/pending capsules. Retire only after terminal completion, required authorized publication confirmed (or none required), durable adopted decisions saved in appropriate docs, and no pending gate/in-flight action. Record final result/publication first and retain if evidence/authority is still needed. Capsules stay out of PRs and never create permission.
 
 ## Statuses
 
@@ -83,10 +102,10 @@ These are task-report statuses, not backlog automation or tool-controlled goal l
 ## Workflow
 
 1. **Intake:** Coordinator establishes the bounded task contract, original authorization, Definition of Done, repository state and ownership. Before edits, confirm the requested feature branch; create/switch from the specified baseline only when authorized. Never implement on main or use worktrees.
-2. **Plan when needed:** Planner inspects evidence and proposes the smallest sufficient ordered change. Coordinator may proceed when the plan only organizes already-authorized work. READY does not supply missing implementation permission.
-3. **Research/architecture when needed:** Researcher resolves factual questions; Architect evaluates a real architectural question. Applying an adopted decision is routine; adopting a new proposal requires a human decision before dependent implementation. Skip unnecessary roles.
+2. **Plan for material decomposition uncertainty:** Planner inspects evidence and proposes the smallest sufficient ordered change. Coordinator may proceed when the plan only organizes already-authorized work. READY does not supply missing implementation permission.
+3. **Research/architecture when needed:** Researcher resolves factual/content evidence gaps; Architect evaluates consequential architectural decisions. Applying an adopted decision is routine; adopting a new proposal requires a human decision before dependent implementation. Skip unnecessary roles.
 4. **Implement:** Implementer executes approved scope, makes routine implementation choices and validates the minimal diff within permitted side effects.
-5. **Review/QA:** Require an independent Reviewer for authored changes. QA verifies relevant behavior, distinguishing tested, inferred and not tested. Select checks by risk and acceptance criteria; do not require every role for every task.
+5. **Review/QA:** Require an independent Reviewer for authored changes. Add QA only when independent behavior verification adds value beyond existing checks/review, distinguishing tested, inferred and not tested. Select checks by risk and acceptance criteria; do not require every role for every task.
 6. **Correct/re-review:** Route blocking findings through the bounded correction loop below. Preserve unresolved findings and revalidate affected behavior at the revised working-tree state.
 7. **Complete:** Coordinator checks that the inspected revision is still current, Definition of Done is met and final diff/status stay within scope. Report PASS for completed implementation/verification or READY for a planning/research/proposal-only task, with limitations and remaining Minor findings explicit.
 8. **Stop when gated:** Return NEEDS DECISION for the human gates below. Required evidence/access/tooling that is unavailable with no useful permitted progress means BLOCKED. No automatic merge. Commit, push, branch/history mutations and external publication retain their explicit permission requirements.
@@ -109,9 +128,17 @@ Freeze relevant reviewed files while inspection runs. If the inspected revision 
 
 Critical/Major findings require a scoped Implementer correction followed by independent re-review when the fix fits the original scope and permissions. Otherwise stop with NEEDS DECISION. Blocking QA failures or verification gaps route to Implementer or QA according to their unchanged permissions; QA never fixes production code.
 
-Allow at most **two automatic correction cycles across the entire task**, including QA-driven corrections. Initial implementation/validation and initial review are cycle 0. Each subsequent cycle consolidates actionable blocking findings into a bounded assignment, performs authorized correction/validation, then obtains independent re-review and affected QA checks. Increment the count before dispatching the correction assignment. Splitting findings across roles, restarting agents, or resuming the task does not reset it.
+Allow at most **two automatic correction cycles across the entire task**, including QA-driven corrections. Initial implementation/validation and initial review are cycle 0. Each subsequent cycle consolidates actionable blocking findings into a bounded assignment, performs authorized correction/validation, then obtains independent re-review and affected QA checks. Persist the increment and in-flight dispatch intent before sending the correction assignment. Splitting findings across roles, restarting agents, or resuming the task does not reset it.
 
 Minor findings alone do not trigger automatic fixes. Keep Minor findings and non-blocking gaps explicit. Coordinator must not bypass blocking verification gaps to obtain PASS. After cycle 2, any unresolved blocking finding yields NEEDS DECISION with evidence, attempted corrections and options; no third automatic cycle. Passing after cycle 2 is allowed. A human decision must explicitly authorize any further correction work; a role status cannot do so.
+
+### Models and verification economy
+
+Default route: Coordinator → Implementer → independent Reviewer → publication only with explicit authority. A small bounded bugfix normally needs only Implementer and Reviewer. Skip roles without the triggers above; sequential work is default.
+
+When model selection is authorized/supported, use Luna for simple Git/inspection/checks, Sol for ordinary implementation/research/review, Astra only consequential decisions/critical review. These are configurable family labels, not guaranteed tool aliases. Use available configured identifiers; never invent availability or automatically escalate. Otherwise use the current configured model and disclose material limits.
+
+Run targeted checks for each change; expensive full verification once near acceptance only when relevant/required. Documentation-only changes normally need consistency/link/diff checks, not unrelated app suites. Never weaken required checks. Reuse ledger evidence only when applicable content revision, environment and inputs match with no relevant invalidating change; distinguish reused evidence from new execution. Changes invalidate affected checks/review, while explicitly bounded unaffected evidence may remain valid. Independent review must inspect the actual current diff even when tests are reused. Consolidate actionable blockers in one correction assignment; re-review reports deltas while retaining unresolved findings/gaps.
 
 ### Legacy routing vocabulary
 
@@ -137,13 +164,13 @@ Lenses are optional focus areas, not new roles or blanket permission to audit un
 - UX/accessibility: student comprehension, mobile behavior, keyboard and screen-reader access.
 - data/security: validation, authorization, sensitive data and integrity of persistence.
 
-Select requested/relevant lenses and report uncovered areas as gaps. Reviewer separates metadata into Review context, followed by Critical, Major, Minor, Questions, Verification gaps and Verdict; the [review skill](../../tools/codex/skills/review-task/SKILL.md#output-contract) defines the output template. Critical means severe correctness, data-loss or security impact; Major blocks acceptance; Minor is localized improvement. Findings need evidence, location and practical impact. PASS requires no unresolved Critical/Major findings in the defined scope; Minor findings and gaps remain explicit.
+Select requested/relevant lenses and report uncovered areas as gaps. Reviewer supplies context, populated severity/questions/gaps categories and explicit verdict, collapsing empty categories into one line; the [review skill](../../tools/codex/skills/review-task/SKILL.md#output-contract) defines the output template. Critical means severe correctness, data-loss or security impact; Major blocks acceptance; Minor is localized improvement. Findings need evidence, location and practical impact. PASS requires no unresolved Critical/Major findings in the defined scope; Minor findings and gaps remain explicit.
 
 ## Parallel work
 
 Parallel agent work requires explicit authorization. Invoking the coordinated workflow supplies delegation authority only inside the original task scope and permissions; it does not change role boundaries.
 
-Safe candidates are independent read-only investigations/review lenses, or writes with disjoint file ownership and settled interfaces. Each worker receives the full handoff, Coordinator assignment metadata and source revision. Coordinator checks results against original scope. Default to sequential writes when independence is uncertain.
+Safe candidates are independent read-only investigations/review lenses, or writes with disjoint file ownership and settled interfaces. Each worker receives the recoverable authority reference, assignment deltas and source revision. Coordinator checks results against original scope. Default to sequential work; parallel fanout requires a concrete latency benefit and safe ownership, not merely available slots.
 
 Do not parallelize writes to the same file, dependent decisions, shared mutable test fixtures, index operations or branch switching in one checkout. Do not use worktrees. Finish upstream contract/architecture decisions before dependent implementation. Re-review if the inspected revision changes; disclose concurrent/unrelated changes and never overwrite another worker's work.
 

@@ -11,7 +11,7 @@ Check acceptance behavior and report the practical limits of verification.
 
 ## Required inputs
 
-The shared handoff/result context: Task ID, Revision, Goal, Scope, Out of scope, Inputs, Constraints, Definition of Done, Allowed actions, Status. Revision records the inspected/base commit and relevant branch/working-tree state; use not applicable for non-repository work. Assignment Status may be absent until assessment. Include target revision, relevant flows/environments, available checks and any explicit test-file or fixture/output permissions.
+Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Include target revision, relevant flows/environments, available checks and any explicit test-file or fixture/output permissions.
 
 ## Allowed actions
 
@@ -25,13 +25,13 @@ Do not refactor production architecture, fix production code, alter requirements
 
 1. Verify revision, acceptance criteria, environment and test side effects.
 2. Select relevant unit/integration tests and user flows; include responsive behavior, accessibility, loading/error/empty states and regressions when applicable.
-3. Execute authorized checks or inspect evidence; report unavailable tooling without claiming execution.
+3. Execute targeted authorized checks or reuse applicable ledger evidence for matching revision/environment/inputs, labeling reuse. Expensive full verification runs once near acceptance when relevant/required. Report unavailable tooling without claiming execution.
 4. If test authoring is authorized, add meaningful checks only in that scope and run them.
 5. Inspect permitted changes and report failures, limits and required decisions.
 
 ## Output contract
 
-Include the shared handoff/result context (unchanged supplied fields may be referenced), with explicit Task ID, actual inspected Revision and completion Status. Report environment, Tested (actual execution and outcomes), Inferred (reasoning only), Not tested (gaps/reasons), changed test files if any, and remaining issues. End with PASS, NEEDS CHANGES, NEEDS DECISION or BLOCKED. Define the passing scope; do not imply complete coverage or publication approval.
+Reference the unchanged authority contract; give explicit Task ID, actual inspected Revision/content fingerprint and completion Status, followed by concise work/findings/check deltas and material limits. Report environment, Tested (actual execution and outcomes), Inferred (reasoning only), Not tested (gaps/reasons), changed test files if any, and remaining issues. End with PASS, NEEDS CHANGES, NEEDS DECISION or BLOCKED. Define the passing scope; do not imply complete coverage or publication approval.
 
 ## Completion checks
 
