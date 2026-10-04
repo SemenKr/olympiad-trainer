@@ -94,7 +94,7 @@ Update relevant assumptions under authorized scope; explain trade-offs and prese
 Use the selected role skill and [handoff contract](docs/05-development/agent-system.md#shared-handoff-contract).
 Planner and Reviewer are strictly read-only; Reviewer never fixes its findings.
 Researcher, Architect and QA are read-only by default with only their documented scoped exceptions.
-Implementer changes only approved files and cannot change product requirements.
+Implementer changes only approved files and cannot change product requirements. In orchestrated work the root normally applies this contract itself; the default subagent is the separate read-only Reviewer. Author validation never replaces independent review.
 Multi-agent work requires explicit authorization and safe task/file ownership. Invoking [orchestrate-task](tools/codex/skills/orchestrate-task/SKILL.md) authorizes Coordinator delegation and routine handoffs only inside the original task's scope and permissions; role permissions remain unchanged.
 The Coordinator follows the [bounded correction loop and human gates](docs/05-development/agent-system.md#correction-loop). No automatic merge or worktrees. This system defines a session workflow, not a runtime or external orchestrator.
 
