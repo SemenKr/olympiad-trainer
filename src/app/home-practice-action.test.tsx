@@ -40,6 +40,7 @@ import {
 } from "../modules/practice/application/completed-practice-episode";
 import { HomePracticeContent } from "./home-practice-action";
 import Home from "./page";
+import styles from "./page.module.scss";
 
 const completed = [
   {
@@ -117,7 +118,7 @@ describe("Home Practice precedence", () => {
     expect(legacy).not.toContain("?session=");
   });
 
-  it("shows registry Pack choices and resumes Pack B from its stored tuple", () => {
+  it("moves ordinary Pack choices behind the chooser while preserving every Pack Resume route", () => {
     const render = (
       unfinishedValue: Parameters<
         typeof HomePracticeContent
@@ -134,32 +135,15 @@ describe("Home Practice precedence", () => {
         />,
       );
     const returning = render(null);
-    expect(returning).toContain("Разные способы рассуждать");
-    expect(returning).toContain("Связи и закономерности");
-    expect(returning).toContain("Числа и структуры");
-    expect(returning).toContain("Считаем по устройству");
-    expect(returning).toContain("Условия и противоречия");
-    expect(returning).toContain("Модели и стратегии");
-    expect(returning.indexOf("Разные способы рассуждать")).toBeLessThan(
-      returning.indexOf("Связи и закономерности"),
-    );
-    expect(returning.indexOf("Связи и закономерности")).toBeLessThan(
-      returning.indexOf("Числа и структуры"),
-    );
-    expect(returning.match(/Решить 3 задачи/g) ?? []).toHaveLength(
-      PRACTICE_PACKS.length,
-    );
-    expect(returning).toContain('href="/practice/pack"');
-    expect(returning).toContain('href="/practice/pack?pack=pack-b"');
-    expect(returning).toContain('href="/practice/pack?pack=pack-c"');
-    for (const pack of PRACTICE_PACKS.slice(3)) {
-      expect(returning).toContain(pack.name);
-      expect(returning).toContain(`href="/practice/pack?pack=${pack.id}"`);
-    }
+    expect(returning).toContain('href="/practice/choose"');
+    expect(returning).not.toContain('href="/practice/pack');
+    expect(returning).not.toContain("Решить 3 задачи");
+    for (const pack of PRACTICE_PACKS)
+      expect(returning).not.toContain(pack.name);
     expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
-      returning.indexOf("Дополнительная практика"),
+      returning.indexOf("Выбрать набор"),
     );
-    expect(render(null, false)).not.toContain("/practice/pack");
+    expect(render(null, false)).toContain('href="/practice/choose"');
     const active = {
       ...unfinished,
       mode: "pack" as const,
@@ -219,45 +203,41 @@ describe("Home Practice precedence", () => {
     expect(render(packA)).toContain('href="/practice/pack"');
     expect(render(packA)).not.toContain('href="/practice/pack?pack=pack-b"');
   });
-  it("shows Pack A only for returning learners, below the current action and before latest preview", () => {
-    const render = (
-      stored: Parameters<typeof HomePracticeContent>[0]["stored"],
-    ) => renderToStaticMarkup(<HomePracticeContent stored={stored} />);
-    expect(render(fresh)).not.toContain("/practice/pack");
-    const returning = render({ ...fresh, hasPracticeHistory: true });
-    expect(returning).toContain("Дополнительная практика");
-    expect(returning).toContain("Разные способы рассуждать");
-    expect(returning).toContain(
-      "Три задачи для дополнительной тренировки. Этот набор можно выбрать самому — он не зависит от персональной рекомендации.",
-    );
-    expect(returning).toContain("Решить 3 задачи");
-    expect(returning).toContain("/practice/pack");
-    expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
-      returning.indexOf("Разные способы рассуждать"),
-    );
-    expect(render({ ...fresh, completed })).toContain("/practice/pack");
-    expect(
-      render({ ...fresh, unfinished, hasPracticeHistory: true }),
-    ).not.toContain("/practice/pack");
-    expect(
-      render({ ...fresh, unfinished: noNext, hasPracticeHistory: true }),
-    ).not.toContain("/practice/pack");
-    expect(
-      render({ ...fresh, availability: exhausted, hasPracticeHistory: true }),
-    ).toContain("/practice/pack");
-    const recommended = render({
-      ...fresh,
-      completed,
-      availability: {
-        status: "recommendation",
-        problemId: "brothers-ages-products",
-        reason: "Рекомендация",
+  it("offers one secondary chooser entry for fresh, returning, recommended and unfinished states", () => {
+    const variants = [
+      fresh,
+      { ...fresh, hasPracticeHistory: true },
+      { ...fresh, completed },
+      { ...fresh, unfinished },
+      { ...fresh, unfinished: noNext },
+      { ...fresh, availability: exhausted, hasPracticeHistory: true },
+      {
+        ...fresh,
+        completed,
+        availability: {
+          status: "recommendation" as const,
+          problemId: "brothers-ages-products" as const,
+          reason: "Рекомендация",
+        },
       },
-    });
-    expect(recommended.indexOf("Следующая полезная задача")).toBeLessThan(
-      recommended.indexOf("Разные способы рассуждать"),
+    ];
+    for (const stored of variants) {
+      const markup = renderToStaticMarkup(
+        <HomePracticeContent stored={stored} />,
+      );
+      expect(markup.match(/href="\/practice\/choose"/g)).toHaveLength(1);
+      expect(markup).not.toContain("Разные способы рассуждать");
+      expect(markup).not.toContain("Решить 3 задачи");
+      expect(markup).toContain("12 наборов по 3 задачи");
+      expect(markup).toContain('href="/simulation"');
+    }
+    const recommended = renderToStaticMarkup(
+      <HomePracticeContent stored={variants[6]} />,
     );
-    expect(recommended.indexOf("Разные способы рассуждать")).toBeLessThan(
+    expect(recommended.indexOf("Следующая полезная задача")).toBeLessThan(
+      recommended.indexOf("Выбрать набор"),
+    );
+    expect(recommended.indexOf("Выбрать набор")).toBeLessThan(
       recommended.indexOf("Последняя тренировка"),
     );
   });
@@ -354,7 +334,8 @@ describe("Home Practice precedence", () => {
   it("keeps Progress secondary on Home without changing Practice's primary action", () => {
     const markup = renderToStaticMarkup(<Home />);
 
-    expect(markup).toContain("Решай олимпиадные задачи по математике");
+    expect(markup).toContain("Что лучше сделать сейчас");
+    expect(markup).toContain("5 КЛАСС · МАТЕМАТИКА");
     expect(markup).not.toContain("Скоро здесь можно будет готовиться");
     expect(markup).toContain("Проверяем, есть ли незаконченная тренировка…");
     expect(markup).toContain('aria-live="polite"');
@@ -388,12 +369,13 @@ describe("Home Practice precedence", () => {
     );
 
     expect(markup).toContain("Пока без новой задачи");
-    expect(markup).toContain("Посмотреть прогресс");
+    expect(markup).toContain("Открыть прогресс");
+    expect(markup).not.toContain(`class="${styles.primary}"`);
     expect(markup).not.toContain("Начать тренировку");
     expect(markup).not.toContain("Продолжить тренировку");
     expect(markup).toContain("Последняя тренировка");
     expect(markup).toContain("Посмотреть итоги");
-    expect(markup.indexOf("Посмотреть прогресс")).toBeLessThan(
+    expect(markup.indexOf("Открыть прогресс")).toBeLessThan(
       markup.indexOf("Последняя тренировка"),
     );
   });
@@ -440,21 +422,25 @@ describe("Home Practice precedence", () => {
       "Новых подходящих задач пока нет",
       "Все подходящие задачи из текущего набора",
     ],
-  ])("shows Progress for returning %s", (availability, title, text) => {
-    const markup = renderToStaticMarkup(
-      <HomePracticeContent
-        stored={{ ...fresh, availability, hasPracticeHistory: true }}
-      />,
-    );
-    expect(markup).toContain(`<h2>${title}</h2>`);
-    expect(markup).toContain(text);
-    expect(markup).toContain('href="/progress"');
-    expect(markup).toContain("Посмотреть прогресс");
-    expect(markup).not.toContain("Начать тренировку");
-    expect(markup).not.toContain("Мой прогресс");
-    expect(markup).not.toMatch(/слаб|освоил|мастерств|вернись позже/i);
-    expect(markup).not.toContain("disabled");
-  });
+  ])(
+    "shows a neutral returning state without a primary CTA for %s",
+    (availability, title, text) => {
+      const markup = renderToStaticMarkup(
+        <HomePracticeContent
+          stored={{ ...fresh, availability, hasPracticeHistory: true }}
+        />,
+      );
+      expect(markup).toContain(`<h2>${title}</h2>`);
+      expect(markup).toContain(text);
+      expect(markup).toContain('href="/progress"');
+      expect(markup).toContain("Открыть прогресс");
+      expect(markup).not.toContain(`class="${styles.primary}"`);
+      expect(markup).not.toContain("Начать тренировку");
+      expect(markup).toContain("Мой прогресс");
+      expect(markup).not.toMatch(/слаб|освоил|мастерств|вернись позже/i);
+      expect(markup).not.toContain("disabled");
+    },
+  );
 
   it("keeps a latest Summary secondary when transfers are exhausted", () => {
     const markup = renderToStaticMarkup(
@@ -462,11 +448,40 @@ describe("Home Practice precedence", () => {
         stored={{ ...fresh, completed, availability: exhausted }}
       />,
     );
-    expect(markup.indexOf("Посмотреть прогресс")).toBeLessThan(
+    expect(markup.indexOf("Открыть прогресс")).toBeLessThan(
       markup.indexOf("Последняя тренировка"),
     );
     expect(markup).toContain("Посмотреть итоги");
   });
+});
+
+describe("adopted neutral Home fallback", () => {
+  it.each([insufficient, exhausted])(
+    "keeps Review, Progress and chooser secondary for %s",
+    (availability) => {
+      const markup = renderToStaticMarkup(
+        <HomePracticeContent
+          stored={{
+            ...fresh,
+            availability,
+            hasPracticeHistory: true,
+            reviewAvailable: true,
+          }}
+        />,
+      );
+      expect(markup).not.toContain(`class="${styles.primary}"`);
+      expect(markup).toContain(styles.neutral);
+      for (const href of [
+        "/progress",
+        "/practice/choose",
+        "/practice/review",
+      ]) {
+        expect(markup).toContain(`href="${href}"`);
+      }
+      expect(markup).not.toContain('href="/practice/transfer"');
+      expect(markup).not.toContain('href="/practice"');
+    },
+  );
 });
 
 describe("Home Review remains secondary", () => {

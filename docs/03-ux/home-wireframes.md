@@ -1,5 +1,7 @@
 # Home Wireframes — v0.1
 
+For the adopted Figma layout, dedicated Pack chooser and neutral fallback without a primary Progress CTA, see [Home + Choose Practice UX v1](home-chooser-v1.md). This supersedes the corresponding older layout/fallback guidance below.
+
 ## Purpose and handoff context
 
 - **Task ID:** OT-003.3; clarifications: OT-003.3-FIX and OT-003.6-FIX.

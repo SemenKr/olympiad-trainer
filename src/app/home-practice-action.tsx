@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
 import {
@@ -93,9 +93,10 @@ export function HomePracticeAction() {
 
   if (loadError) {
     return (
-      <div>
+      <HomePracticeLayout>
         <p role="alert">Не удалось проверить сохранённую тренировку.</p>
         <button
+          className={styles.primary}
           onClick={() => {
             setLoadError(false);
             setLoadRetry((value) => value + 1);
@@ -104,36 +105,25 @@ export function HomePracticeAction() {
         >
           Повторить
         </button>
-        <Link className={styles.secondary} href="/progress">
-          Мой прогресс
-        </Link>
-      </div>
+      </HomePracticeLayout>
     );
   }
-
-  return (
-    <div aria-live="polite" aria-atomic="true">
-      {stored ? (
-        <HomePracticeContent stored={stored} />
-      ) : (
-        <>
-          <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
-          <Link className={styles.secondary} href="/progress">
-            Мой прогресс
-          </Link>
-        </>
-      )}
-    </div>
+  return stored ? (
+    <HomePracticeContent stored={stored} />
+  ) : (
+    <HomePracticeLayout>
+      <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
+    </HomePracticeLayout>
   );
 }
 
 export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
-  const progressIsPrimary =
+  const hasNoNextAction =
     !stored.unfinished &&
     stored.availability.status !== "recommendation" &&
     (stored.completed !== null || stored.hasPracticeHistory);
   return (
-    <>
+    <HomePracticeLayout stored={stored} neutral={hasNoNextAction}>
       {stored.unfinished ? (
         <section aria-label="Текущая тренировка">
           <h2>Тренировка не закончена</h2>
@@ -191,7 +181,7 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
                 : "Возраст братьев"}
           </Link>
         </section>
-      ) : progressIsPrimary ? (
+      ) : hasNoNextAction ? (
         <section>
           <p className={styles.eyebrow}>Что сейчас?</p>
           <h2>
@@ -204,9 +194,6 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
               ? "Все подходящие задачи из текущего набора уже были в работе."
               : "Пока недостаточно проверенной работы, чтобы честно выбрать следующую полезную задачу."}
           </p>
-          <Link className={styles.primary} href="/progress">
-            Посмотреть прогресс
-          </Link>
         </section>
       ) : (
         <section>
@@ -221,68 +208,146 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           </Link>
         </section>
       )}
-      <HomePracticeJourneyLoader />
-      {!stored.unfinished && stored.reviewAvailable !== undefined ? (
-        <ReviewEntry
-          available={stored.reviewAvailable}
-          actionClassName={styles.secondary}
-        />
-      ) : null}
-      {!stored.unfinished &&
-      (stored.hasPracticeHistory || stored.completed !== null) ? (
-        <section aria-label="Дополнительная практика" className={styles.pack}>
-          <h2>Дополнительная практика</h2>
-          {PRACTICE_PACKS.map((pack, index) => (
-            <div
-              key={pack.id}
-              className={index === 0 ? undefined : styles["pack-choice"]}
+    </HomePracticeLayout>
+  );
+}
+
+function HomePracticeLayout({
+  children,
+  stored,
+  neutral = false,
+}: Readonly<{
+  children: ReactNode;
+  stored?: StoredPractice;
+  neutral?: boolean;
+}>) {
+  return (
+    <div className={styles.content}>
+      <div className={styles["main-column"]}>
+        <header className={styles.introduction}>
+          <p className={styles.eyebrow}>5 КЛАСС · МАТЕМАТИКА</p>
+          <h1>Что лучше сделать сейчас</h1>
+          <p className={styles["desktop-intro"]}>
+            Продолжай с полезного следующего шага — без выбора между десятком
+            режимов.
+          </p>
+        </header>
+        <div
+          className={
+            styles["next-action"] + (neutral ? " " + styles.neutral : "")
+          }
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {children}
+        </div>
+        <section
+          className={styles["secondary-area"]}
+          aria-labelledby="secondary-title"
+        >
+          <h2 id="secondary-title">Ещё можно</h2>
+          <div className={styles.destinations}>
+            <section
+              className={styles.card}
+              aria-labelledby="choose-practice-title"
             >
-              <h3>{pack.name}</h3>
-              {index === 0 ? (
-                <p>
-                  Три задачи для дополнительной тренировки. Этот набор можно
-                  выбрать самому — он не зависит от персональной рекомендации.
-                </p>
-              ) : null}
-              <Link className={styles.secondary} href={packHref(pack.id)}>
-                Решить 3 задачи
+              <h3 id="choose-practice-title">Выбрать тренировку</h3>
+              <p>
+                {PRACTICE_PACKS.length} наборов по{" "}
+                {PRACTICE_PACKS[0].problemIds.length} задачи. Выбирай тему сам.
+              </p>
+              <Link className={styles.secondary} href="/practice/choose">
+                Выбрать набор
               </Link>
-            </div>
-          ))}
+            </section>
+            {stored &&
+            !stored.unfinished &&
+            stored.reviewAvailable !== undefined ? (
+              <ReviewEntry
+                available={stored.reviewAvailable}
+                className={styles.card}
+                actionClassName={styles.secondary}
+              />
+            ) : null}
+            <Link
+              className={styles.secondary + " " + styles["mobile-progress"]}
+              href="/progress"
+            >
+              Мой прогресс
+            </Link>
+            <section
+              className={styles.card + " " + styles.simulation}
+              aria-labelledby="simulation-entry"
+            >
+              <p className={styles.eyebrow}>ОТДЕЛЬНЫЙ РЕЖИМ</p>
+              <h2 id="simulation-entry">Олимпиадная симуляция</h2>
+              <p>4 задачи · 45 минут · без подсказок и баллов</p>
+              <Link className={styles.secondary} href="/simulation">
+                Открыть симуляцию
+              </Link>
+            </section>
+          </div>
         </section>
-      ) : null}
-      {stored.completed ? (
-        <section aria-label="Последняя тренировка" className={styles.latest}>
-          <h2>Последняя тренировка</h2>
-          <ol>
-            {stored.completed.map((result) => (
-              <li key={result.problemId}>
-                <strong>{result.problemTitle}</strong>
-                <span>
-                  {getPracticeResultLabel(result.summary, result.taskOutcome) ??
-                    getPracticeRemainingText(result.summary.outcome)}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <Link
-            className={styles.secondary}
-            href={
-              stored.completedSessionId
-                ? `/practice/summary?session=${stored.completedSessionId}`
-                : "/practice/summary"
-            }
-          >
-            Посмотреть итоги
+      </div>
+      <aside
+        className={styles["side-column"]}
+        aria-label="Прогресс и последние тренировки"
+      >
+        <section
+          className={styles.card + " " + styles["progress-card"]}
+          aria-labelledby="home-progress-title"
+        >
+          <h2 id="home-progress-title">Мой прогресс</h2>
+          <p>Здесь — твоя работа над задачами.</p>
+          {stored ? (
+            <div className={styles["journey-preview"]}>
+              <HomePracticeJourneyLoader />
+            </div>
+          ) : null}
+          <Link className={styles.secondary} href="/progress">
+            Открыть прогресс
           </Link>
         </section>
-      ) : null}
-      {!progressIsPrimary ? (
-        <Link className={styles.secondary} href="/progress">
-          Мой прогресс
-        </Link>
-      ) : null}
-    </>
+        <section
+          className={styles.card + " " + styles.principle}
+          aria-labelledby="learner-principle-title"
+        >
+          <h3 id="learner-principle-title">Сначала — твой ход</h3>
+          <p>Подсказка не появляется сама. Сначала попробуй решить задачу.</p>
+        </section>
+        {stored?.completed ? (
+          <section
+            aria-label="Последняя тренировка"
+            className={styles.card + " " + styles.latest}
+          >
+            <h2>Последняя тренировка</h2>
+            <ol>
+              {stored.completed.map((result) => (
+                <li key={result.problemId}>
+                  <strong>{result.problemTitle}</strong>
+                  <span>
+                    {getPracticeResultLabel(
+                      result.summary,
+                      result.taskOutcome,
+                    ) ?? getPracticeRemainingText(result.summary.outcome)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <Link
+              className={styles.secondary}
+              href={
+                stored.completedSessionId
+                  ? "/practice/summary?session=" + stored.completedSessionId
+                  : "/practice/summary"
+              }
+            >
+              Посмотреть итоги
+            </Link>
+          </section>
+        ) : null}
+      </aside>
+    </div>
   );
 }
 
