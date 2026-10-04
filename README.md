@@ -1,17 +1,13 @@
 # Olympiad Trainer
 
-Web application for systematic preparation for school olympiads.
+A portfolio-quality web application for systematic school-olympiad preparation. The current product focuses on Grade 5 mathematics and VSOSh; learners solve independently with optional support.
 
-Current focus:
+## Project state
 
-* Mathematics
-* Grade 5
-* VSOSh
-* Fullstack MVP Deployed: completed — 3 production problems, 2 answer kinds, evidence-backed Progress and PostgreSQL learner persistence
-* Adaptive Practice v1 — Two-Capability Transfer: completed
-* Home Adaptive Availability: completed
-* Current milestone: Durable Practice History v0
+**Completed:** The deployed product has 42 sourced and adapted problems in twelve repository-authored, learner-chosen three-problem Packs; two supported answer kinds; PostgreSQL-backed learner progress and durable Practice history; two explicit adaptive transfer paths plus one exploration path; bounded Knowledge Support; engagement-only Practice Journey XP; and Review/Reconfirmation for one carrier with server-owned provenance. Recent additions reuse Practice and Finish flows and do not broaden mastery or adaptive claims. See the adopted contracts in [`docs/04-architecture/`](docs/04-architecture/).
 
-Durable Practice History v0 records one bounded completed-episode projection for each successful Finish. It preserves the Finish receipt as the idempotency source, leaves the latest Summary browser-local, and derives no mastery, progress or recommendation state. See [`docs/04-architecture/durable-practice-history-v0.md`](docs/04-architecture/durable-practice-history-v0.md) for the adopted contract.
+**Current:** The repository contains this bounded Grade 5 VSOSh training experience. Existing safeguards and learning principles remain in force: learner-safe support, explicit solution reveal, sourced content, and clear separation between participation, observed evidence and skill claims. No next major milestone has been adopted.
 
-Project documentation: `docs/`.
+**Future / not yet adopted:** Plausible directions in the project vision include validating and refining the learning journeys with learners, extending Grade 5 content/coverage, or considering other grades, olympiad stages, subjects, and parent-facing capabilities. These are options, not commitments. Current repository evidence does not justify choosing one as the next milestone.
+
+Project goals and boundaries: [`docs/00-project/project-vision.md`](docs/00-project/project-vision.md). Documentation index: [`docs/README.md`](docs/README.md).
