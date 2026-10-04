@@ -7,6 +7,8 @@ type TaskShellProps = Readonly<{
   finishAction: ReactNode;
   header: ReactNode;
   answerRail: ReactNode;
+  learningSupport?: ReactNode;
+  context?: ReactNode;
   children: ReactNode;
 }>;
 
@@ -15,18 +17,23 @@ export function TaskShell({
   finishAction,
   header,
   answerRail,
+  learningSupport,
+  context,
   children,
 }: TaskShellProps) {
   return (
     <main className={styles.shell}>
-      <nav aria-label="Действия с тренировкой" className={styles.navigation}>
-        <div
-          className={`${styles["navigation-action"]} ${styles["navigation-action-back"]}`}
-        >
-          {backAction}
-        </div>
-        <div className={styles["navigation-action"]}>{finishAction}</div>
-      </nav>
+      {backAction || finishAction ? (
+        <nav aria-label="Действия с тренировкой" className={styles.navigation}>
+          <div
+            className={`${styles["navigation-action"]} ${styles["navigation-action-back"]}`}
+          >
+            {backAction}
+          </div>
+          <span className={styles.context}>{context}</span>
+          <div className={styles["navigation-action"]}>{finishAction}</div>
+        </nav>
+      ) : null}
 
       <div className={styles.body}>
         <article className={styles.content}>
@@ -34,9 +41,19 @@ export function TaskShell({
           {children}
         </article>
 
-        <section aria-label="Ответ на задачу" className={styles["answer-rail"]}>
-          {answerRail}
-        </section>
+        {answerRail ? (
+          <section
+            aria-label="Ответ на задачу"
+            className={styles["answer-rail"]}
+          >
+            {answerRail}
+          </section>
+        ) : null}
+        {learningSupport ? (
+          <section aria-label="Помощь к этой задаче" className={styles.support}>
+            {learningSupport}
+          </section>
+        ) : null}
       </div>
     </main>
   );

@@ -4,10 +4,7 @@
   flex-direction: column;
   gap: var(--ot-space-20);
   margin-inline: auto;
-  padding: var(--ot-space-20) var(--ot-space-16) var(--ot-space-24);
-  background: var(--ot-color-surface-soft);
-  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
-  border-radius: var(--ot-radius-20);
+  padding: var(--ot-space-16);
 }
 
 .navigation {
@@ -76,6 +73,24 @@
 
 .body {
   gap: var(--ot-space-20);
+  padding: var(--ot-space-20) var(--ot-space-16);
+  background: var(--ot-color-surface-soft);
+  border: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-16);
+}
+
+.context {
+  color: var(--ot-color-text-secondary);
+  font-size: var(--ot-font-size-micro);
+  text-align: center;
+}
+
+.support {
+  min-width: 0;
+
+  &:has(> :empty) {
+    display: none;
+  }
 }
 
 .content {
@@ -113,27 +128,55 @@
 
 @media (width >= 1024px) {
   .shell {
-    width: min(calc(100% - (var(--ot-space-24) * 2)), 1200px);
+    width: min(100%, 1440px);
     gap: var(--ot-space-28);
     padding: var(--ot-space-28) var(--ot-space-32) var(--ot-space-32);
   }
 
   .body {
     display: grid;
-    grid-template-columns: minmax(0, 700px) 360px;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto 1fr;
     justify-content: space-between;
     gap: var(--ot-space-32);
+    padding: var(--ot-space-28) var(--ot-space-32);
   }
 
   .content {
     gap: var(--ot-space-20);
+    grid-column: 1;
+    grid-row: 1;
+
+    &:only-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .support {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .answer-rail {
+    grid-column: 2;
+    grid-row: 1 / 3;
     align-self: start;
     padding: var(--ot-space-20);
     background: var(--ot-color-surface);
     border: var(--ot-border-width-default) solid var(--ot-color-border-default);
     border-radius: var(--ot-radius-16);
+  }
+}
+
+@media (width >= 1280px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media (width >= 1024px) and (height >= 800px) {
+  .answer-rail {
+    position: sticky;
+    top: var(--ot-space-24);
   }
 }

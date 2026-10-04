@@ -1,0 +1,107 @@
+.media {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-12);
+  margin: 0;
+  padding: var(--ot-space-16);
+  background: var(--ot-color-surface);
+  border: 1px solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-16);
+
+  h2,
+  p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  h2 {
+    font-size: var(--ot-font-size-label);
+    line-height: var(--ot-line-height-label);
+  }
+
+  figcaption {
+    color: var(--ot-color-text-secondary);
+    font-size: var(--ot-font-size-caption);
+    line-height: var(--ot-line-height-caption);
+  }
+
+  button {
+    min-height: 48px;
+    padding: var(--ot-space-12) var(--ot-space-16);
+    color: var(--ot-color-text-primary);
+    background: var(--ot-color-surface);
+    border: 1px solid var(--ot-color-border-strong);
+    border-radius: var(--ot-radius-10);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--ot-color-primary);
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    cursor: wait;
+    opacity: 0.72;
+  }
+}
+
+.preview {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ot-space-12);
+  padding: var(--ot-space-12);
+  border: 1px solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-12);
+}
+
+.image,
+.enlarged {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.dialog {
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: var(--ot-space-16);
+  color: var(--ot-color-text-primary);
+  background: var(--ot-color-surface);
+  border: 1px solid var(--ot-color-border-default);
+  border-radius: var(--ot-radius-16);
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ot-space-12);
+  }
+
+  &::backdrop {
+    background: rgb(0 0 0 / 55%);
+  }
+}
+
+.enlarged {
+  max-height: 65dvh;
+}
+
+@media (width >= 768px) {
+  .media {
+    padding: var(--ot-space-20);
+  }
+
+  .media > button {
+    align-self: flex-start;
+  }
+}

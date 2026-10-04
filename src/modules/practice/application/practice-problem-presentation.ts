@@ -1,3 +1,5 @@
+import type { LearnerSafeProblemMedia } from "./problem-media";
+
 export type PracticeHintLevel = "focus" | "strategy" | "next-step";
 
 export type LearnerSafeFocusHintDescriptor = Readonly<{
@@ -32,6 +34,7 @@ export type LearnerSafePracticeProblem = Readonly<{
   problemId: string;
   title: string;
   statement: string;
+  media?: LearnerSafeProblemMedia;
   response:
     | Readonly<{ kind: "short-numeric" }>
     | Readonly<{

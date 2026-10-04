@@ -220,10 +220,27 @@ describe("Knowledge Support inside the persisted Practice episode", () => {
       const bytes = localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY);
       await mount();
       expect(visibleText()).toContain("Нужна проверка формулировок?");
+      const rail = container.querySelector('[aria-label="Ответ на задачу"]')!;
+      const canvas = container.querySelector(
+        '[aria-label="Помощь к этой задаче"]',
+      )!;
+      expect(rail.textContent).not.toContain("Нужна проверка формулировок?");
+      expect(canvas.textContent).toContain("Нужна проверка формулировок?");
+      expect(canvas.textContent).toContain("Подсказка 1");
       expect(visibleText()).not.toContain("У Лены");
       await click("Проверить формулировки");
       expect(visibleText()).toContain("У Лены 12 фишек");
       expect(visibleText()).not.toContain("Условие задачи");
+      const visibleMain = Array.from(container.querySelectorAll("main")).find(
+        (main) => !main.closest("[hidden]"),
+      )!;
+      expect(visibleMain.querySelector("main")).toBeNull();
+      expect(visibleMain.querySelector("article")?.textContent).toContain(
+        "У Лены 12 фишек",
+      );
+      expect(
+        visibleMain.querySelector('[aria-label="Ответ на задачу"]'),
+      ).toBeNull();
       await choose("B");
       expect(visibleText()).toContain("Разберём эти формулировки отдельно");
       expect(openKnowledgeLesson).not.toHaveBeenCalled();

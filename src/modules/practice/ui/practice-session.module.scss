@@ -41,6 +41,41 @@
 
 .answer-rail {
   gap: var(--ot-space-16);
+
+  > button {
+    width: 100%;
+  }
+}
+
+.learning-support {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-20);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.position {
+  margin: 0;
+  color: var(--ot-color-text-secondary);
+  font-size: var(--ot-font-size-caption);
+  line-height: var(--ot-line-height-caption);
+}
+
+.support-heading {
+  margin: 0;
+  font-size: var(--ot-font-size-heading);
+  line-height: var(--ot-line-height-heading);
+}
+
+@media (width >= 1024px) {
+  .header h1 {
+    font-size: 32px;
+    line-height: 40px;
+  }
 }
 
 .checkpoint {

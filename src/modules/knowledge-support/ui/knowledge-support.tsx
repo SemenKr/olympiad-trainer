@@ -34,6 +34,7 @@ type Props = Readonly<{
   beforeOpen: () => Promise<boolean>;
   onReturn: () => void;
   children: (offer: ReactNode) => ReactNode;
+  renderSurface?: (surface: ReactNode) => ReactNode;
 }>;
 type Surface =
   | "practice"
@@ -51,6 +52,7 @@ export function KnowledgeSupport({
   beforeOpen,
   onReturn,
   children,
+  renderSurface,
 }: Props) {
   const [surface, setSurface] = useState<Surface>("practice");
   const [observation, setObservation] = useState<SupportObservation | null>(
@@ -192,121 +194,125 @@ export function KnowledgeSupport({
         : DIAGNOSTIC_INCORRECT
       : microFeedback;
   const active = surface !== "practice";
+  const SupportSurface = renderSurface ? "section" : "main";
+  const supportSurface = active ? (
+    <SupportSurface className={styles.surface} aria-busy={pending}>
+      <p>{LEARNER_LABEL}</p>
+      <h1 ref={heading} tabIndex={-1}>
+        {surface === "diagnostic"
+          ? "Проверка формулировок"
+          : surface === "lesson"
+            ? LEARNER_LABEL
+            : surface === "micro-check"
+              ? "Новый пример"
+              : result?.heading}
+      </h1>
+      {surface === "diagnostic" || surface === "micro-check" ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!selected) return;
+            void run(async () => {
+              if (surface === "diagnostic") {
+                setObservation(
+                  await submitKnowledgeDiagnostic(sessionId, selected, {
+                    problemId,
+                    practice,
+                  }),
+                );
+              } else {
+                const result = await submitKnowledgeMicroCheck(
+                  sessionId,
+                  selected,
+                );
+                setObservation(result.observation);
+                setMicroFeedback(result.feedback);
+              }
+              setSurface(
+                surface === "diagnostic" ? "diagnostic-result" : "micro-result",
+              );
+              setSelected(null);
+            });
+          }}
+        >
+          <fieldset disabled={pending}>
+            <legend>{question.question}</legend>
+            {question.options.map((option) => (
+              <label key={option.id}>
+                <input
+                  type="radio"
+                  name="knowledge-option"
+                  value={option.id}
+                  checked={selected === option.id}
+                  onChange={() => setSelected(option.id)}
+                />
+                {option.text}
+              </label>
+            ))}
+          </fieldset>
+          <button type="submit" disabled={!selected || pending}>
+            Проверить
+          </button>
+        </form>
+      ) : surface === "lesson" ? (
+        <>
+          <p className={styles.copy}>{lesson}</p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setSelected(null);
+              setSurface("micro-check");
+            }}
+          >
+            Проверить на новом примере
+          </button>
+        </>
+      ) : (
+        <p className={styles.copy} role="status">
+          {result?.text}
+        </p>
+      )}
+      {surface === "diagnostic-result" &&
+      observation &&
+      canRecommendLesson(observation) ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            void run(async () => {
+              const result = await openKnowledgeLesson(sessionId);
+              setObservation(result.observation);
+              setLesson(result.lesson);
+              setSurface("lesson");
+            })
+          }
+        >
+          Разобрать за минуту
+        </button>
+      ) : null}
+      {error ? (
+        <p role="alert">
+          Не удалось сохранить проверку. Повтори отправку выбранного ответа.
+          Если он уже сохранён, заменить его нельзя.
+        </p>
+      ) : null}
+      {pending ? <p role="status">Сохраняем…</p> : null}
+      <button type="button" disabled={pending} onClick={returnToPractice}>
+        {surface === "micro-result"
+          ? "Вернуться к «Пять кучек камней»"
+          : "Вернуться к задаче"}
+      </button>
+    </SupportSurface>
+  ) : null;
   return (
     <>
       <div hidden={active}>{children(offer)}</div>
-      {active ? (
-        <main className={styles.surface} aria-busy={pending}>
-          <p>{LEARNER_LABEL}</p>
-          <h1 ref={heading} tabIndex={-1}>
-            {surface === "diagnostic"
-              ? "Проверка формулировок"
-              : surface === "lesson"
-                ? LEARNER_LABEL
-                : surface === "micro-check"
-                  ? "Новый пример"
-                  : result?.heading}
-          </h1>
-          {surface === "diagnostic" || surface === "micro-check" ? (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!selected) return;
-                void run(async () => {
-                  if (surface === "diagnostic") {
-                    setObservation(
-                      await submitKnowledgeDiagnostic(sessionId, selected, {
-                        problemId,
-                        practice,
-                      }),
-                    );
-                  } else {
-                    const result = await submitKnowledgeMicroCheck(
-                      sessionId,
-                      selected,
-                    );
-                    setObservation(result.observation);
-                    setMicroFeedback(result.feedback);
-                  }
-                  setSurface(
-                    surface === "diagnostic"
-                      ? "diagnostic-result"
-                      : "micro-result",
-                  );
-                  setSelected(null);
-                });
-              }}
-            >
-              <fieldset disabled={pending}>
-                <legend>{question.question}</legend>
-                {question.options.map((option) => (
-                  <label key={option.id}>
-                    <input
-                      type="radio"
-                      name="knowledge-option"
-                      value={option.id}
-                      checked={selected === option.id}
-                      onChange={() => setSelected(option.id)}
-                    />
-                    {option.text}
-                  </label>
-                ))}
-              </fieldset>
-              <button type="submit" disabled={!selected || pending}>
-                Проверить
-              </button>
-            </form>
-          ) : surface === "lesson" ? (
-            <>
-              <p className={styles.copy}>{lesson}</p>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  setSelected(null);
-                  setSurface("micro-check");
-                }}
-              >
-                Проверить на новом примере
-              </button>
-            </>
-          ) : (
-            <p className={styles.copy} role="status">
-              {result?.text}
-            </p>
-          )}
-          {surface === "diagnostic-result" &&
-          observation &&
-          canRecommendLesson(observation) ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                void run(async () => {
-                  const result = await openKnowledgeLesson(sessionId);
-                  setObservation(result.observation);
-                  setLesson(result.lesson);
-                  setSurface("lesson");
-                })
-              }
-            >
-              Разобрать за минуту
-            </button>
-          ) : null}
-          {error ? (
-            <p role="alert">
-              Не удалось сохранить проверку. Повтори отправку выбранного ответа.
-              Если он уже сохранён, заменить его нельзя.
-            </p>
-          ) : null}
-          {pending ? <p role="status">Сохраняем…</p> : null}
-          <button type="button" disabled={pending} onClick={returnToPractice}>
-            {surface === "micro-result"
-              ? "Вернуться к «Пять кучек камней»"
-              : "Вернуться к задаче"}
-          </button>
-        </main>
-      ) : null}
+      {supportSurface
+        ? renderSurface
+          ? renderSurface(supportSurface)
+          : supportSurface
+        : null}
     </>
   );
 }

@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  getLearnerSafeProblemMedia,
+  type ProblemMediaDefinition,
+} from "./problem-media";
 
 import type {
   LearnerSafePracticeProblem,
@@ -77,6 +81,7 @@ export type ProblemDefinition = Readonly<{
   subject: "mathematics";
   title: string;
   statement: string;
+  media?: ProblemMediaDefinition;
   provenance: ProblemProvenance;
   assessment:
     | Readonly<{ kind: "nonnegative-integer"; expectedAnswer: string }>
@@ -2742,6 +2747,9 @@ export function getLearnerSafePracticeProblem(
     problemId: problem.id,
     title: problem.title,
     statement: problem.statement,
+    ...(problem.media
+      ? { media: getLearnerSafeProblemMedia(problem.media) }
+      : {}),
     response:
       problem.assessment.kind === "multiple-choice-set"
         ? {
