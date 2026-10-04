@@ -1,5 +1,7 @@
 # Dashboard and Progress Flow — v0.1
 
+The adopted [Home + Choose Practice UX v1](home-chooser-v1.md) supersedes this document's primary-Progress fallback: without Resume/adaptive/first-Practice action, Home shows a neutral state with no primary CTA; Progress and Choose Practice stay secondary. Other product/evidence semantics remain unchanged.
+
 ## Purpose and handoff context
 
 - **Task ID:** OT-002.2
