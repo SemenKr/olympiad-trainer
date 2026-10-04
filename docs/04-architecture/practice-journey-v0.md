@@ -5,7 +5,7 @@
 Practice Journey records participation in explicitly finished Practice
 sessions. It is separate from capability evidence, `adaptiveFacts`, adaptive
 precedence and Durable Practice History. XP never describes mastery or skill.
-No XP appears in an active problem.
+No XP appears in an active problem. [Review / Reconfirmation v0](review-reconfirmation-v0.md) uses these same engagement-only rules; its mode and provenance do not change the award.
 
 Each problem in a successfully finished session earns at most 10 XP when it has
 at least one valid submission or the learner opened its full solution. Hints,

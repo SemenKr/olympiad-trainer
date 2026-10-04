@@ -176,7 +176,7 @@ export type CompletedPracticeEpisodeFactsV1 = Readonly<{
   problems: readonly CompletedPracticeProblemFact[];
 }>;
 export type CompletedPracticeEpisodeMode =
-  "core" | "transfer" | "exploration" | "pack";
+  "core" | "transfer" | "exploration" | "pack" | "review";
 
 type CompletedResult = Readonly<{
   problemId: string;
@@ -265,6 +265,13 @@ export function validateCompletedEpisode(
       !TRANSFER_EPISODE_PROBLEM_IDS.some((id) => id === first.problemId)
     )
       return null;
+  } else if (mode === "review") {
+    if (
+      problems.length !== 1 ||
+      !record(problems[0]) ||
+      problems[0].problemId !== "coinciding-seats"
+    )
+      return null;
   } else if (mode === "exploration") {
     if (
       problems.length !== 1 ||
@@ -310,7 +317,7 @@ export function validateCompletedEpisode(
       (fact.solutionExposed &&
         (fact.validSubmissionCount === 0 ||
           fact.hintLevelsExposed.length !== 3)) ||
-      (mode === "pack" && fact.checkpoint !== null)
+      ((mode === "pack" || mode === "review") && fact.checkpoint !== null)
     )
       return null;
     if (

@@ -25,6 +25,7 @@ export function LatestCompletedSummary() {
   const [loadRetry, setLoadRetry] = useState(0);
   const [journeyFinish, setJourneyFinish] =
     useState<PracticeJourneyFinish | null>(null);
+  const [mode, setMode] = useState<"review" | undefined>();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export function LatestCompletedSummary() {
           ({
             value,
             sessionId,
+            mode: completedMode,
             interpretation: verifiedInterpretation,
             tableInterpretation: verifiedTableInterpretation,
           }) => {
@@ -45,6 +47,7 @@ export function LatestCompletedSummary() {
             setInterpretation(verifiedInterpretation);
             setTableInterpretation(verifiedTableInterpretation ?? null);
             setResults(value);
+            setMode(completedMode);
             setJourneyFinish(null);
             if (sessionId && active)
               void readServerPracticeJourneyFinish(sessionId)
@@ -101,6 +104,7 @@ export function LatestCompletedSummary() {
       tableInterpretation={tableInterpretation}
       results={results}
       journeyFinish={journeyFinish}
+      mode={mode}
     />
   );
 }
@@ -111,12 +115,14 @@ export function LatestCompletedSummaryContent({
   reasoningInterpretation,
   tableInterpretation,
   journeyFinish = null,
+  mode,
 }: {
   results: readonly PracticeSessionResult[] | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   journeyFinish?: PracticeJourneyFinish | null;
+  mode?: "review";
 }) {
   if (!results) {
     return (
@@ -136,6 +142,7 @@ export function LatestCompletedSummaryContent({
       tableInterpretation={tableInterpretation}
       results={results}
       journeyFinish={journeyFinish}
+      mode={mode}
     />
   );
 }

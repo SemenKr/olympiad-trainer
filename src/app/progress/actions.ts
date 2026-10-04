@@ -4,6 +4,8 @@ import type { LearnerProgressInterpretation } from "../../modules/practice/appli
 import { resolveLearnerFromCookie } from "../../modules/practice/server/learner-identity";
 import {
   importLegacyProgress,
+  readReviewAvailability,
+  startReview,
   persistFinishContributions,
   readAdaptiveAvailability,
   readLearnerProgress,
@@ -85,4 +87,12 @@ export async function readServerProgress(): Promise<
 export async function readServerRecentPracticeEpisodes() {
   const learnerId = await resolveLearnerFromCookie();
   return readRecentPracticeEpisodes(learnerId);
+}
+
+export async function readServerReviewAvailability() {
+  return readReviewAvailability(await resolveLearnerFromCookie());
+}
+
+export async function startServerReview() {
+  return startReview(await resolveLearnerFromCookie());
 }

@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  uniqueIndex,
   integer,
   jsonb,
   pgTable,
@@ -48,7 +49,7 @@ export const practiceFinishReceipts = pgTable(
     sessionId: uuid("session_id").notNull(),
     contributionHash: text("contribution_hash").notNull(),
     episodeMode: text("episode_mode").$type<
-      "core" | "transfer" | "exploration" | "pack"
+      "core" | "transfer" | "exploration" | "pack" | "review"
     >(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -65,8 +66,9 @@ export const practiceCompletedEpisodes = pgTable(
       .references(() => learners.id),
     sessionId: uuid("session_id").notNull(),
     mode: text("mode")
-      .$type<"core" | "transfer" | "exploration" | "pack">()
+      .$type<"core" | "transfer" | "exploration" | "pack" | "review">()
       .notNull(),
+    reviewSourceSessionId: uuid("review_source_session_id"),
     episodeFacts: jsonb("episode_facts").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true })
       .notNull()
@@ -99,4 +101,26 @@ export const practiceJourneyAwards = pgTable(
       .defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.learnerId, table.sessionId] })],
+);
+
+// Reservations survive bounded history and keep provenance server-owned.
+export const practiceReviewAssignments = pgTable(
+  "practice_review_assignments",
+  {
+    learnerId: uuid("learner_id")
+      .notNull()
+      .references(() => learners.id),
+    sessionId: uuid("session_id").notNull(),
+    reviewSourceSessionId: uuid("review_source_session_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.learnerId, table.sessionId] }),
+    uniqueIndex("practice_review_assignments_source_idx").on(
+      table.learnerId,
+      table.reviewSourceSessionId,
+    ),
+  ],
 );

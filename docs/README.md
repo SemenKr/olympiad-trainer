@@ -4,6 +4,6 @@
 - [01-product](01-product/) — требования, границы MVP и продуктовые сценарии.
 - [02-research](02-research/) — исследование задач ВсОШ, навыков и методов решения.
 - [03-ux](03-ux/) — пользовательские сценарии и интерфейс.
-- [04-architecture](04-architecture/) — модель данных и архитектура, включая [Durable Practice History v0](04-architecture/durable-practice-history-v0.md), [Knowledge Support v0](04-architecture/knowledge-support-v0.md) и [Practice Journey v0](04-architecture/practice-journey-v0.md).
+- [04-architecture](04-architecture/) — модель данных и архитектура, включая [Durable Practice History v0](04-architecture/durable-practice-history-v0.md), [Knowledge Support v0](04-architecture/knowledge-support-v0.md) и [Practice Journey v0](04-architecture/practice-journey-v0.md) и [Review / Reconfirmation v0](04-architecture/review-reconfirmation-v0.md).
 - [05-development](05-development/) — backlog и процесс разработки.
 - [99-decisions](99-decisions/) — принятые решения и их обоснования.

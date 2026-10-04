@@ -17,6 +17,7 @@ import {
   persistPracticeFinishEvidence,
   readServerAdaptiveAvailability,
   readServerNextUsefulProblem,
+  startServerReview,
 } from "../../../app/progress/actions";
 
 import type {
@@ -130,7 +131,7 @@ type PracticeSessionProps = Readonly<{
     | "brothers-ages-products"
     | "parrots-guaranteed-colors"
     | "pages-without-digit-one";
-  startMode?: "core" | "transfer" | "pack";
+  startMode?: "core" | "transfer" | "pack" | "review";
 }>;
 
 export function getActivePracticeProblem(
@@ -148,6 +149,8 @@ export function getActivePracticeProblem(
       ? (packs?.[packId][session.activeProblemIndex] ?? null)
       : null;
   }
+  if (session.mode === "review")
+    return { ...problems[0], reasoningCheckpoint: undefined };
   const problem =
     session.problemId === "parrots-guaranteed-colors"
       ? parrotsProblem
@@ -171,6 +174,7 @@ function PracticeRestoreError({ onRetry }: Readonly<{ onRetry: () => void }>) {
 }
 
 type PracticeProblemEpisodeProps = Readonly<{
+  review?: boolean;
   sessionId: string;
   problem: LearnerSafePracticeProblem;
   hasNextProblem: boolean;
@@ -282,7 +286,7 @@ export async function finishPracticeSessionAndNavigate(
       attempted: boolean;
       solutionExposed: boolean;
     };
-    episodeMode?: "core" | "transfer" | "exploration" | "pack";
+    episodeMode?: "core" | "transfer" | "exploration" | "pack" | "review";
     episodeFacts?: unknown;
   }) =>
     request.episodeFacts
@@ -346,6 +350,7 @@ export function PracticeSession({
   const [noNextStorageError, setNoNextStorageError] = useState(false);
   const [restoreError, setRestoreError] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
+  const [reviewUnavailable, setReviewUnavailable] = useState(false);
   const [restoreRetry, setRestoreRetry] = useState(0);
   const [loaded, setLoaded] = useState<
     | {
@@ -371,7 +376,7 @@ export function PracticeSession({
             setLoaded({ session: snapshot });
             return;
           }
-          const session: ActivePracticeSessionState = snapshot
+          let session: ActivePracticeSessionState = snapshot
             ? ({
                 sessionId: snapshot.sessionId,
                 ...("mode" in snapshot && snapshot.mode !== "pack"
@@ -390,6 +395,21 @@ export function PracticeSession({
               : startMode === "pack"
                 ? startPackPracticeSession(startPackId)
                 : startPracticeSession();
+          if (!snapshot && startMode === "review") {
+            await ensureServerProgressImported();
+            const sessionId = await startServerReview();
+            if (!sessionId) {
+              if (active) setReviewUnavailable(true);
+              return;
+            }
+            session = {
+              sessionId,
+              mode: "review",
+              problemId: "coinciding-seats",
+              activeProblemIndex: 0,
+              completedResults: [],
+            };
+          }
           if (!snapshot && startMode === "pack" && !packs?.[startPackId]) {
             if (active) setRestoreError(true);
             return;
@@ -462,6 +482,15 @@ export function PracticeSession({
   };
 
   if (restoreError) return <PracticeRestoreError onRetry={retryRestore} />;
+
+  if (reviewUnavailable)
+    return (
+      <main>
+        <h1>Повторная попытка</h1>
+        <p>Пока нет подходящей завершённой тренировки для повторной попытки.</p>
+        <Link href="/progress">Посмотреть прогресс</Link>
+      </main>
+    );
 
   if (packUnavailable)
     return (
@@ -719,11 +748,13 @@ export function PracticeSession({
         )
       }
       problem={activeProblem}
+      review={sessionState.mode === "review"}
     />
   );
 }
 
 function PracticeProblemEpisode({
+  review,
   sessionId,
   problem,
   hasNextProblem,
@@ -1624,7 +1655,9 @@ function PracticeProblemEpisode({
       }
       header={
         <header className={styles.header}>
-          <p className={styles.eyebrow}>Тренировка</p>
+          <p className={styles.eyebrow}>
+            {review ? "Повторная попытка" : "Тренировка"}
+          </p>
           <h1 ref={problemHeadingRef} tabIndex={-1}>
             {problem.title}
           </h1>

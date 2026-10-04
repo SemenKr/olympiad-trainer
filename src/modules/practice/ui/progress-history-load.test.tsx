@@ -7,6 +7,7 @@ vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(),
   readServerPracticeJourney: vi.fn(async () => 70),
+  readServerReviewAvailability: vi.fn(async () => false),
 }));
 vi.mock("./server-progress-import", () => ({
   ensureServerProgressImported: vi.fn(async () => {}),
@@ -16,6 +17,7 @@ import {
   readServerProgress,
   readServerRecentPracticeEpisodes,
   readServerPracticeJourney,
+  readServerReviewAvailability,
 } from "../../../app/progress/actions";
 import { ProgressOverview } from "./progress-overview";
 
@@ -113,5 +115,57 @@ describe("durable history on Progress reload", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+});
+
+it("keeps capability/Journey/history available when the secondary Review read fails, then retries separately", async () => {
+  vi.mocked(readServerProgress).mockResolvedValue([
+    { learnerLabel: "A", progressGroup: null, conclusion: "Evidence A" },
+    { learnerLabel: "B", progressGroup: null, conclusion: "Evidence B" },
+    { learnerLabel: "C", progressGroup: null, conclusion: "Evidence C" },
+  ]);
+  vi.mocked(readServerRecentPracticeEpisodes).mockResolvedValue([
+    {
+      mode: "review",
+      completedAt: "2026-10-04T00:00:00Z",
+      problems: [
+        {
+          problemTitle: "Совпадающие места",
+          outcome: "incorrect-only",
+          skipped: false,
+          validSubmissionCount: 1,
+          hintLevelsExposed: [],
+          solutionExposed: false,
+          checkpoint: null,
+        },
+      ],
+    },
+  ]);
+  vi.mocked(readServerReviewAvailability).mockRejectedValueOnce(
+    Error("Review unavailable"),
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(<ProgressOverview />);
+  });
+  expect(container.textContent).toContain("Evidence A");
+  expect(container.textContent).toContain("Путь практики");
+  expect(container.textContent).toContain("Недавняя работа");
+  expect(container.textContent).toContain("Повторная попытка");
+  expect(container.textContent).toContain("Не удалось проверить");
+  expect(container.textContent).not.toContain("Не удалось загрузить прогресс");
+  vi.mocked(readServerReviewAvailability).mockResolvedValue(true);
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>("button")!.click();
+  });
+  expect(container.querySelector('a[href="/practice/review"]')).not.toBeNull();
+  expect(readServerProgress).toHaveBeenCalledTimes(1);
+  expect(container.textContent!.indexOf("Решить знакомую задачу")).toBeLessThan(
+    container.textContent!.indexOf("Evidence A"),
+  );
+  await act(async () => {
+    root.unmount();
   });
 });

@@ -14,7 +14,7 @@ Durable Practice History v0 adds a bounded server-side projection of completed P
 - `practice_finish_receipts` remains the idempotency source. Retrying a Finish returns the same completed result and does not create another episode; the server-assigned `completed_at` is stable on retry.
 - The episode projection, its evidence, adaptive facts and Finish receipt are written atomically in one database transaction. A failed transaction leaves none of those Finish writes committed.
 - `completed_at` is assigned by the server.
-- Retain the newest 50 completed episodes. History reads return the newest 10.
+- Retain the newest 50 completed episodes. [Review / Reconfirmation v0](review-reconfirmation-v0.md) preserves eligible core sources and referenced sources beyond that bound to keep provenance and resumable reservations valid; stored rows can exceed 50. History reads still return the newest 10.
 - Do not backfill historical completed episodes.
 
 ## Data boundary

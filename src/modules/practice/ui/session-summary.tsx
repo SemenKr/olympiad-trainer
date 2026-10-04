@@ -13,6 +13,7 @@ type SessionSummaryProps = Readonly<{
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   journeyFinish?: PracticeJourneyFinish | null;
+  mode?: "review";
 }>;
 
 export function getPracticeRemainingText(
@@ -86,6 +87,7 @@ export function SessionSummary({
   tableInterpretation,
   headingRef,
   journeyFinish,
+  mode,
 }: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
     const label = getPracticeResultLabel(result.summary, result.taskOutcome);
@@ -152,10 +154,18 @@ export function SessionSummary({
       <header className={styles.header}>
         <p className={styles.eyebrow}>Итоги тренировки</p>
         <h1 ref={headingRef} tabIndex={-1}>
-          Тренировка завершена
+          {mode === "review"
+            ? "Повторная попытка завершена"
+            : "Тренировка завершена"}
         </h1>
       </header>
 
+      {mode === "review" ? (
+        <p>
+          Это отдельная попытка знакомой задачи. Она не меняет выводы о навыках
+          и выбор следующей полезной задачи.
+        </p>
+      ) : null}
       {showSuccessOverview ? (
         <section className={styles.section}>
           <h2>Что получилось</h2>

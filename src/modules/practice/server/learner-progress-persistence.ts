@@ -1,6 +1,7 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { isEligibleReviewSource } from "../application/review";
+import { randomUUID, createHash } from "node:crypto";
 import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import {
   validateCompletedEpisode,
@@ -58,6 +59,7 @@ import {
   practiceCompletedEpisodes,
   practiceFinishReceipts,
   practiceJourneyAwards,
+  practiceReviewAssignments,
 } from "./progress-schema";
 
 const NO_LOCAL_EVIDENCE = "no-browser-progress-evidence-v1";
@@ -484,7 +486,8 @@ export async function persistFinishContributions(
       !checked ||
       (candidate.mode === "transfer" || candidate.mode === "exploration") !==
         (adaptiveFacts !== undefined) ||
-      (candidate.mode === "pack" && ordered.length !== 0) ||
+      ((candidate.mode === "pack" || candidate.mode === "review") &&
+        ordered.length !== 0) ||
       ((candidate.mode === "transfer" || candidate.mode === "exploration") &&
         candidate.mode !==
           (adaptiveProblemId === "pages-without-digit-one"
@@ -542,6 +545,33 @@ export async function persistFinishContributions(
       .for("update");
     if (!learner || learner.legacyImportHash === null)
       throw new Error("Legacy Progress import is required.");
+    const [assignment] = await tx
+      .select()
+      .from(practiceReviewAssignments)
+      .where(
+        and(
+          eq(practiceReviewAssignments.learnerId, learnerId),
+          eq(practiceReviewAssignments.sessionId, sessionId),
+        ),
+      );
+    if ((completedEpisode?.mode === "review") !== !!assignment)
+      throw new Error("Review assignment does not match Finish.");
+    if (assignment) {
+      const [source] = await tx
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, learnerId),
+            eq(
+              practiceCompletedEpisodes.sessionId,
+              assignment.reviewSourceSessionId,
+            ),
+          ),
+        );
+      if (!source || !isEligibleReviewSource(source.mode, source.episodeFacts))
+        throw new Error("Review source is unavailable.");
+    }
     const [receipt] = await tx
       .select()
       .from(practiceFinishReceipts)
@@ -629,9 +659,14 @@ export async function persistFinishContributions(
         sessionId,
         mode: completedEpisode.mode,
         episodeFacts: completedEpisode.facts,
+        reviewSourceSessionId: assignment?.reviewSourceSessionId ?? null,
       });
       await tx.execute(sql`DELETE FROM practice_completed_episodes
-        WHERE learner_id = ${learnerId} AND session_id IN (
+        WHERE learner_id = ${learnerId}
+        AND NOT (mode = 'core' AND episode_facts->'problems'->0->>'outcome' = 'eventually-correct'
+          AND episode_facts->'problems'->0->>'solutionExposed' = 'false')
+        AND session_id NOT IN (SELECT review_source_session_id FROM practice_review_assignments WHERE learner_id = ${learnerId})
+        AND session_id IN (
           SELECT session_id FROM practice_completed_episodes
           WHERE learner_id = ${learnerId}
           ORDER BY completed_at DESC, session_id DESC OFFSET 50
@@ -814,7 +849,10 @@ export async function readAdaptiveAvailability(learnerId: string): Promise<
         eq(practiceFinishReceipts.learnerId, learnerId),
         or(
           isNull(practiceFinishReceipts.episodeMode),
-          ne(practiceFinishReceipts.episodeMode, "pack"),
+          and(
+            ne(practiceFinishReceipts.episodeMode, "pack"),
+            ne(practiceFinishReceipts.episodeMode, "review"),
+          ),
         ),
       ),
     )
@@ -881,4 +919,91 @@ export async function readLearnerProgress(
       conclusion: third.conclusion,
     },
   ];
+}
+
+const eligibleUnassignedReviewSource = sql`mode = 'core'
+  AND episode_facts->'problems'->0->>'outcome' = 'eventually-correct'
+  AND episode_facts->'problems'->0->>'solutionExposed' = 'false'
+  AND NOT EXISTS (SELECT 1 FROM practice_review_assignments a
+    WHERE a.learner_id = practice_completed_episodes.learner_id
+      AND a.review_source_session_id = practice_completed_episodes.session_id)`;
+
+export async function readReviewAvailability(
+  learnerId: string,
+): Promise<boolean> {
+  const db = getProgressDb();
+  const [pending] = await db
+    .select()
+    .from(practiceReviewAssignments)
+    .where(
+      and(
+        eq(practiceReviewAssignments.learnerId, learnerId),
+        sql`NOT EXISTS (SELECT 1 FROM practice_finish_receipts r WHERE r.learner_id = practice_review_assignments.learner_id AND r.session_id = practice_review_assignments.session_id)`,
+      ),
+    )
+    .limit(1);
+  if (pending) return true;
+  const [source] = await db
+    .select()
+    .from(practiceCompletedEpisodes)
+    .where(
+      and(
+        eq(practiceCompletedEpisodes.learnerId, learnerId),
+        eligibleUnassignedReviewSource,
+      ),
+    )
+    .orderBy(
+      desc(practiceCompletedEpisodes.completedAt),
+      desc(practiceCompletedEpisodes.sessionId),
+    )
+    .limit(1);
+  return !!source && isEligibleReviewSource(source.mode, source.episodeFacts);
+}
+
+export async function startReview(learnerId: string): Promise<string | null> {
+  return getProgressDb().transaction(async (tx) => {
+    const [learner] = await tx
+      .select()
+      .from(learners)
+      .where(eq(learners.id, learnerId))
+      .for("update");
+    if (!learner || learner.legacyImportHash === null)
+      throw new Error("Legacy Progress import is required.");
+    // Concurrent starts and lost browser snapshots reuse the same pending attempt.
+    const [pending] = await tx
+      .select()
+      .from(practiceReviewAssignments)
+      .where(
+        and(
+          eq(practiceReviewAssignments.learnerId, learnerId),
+          sql`NOT EXISTS (SELECT 1 FROM practice_finish_receipts r WHERE r.learner_id = practice_review_assignments.learner_id AND r.session_id = practice_review_assignments.session_id)`,
+        ),
+      )
+      .limit(1);
+    if (pending) return pending.sessionId;
+    const [source] = await tx
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, learnerId),
+          eligibleUnassignedReviewSource,
+        ),
+      )
+      .orderBy(
+        desc(practiceCompletedEpisodes.completedAt),
+        desc(practiceCompletedEpisodes.sessionId),
+      )
+      .limit(1);
+    if (!source) return null;
+    if (!isEligibleReviewSource(source.mode, source.episodeFacts))
+      throw new Error("Review source could not be verified.");
+    const sessionId = randomUUID();
+    await tx.insert(practiceReviewAssignments).values({
+      learnerId,
+      sessionId,
+      reviewSourceSessionId: source.sessionId,
+    });
+    return sessionId;
+  });
 }

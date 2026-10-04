@@ -7,6 +7,7 @@ import {
   readServerProgress,
   readServerRecentPracticeEpisodes,
   readServerPracticeJourney,
+  readServerReviewAvailability,
 } from "../../../app/progress/actions";
 
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
@@ -14,6 +15,7 @@ import type { RecentPracticeEpisode } from "../server/learner-progress-persisten
 import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./progress-overview.module.scss";
 import { ProgressPracticeJourney } from "./practice-journey";
+import { ReviewEntry } from "./review-entry";
 
 type ProgressLoad =
   | { status: "loading" }
@@ -27,6 +29,7 @@ type ProgressLoad =
       ];
       episodes: readonly RecentPracticeEpisode[];
       journeyTotalXp: number;
+      reviewAvailable: boolean | null;
     };
 
 export function ProgressOverview() {
@@ -44,17 +47,21 @@ export function ProgressOverview() {
             readServerProgress(),
             readServerRecentPracticeEpisodes(),
             readServerPracticeJourney(),
+            readServerReviewAvailability().catch(() => null),
           ]),
         )
-        .then(([interpretations, episodes, journeyTotalXp]) => {
-          if (active)
-            setLoad({
-              status: "ready",
-              interpretations,
-              episodes,
-              journeyTotalXp,
-            });
-        })
+        .then(
+          ([interpretations, episodes, journeyTotalXp, reviewAvailable]) => {
+            if (active)
+              setLoad({
+                status: "ready",
+                interpretations,
+                episodes,
+                journeyTotalXp,
+                reviewAvailable,
+              });
+          },
+        )
         .catch(() => {
           if (active) setLoad({ status: "error" });
         });
@@ -98,6 +105,11 @@ export function ProgressOverview() {
         </div>
       ) : (
         <>
+          <ReviewEntry
+            available={load.reviewAvailable}
+            actionClassName={styles.primary}
+            className={styles.capability}
+          />
           {load.interpretations.map((interpretation) => (
             <ProgressEvidenceContent
               interpretation={interpretation}
@@ -143,11 +155,13 @@ export function RecentPracticeHistory({
         {episodes.map((episode, index) => (
           <li key={`${episode.completedAt}-${index}`}>
             <h3>
-              {episode.mode === "core"
-                ? "Тренировка"
-                : episode.mode === "pack"
-                  ? "Дополнительная практика"
-                  : "Дополнительная задача"}
+              {episode.mode === "review"
+                ? "Повторная попытка"
+                : episode.mode === "core"
+                  ? "Тренировка"
+                  : episode.mode === "pack"
+                    ? "Дополнительная практика"
+                    : "Дополнительная задача"}
             </h3>
             <time dateTime={episode.completedAt}>
               {new Date(episode.completedAt).toLocaleString("ru-RU")}
