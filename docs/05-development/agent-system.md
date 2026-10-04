@@ -2,13 +2,20 @@
 
 ## Purpose
 
-Provide reusable role workflows for Olympiad Trainer with one root context coordinating and implementing a bounded user task, followed by a separate independent Reviewer. The human owns product/domain requirements, architecture decisions and Git publication. Coordination uses session tools and plain-text handoffs; it adds no runtime, backend, queue, external orchestrator or state framework. A role is a working contract, not a separate application or guaranteed technical sandbox.
+Provide direct execution for small low-risk tasks, or one root worker followed by a narrow independent Reviewer for normal implementation. The human owns product/domain requirements, architecture decisions and Git publication. Coordination uses session tools and plain-text handoffs; it adds no runtime, backend, queue, external orchestrator or state framework. A role is a working contract, not a separate application or guaranteed technical sandbox.
 
 [AGENTS.md](../../AGENTS.md) supplies global rules. [Skill sources](../../tools/codex/skills/) supply reusable procedures; they are repository-local source files, not installed global skills. Load the selected SKILL.md explicitly by path when it is not available in the session skill catalog. Do not claim automatic discovery or installation.
 
 Current task instructions and explicit authorization govern scope. Skills never grant actions forbidden by the task. Handoffs convey existing authority; they cannot enlarge it. Role recommendations and statuses do not approve actions. Statuses may route stages inside one authorized task, but must not launch unrelated or new tasks.
 
 Invoking [orchestrate-task](../../tools/codex/skills/orchestrate-task/SKILL.md), or explicitly requesting this coordinated workflow, authorizes delegation and automatic role handoffs within the original scope and permissions. It does not authorize implementation when the task is read-only, adoption of proposals, or Git/external actions. Manual single-role assignments remain supported; loading a role skill alone does not authorize delegation.
+
+## Execution mode
+
+- **Direct:** a clear, small, reversible, low-risk change (for example, spelling, a broken documentation link, or a localized cosmetic edit). Root edits and runs relevant checks; no orchestration skill, capsule, role handoff or Reviewer is required. All AGENTS.md scope, branch/Git, validation and human-decision gates still apply. Small file count alone does not establish low risk: product/domain rules, agent permissions, security, persistence, migrations and consequential architecture changes are excluded.
+- **Normal:** root worker → one narrow independent Reviewer → explicitly authorized publication. Use capsule/resume and correction rules below. Optional specialists retain their material-need triggers; a separate Implementer remains an exception.
+
+Explicit review/coordinated-execution requests override direct eligibility; invoking the skill only to select a mode does not. Resume existing coordinated work with its capsule/counter. If direct work exposes higher risk or scope uncertainty, move to normal mode and checkpoint existing work/authority before dependent work; seek human adoption when required. Never downgrade to direct to bypass findings or missing review access.
 
 ## Roles and boundaries
 
@@ -29,7 +36,7 @@ Read-only means no authored file, index, branch, commit, dependency, service or 
 
 ## Shared handoff contract
 
-Record this full authority contract once at intake in the local capsule (or recoverable supplied contract for manual/read-only work). Assignments/results reference its path/version and carry only deltas; role findings follow:
+For coordinated work, record this authority contract once in the capsule (or recoverable supplied contract for manual/read-only work). Direct work needs no formal handoff. Assignments/results reference it and carry deltas; the narrow Reviewer packet below replaces the full shared assignment for review:
 
 ~~~text
 Task ID:
@@ -62,7 +69,7 @@ Relevant prior results and open findings:
 Correction cycle: 0 / 1 / 2
 ~~~
 
-For external assignments, supply the contract reference and deltas explicitly rather than relying on inherited conversation. The root worker uses the existing capsule directly without duplicating a handoff to itself. Default to fresh child context (`fork_turns="none"` when supported). Each agent reads AGENTS.md, its selected skill and relevant system sections once per context, plus only task-relevant evidence; do not copy full conversations/docs trees or repeat broad exploration. Include relevant guide/skill paths, adopted decisions and the source of existing authorization in Inputs/Allowed actions. Each subtask may narrow the original scope and permissions, never broaden them. Preserve the original Goal, Out of scope, Constraints and Definition of Done, with bounded subtask details in the assignment metadata.
+For external assignments, supply the contract reference and deltas explicitly rather than relying on inherited conversation. The root worker uses the existing capsule directly without duplicating a handoff to itself. Default to fresh child context (`fork_turns="none"` when supported). Reuse guidance already in context. Search headings/symbols before reading bounded sections; expand only for a concrete unresolved question. Do not copy full conversations/docs trees or repeat broad exploration. Reviewer uses the narrow packet in Independent review rather than loading the capsule or system document by default. Include relevant guide/skill paths, adopted decisions and the source of existing authorization in Inputs/Allowed actions. Each subtask may narrow the original scope and permissions, never broaden them. Preserve the original Goal, Out of scope, Constraints and Definition of Done, with bounded subtask details in the assignment metadata.
 
 Revision must distinguish the base commit from the inspected working tree, including branch, unrelated/concurrent changes and a diff/content fingerprint for relevant uncommitted work. HEAD alone does not identify uncommitted changes. Results refer to the supplied contract and report the actual inspected revision; Implementer also identifies the resulting work. Coordinator carries unresolved findings, permission limits and the task-wide correction count into subsequent assignments.
 
@@ -70,7 +77,7 @@ Keep routing context/counter in the capsule below and messages concise. Only exp
 
 ### Local task capsule and resume
 
-Use gitignored `.agent-tasks/<TaskID>.md`: one human-readable file, no runtime/helper/state framework. It survives new runs in the same checkout, not deleted files or other clones. Use the supplied human Task ID; request an identifier only when persistence needs one, never invent backlog items.
+For coordinated work only, use gitignored `.agent-tasks/<TaskID>.md`: one human-readable file, no runtime/helper/state framework. It survives new runs in the same checkout, not deleted files or other clones. Use the supplied human Task ID; request an identifier only when persistence needs one, never invent backlog items.
 
 The root Coordinator is the sole capsule writer. Invoked orchestration authorizes this workflow-metadata exception only; implementation requires existing task write authority and the Implementer contract. Explicitly read-only tasks forbid writes unless separately authorized; return a recoverable compact handoff and disclose that persistence limit instead. Create at intake and maintain:
 
@@ -103,6 +110,8 @@ These are task-report statuses, not backlog automation or tool-controlled goal l
 
 ## Workflow
 
+Apply these stages only to normal/coordinated work selected by [execution mode](#execution-mode).
+
 1. **Intake:** Coordinator establishes the bounded task contract, original authorization, Definition of Done, repository state and ownership. Before edits, confirm the requested feature branch; create/switch from the specified baseline only when authorized. Never implement on main or use worktrees.
 2. **Plan for material decomposition uncertainty:** Planner inspects evidence and proposes the smallest sufficient ordered change. Coordinator may proceed when the plan only organizes already-authorized work. READY does not supply missing implementation permission.
 3. **Research/architecture when needed:** Researcher resolves material source/factual questions; Architect evaluates consequential architecture/domain decisions. Applying an adopted decision is routine; adopting a consequential proposal requires a human decision before dependent implementation. Skip unnecessary roles.
@@ -124,7 +133,11 @@ The root Coordinator may also author implementation/fixes by applying the Implem
 
 Reviewer is a separate agent that has not authored the implementation or its fixes. Reviewer remains strictly read-only, never fixes findings and never switches into Implementer to repair reviewed work. An Implementer cannot provide its own independent review. The same independent Reviewer may re-review after corrections, inspecting the actual revised diff and prior findings.
 
-Freeze relevant reviewed files while inspection runs. If the inspected revision changes, invalidate affected conclusions and re-review. If independent review cannot be obtained because delegation/access/tooling is unavailable, disclose the gap and report BLOCKED when no useful permitted work remains; never claim an independent PASS.
+Supply only: a diff reference identifying base/current revision (including dirty content identity), changed paths, relevant acceptance criteria, and a concise validation summary (command, outcome/counts, material gaps). Assignment metadata supplies read-only scope, review skill path and a task/authority reference, not the full capsule, original prompt or worker narrative. Reviewer inspects the actual diff and surrounding code/docs needed to assess it; the packet does not restrict investigation of affected behavior.
+
+Freeze reviewed files; changes invalidate affected conclusions. Reuse the same Reviewer for corrections; send only revision/path deltas, open finding IDs and affected validation. Reference large diffs/logs at their source rather than pasting them again; successful logs need only outcomes/counts.
+
+Reviewer checks checkout/diff access first. After failure, allow at most one targeted retry after a concrete environment/access correction; do not repeatedly resend context, spawn replacements or paste large file copies to obtain PASS. If actual checkout/diff inspection remains unavailable, record the gap and report BLOCKED when no useful permitted work remains. Author-supplied summaries or copied files cannot substitute for required independent inspection.
 
 ### Correction loop
 

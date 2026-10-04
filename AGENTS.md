@@ -18,7 +18,7 @@ This file is global guidance and navigation, not complete project documentation.
 - [Agent System v2](docs/05-development/agent-system.md): roles, orchestrated workflow, handoffs and preserved project conventions.
 - [Skill sources](tools/codex/skills/): focused reusable workflows; repository-local, not globally installed.
 
-Read only documents relevant to the task; read unchanged references once per agent context.
+Search headings/symbols first, then read relevant sections; load large documents/logs in full only for a concrete need. Reuse unchanged references already in context.
 On coordinated resume, discover `.agent-tasks/<TaskID>.md` before reporting missing context and apply the [resume procedure](docs/05-development/agent-system.md#local-task-capsule-and-resume).
 Use supplied evidence and targeted searches before repeating exploration.
 Current explicit task instructions take precedence over this guide and skill procedures.
@@ -91,10 +91,10 @@ Keep durable product and architecture decisions in docs/, not skills or code com
 Use research documents for evidence, product documents for behavior, architecture docs for design.
 Use ADRs for consequential durable choices, not trivial details.
 Update relevant assumptions under authorized scope; explain trade-offs and preserve consistency.
-Use the selected role skill and [handoff contract](docs/05-development/agent-system.md#shared-handoff-contract).
+Choose [execution mode](docs/05-development/agent-system.md#execution-mode): small low-risk work is direct, without orchestration/capsule/Reviewer; normal implementation uses root worker + one narrow independent Reviewer. Explicit review/resume requirements take precedence. Direct work follows this guide without loading workflow docs unless needed.
 Planner and Reviewer are strictly read-only; Reviewer never fixes its findings.
 Researcher, Architect and QA are read-only by default with only their documented scoped exceptions.
-Implementer changes only approved files and cannot change product requirements. In orchestrated work the root normally applies this contract itself; the default subagent is the separate read-only Reviewer. Author validation never replaces independent review.
+Implementer changes only approved files and cannot change product requirements. When independent review is required, author validation cannot replace it.
 Multi-agent work requires explicit authorization and safe task/file ownership. Invoking [orchestrate-task](tools/codex/skills/orchestrate-task/SKILL.md) authorizes Coordinator delegation and routine handoffs only inside the original task's scope and permissions; role permissions remain unchanged.
 The Coordinator follows the [bounded correction loop and human gates](docs/05-development/agent-system.md#correction-loop). No automatic merge or worktrees. This system defines a session workflow, not a runtime or external orchestrator.
 

@@ -11,7 +11,7 @@ Find evidence-based reasons the change should not be accepted.
 
 ## Required inputs
 
-Read the recoverable [authority contract](../../../../docs/05-development/agent-system.md#shared-handoff-contract) by supplied path/version plus assignment deltas. Verify Task ID, actual revision/dirty content fingerprint, ownership and permissions. Read only relevant references once per context; inherited chat alone is insufficient. Assignment Status may be absent until assessment. Include the diff/revision, expected behavior and optional lenses: domain, architecture, frontend, UX/accessibility, data/security.
+Use the narrow packet: diff reference with base/current revision and dirty content identity, changed paths, relevant acceptance criteria, and concise validation summary. Assignment metadata supplies read-only scope and task/authority reference; do not load the full capsule, original prompt or system document by default. Search before reading relevant surrounding code/docs; expand only to resolve an acceptance question. Reuse guidance already in context.
 
 ## Allowed actions
 
@@ -23,7 +23,7 @@ Never fix findings or modify files, tests, index, branches, commits or external 
 
 ## Workflow
 
-1. Identify the inspected revision/diff, acceptance criteria and selected lenses.
+1. Check checkout/diff access and identify revision, acceptance criteria and relevant lenses. If access fails, report it immediately; at most one retry follows a concrete access correction. Do not request large pasted copies as a substitute; unresolved access is a blocking verification gap.
 2. Trace changed behavior against evidence and constraints.
 3. Identify defects, contradictions, scope drift and missing validation.
 4. Classify findings by impact; give file/section or line, evidence and consequence.
