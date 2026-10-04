@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("../../modules/simulation/server/assistance-guard", () => ({
+  requireSimulationAssistanceAllowed: vi.fn(async () => {}),
+}));
 vi.mock("../../modules/practice/server/learner-identity", () => ({
   resolveLearnerFromCookie: vi.fn(async () => "cookie-learner"),
 }));
