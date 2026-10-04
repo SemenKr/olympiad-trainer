@@ -636,3 +636,46 @@ describe("SessionSummary", () => {
     },
   );
 });
+
+it("labels Review separately and never calls solution-exposed work unsupported", () => {
+  const summary = renderToStaticMarkup(
+    <SessionSummary
+      mode="review"
+      results={[
+        {
+          problemId: "coinciding-seats",
+          problemTitle: "Совпадающие места",
+          summary: {
+            outcome: "eventually-correct",
+            validSubmissionCount: 2,
+            hintExposures: [
+              {
+                hintId: "focus",
+                level: "focus",
+                validSubmissionCountAtOpen: 1,
+              },
+              {
+                hintId: "strategy",
+                level: "strategy",
+                validSubmissionCountAtOpen: 1,
+              },
+              {
+                hintId: "next",
+                level: "next-step",
+                validSubmissionCountAtOpen: 1,
+              },
+            ],
+            solutionExposure: {
+              solutionId: "solution",
+              validSubmissionCountAtOpen: 1,
+            },
+          },
+        },
+      ]}
+    />,
+  );
+  expect(summary).toContain("Повторная попытка завершена");
+  expect(summary).toContain("Посмотрено полное решение");
+  expect(summary).not.toContain("Решено самостоятельно");
+  expect(summary).not.toContain("Как гарантировать результат");
+});

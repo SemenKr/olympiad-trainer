@@ -28,11 +28,12 @@ export type PracticeSessionState = Readonly<{
 
 export type AdaptivePracticeSessionState = Readonly<{
   sessionId: string;
-  mode: "transfer" | "exploration";
+  mode: "transfer" | "exploration" | "review";
   problemId:
     | "brothers-ages-products"
     | "parrots-guaranteed-colors"
-    | "pages-without-digit-one";
+    | "pages-without-digit-one"
+    | "coinciding-seats";
   activeProblemIndex: 0;
   completedResults: readonly [];
 }>;
@@ -49,7 +50,7 @@ export type NoNextPracticeSessionState = Readonly<{
 
 export type AdaptiveNoNextPracticeSessionState = Readonly<{
   sessionId: string;
-  mode: "transfer" | "exploration";
+  mode: "transfer" | "exploration" | "review";
   status: "no-next";
   completedResults: readonly [PracticeSessionResult];
 }>;
@@ -58,7 +59,10 @@ export type FinishedPracticeSessionState =
   NoNextPracticeSessionState | AdaptiveNoNextPracticeSessionState;
 
 export function startAdaptivePracticeSession(
-  problemId: AdaptivePracticeSessionState["problemId"] = "brothers-ages-products",
+  problemId: Exclude<
+    AdaptivePracticeSessionState["problemId"],
+    "coinciding-seats"
+  > = "brothers-ages-products",
 ): AdaptivePracticeSessionState {
   return {
     sessionId: crypto.randomUUID(),

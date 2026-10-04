@@ -5,6 +5,10 @@ vi.mock("@/app/practice/actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
 
+vi.mock("./progress/actions", () => ({
+  readServerReviewAvailability: vi.fn(async () => false),
+}));
+
 vi.mock("@/app/progress/actions", () => ({
   readServerAdaptiveAvailability: vi.fn(async () => ({
     availability: { status: "insufficient-evidence" },
@@ -463,4 +467,77 @@ describe("Home Practice precedence", () => {
     );
     expect(markup).toContain("Посмотреть итоги");
   });
+});
+
+describe("Home Review remains secondary", () => {
+  it("shows Review after existing adaptive primary and hides it during Resume", () => {
+    const base = {
+      unfinished: null,
+      completed: null,
+      availability: {
+        status: "recommendation" as const,
+        problemId: "brothers-ages-products" as const,
+        reason: "Полезная задача",
+      },
+      hasPracticeHistory: true,
+      reviewAvailable: true,
+    };
+    const markup = renderToStaticMarkup(<HomePracticeContent stored={base} />);
+    expect(markup).toContain('href="/practice/review"');
+    expect(markup.indexOf("Следующая полезная задача")).toBeLessThan(
+      markup.indexOf("Повторная попытка"),
+    );
+    expect(
+      renderToStaticMarkup(
+        <HomePracticeContent stored={{ ...base, unfinished }} />,
+      ),
+    ).not.toContain('href="/practice/review"');
+  });
+  it("resumes Review through its own route", () => {
+    const review = {
+      sessionId: unfinished.sessionId,
+      mode: "review" as const,
+      problemIds: ["coinciding-seats"] as const,
+      activeProblemIndex: 0 as const,
+      completedResults: [] as const,
+      activePractice: startPractice(),
+      rawAnswer: "",
+    };
+    const markup = renderToStaticMarkup(
+      <HomePracticeContent
+        stored={{
+          unfinished: review,
+          completed: null,
+          availability: { status: "insufficient-evidence" },
+          hasPracticeHistory: true,
+        }}
+      />,
+    );
+    expect(markup).toContain('href="/practice/review"');
+    expect(markup).toContain("Продолжить тренировку");
+  });
+});
+
+it("preserves adaptive primary when secondary Review availability fails", () => {
+  const markup = renderToStaticMarkup(
+    <HomePracticeContent
+      stored={{
+        unfinished: null,
+        completed: null,
+        availability: {
+          status: "recommendation",
+          problemId: "brothers-ages-products",
+          reason: "Полезная задача",
+        },
+        hasPracticeHistory: true,
+        reviewAvailable: null,
+      }}
+    />,
+  );
+  expect(markup).toContain("Следующая полезная задача");
+  expect(markup).toContain('href="/practice/transfer"');
+  expect(markup).toContain(
+    "Не удалось проверить, доступна ли повторная попытка",
+  );
+  expect(markup).toContain("Проверить ещё раз");
 });

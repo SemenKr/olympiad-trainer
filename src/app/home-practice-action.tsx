@@ -7,6 +7,7 @@ import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/ac
 import {
   readServerAdaptiveAvailability,
   readServerPracticeJourney,
+  readServerReviewAvailability,
 } from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
 import {
@@ -29,6 +30,7 @@ import { ensureServerProgressImported } from "@/modules/practice/ui/server-progr
 import { HomePracticeJourney } from "../modules/practice/ui/practice-journey";
 
 import styles from "./page.module.scss";
+import { ReviewEntry } from "../modules/practice/ui/review-entry";
 
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
@@ -36,6 +38,7 @@ type StoredPractice = Readonly<{
   completedSessionId?: string | null;
   availability: AdaptiveAvailability;
   hasPracticeHistory: boolean;
+  reviewAvailable?: boolean | null;
 }>;
 
 export function HomePracticeAction() {
@@ -58,14 +61,18 @@ export function HomePracticeAction() {
         .then(async ([unfinished, completed]) => {
           let adaptive: Pick<
             StoredPractice,
-            "availability" | "hasPracticeHistory"
+            "availability" | "hasPracticeHistory" | "reviewAvailable"
           > = {
             availability: { status: "insufficient-evidence" },
             hasPracticeHistory: false,
           };
           if (!unfinished.value) {
             await ensureServerProgressImported();
-            adaptive = await readServerAdaptiveAvailability();
+            const [availability, reviewAvailable] = await Promise.all([
+              readServerAdaptiveAvailability(),
+              readServerReviewAvailability().catch(() => null),
+            ]);
+            adaptive = { ...availability, reviewAvailable };
           }
           if (active)
             setStored({
@@ -151,9 +158,11 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
                         : stored.unfinished.problemIds,
                     )!,
                   )
-                : "mode" in stored.unfinished
-                  ? "/practice/transfer"
-                  : "/practice"
+                : stored.unfinished.mode === "review"
+                  ? "/practice/review"
+                  : "mode" in stored.unfinished
+                    ? "/practice/transfer"
+                    : "/practice"
             }
           >
             {"status" in stored.unfinished
@@ -213,6 +222,12 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
         </section>
       )}
       <HomePracticeJourneyLoader />
+      {!stored.unfinished && stored.reviewAvailable !== undefined ? (
+        <ReviewEntry
+          available={stored.reviewAvailable}
+          actionClassName={styles.secondary}
+        />
+      ) : null}
       {!stored.unfinished &&
       (stored.hasPracticeHistory || stored.completed !== null) ? (
         <section aria-label="Дополнительная практика" className={styles.pack}>

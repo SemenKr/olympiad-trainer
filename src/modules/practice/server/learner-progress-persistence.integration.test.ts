@@ -19,6 +19,8 @@ import {
   readNextUsefulProblem,
   readPracticeJourneyTotal,
   readPracticeJourneyFinish,
+  startReview,
+  readReviewAvailability,
 } from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
 import { validateCompletedEpisode } from "../application/completed-practice-episode";
@@ -27,6 +29,7 @@ import {
   practiceCompletedEpisodes,
   practiceFinishReceipts,
   practiceJourneyAwards,
+  practiceReviewAssignments,
 } from "./progress-schema";
 import { and, eq } from "drizzle-orm";
 
@@ -1872,3 +1875,254 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     ).toBe(1);
   });
 });
+
+const eligibleCoreEpisode = {
+  mode: "core" as const,
+  facts: {
+    version: 1 as const,
+    problems: [
+      {
+        ...noAnswer("coinciding-seats"),
+        outcome: "eventually-correct" as const,
+        validSubmissionCount: 1,
+      },
+      noAnswer("guaranteed-sock-pair"),
+      noAnswer("table-impossible-sums"),
+    ],
+  },
+};
+const reviewEpisode = {
+  mode: "review" as const,
+  facts: {
+    version: 1 as const,
+    problems: [
+      {
+        ...noAnswer("coinciding-seats"),
+        outcome: "incorrect-only" as const,
+        validSubmissionCount: 1,
+      },
+    ],
+  },
+};
+
+it("validates eligible source and Review integration fixtures without PostgreSQL", () => {
+  expect(
+    validateCompletedEpisode("core", eligibleCoreEpisode.facts),
+  ).not.toBeNull();
+  expect(
+    validateCompletedEpisode("review", reviewEpisode.facts),
+  ).not.toBeNull();
+});
+
+describe.skipIf(!testUrl)(
+  "PostgreSQL Review ownership and atomic integrity",
+  () => {
+    it("chooses newest eligible unreviewed source with deterministic ties and serializes starts/Finish", async () => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      const ids = [randomUUID(), randomUUID()].sort();
+      for (const sessionId of ids)
+        await persistFinishContributions(
+          id,
+          sessionId,
+          [],
+          undefined,
+          eligibleCoreEpisode,
+        );
+      await getProgressDb()
+        .update(practiceCompletedEpisodes)
+        .set({ completedAt: new Date("2026-10-01T00:00:00Z") })
+        .where(eq(practiceCompletedEpisodes.learnerId, id));
+      const beforeProgress = await readLearnerProgress(id);
+      const beforeAdaptive = await readAdaptiveAvailability(id);
+      const beforeXp = await readPracticeJourneyTotal(id);
+      const starts = await Promise.all([startReview(id), startReview(id)]);
+      expect(starts[0]).toBe(starts[1]);
+      expect(starts[0]).not.toBeNull();
+      const sessionId = starts[0]!;
+      const [assignment] = await getProgressDb()
+        .select()
+        .from(practiceReviewAssignments)
+        .where(
+          and(
+            eq(practiceReviewAssignments.learnerId, id),
+            eq(practiceReviewAssignments.sessionId, sessionId),
+          ),
+        );
+      expect(assignment.reviewSourceSessionId).toBe(ids[1]);
+      await expect(
+        persistFinishContributions(
+          id,
+          sessionId,
+          [],
+          undefined,
+          eligibleCoreEpisode,
+        ),
+      ).rejects.toThrow("assignment");
+      await expect(
+        persistFinishContributions(id, sessionId, []),
+      ).rejects.toThrow("assignment");
+      await expect(
+        persistFinishContributions(
+          id,
+          sessionId,
+          [{ bucket: "guarantee", value: guarantee }],
+          undefined,
+          reviewEpisode,
+        ),
+      ).rejects.toThrow();
+      await expect(
+        persistFinishContributions(
+          id,
+          sessionId,
+          [],
+          {
+            problemId: "brothers-ages-products",
+            attempted: true,
+            solutionExposed: false,
+          },
+          reviewEpisode,
+        ),
+      ).rejects.toThrow();
+      await expect(
+        persistFinishContributions(id, sessionId, [], undefined, {
+          ...reviewEpisode,
+          reviewSourceSessionId: ids[0],
+        }),
+      ).rejects.toThrow();
+      const foreignId = await learner();
+      await importLegacyProgress(foreignId, null);
+      await expect(
+        persistFinishContributions(
+          foreignId,
+          sessionId,
+          [],
+          undefined,
+          reviewEpisode,
+        ),
+      ).rejects.toThrow("assignment");
+      const finishes = await Promise.all([
+        persistFinishContributions(id, sessionId, [], undefined, reviewEpisode),
+        persistFinishContributions(id, sessionId, [], undefined, reviewEpisode),
+      ]);
+      expect(finishes[0]).toEqual(finishes[1]);
+      expect(await readPracticeJourneyTotal(id)).toBe(
+        beforeXp + finishes[0]!.earnedXp,
+      );
+      expect(await readLearnerProgress(id)).toEqual(beforeProgress);
+      expect(await readAdaptiveAvailability(id)).toEqual(beforeAdaptive);
+      const [completed] = await getProgressDb()
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(practiceCompletedEpisodes.sessionId, sessionId),
+          ),
+        );
+      expect(completed.mode).toBe("review");
+      expect(completed.reviewSourceSessionId).toBe(ids[1]);
+      const next = await startReview(id);
+      expect(next).not.toBe(sessionId);
+      const skipped = {
+        mode: "review",
+        facts: {
+          version: 1,
+          problems: [{ ...noAnswer("coinciding-seats"), skipped: true }],
+        },
+      };
+      await persistFinishContributions(id, next, [], undefined, skipped);
+      expect(await readReviewAvailability(id)).toBe(false);
+      expect(await startReview(id)).toBeNull();
+      await expect(
+        persistFinishContributions(id, sessionId, [], undefined, skipped),
+      ).rejects.toThrow("changed");
+      expect(
+        (await readRecentPracticeEpisodes(id)).filter(
+          (e) => e.mode === "review",
+        ),
+      ).toHaveLength(2);
+    });
+
+    it("ignores newer ineligible and foreign episodes, retains source across history pruning", async () => {
+      const id = await learner();
+      await importLegacyProgress(id, null);
+      expect(await startReview(id)).toBeNull();
+      await persistFinishContributions(
+        id,
+        randomUUID(),
+        [],
+        undefined,
+        coreEpisode,
+      );
+      const exposed = {
+        ...eligibleCoreEpisode,
+        facts: {
+          ...eligibleCoreEpisode.facts,
+          problems: [
+            {
+              ...eligibleCoreEpisode.facts.problems[0],
+              hintLevelsExposed: ["focus", "strategy", "next-step"],
+              solutionExposed: true,
+            },
+            ...eligibleCoreEpisode.facts.problems.slice(1),
+          ],
+        },
+      };
+      await persistFinishContributions(
+        id,
+        randomUUID(),
+        [],
+        undefined,
+        exposed,
+      );
+      expect(await readReviewAvailability(id)).toBe(false);
+      const foreign = await learner();
+      await importLegacyProgress(foreign, null);
+      await persistFinishContributions(
+        foreign,
+        randomUUID(),
+        [],
+        undefined,
+        eligibleCoreEpisode,
+      );
+      expect(await startReview(id)).toBeNull();
+      const source = randomUUID();
+      await persistFinishContributions(
+        id,
+        source,
+        [],
+        undefined,
+        eligibleCoreEpisode,
+      );
+      const sessionId = await startReview(id);
+      for (let n = 0; n < 51; n++)
+        await persistFinishContributions(
+          id,
+          randomUUID(),
+          [],
+          undefined,
+          coreEpisode,
+        );
+      expect(await startReview(id)).toBe(sessionId);
+      await persistFinishContributions(
+        id,
+        sessionId,
+        [],
+        undefined,
+        reviewEpisode,
+      );
+      const [row] = await getProgressDb()
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(practiceCompletedEpisodes.sessionId, source),
+          ),
+        );
+      expect(row).toBeDefined();
+      expect(await startReview(id)).toBeNull();
+    });
+  },
+);

@@ -577,6 +577,7 @@ function storedTransferProblem(problemId: string) {
 }
 function storedAdaptiveProblem(problemId: string) {
   return (
+    (problemId === problems[0].id ? problems[0] : undefined) ??
     storedTransferProblem(problemId) ??
     (problemId === pagesProblem.id ? pagesProblem : undefined)
   );
@@ -606,11 +607,12 @@ type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
 
 type AdaptivePracticeSessionSnapshot = Readonly<{
   sessionId: string;
-  mode: "transfer" | "exploration";
+  mode: "transfer" | "exploration" | "review";
   problemIds: readonly [
     | "brothers-ages-products"
     | "parrots-guaranteed-colors"
-    | "pages-without-digit-one",
+    | "pages-without-digit-one"
+    | "coinciding-seats",
   ];
   activeProblemIndex: 0;
   completedResults: readonly [];
@@ -853,6 +855,7 @@ function validResult(
 
 export function validateLatestCompletedResults(
   value: unknown,
+  mode?: "review",
 ): readonly PracticeSessionResult[] | null {
   const completedPackProblems = Array.isArray(value)
     ? storedPackProblems(
@@ -880,6 +883,7 @@ export function validateLatestCompletedResults(
     Array.isArray(value) &&
     value.length === 1 &&
     storedAdaptiveProblem(value[0]?.problemId) &&
+    (value[0]?.problemId !== problems[0].id || mode === "review") &&
     validResult(
       value[0],
       storedAdaptiveProblem(value[0].problemId)!,
@@ -1110,7 +1114,9 @@ export function validatePracticeSessionSnapshot(
       CorePracticeSessionSnapshot | NoNextPracticeSessionSnapshot | null;
   if (
     record(value) &&
-    (value.mode === "transfer" || value.mode === "exploration")
+    (value.mode === "transfer" ||
+      value.mode === "exploration" ||
+      value.mode === "review")
   ) {
     if (!validSessionId(value.sessionId)) return null;
     if (value.status === "no-next")
@@ -1123,6 +1129,8 @@ export function validatePracticeSessionSnapshot(
         Array.isArray(value.completedResults) &&
         value.completedResults.length === 1 &&
         storedAdaptiveProblem(value.completedResults[0]?.problemId) &&
+        (value.mode === "review") ===
+          (value.completedResults[0].problemId === problems[0].id) &&
         (value.mode === "exploration") ===
           (value.completedResults[0].problemId === pagesProblem.id) &&
         validResult(
@@ -1151,6 +1159,7 @@ export function validatePracticeSessionSnapshot(
       storedAdaptiveProblem(value.problemIds[0]) !== undefined &&
       (value.mode === "exploration") ===
         (value.problemIds[0] === pagesProblem.id) &&
+      (value.mode === "review") === (value.problemIds[0] === problems[0].id) &&
       value.activeProblemIndex === 0 &&
       Array.isArray(value.completedResults) &&
       value.completedResults.length === 0 &&
@@ -1366,7 +1375,11 @@ function activeSessionSnapshot(
   answer: PracticeAnswerState,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): PracticeSessionSnapshot {
-  if (session.mode === "transfer" || session.mode === "exploration")
+  if (
+    session.mode === "transfer" ||
+    session.mode === "exploration" ||
+    session.mode === "review"
+  )
     return {
       sessionId: session.sessionId,
       mode: session.mode,
@@ -1512,6 +1525,7 @@ export async function clearPracticeSessionSnapshot(
 }
 
 type LatestCompletedSummary = Readonly<{
+  mode?: "review";
   sessionId: string | null;
   results: readonly PracticeSessionResult[];
 }>;
@@ -1525,19 +1539,40 @@ function validateLatestCompletedSummary(
   }
   if (
     !record(value) ||
-    !exactKeys(value, ["sessionId", "results"]) ||
+    !exactKeys(value, [
+      "sessionId",
+      "results",
+      ...(Object.hasOwn(value, "mode") ? ["mode"] : []),
+    ]) ||
     !validSessionId(value.sessionId)
   )
     return null;
-  const results = validateLatestCompletedResults(value.results);
-  return results ? { sessionId: value.sessionId, results } : null;
+  const results = validateLatestCompletedResults(
+    value.results,
+    value.mode === "review" ? "review" : undefined,
+  );
+  if (
+    Object.hasOwn(value, "mode") &&
+    (value.mode !== "review" ||
+      !results ||
+      !validateCompletedEpisode("review", completedEpisodeFacts(results)))
+  )
+    return null;
+  return results
+    ? {
+        sessionId: value.sessionId,
+        results,
+        ...(value.mode === "review" ? { mode: "review" as const } : {}),
+      }
+    : null;
 }
 
 function serializeLatestCompletedSummary(
   results: readonly PracticeSessionResult[],
   sessionId: string,
+  mode?: "review",
 ) {
-  return JSON.stringify({ sessionId, results });
+  return JSON.stringify({ sessionId, results, ...(mode ? { mode } : {}) });
 }
 
 export function readLatestCompletedResults(
@@ -1559,6 +1594,7 @@ export async function readVerifiedLatestCompletedResults(
 ): Promise<
   VerifiedCheckpointData<readonly PracticeSessionResult[] | null> & {
     sessionId?: string | null;
+    mode?: "review";
   }
 > {
   const store = storage ?? window.localStorage;
@@ -1588,6 +1624,7 @@ export async function readVerifiedLatestCompletedResults(
   return {
     value: results,
     sessionId: summary?.sessionId ?? null,
+    ...(summary?.mode ? { mode: summary.mode } : {}),
     interpretation:
       interpretations.find(
         (item) => item.learnerLabel === "Как гарантировать результат",
@@ -1605,9 +1642,10 @@ export function saveLatestCompletedResults(
   results: readonly PracticeSessionResult[],
   storage?: Storage,
   sessionId?: string,
+  mode?: "review",
 ): boolean {
   if (
-    !validateLatestCompletedResults(results) ||
+    !validateLatestCompletedResults(results, mode) ||
     (sessionId !== undefined && !validSessionId(sessionId))
   )
     return false;
@@ -1616,7 +1654,7 @@ export function saveLatestCompletedResults(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
-        : serializeLatestCompletedSummary(results, sessionId),
+        : serializeLatestCompletedSummary(results, sessionId, mode),
     );
     return true;
   } catch {
@@ -1849,7 +1887,14 @@ export async function isCurrentPracticeFinish(
         );
         return current?.sessionId === session.sessionId;
       }
-      if (!expected || !validateLatestCompletedResults(results)) return false;
+      if (
+        !expected ||
+        !validateLatestCompletedResults(
+          results,
+          session.mode === "review" ? "review" : undefined,
+        )
+      )
+        return false;
       const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
       if (pendingRaw === null) return currentUnfinished === expected;
       const pending = readPendingPracticeProgressFinish(pendingRaw);
@@ -2194,6 +2239,7 @@ async function completeServerBackedPracticeSession(
       const completedAfter = serializeLatestCompletedSummary(
         results,
         session.sessionId,
+        session.mode === "review" ? "review" : undefined,
       );
       const unfinishedBefore = expectedUnfinishedForFinish(
         session,
@@ -2208,7 +2254,10 @@ async function completeServerBackedPracticeSession(
       const episodeMode = "mode" in session ? session.mode : "core";
       const episodeFacts = completedEpisodeFacts(results);
       if (
-        !validateLatestCompletedResults(results) ||
+        !validateLatestCompletedResults(
+          results,
+          session.mode === "review" ? "review" : undefined,
+        ) ||
         !validateCompletedEpisode(episodeMode, episodeFacts) ||
         !unfinishedBefore ||
         !before ||
@@ -2353,6 +2402,7 @@ async function completeServerBackedPracticeSession(
         completed.results,
         store,
         completed.sessionId ?? undefined,
+        completed.mode,
       )
     )
       return rollback();
@@ -2393,7 +2443,11 @@ export async function completePracticeSession(
   storage?: Storage,
   serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean> {
-  if (!serverPersist && !validateLatestCompletedResults(results)) return false;
+  if (
+    !serverPersist &&
+    (session.mode === "review" || !validateLatestCompletedResults(results))
+  )
+    return false;
   if ("status" in session && !validatePracticeSessionSnapshot(session))
     return false;
   if (!("status" in session) && !answer) return false;
