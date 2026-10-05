@@ -41,6 +41,8 @@ export function SimulationSession({
   const [seconds, setSeconds] = useState(45 * 60);
   const clock = useRef({ serverNow: 0, receivedAt: 0 });
   const [confirming, setConfirming] = useState(false);
+  const wasConfirming = useRef(false);
+  const [showTimeoutWork, setShowTimeoutWork] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const finishRef = useRef<HTMLButtonElement>(null);
   const summaryRef = useRef<HTMLHeadingElement>(null);
@@ -258,11 +260,14 @@ export function SimulationSession({
 
   useEffect(() => {
     if (confirming) cancelRef.current?.focus();
+    else if (wasConfirming.current && current.current?.finishedAt === null)
+      finishRef.current?.focus();
+    wasConfirming.current = confirming;
   }, [confirming]);
 
   useEffect(() => {
     if (attempt?.finishedAt !== null) summaryRef.current?.focus();
-  }, [attempt?.finishedAt]);
+  }, [attempt?.finishedAt, showTimeoutWork]);
 
   function edit(next: SimulationAttempt) {
     if (seconds === 0 || next.finishedAt !== null) return;
@@ -298,39 +303,57 @@ export function SimulationSession({
 
   const finished = attempt?.finishedAt !== null && attempt !== null;
   const problem = attempt ? problems[attempt.selectedIndex] : null;
+  const timeoutNotice =
+    finished && attempt.finishReason === "timeout" && !showTimeoutWork;
+  const remainingText = `${Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+  const localCopyButton = (
+    <button
+      className={styles.secondary}
+      onClick={() => {
+        const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
+        if (!raw) return;
+        const url = URL.createObjectURL(
+          new Blob([raw], { type: "application/json" }),
+        );
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "simulation-drafts.json";
+        anchor.click();
+        URL.revokeObjectURL(url);
+      }}
+    >
+      Скачать локальную копию черновиков
+    </button>
+  );
   return (
     <main className={styles.simulation}>
-      <Link href="/">На главную</Link>
-      <h1>Олимпиадная симуляция</h1>
-      <p>Математика · 5 класс · 4 задачи · 45 минут</p>
-      <p role="alert">{error}</p>
-      {(error || unsubmitted) && (
-        <button
-          onClick={() => {
-            const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
-            if (!raw) return;
-            const url = URL.createObjectURL(
-              new Blob([raw], { type: "application/json" }),
-            );
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = "simulation-drafts.json";
-            anchor.click();
-            URL.revokeObjectURL(url);
-          }}
-        >
-          Скачать локальную копию черновиков
-        </button>
+      <nav className={styles["top-navigation"]} aria-label="Навигация">
+        <Link href="/">← На главную</Link>
+        <span aria-current="page">Олимпиадная симуляция</span>
+      </nav>
+      <h1 className={styles["visually-hidden"]}>Олимпиадная симуляция</h1>
+      <div className={styles.meta}>
+        <p className={styles.eyebrow}>5 класс · математика</p>
+        <p>4 задачи · 45 минут</p>
+      </div>
+      {error && (
+        <div className={styles.recovery}>
+          <p role="alert">{error}</p>
+          {localCopyButton}
+        </div>
       )}
       {!ready && (
         <>
-          <p>
+          <p role={error ? undefined : "status"}>
             {error
               ? "Симуляция пока недоступна."
               : "Восстанавливаем состояние…"}
           </p>
           {error && (
             <button
+              className={styles.secondary}
               onClick={() => {
                 if (ownsEditor.current) void load();
                 else window.location.reload();
@@ -342,23 +365,34 @@ export function SimulationSession({
         </>
       )}
       {ready && !attempt && (
-        <section>
+        <section className={`${styles.card} ${styles.start}`}>
           <h2>Самостоятельная работа</h2>
           <p>
-            Можно переходить между всеми задачами. Записывай ответ и ход
-            рассуждений в черновик; можно пользоваться бумагой. Подсказки и
-            разборы появятся только после завершения.
+            Можно переходить между всеми четырьмя задачами и менять черновики до
+            завершения. Записывай ответ и ход рассуждений; можно пользоваться
+            бумагой.
           </p>
-          <p>
-            Таймер не останавливается при закрытии страницы. Работа сохраняется
-            автоматически в этом браузере и на сервере. Перед завершением
-            проверь статус сохранения.
-          </p>
-          <p>
+          <section
+            className={styles.rules}
+            aria-labelledby="simulation-rules-title"
+          >
+            <h3 id="simulation-rules-title">Как проходит симуляция</h3>
+            <ul>
+              <li>45 минут с момента старта</li>
+              <li>Подсказок и разборов до завершения нет</li>
+              <li>
+                Черновики сохраняются автоматически в этом браузере и на сервере
+              </li>
+              <li>Таймер не останавливается при закрытии страницы</li>
+              <li>Баллы и XP не начисляются; автоматической проверки нет</li>
+            </ul>
+          </section>
+          <p className={styles.note}>
             Это наш тренировочный вариант из существующих задач, а не
-            официальный тур. Баллы и XP не начисляются.
+            официальный тур. Перед завершением проверь статус сохранения.
           </p>
           <button
+            className={styles.primary}
             disabled={busy}
             onClick={() => {
               void start();
@@ -370,190 +404,272 @@ export function SimulationSession({
       )}
       {attempt && !finished && problem && (
         <>
-          <div className={styles.toolbar}>
-            <p role="timer" aria-live="off" aria-label="Осталось времени">
-              {Math.floor(seconds / 60)
-                .toString()
-                .padStart(2, "0")}
-              :{(seconds % 60).toString().padStart(2, "0")}
-            </p>
-            <p role="status">
-              {seconds === 0
-                ? "Время вышло. Завершаем работу…"
-                : saved
-                  ? "Все черновики сохранены"
-                  : "Сохраняем черновики…"}
-            </p>
-          </div>
-          <nav className={styles.navigation} aria-label="Задачи симуляции">
-            {problems.map((item, index) => (
-              <button
-                key={item.problemId}
-                aria-current={
-                  attempt.selectedIndex === index ? "step" : undefined
-                }
-                disabled={seconds === 0 || confirming}
-                onClick={() => edit({ ...attempt, selectedIndex: index })}
-              >
-                Задача {index + 1}
-                {attempt.drafts[index].trim() ? " · есть черновик" : ""}
-              </button>
-            ))}
-          </nav>
-          <section aria-labelledby="simulation-problem-title">
-            <h2 id="simulation-problem-title">
-              {attempt.selectedIndex + 1}. {problem.title}
-            </h2>
-            <p className={styles.statement}>{problem.statement}</p>
-            {problem.options.length > 0 && (
-              <p>
-                Варианты из условия: {problem.options.join(", ")}. Укажи выбор и
-                обоснование в черновике.
+          <div className={styles.active} hidden={confirming}>
+            <div className={styles.toolbar}>
+              <p role="timer" aria-live="off" aria-label="Осталось времени">
+                {remainingText}
               </p>
-            )}
-            <label htmlFor="simulation-draft">Твой ответ и ход решения</label>
-            <textarea
-              id="simulation-draft"
-              rows={10}
-              maxLength={MAX_DRAFT_LENGTH}
-              disabled={seconds === 0 || confirming}
-              value={attempt.drafts[attempt.selectedIndex]}
-              onChange={(event) => {
-                const drafts: [string, string, string, string] = [
-                  ...attempt.drafts,
-                ];
-                drafts[attempt.selectedIndex] = event.target.value;
-                edit({ ...attempt, drafts });
-              }}
-            />
-            <p className={styles.note}>
-              Свободный черновик до {MAX_DRAFT_LENGTH} символов. Автоматической
-              проверки нет.
-            </p>
-          </section>
-          {error && (
-            <button
-              disabled={busy}
-              onClick={() => {
-                void synchronize(seconds === 0);
-              }}
+              <p role="status">
+                {seconds === 0
+                  ? "Время вышло. Завершаем работу…"
+                  : saved
+                    ? "Все черновики сохранены"
+                    : "Сохраняем черновики…"}
+              </p>
+            </div>
+            <section
+              className={`${styles.card} ${styles.editor}`}
+              aria-labelledby="simulation-problem-title"
             >
-              Повторить сохранение
-            </button>
-          )}
-          {!confirming && (
+              <h2 id="simulation-problem-title">
+                {attempt.selectedIndex + 1}. {problem.title}
+              </h2>
+              <p className={styles.statement}>{problem.statement}</p>
+              {problem.options.length > 0 && (
+                <p>
+                  Варианты из условия: {problem.options.join(", ")}. Укажи выбор
+                  и обоснование в черновике.
+                </p>
+              )}
+              <label htmlFor="simulation-draft">Твой ответ и ход решения</label>
+              <textarea
+                id="simulation-draft"
+                aria-describedby="simulation-draft-note"
+                rows={10}
+                maxLength={MAX_DRAFT_LENGTH}
+                disabled={seconds === 0 || confirming}
+                value={attempt.drafts[attempt.selectedIndex]}
+                onChange={(event) => {
+                  const drafts: [string, string, string, string] = [
+                    ...attempt.drafts,
+                  ];
+                  drafts[attempt.selectedIndex] = event.target.value;
+                  edit({ ...attempt, drafts });
+                }}
+              />
+              <p className={styles.note} id="simulation-draft-note">
+                Черновик сохраняется автоматически, до {MAX_DRAFT_LENGTH}{" "}
+                символов. Автоматической проверки нет.
+              </p>
+            </section>
+            <nav className={styles.navigation} aria-label="Задачи симуляции">
+              {problems.map((item, index) => (
+                <button
+                  key={item.problemId}
+                  aria-label={`Задача ${index + 1}${attempt.drafts[index].trim() ? " · есть черновик" : " · пусто"}`}
+                  aria-current={
+                    attempt.selectedIndex === index ? "step" : undefined
+                  }
+                  disabled={seconds === 0 || confirming}
+                  onClick={() => edit({ ...attempt, selectedIndex: index })}
+                >
+                  <span>
+                    <span className={styles["task-word"]}>Задача </span>
+                    {index + 1}
+                  </span>
+                  <span className={styles["draft-status"]}>
+                    {attempt.drafts[index].trim() ? "есть черновик" : "пусто"}
+                  </span>
+                </button>
+              ))}
+            </nav>
+            {error && (
+              <button
+                className={`${styles.secondary} ${styles["save-retry"]}`}
+                disabled={busy}
+                onClick={() => {
+                  void synchronize(seconds === 0);
+                }}
+              >
+                Повторить сохранение
+              </button>
+            )}
             <button
+              className={`${styles.secondary} ${styles["finish-action"]}`}
               ref={finishRef}
               disabled={busy || seconds === 0}
               onClick={() => setConfirming(true)}
             >
               Завершить раньше
             </button>
-          )}
+          </div>
           {confirming && (
-            <section
-              className={styles.confirmation}
-              aria-labelledby="finish-confirm-title"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  confirmedFinish.current = false;
-                  setConfirming(false);
-                  finishRef.current?.focus();
-                }
-              }}
-            >
-              <h2 id="finish-confirm-title">Завершить симуляцию?</h2>
-              <p>
-                Все четыре черновика будут сданы, даже пустые. После этого их
-                нельзя изменить. Откроются разборы задач.
-              </p>
-              <button
-                ref={cancelRef}
-                disabled={busy}
-                onClick={() => {
-                  confirmedFinish.current = false;
-                  setConfirming(false);
-                  finishRef.current?.focus();
+            <>
+              <div className={styles.context}>
+                <p>
+                  {remainingText} осталось · Задача {attempt.selectedIndex + 1}{" "}
+                  из 4
+                </p>
+                <h2>{problem.title}</h2>
+              </div>
+              <section
+                className={styles.confirmation}
+                aria-labelledby="finish-confirm-title"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    confirmedFinish.current = false;
+                    setConfirming(false);
+                    finishRef.current?.focus();
+                  }
                 }}
               >
-                Продолжить работу
-              </button>
-              <button
-                disabled={busy || seconds === 0}
-                onClick={() => {
-                  void synchronize(true, true);
-                }}
-              >
-                Да, завершить и сдать
-              </button>
-            </section>
+                <h2 id="finish-confirm-title">Завершить симуляцию?</h2>
+                <p>
+                  Все четыре черновика будут сданы, даже пустые. После этого их
+                  нельзя изменить. Откроются разборы задач.
+                </p>
+                <button
+                  className={styles.secondary}
+                  ref={cancelRef}
+                  disabled={busy}
+                  onClick={() => {
+                    confirmedFinish.current = false;
+                    setConfirming(false);
+                    finishRef.current?.focus();
+                  }}
+                >
+                  Продолжить работу
+                </button>
+                <button
+                  className={styles.primary}
+                  disabled={busy || seconds === 0}
+                  onClick={() => {
+                    void synchronize(true, true);
+                  }}
+                >
+                  Да, завершить и сдать
+                </button>
+              </section>
+            </>
           )}
         </>
       )}
       {attempt && finished && (
-        <section>
-          <h2 ref={summaryRef} tabIndex={-1}>
-            {attempt.finishReason === "timeout"
-              ? "Время вышло — работа завершена"
-              : "Работа завершена"}
-          </h2>
-          <p>
-            Ниже — сданная работа и разборы для самостоятельного сравнения.
-            Автоматических оценок нет; эта симуляция не меняет прогресс, Review
-            и XP.
-          </p>
-          {attempt.finishReason === "timeout" && (
-            <p>Сданы черновики, которые сервер получил до истечения времени.</p>
-          )}
-          {unsubmitted && (
-            <p role="alert">
-              Локальная копия содержит изменения, которые не попали в сданную
-              работу. Скачай её для сохранности; изменить завершённую работу
-              нельзя.
-            </p>
-          )}
-          {problems.map((item, index) => (
-            <section key={item.problemId} className={styles.submission}>
-              <h3>
-                {index + 1}. {item.title}
-              </h3>
-              <p className={styles.statement}>{item.statement}</p>
-              <h4>Твоя сданная работа</h4>
-              <p className={styles.statement}>
-                {attempt.drafts[index] ||
-                  "Черновик пуст — решение не записано."}
+        <section className={styles.completed}>
+          <header
+            className={
+              timeoutNotice ? styles.timeout : styles["completed-header"]
+            }
+          >
+            <h2 ref={summaryRef} tabIndex={-1}>
+              {attempt.finishReason === "timeout"
+                ? "Время вышло — работа завершена"
+                : "Работа завершена"}
+            </h2>
+            {timeoutNotice ? (
+              <p>
+                Сданы черновики, которые сервер получил до истечения 45 минут.
+                Изменить завершённую работу нельзя.
               </p>
-              {references && (
-                <>
-                  <h4>Разбор для сравнения</h4>
-                  <p className={styles.statement}>
-                    {
-                      references.find(
-                        (reference) => reference.problemId === item.problemId,
-                      )?.text
-                    }
+            ) : (
+              <p>
+                Ниже — сданная работа и разборы для самостоятельного сравнения.
+                Автоматических оценок нет; эта симуляция не меняет прогресс,
+                Review и XP.
+              </p>
+            )}
+            {!timeoutNotice && attempt.finishReason === "timeout" && (
+              <p>
+                Сданы черновики, которые сервер получил до истечения времени.
+              </p>
+            )}
+            {unsubmitted && (
+              <div className={styles["local-copy"]}>
+                <p role="alert">
+                  Локальная копия содержит изменения, которые не попали в
+                  сданную работу. Скачай её для сохранности; изменить
+                  завершённую работу нельзя.
+                </p>
+                {!error && localCopyButton}
+              </div>
+            )}
+            {timeoutNotice && (
+              <button
+                className={styles.primary}
+                onClick={() => setShowTimeoutWork(true)}
+              >
+                Посмотреть сданную работу и разборы
+              </button>
+            )}
+          </header>
+          {!timeoutNotice && (
+            <div className={styles["completed-content"]}>
+              <div className={styles.submissions}>
+                {problems.map((item, index) => (
+                  <section
+                    key={item.problemId}
+                    className={styles.submission}
+                    id={`simulation-submission-${index + 1}`}
+                    aria-labelledby={`simulation-submission-title-${index + 1}`}
+                  >
+                    <div className={styles.card}>
+                      <h3 id={`simulation-submission-title-${index + 1}`}>
+                        {index + 1}. {item.title}
+                      </h3>
+                      <p className={styles.statement}>{item.statement}</p>
+                      <h4>Твоя сданная работа</h4>
+                      <p className={styles.statement}>
+                        {attempt.drafts[index] ||
+                          "Черновик пуст — решение не записано."}
+                      </p>
+                    </div>
+                    {references && (
+                      <div className={`${styles.card} ${styles.reference}`}>
+                        <h4>Разбор для сравнения</h4>
+                        <p className={styles.statement}>
+                          {
+                            references.find(
+                              (reference) =>
+                                reference.problemId === item.problemId,
+                            )?.text
+                          }
+                        </p>
+                      </div>
+                    )}
+                  </section>
+                ))}
+                {!references && (
+                  <p role="status">
+                    {referenceError
+                      ? "Не удалось загрузить разборы. Сданная работа сохранена."
+                      : "Загружаем разборы…"}
                   </p>
-                </>
-              )}
-            </section>
-          ))}
-          {!references && (
-            <p role="status">
-              {referenceError
-                ? "Не удалось загрузить разборы. Сданная работа сохранена."
-                : "Загружаем разборы…"}
-            </p>
+                )}
+                {referenceError && (
+                  <button
+                    className={styles.secondary}
+                    onClick={() => {
+                      void loadReferences(attempt.sessionId);
+                    }}
+                  >
+                    Повторить загрузку разборов
+                  </button>
+                )}
+              </div>
+              <aside
+                className={styles["completed-side"]}
+                aria-label="Задачи и дальнейшие действия"
+              >
+                <nav
+                  className={`${styles.card} ${styles["task-list"]}`}
+                  aria-label="Сданные задачи"
+                >
+                  <h3>Все задачи</h3>
+                  {problems.map((item, index) => (
+                    <a
+                      href={`#simulation-submission-${index + 1}`}
+                      key={item.problemId}
+                    >
+                      {index + 1} · {item.title}
+                    </a>
+                  ))}
+                </nav>
+                <Link className={styles.secondary} href="/practice">
+                  Перейти к обычной практике
+                </Link>
+              </aside>
+            </div>
           )}
-          {referenceError && (
-            <button
-              onClick={() => {
-                void loadReferences(attempt.sessionId);
-              }}
-            >
-              Повторить загрузку разборов
-            </button>
-          )}
-          <Link href="/practice">Перейти к обычной практике</Link>
         </section>
       )}
     </main>
