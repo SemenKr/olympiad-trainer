@@ -26,6 +26,10 @@ import {
 } from "./simulation-storage";
 import styles from "./simulation-session.module.scss";
 
+// A remount must wait for this document's previous Web Lock callback to finish.
+// Other tabs have their own queue and still fail the ifAvailable check.
+let editorLockLifetime: Promise<void> = Promise.resolve();
+
 export function SimulationSession({
   problems,
 }: {
@@ -52,6 +56,7 @@ export function SimulationSession({
   const [referenceError, setReferenceError] = useState(false);
   const dirty = useRef(false);
   const ownsEditor = useRef(false);
+  const [editorRequest, setEditorRequest] = useState(0);
   const pendingSave = useRef<SimulationAttempt | null>(null);
   const [unsubmitted, setUnsubmitted] = useState(false);
   const confirmedFinish = useRef(false);
@@ -72,66 +77,91 @@ export function SimulationSession({
       );
   }, []);
 
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const snapshot = await readSimulation();
-      acceptClock(snapshot);
-      const restored = snapshot.attempt
-        ? restoreSimulationDraft(snapshot.attempt)
-        : null;
-      if (restored?.finishedAt !== null && restored)
-        setUnsubmitted(hasUnsubmittedDrafts(restored));
-      dirty.current = !!(
-        restored &&
-        snapshot.attempt &&
-        !sameSimulationWork(restored, snapshot.attempt)
-      );
-      showAttempt(restored);
-      setSaved(!dirty.current);
-      setReady(true);
-    } catch {
-      setError(
-        "Не удалось восстановить симуляцию. Проверь соединение и попробуй ещё раз. При конфликте черновиков сохрани локальную копию перед продолжением.",
-      );
-    }
-  }, [acceptClock, showAttempt]);
+  const load = useCallback(
+    async (isCurrent?: () => boolean) => {
+      setError("");
+      try {
+        const snapshot = await readSimulation();
+        if (isCurrent?.() === false) return;
+        acceptClock(snapshot);
+        const restored = snapshot.attempt
+          ? restoreSimulationDraft(snapshot.attempt)
+          : null;
+        if (restored?.finishedAt !== null && restored)
+          setUnsubmitted(hasUnsubmittedDrafts(restored));
+        dirty.current = !!(
+          restored &&
+          snapshot.attempt &&
+          !sameSimulationWork(restored, snapshot.attempt)
+        );
+        showAttempt(restored);
+        setSaved(!dirty.current);
+        setReady(true);
+      } catch {
+        if (isCurrent?.() === false) return;
+        setError(
+          "Не удалось восстановить симуляцию. Проверь соединение и попробуй ещё раз. При конфликте черновиков сохрани локальную копию перед продолжением.",
+        );
+      }
+    },
+    [acceptClock, showAttempt],
+  );
 
   useEffect(() => {
     let disposed = false;
-    let release = () => {};
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     if (!navigator.locks?.request) {
-      queueMicrotask(() =>
-        setError(
-          "Для сохранения симуляции нужен браузер с поддержкой Web Locks. Открой её в современном браузере.",
-        ),
-      );
-      return;
-    }
-    void navigator.locks.request(
-      "olympiad-trainer:simulation-editor",
-      { ifAvailable: true },
-      async (lock) => {
-        if (!lock) {
+      queueMicrotask(() => {
+        if (!disposed)
           setError(
-            "Симуляция уже открыта в другой вкладке. Закрой её и обнови эту страницу.",
+            "Для сохранения симуляции нужен браузер с поддержкой Web Locks. Открой её в современном браузере.",
           );
-          return;
-        }
-        ownsEditor.current = true;
-        await new Promise<void>((resolve) => {
-          release = resolve;
-          if (disposed) resolve();
-          else void load();
-        });
-        ownsEditor.current = false;
-      },
-    );
+      });
+      return () => {
+        disposed = true;
+        release();
+      };
+    }
+    editorLockLifetime = editorLockLifetime
+      .then(async () => {
+        if (disposed) return;
+        setError("");
+        await navigator.locks.request(
+          "olympiad-trainer:simulation-editor",
+          { ifAvailable: true },
+          async (lock) => {
+            if (disposed) return;
+            if (!lock) {
+              setError(
+                "Симуляция уже открыта в другой вкладке. Закрой её и обнови эту страницу.",
+              );
+              return;
+            }
+            ownsEditor.current = true;
+            try {
+              void load(() => !disposed);
+              await released;
+            } finally {
+              ownsEditor.current = false;
+            }
+          },
+        );
+      })
+      .catch(() => {
+        if (!disposed)
+          setError(
+            "Не удалось открыть редактор симуляции. Попробуй восстановить ещё раз.",
+          );
+      });
     return () => {
       disposed = true;
+      ownsEditor.current = false;
       release();
     };
-  }, [load]);
+  }, [load, editorRequest]);
 
   const synchronize = useCallback(
     async (finish = false, confirmed = false) => {
@@ -356,7 +386,7 @@ export function SimulationSession({
               className={styles.secondary}
               onClick={() => {
                 if (ownsEditor.current) void load();
-                else window.location.reload();
+                else setEditorRequest((request) => request + 1);
               }}
             >
               Повторить восстановление
