@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../app/simulation/actions", () => ({
@@ -380,5 +380,76 @@ describe("student simulation flow", () => {
     expect(host.textContent).toContain("другой вкладке");
     expect(readSimulation).not.toHaveBeenCalled();
     expect(host.querySelector("textarea")).toBeNull();
+  });
+  it("waits for a disposed acquisition to release before a same-page remount", async () => {
+    let held = false;
+    let acquire!: () => void;
+    const acquisition = new Promise<void>((resolve) => {
+      acquire = resolve;
+    });
+    let requests = 0;
+    vi.mocked(navigator.locks.request).mockImplementation(
+      async (_name, _options, callback) => {
+        if (held) return callback!(null);
+        held = true;
+        if (++requests === 1) await acquisition;
+        try {
+          return await callback!({ name: "editor" } as Lock);
+        } finally {
+          held = false;
+        }
+      },
+    );
+    await mount();
+    expect(held).toBe(true);
+    await act(async () => root.render(null));
+    await mount();
+    await act(async () => acquire());
+    expect(host.textContent).not.toContain("другой вкладке");
+    expect(readSimulation).toHaveBeenCalledTimes(1);
+    expect(button("Начать")).toBeDefined();
+    await act(async () => root.render(null));
+    expect(held).toBe(false);
+  });
+  it("acquires only one editor during StrictMode effect replay", async () => {
+    let held = false;
+    vi.mocked(navigator.locks.request).mockImplementation(
+      async (_name, _options, callback) => {
+        if (held) return callback!(null);
+        held = true;
+        await Promise.resolve();
+        try {
+          return await callback!({ name: "editor" } as Lock);
+        } finally {
+          held = false;
+        }
+      },
+    );
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <SimulationSession problems={problems} />
+        </StrictMode>,
+      ),
+    );
+    expect(host.textContent).not.toContain("другой вкладке");
+    expect(readSimulation).toHaveBeenCalledTimes(1);
+    await act(async () => root.render(null));
+    expect(held).toBe(false);
+  });
+  it("Retry keeps a competing tab excluded and recovers once its lock is released", async () => {
+    let competing = true;
+    vi.mocked(navigator.locks.request).mockImplementation(
+      async (_name, _options, callback) =>
+        callback!(competing ? null : ({ name: "editor" } as Lock)),
+    );
+    await mount();
+    await click("Повторить восстановление");
+    expect(host.textContent).toContain("другой вкладке");
+    expect(readSimulation).not.toHaveBeenCalled();
+    competing = false;
+    await click("Повторить восстановление");
+    expect(readSimulation).toHaveBeenCalledTimes(1);
+    expect(host.textContent).not.toContain("другой вкладке");
   });
 });
