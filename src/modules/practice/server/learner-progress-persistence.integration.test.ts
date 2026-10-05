@@ -1769,6 +1769,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     expect(interpretations.map((item) => item.progressGroup)).toEqual([
       "Начинаю разбираться",
       "Начинаю разбираться",
+      null,
     ]);
     expect(JSON.stringify(interpretations)).not.toContain("selectedOptionId");
     expect(JSON.stringify(interpretations)).not.toContain("nextSequence");
