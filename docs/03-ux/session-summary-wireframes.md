@@ -1,5 +1,7 @@
 # Session Summary Wireframes — v0.1
 
+The implemented layout hierarchy is now described in [Summary + Progress — UX v1](summary-progress-v1.md). The earlier wireframes below remain historical context; existing factual outcome semantics are retained.
+
 ## Purpose and handoff context
 
 - **Task ID:** OT-003.4.

@@ -20,9 +20,15 @@ export function HomePracticeJourney({ totalXp }: { totalXp: number }) {
   );
 }
 
-export function ProgressPracticeJourney({ totalXp }: { totalXp: number }) {
+export function ProgressPracticeJourney({
+  totalXp,
+  className,
+}: {
+  totalXp: number;
+  className?: string;
+}) {
   return (
-    <section className={styles.journey}>
+    <section className={`${styles.journey} ${className ?? ""}`}>
       <h2>Путь практики</h2>
       <p className={styles.total}>{totalXp} XP</p>
       <p>XP отмечает практику, а не уровень знаний.</p>

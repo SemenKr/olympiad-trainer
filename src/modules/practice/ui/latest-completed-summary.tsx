@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { HomeNavigation } from "../../../app/home-navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "../../../app/practice/actions";
@@ -75,6 +76,7 @@ export function LatestCompletedSummary() {
   if (loadError) {
     return (
       <main className={styles.summary}>
+        <HomeNavigation current="Итоги" />
         <p role="alert">Не удалось проверить сохранённые итоги.</p>
         <button
           className={styles.secondary}
@@ -94,7 +96,12 @@ export function LatestCompletedSummary() {
   }
 
   if (results === undefined) {
-    return <main aria-busy="true">Загружаем итоги тренировки…</main>;
+    return (
+      <main aria-busy="true" className={styles.summary}>
+        <HomeNavigation current="Итоги" />
+        <p role="status">Загружаем итоги тренировки…</p>
+      </main>
+    );
   }
 
   return (
@@ -127,6 +134,7 @@ export function LatestCompletedSummaryContent({
   if (!results) {
     return (
       <main className={styles.summary}>
+        <HomeNavigation current="Итоги" />
         <h1>Итоги тренировки недоступны</h1>
         <Link className={styles.primary} href="/">
           На главную
