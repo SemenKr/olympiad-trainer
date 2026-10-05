@@ -1,9 +1,7 @@
 # Документация Olympiad Trainer
 
 - [00-project](00-project/) — описание проекта и [видение продукта](00-project/project-vision.md).
-- [01-product](01-product/) — требования, границы MVP и продуктовые сценарии.
-- [02-research](02-research/) — исследование задач ВсОШ, навыков и методов решения.
-- [03-ux](03-ux/) — пользовательские сценарии и интерфейс.
-- [04-architecture](04-architecture/) — модель данных и архитектура, включая [Durable Practice History v0](04-architecture/durable-practice-history-v0.md), [Knowledge Support v0](04-architecture/knowledge-support-v0.md), [Practice Journey v0](04-architecture/practice-journey-v0.md), [Review / Reconfirmation v0](04-architecture/review-reconfirmation-v0.md) и [Olympiad Simulation v0](04-architecture/olympiad-simulation-v0.md).
-- [05-development](05-development/) — backlog и процесс разработки.
-- [99-decisions](99-decisions/) — принятые решения и их обоснования.
+- [02-research](02-research/) — исследование задач ВсОШ, навыков, learning evidence и recommendation/review моделей.
+- [03-ux](03-ux/) — пользовательские сценарии и актуальные UX-контракты.
+- [04-architecture](04-architecture/) — принятые domain/architecture контракты, включая Durable Practice History, Knowledge Support, Practice Journey, Review / Reconfirmation и Olympiad Simulation.
+- [05-development](05-development/) — процесс разработки и Agent System.
