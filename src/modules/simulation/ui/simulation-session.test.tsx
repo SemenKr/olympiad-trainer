@@ -139,6 +139,22 @@ async function advance(ms: number) {
 }
 
 describe("student simulation flow", () => {
+  it("explains the fixed attempt and assistance/save/timer/reward limits before Start", async () => {
+    await mount();
+    for (const fact of [
+      "4 задачи · 45 минут",
+      "всеми четырьмя задачами",
+      "менять черновики до завершения",
+      "Подсказок и разборов до завершения нет",
+      "сохраняются автоматически в этом браузере и на сервере",
+      "не останавливается при закрытии страницы",
+      "Баллы и XP не начисляются",
+      "автоматической проверки нет",
+    ])
+      expect(host.textContent).toContain(fact);
+    expect(host.querySelector("textarea")).toBeNull();
+    expect(readSimulationReferences).not.toHaveBeenCalled();
+  });
   it("starts explicitly, exposes all four tasks, persists reasoning and freely navigates", async () => {
     await mount();
     expect(startSimulation).not.toHaveBeenCalled();
@@ -188,6 +204,7 @@ describe("student simulation flow", () => {
     expect(document.activeElement).toBe(button("Продолжить работу"));
     await click("Продолжить работу");
     expect(finishSimulation).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(button("Завершить раньше"));
     await click("Завершить раньше");
     await click("Да, завершить");
     expect(finishSimulation).toHaveBeenCalledWith(
@@ -200,6 +217,32 @@ describe("student simulation flow", () => {
     expect(host.textContent).toContain("submitted proof");
     expect(document.activeElement?.textContent).toBe("Работа завершена");
     expect(host.textContent).toContain("PROTECTED REFERENCE");
+    expect(
+      host.querySelectorAll('[id^="simulation-submission-title-"]'),
+    ).toHaveLength(4);
+    expect(
+      host.textContent?.match(/Черновик пуст — решение не записано\./g),
+    ).toHaveLength(3);
+    expect(host.textContent).toContain("Автоматических оценок нет");
+    expect(host.textContent).toContain("не меняет прогресс, Review и XP");
+  });
+  it("Escape restores Finish focus and keeps the current draft editable", async () => {
+    await mount();
+    await click("Начать");
+    await type("reasoning before confirmation");
+    await click("Завершить раньше");
+    expect(host.querySelector("textarea")?.disabled).toBe(true);
+    await act(async () =>
+      button("Продолжить работу").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    );
+    expect(document.activeElement).toBe(button("Завершить раньше"));
+    expect(host.querySelector("textarea")?.disabled).toBe(false);
+    expect(host.querySelector("textarea")?.value).toBe(
+      "reasoning before confirmation",
+    );
+    expect(finishSimulation).not.toHaveBeenCalled();
   });
   it("timeout finishes without confirmation, freezes work and unlocks references", async () => {
     server = newSimulation(id, 1000);
@@ -209,9 +252,83 @@ describe("student simulation flow", () => {
     await advance(1000);
     expect(server?.finishReason).toBe("timeout");
     expect(host.textContent).toContain("Время вышло — работа завершена");
+    expect(host.textContent).toContain("сервер получил до истечения 45 минут");
+    expect(document.activeElement?.textContent).toBe(
+      "Время вышло — работа завершена",
+    );
+    await click("Посмотреть сданную работу");
     expect(host.textContent).toContain("saved proof");
     expect(host.querySelector("textarea")).toBeNull();
     expect(readSimulationReferences).toHaveBeenCalledWith(id);
+  });
+  it("keeps an unsent local timeout copy separate from frozen server submission and offers download", async () => {
+    server = {
+      ...newSimulation(id, 1000),
+      drafts: ["server accepted proof", "", "", ""],
+    };
+    storeSimulationDraft({
+      ...server,
+      drafts: ["new unsent local proof", "", "", ""],
+    });
+    const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
+    vi.setSystemTime(server.deadlineAt + 1);
+    await mount();
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "не попали в сданную работу",
+    );
+    const createUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:local-copy");
+    const revokeUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.download).toBe("simulation-drafts.json");
+        expect(this.href).toBe("blob:local-copy");
+      });
+    try {
+      await click("Скачать локальную копию");
+      expect(download).toHaveBeenCalledOnce();
+      await click("Посмотреть сданную работу");
+      const submission = host.querySelector("#simulation-submission-1")!;
+      expect(submission.textContent).toContain("server accepted proof");
+      expect(submission.textContent).not.toContain("new unsent local proof");
+      expect(localStorage.getItem(SIMULATION_PENDING_KEY)).toBe(raw);
+      expect(host.querySelector("textarea")).toBeNull();
+      expect(document.activeElement?.textContent).toBe(
+        "Время вышло — работа завершена",
+      );
+      expect(saveSimulation).not.toHaveBeenCalled();
+      expect(finishSimulation).not.toHaveBeenCalled();
+    } finally {
+      createUrl.mockRestore();
+      revokeUrl.mockRestore();
+      download.mockRestore();
+    }
+  });
+  it("retains submitted work while protected references fail and retries without resubmitting", async () => {
+    server = updateSimulation(
+      newSimulation(id, 1000),
+      0,
+      { drafts: ["submitted proof", "", "", ""], selectedIndex: 0 },
+      2000,
+      true,
+      true,
+    );
+    vi.mocked(readSimulationReferences).mockRejectedValueOnce(
+      new Error("offline"),
+    );
+    await mount();
+    expect(host.textContent).toContain("submitted proof");
+    expect(host.textContent).toContain(
+      "Не удалось загрузить разборы. Сданная работа сохранена.",
+    );
+    await click("Повторить загрузку разборов");
+    expect(host.textContent).toContain("PROTECTED REFERENCE");
+    expect(saveSimulation).not.toHaveBeenCalled();
+    expect(finishSimulation).not.toHaveBeenCalled();
   });
   it("keeps failed saves locally and provides a working retry", async () => {
     await mount();
