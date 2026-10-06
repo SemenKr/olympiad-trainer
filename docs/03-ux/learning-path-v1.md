@@ -1,6 +1,6 @@
 # Learning Path v1 — UX contract
 
-Status: adopted scope, implemented on the feature branch; not yet deployed.
+Status: adopted scope, merged into `main` in PR #72 (`979887b`). Deployment status is environment-specific.
 
 ## Learner flow
 
