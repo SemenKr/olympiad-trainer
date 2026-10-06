@@ -10,6 +10,7 @@ describe("Practice Journey v1 surfaces", () => {
     expect(renderToStaticMarkup(<HomePracticeJourney totalXp={0} />)).toBe("");
 
     const markup = renderToStaticMarkup(<HomePracticeJourney totalXp={70} />);
+    expect(markup).toContain("Путь практики");
     expect(markup).toContain("Уровень пути 2");
     expect(markup).toContain("В движении");
     expect(markup).toContain("70 XP");
@@ -39,9 +40,8 @@ describe("Practice Journey v1 surfaces", () => {
     expect(markup).toContain("В движении");
     expect(markup).toContain("До уровня пути 3");
     expect(markup).toContain("30 XP");
-    expect(markup).toContain(
-      "XP, уровни пути и медали показывают практику, а не уровень знаний.",
-    );
+    expect(markup).toContain("XP отмечает практику, а не уровень знаний.");
+    expect(markup).toContain("Уровни пути и медали тоже показывают участие.");
     for (const label of [
       "Первый шаг",
       "Начал разгон",
