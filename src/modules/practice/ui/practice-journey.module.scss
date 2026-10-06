@@ -64,6 +64,13 @@
   text-transform: uppercase;
 }
 
+.level-name {
+  color: var(--ot-color-text-primary) !important;
+  font-size: var(--ot-font-size-heading) !important;
+  font-weight: 700;
+  line-height: var(--ot-line-height-heading) !important;
+}
+
 .total {
   flex: none;
   color: var(--ot-color-primary) !important;
@@ -151,6 +158,10 @@
     font-size: var(--ot-font-size-caption);
     line-height: var(--ot-line-height-caption);
   }
+}
+
+.reached {
+  opacity: 1;
 }
 
 .upcoming {
