@@ -24,7 +24,7 @@ Every session must record the actual build or commit used. If the product change
 
 The product is not frozen while Learner Validation v0 runs.
 
-- Continue small, reviewable product slices using the normal project workflow.
+- Continue the largest coherent product slice that delivers complete user value while remaining independently reviewable.
 - Record the exact tested build for every learner visit.
 - Treat a finding as evidence about the build that was actually observed.
 - Fix Critical findings immediately.
