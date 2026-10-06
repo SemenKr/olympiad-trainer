@@ -94,6 +94,7 @@
 .celebration {
   background: var(--ot-color-primary-soft);
   border-color: var(--ot-color-primary);
+  animation: reward-reveal var(--ot-duration-reveal) var(--ot-ease-standard);
 }
 
 .reward {
@@ -220,6 +221,25 @@
 @media (width >= 1280px) {
   .content {
     grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+@keyframes reward-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration {
+    animation: none;
+    transform: none;
   }
 }
 
