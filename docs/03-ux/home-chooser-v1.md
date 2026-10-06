@@ -21,3 +21,7 @@ Simulation retains its separate secondary entry and unchanged `/simulation` rout
 - Cards grow with real registry titles instead of clipping to prototype heights. Targets are at least 44px, links have visible focus, each Pack has a distinct accessible action name, and learner content has no horizontal scroll.
 
 Existing data loading and route guards are reused. The next-action region announces state changes; secondary loading/availability failures do not replace the primary action. No fabricated learner statistics or new content assets are added.
+
+## Learning Path v1 supersession
+
+[Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice now adds the adopted editorial sequence before the unchanged free-choice registry list; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.

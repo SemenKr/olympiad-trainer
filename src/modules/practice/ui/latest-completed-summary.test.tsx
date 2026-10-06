@@ -183,7 +183,7 @@ describe("persisted Summary session identity", () => {
         expect(text).not.toContain("Первый шаг");
       }
       expect(readServerPracticeJourneyFinish).toHaveBeenCalledTimes(2);
-      expect(readServerLearningPath).toHaveBeenCalledTimes(2);
+      expect(readServerLearningPath).not.toHaveBeenCalled();
       expect(vi.mocked(readServerPracticeJourneyFinish).mock.calls).toEqual([
         [sessionB],
         [sessionB],

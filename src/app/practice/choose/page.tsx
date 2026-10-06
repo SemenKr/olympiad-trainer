@@ -22,7 +22,10 @@ export default function ChoosePracticePage() {
         </p>
       </header>
       <LearningPathGuideLoader />
-      <section className={styles["free-choice"]} aria-labelledby="all-packs-title">
+      <section
+        className={styles["free-choice"]}
+        aria-labelledby="all-packs-title"
+      >
         <h2 id="all-packs-title">Все наборы</h2>
         <p>Свободный выбор остаётся доступен в любой момент.</p>
       </section>

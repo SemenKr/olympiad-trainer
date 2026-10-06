@@ -38,6 +38,7 @@ function PathEntryCard({ entry }: { entry: LearningPathEntry }) {
       <Link
         className={entry.suggested ? styles.primary : styles.secondary}
         href={packHref(entry.packId)}
+        aria-label={`${entry.completed ? "Пройти ещё раз" : "Выбрать"} набор «${entry.name}»`}
       >
         {entry.completed
           ? "Пройти ещё раз"
@@ -69,6 +70,10 @@ export function LearningPathGuide({
           {projection.totalCount}
         </p>
       </header>
+      <p>
+        Отметки показывают сохранённые завершения. Старые тренировки могли не
+        получить такую отметку. Уровни пути и XP учитываются отдельно.
+      </p>
       {projection.allRecorded ? (
         <p className={styles.complete}>
           Во всех наборах пути есть сохранённая завершённая тренировка. Можно
@@ -148,6 +153,10 @@ export function ProgressLearningPath({
       <p>
         {projection.completedCount} из {projection.totalCount} наборов имеют
         сохранённое завершение.
+      </p>
+      <p>
+        Это отметки завершённых тренировок. Уровни пути и XP учитываются
+        отдельно; старые тренировки могли не получить отметку.
       </p>
       <progress
         aria-label={`Сохранённые завершения наборов: ${projection.completedCount} из ${projection.totalCount}`}

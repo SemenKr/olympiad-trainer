@@ -719,14 +719,17 @@ export async function readCompletedPackIds(
   learnerId: string,
 ): Promise<readonly PackId[]> {
   const rows = await getProgressDb()
-    .select({ packId: practiceFinishReceipts.packId })
+    .select({
+      packId: practiceFinishReceipts.packId,
+      mode: practiceFinishReceipts.episodeMode,
+    })
     .from(practiceFinishReceipts)
     .where(eq(practiceFinishReceipts.learnerId, learnerId));
   const result: PackId[] = [];
   for (const row of rows) {
     if (row.packId === null) continue;
     const pack = packById(row.packId);
-    if (!pack)
+    if (!pack || row.mode !== "pack")
       throw new Error("Learning Path Pack receipt could not be verified.");
     if (!result.includes(pack.id)) result.push(pack.id);
   }

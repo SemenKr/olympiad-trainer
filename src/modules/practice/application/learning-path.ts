@@ -27,8 +27,7 @@ export const LEARNING_PATH_V1 = [
   },
   {
     packId: "pack-d",
-    description:
-      "Разбиваем подсчёт на случаи и ищем устройство задачи.",
+    description: "Разбиваем подсчёт на случаи и ищем устройство задачи.",
   },
   {
     packId: "pack-g",
@@ -42,13 +41,11 @@ export const LEARNING_PATH_V1 = [
   },
   {
     packId: "pack-i",
-    description:
-      "Разбираем порядок, расстояния и связи между частями задачи.",
+    description: "Разбираем порядок, расстояния и связи между частями задачи.",
   },
   {
     packId: "pack-c",
-    description:
-      "Работаем с цифрами, ограничениями и подсчётом связей.",
+    description: "Работаем с цифрами, ограничениями и подсчётом связей.",
   },
   {
     packId: "pack-b",
@@ -62,8 +59,7 @@ export const LEARNING_PATH_V1 = [
   },
   {
     packId: "pack-k",
-    description:
-      "Собираем несколько условий в одно доказательное рассуждение.",
+    description: "Собираем несколько условий в одно доказательное рассуждение.",
   },
 ] as const satisfies readonly Readonly<{
   packId: PackId;

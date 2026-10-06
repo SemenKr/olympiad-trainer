@@ -7,6 +7,7 @@ vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(),
   readServerPracticeJourney: vi.fn(async () => 70),
+  readServerLearningPath: vi.fn(async () => []),
   readServerReviewAvailability: vi.fn(async () => false),
 }));
 vi.mock("./server-progress-import", () => ({

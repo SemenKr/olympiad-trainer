@@ -17,3 +17,7 @@ The existing browser-local Practice episode determines whether a checkpoint is e
 ## Setup and deployment
 
 Use a managed PostgreSQL database for each local, preview and production environment. Set server-only `DATABASE_URL` to its runtime pooled connection string. Set `DATABASE_MIGRATION_URL` to a direct connection string when the provider requires one for DDL. Run `pnpm db:migrate` explicitly once during environment setup or deployment before serving this version; migrations never run per request. The committed SQL is in `db/migrations/`. Do not expose either URL through `NEXT_PUBLIC_` variables. Local integration tests use a separate `DATABASE_TEST_URL` database.
+
+## Learning Path v1
+
+[Learning Path v1](learning-path-v1.md) adds nullable `pack_id` to Finish receipts via migration 0011. Only validated Pack Finish writes the derived identity, atomically within the existing transaction. No cursor/table/backfill or altered contribution hash. Reads validate and deduplicate learner-scoped receipt IDs; legacy null IDs remain unknown and retries do not annotate them.

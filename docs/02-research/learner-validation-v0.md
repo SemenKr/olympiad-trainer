@@ -335,3 +335,7 @@ Learner Validation v0 can close when:
 - Simulation variants, resets or deadline changes;
 - parent accounts or learner authentication;
 - broad usability or accessibility certification.
+
+## Learning Path v1 build-specific questions
+
+For builds containing [Learning Path v1](../03-ux/learning-path-v1.md), observe independent choice of a next Pack, return orientation, discovery of free choice, comprehension of recorded Finish versus solved topics, and separation from Journey XP/levels. Keep spontaneous/prompted/assisted observations distinct. The editorial order is adopted navigation, not empirically validated difficulty or curriculum. Continue the existing study without forcing eligibility or making learning-effectiveness claims.

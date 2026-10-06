@@ -34,7 +34,7 @@ type ProgressLoad =
       episodes: readonly RecentPracticeEpisode[];
       journeyTotalXp: number;
       reviewAvailable: boolean | null;
-      completedPackIds: readonly PackId[];
+      completedPackIds: readonly PackId[] | null;
     };
 
 export function ProgressOverview() {
@@ -53,7 +53,7 @@ export function ProgressOverview() {
             readServerRecentPracticeEpisodes(),
             readServerPracticeJourney(),
             readServerReviewAvailability().catch(() => null),
-            readServerLearningPath(),
+            readServerLearningPath().catch(() => null),
           ]),
         )
         .then(
@@ -140,10 +140,30 @@ export function ProgressOverview() {
             ))}
           </section>
           <div className={styles.path}>
-            <ProgressLearningPath
-              completedPackIds={load.completedPackIds}
-              className={styles["path-card"]}
-            />
+            {load.completedPackIds ? (
+              <ProgressLearningPath
+                completedPackIds={load.completedPackIds}
+                className={styles["path-card"]}
+              />
+            ) : (
+              <section className={styles.error} aria-label="Путь тренировок">
+                <h2>Путь тренировок</h2>
+                <p role="alert">Не удалось загрузить отметки пути.</p>
+                <button
+                  type="button"
+                  className={styles.secondary}
+                  onClick={() => {
+                    setLoad({ status: "loading" });
+                    setRetry((value) => value + 1);
+                  }}
+                >
+                  Повторить
+                </button>
+                <Link className={styles.secondary} href="/practice/choose">
+                  Выбрать тренировку
+                </Link>
+              </section>
+            )}
           </div>
           <div className={styles.journey}>
             <ProgressPracticeJourney

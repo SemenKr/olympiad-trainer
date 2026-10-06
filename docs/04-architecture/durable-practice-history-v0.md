@@ -26,3 +26,7 @@ The browser-local latest Summary remains unchanged and continues to serve the ex
 ## Explicit exclusions
 
 Version 0 does not import earlier local Summaries, reconstruct previous episodes, or infer prior history. It does not calculate learner mastery or progress, select recommendations, or infer additional facts from the episode list.
+
+## Learning Path v1 extension
+
+[Learning Path v1](learning-path-v1.md) reads nullable server-derived Pack IDs on immutable Finish receipts, independently of this pruned history. No history or receipt backfill occurs. Pre-v1 null IDs stay unknown even on retry; pruning episodes cannot remove a recorded Pack marker.

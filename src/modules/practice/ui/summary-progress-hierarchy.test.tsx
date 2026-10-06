@@ -8,6 +8,7 @@ vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(async () => []),
   readServerPracticeJourney: vi.fn(async () => 70),
+  readServerLearningPath: vi.fn(async () => []),
   readServerReviewAvailability: vi.fn(),
 }));
 vi.mock("./server-progress-import", () => ({
@@ -17,6 +18,7 @@ vi.mock("./server-progress-import", () => ({
 import {
   readServerProgress,
   readServerReviewAvailability,
+  readServerLearningPath,
 } from "../../../app/progress/actions";
 import { ProgressOverview } from "./progress-overview";
 import { SessionSummary } from "./session-summary";
@@ -86,6 +88,9 @@ describe("Summary and Progress hierarchy", () => {
           conclusion: "Пока рано сказать",
         },
       ]);
+      vi.mocked(readServerLearningPath).mockRejectedValueOnce(
+        new Error("Path unavailable"),
+      );
       if (available === null) {
         vi.mocked(readServerReviewAvailability).mockRejectedValueOnce(
           new Error("Review unavailable"),
@@ -107,7 +112,9 @@ describe("Summary and Progress hierarchy", () => {
         expect(evidence.textContent).toContain("Пока рано сказать");
         expect(evidence.textContent).not.toContain("XP");
         expect(
-          container.querySelector('a[href="/practice/choose"]')?.textContent,
+          container.querySelector(
+            'section[class*="destinations"] a[href="/practice/choose"]',
+          )?.textContent,
         ).toBe("Выбрать тренировку");
         expect(container.querySelector('a[href="/"]')).not.toBeNull();
         expect(container.textContent).toContain("70 XP");

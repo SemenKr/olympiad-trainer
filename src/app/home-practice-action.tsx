@@ -43,7 +43,7 @@ type StoredPractice = Readonly<{
   availability: AdaptiveAvailability;
   hasPracticeHistory: boolean;
   reviewAvailable?: boolean | null;
-  completedPackIds?: readonly PackId[];
+  completedPackIds?: readonly PackId[] | null;
 }>;
 
 export function HomePracticeAction() {
@@ -81,7 +81,7 @@ export function HomePracticeAction() {
               await Promise.all([
                 readServerAdaptiveAvailability(),
                 readServerReviewAvailability().catch(() => null),
-                readServerLearningPath(),
+                readServerLearningPath().catch(() => null),
               ]);
             adaptive = { ...availability, reviewAvailable, completedPackIds };
           }
@@ -120,7 +120,13 @@ export function HomePracticeAction() {
     );
   }
   return stored ? (
-    <HomePracticeContent stored={stored} />
+    <HomePracticeContent
+      stored={stored}
+      onPathRetry={() => {
+        setStored(null);
+        setLoadRetry((value) => value + 1);
+      }}
+    />
   ) : (
     <HomePracticeLayout>
       <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
@@ -128,15 +134,24 @@ export function HomePracticeAction() {
   );
 }
 
-export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
-  const path = getLearningPathProjection(stored.completedPackIds ?? []);
+export function HomePracticeContent({
+  stored,
+  onPathRetry,
+}: {
+  stored: StoredPractice;
+  onPathRetry?: () => void;
+}) {
+  const path =
+    stored.completedPackIds === null
+      ? null
+      : getLearningPathProjection(stored.completedPackIds ?? []);
   const returning = stored.completed !== null || stored.hasPracticeHistory;
-  const nextPathPack = path.nextPackId ? packById(path.nextPackId) : null;
+  const nextPathPack = path?.nextPackId ? packById(path.nextPackId) : null;
   const neutral =
     !stored.unfinished &&
     stored.availability.status !== "recommendation" &&
     returning &&
-    path.allRecorded;
+    path?.allRecorded === true;
   return (
     <HomePracticeLayout stored={stored} neutral={neutral}>
       {stored.unfinished ? (
@@ -196,21 +211,7 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
                 : "Возраст братьев"}
           </Link>
         </section>
-      ) : hasNoNextAction ? (
-        <section>
-          <p className={styles.eyebrow}>Что сейчас?</p>
-          <h2>
-            {stored.availability.status === "transfer-exhausted"
-              ? "Новых подходящих задач пока нет"
-              : "Пока без новой задачи"}
-          </h2>
-          <p>
-            {stored.availability.status === "transfer-exhausted"
-              ? "Все подходящие задачи из текущего набора уже были в работе."
-              : "Пока недостаточно проверенной работы, чтобы честно выбрать следующую полезную задачу."}
-          </p>
-        </section>
-      ) : (
+      ) : !returning ? (
         <section>
           <p className={styles.eyebrow}>Что сейчас?</p>
           <h2>Начни с первой тренировки</h2>
@@ -220,6 +221,22 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           </p>
           <Link className={styles.primary} href="/practice">
             Начать тренировку
+          </Link>
+        </section>
+      ) : !path ? (
+        <section aria-label="Путь тренировок">
+          <p role="alert">Не удалось загрузить отметки пути.</p>
+          {onPathRetry ? (
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={onPathRetry}
+            >
+              Повторить
+            </button>
+          ) : null}
+          <Link className={styles.secondary} href="/practice/choose">
+            Выбрать набор
           </Link>
         </section>
       ) : nextPathPack ? (
@@ -239,8 +256,8 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           <p className={styles.eyebrow}>ПУТЬ ТРЕНИРОВОК</p>
           <h2>Во всех наборах есть сохранённое завершение</h2>
           <p>
-            Это не означает, что вся математика 5 класса освоена. Можно вернуться
-            к любому набору и потренироваться ещё.
+            Это не означает, что вся математика 5 класса освоена. Можно
+            вернуться к любому набору и потренироваться ещё.
           </p>
           <Link className={styles.primary} href="/practice/choose">
             Выбрать тренировку

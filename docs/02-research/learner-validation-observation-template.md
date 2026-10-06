@@ -142,3 +142,7 @@ Minimum useful return from a parent:
 - whether the learner wanted to return.
 
 Do not turn absence of a comment into evidence that a flow worked.
+
+## Learning Path v1 (when present on tested build)
+
+Record exact build; spontaneous/prompted/assisted choice and return; free-choice discovery; learner wording about recorded Pack finishes versus solved topics; distinction from Journey XP/levels. Record observer intervention and alternative explanations. No mastery or learning-effectiveness inference.

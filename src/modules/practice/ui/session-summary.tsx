@@ -11,6 +11,7 @@ import {
   packHref,
   packIdFromProblemIds,
   type PackId,
+  type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
 import { getLearningPathProjection } from "../application/learning-path";
 import {
@@ -26,7 +27,7 @@ type SessionSummaryProps = Readonly<{
   headingRef?: RefObject<HTMLHeadingElement | null>;
   journeyFinish?: PracticeJourneyFinish | null;
   completedPackIds?: readonly PackId[] | null;
-  mode?: "review";
+  mode?: CompletedPracticeEpisodeMode;
 }>;
 
 export function getPracticeRemainingText(
@@ -157,15 +158,16 @@ export function SessionSummary({
     journeyReward !== null &&
     (journeyReward.newLevel !== null || journeyReward.newBadges.length > 0);
   const completedPackId =
-    mode === undefined
+    mode === "pack"
       ? packIdFromProblemIds(results.map((result) => result.problemId))
       : null;
   const learningPath =
-    completedPackId && completedPackIds
+    completedPackId && completedPackIds?.includes(completedPackId)
       ? getLearningPathProjection(completedPackIds)
       : null;
-  const nextPathPack =
-    learningPath?.nextPackId ? packById(learningPath.nextPackId) : null;
+  const nextPathPack = learningPath?.nextPackId
+    ? packById(learningPath.nextPackId)
+    : null;
   const sockResult = results.find(
     (result) =>
       result.problemId === "guaranteed-sock-pair" ||
@@ -348,7 +350,7 @@ export function SessionSummary({
                 На главную
               </Link>
             )}
-            {completedPackId ? (
+            {learningPath ? (
               <Link className={styles.secondary} href="/">
                 На главную
               </Link>

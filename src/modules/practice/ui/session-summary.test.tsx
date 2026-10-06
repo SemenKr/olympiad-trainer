@@ -43,6 +43,7 @@ describe("SessionSummary", () => {
     ];
     const markup = renderToStaticMarkup(
       <SessionSummary
+        mode="pack"
         completedPackIds={["pack-a"]}
         results={packA.map((problemId) => ({
           problemId,
@@ -63,6 +64,58 @@ describe("SessionSummary", () => {
     expect(markup).not.toMatch(/освоен|готов к следующему уровню/i);
   });
 
+  it.each(["core", "transfer", "exploration", "review"] as const)(
+    "never advances the path for %s mode",
+    (mode) => {
+      const markup = renderToStaticMarkup(
+        <SessionSummary
+          mode={mode}
+          completedPackIds={["pack-a"]}
+          results={[
+            "granddaughters-first",
+            "cutout-area-ratio",
+            "domino-placements",
+          ].map((problemId) => ({
+            problemId,
+            problemTitle: problemId,
+            summary: {
+              outcome: "no-valid-submissions" as const,
+              validSubmissionCount: 0,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          }))}
+        />,
+      );
+      expect(markup).not.toContain("Продолжить путь");
+      expect(markup).toContain("На главную");
+    },
+  );
+
+  it("does not infer a Pack Finish from an unknown pre-v1 receipt", () => {
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        mode="pack"
+        completedPackIds={[]}
+        results={[
+          "granddaughters-first",
+          "cutout-area-ratio",
+          "domino-placements",
+        ].map((problemId) => ({
+          problemId,
+          problemTitle: problemId,
+          summary: {
+            outcome: "no-valid-submissions" as const,
+            validSubmissionCount: 0,
+            hintExposures: [],
+            solutionExposure: null,
+          },
+        }))}
+      />,
+    );
+    expect(markup).not.toContain("Продолжить путь");
+    expect(markup.match(/>На главную</g)).toHaveLength(1);
+  });
 
   it("encourages completion without presenting it as an ability claim", () => {
     const markup = renderSummary("incorrect-only");

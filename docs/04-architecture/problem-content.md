@@ -33,3 +33,7 @@ For example, `coinciding-seats` adapts official I-01 from 105 holes to 102 seats
 `PracticeState` remains the local authority for learner episode facts: submissions, `PracticeHintExposure`, and the nullable `PracticeSolutionExposure`. Revealed hint and solution text are presentation state owned by `PracticeSession`; they are not evidence and are not stored in `PracticeState`. Exposure is recorded only after the corresponding reveal succeeds, using the valid-submission count at that moment. Solution exposure remains separate from correctness.
 
 No server-side Practice-session persistence is introduced to enforce hint or solution eligibility. The current UI derives ordering and eligibility from local `PracticeState`. The reveal boundaries prevent protected text from being serialized eagerly, but without a persisted server episode they do not claim server-authoritative progression between support levels.
+
+## Learning Path navigation
+
+[Learning Path v1](learning-path-v1.md) adds an optional editorial sequence referencing existing Pack IDs, with no difficulty or prerequisite metadata. J/K/L display names omit technical prefixes. Pack tuples, protected content and evidence policies are unchanged.

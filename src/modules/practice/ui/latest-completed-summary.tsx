@@ -16,7 +16,11 @@ import {
   readServerPracticeJourneyFinish,
 } from "../../../app/progress/actions";
 import type { PracticeJourneyFinish } from "../application/practice-journey";
-import type { PackId } from "../application/completed-practice-episode";
+import {
+  packIdFromProblemIds,
+  type PackId,
+  type CompletedPracticeEpisodeMode,
+} from "../application/completed-practice-episode";
 
 export function LatestCompletedSummary() {
   const [results, setResults] = useState<
@@ -30,9 +34,10 @@ export function LatestCompletedSummary() {
   const [loadRetry, setLoadRetry] = useState(0);
   const [journeyFinish, setJourneyFinish] =
     useState<PracticeJourneyFinish | null>(null);
-  const [mode, setMode] = useState<"review" | undefined>();
-  const [completedPackIds, setCompletedPackIds] =
-    useState<readonly PackId[] | null>(null);
+  const [mode, setMode] = useState<CompletedPracticeEpisodeMode | undefined>();
+  const [completedPackIds, setCompletedPackIds] = useState<
+    readonly PackId[] | null
+  >(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -54,7 +59,11 @@ export function LatestCompletedSummary() {
             setInterpretation(verifiedInterpretation);
             setTableInterpretation(verifiedTableInterpretation ?? null);
             setResults(value);
-            setMode(completedMode);
+            const packId =
+              completedMode !== "review" && value
+                ? packIdFromProblemIds(value.map((result) => result.problemId))
+                : null;
+            setMode(completedMode ?? (packId ? "pack" : undefined));
             setJourneyFinish(null);
             setCompletedPackIds(null);
             if (sessionId && active) {
@@ -65,13 +74,14 @@ export function LatestCompletedSummary() {
                 .catch(() => {
                   if (active) setJourneyFinish(null);
                 });
-              void readServerLearningPath()
-                .then((packIds) => {
-                  if (active) setCompletedPackIds(packIds);
-                })
-                .catch(() => {
-                  if (active) setCompletedPackIds(null);
-                });
+              if (packId)
+                void readServerLearningPath()
+                  .then((packIds) => {
+                    if (active) setCompletedPackIds(packIds);
+                  })
+                  .catch(() => {
+                    if (active) setCompletedPackIds(null);
+                  });
             }
           },
         )
@@ -147,7 +157,7 @@ export function LatestCompletedSummaryContent({
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   journeyFinish?: PracticeJourneyFinish | null;
   completedPackIds?: readonly PackId[] | null;
-  mode?: "review";
+  mode?: CompletedPracticeEpisodeMode;
 }) {
   if (!results) {
     return (
