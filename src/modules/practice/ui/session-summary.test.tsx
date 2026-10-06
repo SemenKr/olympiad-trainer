@@ -138,7 +138,8 @@ describe("SessionSummary", () => {
       />,
     );
     expect(markup).toContain("+30 XP");
-    expect(markup).toContain("За эту тренировку · всего 100 XP");
+    expect(markup).toContain("За эту тренировку");
+    expect(markup).toContain("Всего 100 XP");
     expect(markup).toContain("Награда за путь");
     expect(markup).toContain("Новый уровень пути");
     expect(markup).toContain("Уровень пути 3");
