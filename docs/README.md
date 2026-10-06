@@ -9,3 +9,5 @@
 Learning Path v1: [архитектурный контракт](04-architecture/learning-path-v1.md), [UX-контракт](03-ux/learning-path-v1.md). Merged в `main` (PR #72, `979887b`); статус конкретного деплоя проверяется отдельно.
 
 Olympiad Foundations: [исследовательский прототип v0.1](02-research/olympiad-foundations-prototype-v0.1.md) и [карточки примеров](02-research/olympiad-foundations-learner-cards-v0.1.md). Кандидат для проверки понятности подхода; не принятая учебная программа или production-функция.
+
+Следующее наблюдение за новичком: [полевой лист LV-03](02-research/learner-validation-lv03-field-sheet.md) для печати и краткой записи по действующим протоколам.
