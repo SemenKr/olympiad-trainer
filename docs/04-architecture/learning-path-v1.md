@@ -1,6 +1,6 @@
 # Learning Path v1 — Guided Grade 5 Practice
 
-Status: Adopted contract; implemented on `feature/learning-path-v1`, not yet merged or deployed.
+Status: Adopted contract; merged into `main` in PR #72 (`979887b`). Deployment status is environment-specific.
 
 ## Meaning and editorial sequence
 
