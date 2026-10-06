@@ -28,11 +28,9 @@ export const PRACTICE_JOURNEY_BADGES = [
 export type PracticeJourneyMilestone =
   (typeof PRACTICE_JOURNEY_MILESTONES)[number]["label"];
 
-export type PracticeJourneyLevel =
-  (typeof PRACTICE_JOURNEY_LEVELS)[number];
+export type PracticeJourneyLevel = (typeof PRACTICE_JOURNEY_LEVELS)[number];
 
-export type PracticeJourneyBadge =
-  (typeof PRACTICE_JOURNEY_BADGES)[number];
+export type PracticeJourneyBadge = (typeof PRACTICE_JOURNEY_BADGES)[number];
 
 export type PracticeJourneyFinish = Readonly<{
   earnedXp: number;
@@ -136,7 +134,9 @@ export function getPracticeJourneyBadges(totalXp: number) {
 
 export function getNextPracticeJourneyBadge(totalXp: number) {
   const xp = normalizedXp(totalXp);
-  return PRACTICE_JOURNEY_BADGES.find(({ threshold }) => xp < threshold) ?? null;
+  return (
+    PRACTICE_JOURNEY_BADGES.find(({ threshold }) => xp < threshold) ?? null
+  );
 }
 
 export function getPracticeJourneyRewardDelta(
