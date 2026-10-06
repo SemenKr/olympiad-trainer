@@ -237,6 +237,27 @@ export function PracticeSolutionRevealError() {
   );
 }
 
+export function PracticeFinishPrompt({
+  disabled,
+  onFinish,
+}: Readonly<{ disabled: boolean; onFinish: () => void }>) {
+  return (
+    <div className={styles["finish-prompt"]}>
+      <p>
+        Готово с этой задачей. Можно завершить тренировку и посмотреть итоги.
+      </p>
+      <button
+        className={styles["next-action"]}
+        disabled={disabled}
+        onClick={onFinish}
+        type="button"
+      >
+        Завершить тренировку
+      </button>
+    </div>
+  );
+}
+
 export async function savePracticeSessionWhileActive(
   completionLatch: { current: boolean },
   session: ActivePracticeSessionState,
@@ -883,6 +904,11 @@ function PracticeProblemEpisode({
     pendingHintId !== null || isSolutionRevealPending;
   const canOpenNextProblem =
     hasNextProblem &&
+    navigationComplete &&
+    !supportRevealPending &&
+    !restorePending;
+  const canFinishFromRail =
+    !hasNextProblem &&
     navigationComplete &&
     !supportRevealPending &&
     !restorePending;
@@ -1637,6 +1663,13 @@ function PracticeProblemEpisode({
             >
               Следующая задача
             </button>
+          ) : null}
+
+          {canFinishFromRail ? (
+            <PracticeFinishPrompt
+              disabled={checkpointAssessmentPending || transitionPending}
+              onFinish={handleFinish}
+            />
           ) : null}
         </div>
       }

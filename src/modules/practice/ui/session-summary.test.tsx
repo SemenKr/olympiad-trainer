@@ -35,6 +35,17 @@ function renderSummary(
 }
 
 describe("SessionSummary", () => {
+  it("encourages completion without presenting it as an ability claim", () => {
+    const markup = renderSummary("incorrect-only");
+
+    expect(markup).toContain(
+      "Хорошая работа — ты завершил тренировку. Теперь можно спокойно посмотреть, что получилось и что осталось.",
+    );
+    expect(markup).toContain(
+      "Здесь только факты об этой тренировке — не оценка твоих способностей.",
+    );
+  });
+
   it("shows bounded checkpoint interpretation separately from numeric success", () => {
     const result = {
       problemId: "guaranteed-sock-pair",

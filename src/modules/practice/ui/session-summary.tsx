@@ -123,6 +123,10 @@ export function SessionSummary({
         ? "За эту тренировку ты решил одну задачу с подсказкой."
         : "";
   const overview = singleResult ? singleOverview : successOverview;
+  const encouragement =
+    mode === "review"
+      ? "Хорошая работа — ты завершил повторную попытку. Теперь можно спокойно посмотреть на её результат."
+      : "Хорошая работа — ты завершил тренировку. Теперь можно спокойно посмотреть, что получилось и что осталось.";
 
   const showSuccessOverview = overview.length > 0;
   const sockResult = results.find(
@@ -162,6 +166,7 @@ export function SessionSummary({
                 ? "Повторная попытка завершена"
                 : "Тренировка завершена"}
             </h1>
+            <p className={styles.encouragement}>{encouragement}</p>
             <p>
               Здесь только факты об этой тренировке — не оценка твоих
               способностей.
