@@ -109,7 +109,7 @@ describe("SessionSummary", () => {
     }
   });
 
-  it("shows nonzero Journey XP before actions and hides zero XP", () => {
+  it("shows v1 level and badge celebration from immutable XP totals", () => {
     const markup = renderToStaticMarkup(
       <SessionSummary
         results={[
@@ -131,20 +131,25 @@ describe("SessionSummary", () => {
           conclusion: "Вывод",
         }}
         journeyFinish={{
-          earnedXp: 20,
-          totalXp: 50,
-          newlyReachedMilestone: "50 XP практики",
+          earnedXp: 30,
+          totalXp: 100,
+          newlyReachedMilestone: "100 XP практики",
         }}
       />,
     );
-    expect(markup).toContain("+20 XP");
-    expect(markup).toContain("За эту тренировку");
-    expect(markup).toContain("Всего 50 XP");
-    expect(markup).toContain("Новая отметка пути");
+    expect(markup).toContain("+30 XP");
+    expect(markup).toContain("За эту тренировку · всего 100 XP");
+    expect(markup).toContain("Награда за путь");
+    expect(markup).toContain("Новый уровень пути");
+    expect(markup).toContain("Уровень пути 3");
+    expect(markup).toContain("В ритме");
+    expect(markup).toContain("Новая медаль");
+    expect(markup).toContain("Первая сотня");
+    expect(markup).not.toContain("Новая отметка пути");
     expect(markup.indexOf("Раздел способности")).toBeLessThan(
       markup.indexOf("Путь практики"),
     );
-    expect(markup.indexOf("Путь практики")).toBeLessThan(
+    expect(markup.indexOf("Награда за путь")).toBeLessThan(
       markup.indexOf("На главную"),
     );
     const noReward = renderToStaticMarkup(

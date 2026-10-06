@@ -6,7 +6,11 @@ import type { PracticeSummary } from "../application/practice-state";
 import type { ReasoningCheckpointInterpretation } from "../application/reasoning-checkpoint";
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
-import type { PracticeJourneyFinish } from "../application/practice-journey";
+import {
+  getPracticeJourneyLevel,
+  getPracticeJourneyRewardDelta,
+  type PracticeJourneyFinish,
+} from "../application/practice-journey";
 
 type SessionSummaryProps = Readonly<{
   results: readonly PracticeSessionResult[];
@@ -129,6 +133,20 @@ export function SessionSummary({
       : "Хорошая работа — ты завершил тренировку. Теперь можно спокойно посмотреть, что получилось и что осталось.";
 
   const showSuccessOverview = overview.length > 0;
+  const journeyReward =
+    journeyFinish && journeyFinish.earnedXp > 0
+      ? getPracticeJourneyRewardDelta(
+          Math.max(0, journeyFinish.totalXp - journeyFinish.earnedXp),
+          journeyFinish.totalXp,
+        )
+      : null;
+  const journeyLevel =
+    journeyFinish && journeyFinish.earnedXp > 0
+      ? getPracticeJourneyLevel(journeyFinish.totalXp)
+      : null;
+  const hasJourneyCelebration =
+    journeyReward !== null &&
+    (journeyReward.newLevel !== null || journeyReward.newBadges.length > 0);
   const sockResult = results.find(
     (result) =>
       result.problemId === "guaranteed-sock-pair" ||
@@ -230,19 +248,52 @@ export function SessionSummary({
           className={styles.sidebar}
           aria-label="Путь практики и следующие действия"
         >
-          {journeyFinish && journeyFinish.earnedXp > 0 ? (
-            <section aria-live="polite" className={styles.section}>
-              <h2>Путь практики</h2>
-              <p className={styles.xp}>+{journeyFinish.earnedXp} XP</p>
-              <p>За эту тренировку</p>
-              <p>Всего {journeyFinish.totalXp} XP</p>
-              <p>XP показывает участие, а не уровень знаний.</p>
-              {journeyFinish.newlyReachedMilestone ? (
-                <>
-                  <h3>Новая отметка пути</h3>
-                  <p>{journeyFinish.newlyReachedMilestone}</p>
-                </>
+          {journeyFinish && journeyFinish.earnedXp > 0 && journeyLevel ? (
+            <section
+              aria-live="polite"
+              className={`${styles.section} ${hasJourneyCelebration ? styles.celebration : ""}`}
+            >
+              <h2>
+                {hasJourneyCelebration ? "Награда за путь" : "Путь практики"}
+              </h2>
+              {journeyReward?.newLevel ? (
+                <div className={styles.reward}>
+                  <span aria-hidden="true" className={styles["reward-icon"]}>
+                    ★
+                  </span>
+                  <div>
+                    <p className={styles["reward-kicker"]}>
+                      Новый уровень пути
+                    </p>
+                    <h3>
+                      Уровень пути {journeyReward.newLevel.level} ·{" "}
+                      {journeyReward.newLevel.label}
+                    </h3>
+                  </div>
+                </div>
               ) : null}
+              {journeyReward?.newBadges.map((badge) => (
+                <div className={styles.reward} key={badge.threshold}>
+                  <span aria-hidden="true" className={styles["reward-icon"]}>
+                    ★
+                  </span>
+                  <div>
+                    <p className={styles["reward-kicker"]}>Новая медаль</p>
+                    <h3>{badge.label}</h3>
+                  </div>
+                </div>
+              ))}
+              {!hasJourneyCelebration ? (
+                <p>
+                  Уровень пути {journeyLevel.level} · {journeyLevel.label}
+                </p>
+              ) : null}
+              <p className={styles.xp}>+{journeyFinish.earnedXp} XP</p>
+              <p>За эту тренировку · всего {journeyFinish.totalXp} XP</p>
+              <p>
+                XP, уровень пути и медали показывают участие, а не уровень
+                знаний.
+              </p>
             </section>
           ) : null}
 
