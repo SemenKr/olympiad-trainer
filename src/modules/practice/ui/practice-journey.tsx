@@ -12,9 +12,7 @@ function JourneyLevelProgress({ totalXp }: { totalXp: number }) {
     <>
       <div className={styles["level-row"]}>
         <div>
-          <p className={styles.kicker}>
-            Уровень пути {progress.current.level}
-          </p>
+          <p className={styles.kicker}>Уровень пути {progress.current.level}</p>
           <h2>{progress.current.label}</h2>
         </div>
         <p className={styles.total}>{totalXp} XP</p>
