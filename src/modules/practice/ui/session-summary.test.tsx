@@ -147,7 +147,7 @@ describe("SessionSummary", () => {
     expect(markup).toContain("Первая сотня");
     expect(markup).not.toContain("Новая отметка пути");
     expect(markup.indexOf("Раздел способности")).toBeLessThan(
-      markup.indexOf("Путь практики"),
+      markup.indexOf("Награда за путь"),
     );
     expect(markup.indexOf("Награда за путь")).toBeLessThan(
       markup.indexOf("На главную"),
