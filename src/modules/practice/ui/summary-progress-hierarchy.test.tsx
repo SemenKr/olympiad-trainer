@@ -49,9 +49,13 @@ describe("Summary and Progress hierarchy", () => {
     expect(sidebar.textContent).toContain("+20 XP");
     expect(sidebar.textContent).toContain("За эту тренировку");
     expect(sidebar.textContent).toContain("Всего 70 XP");
-    expect(sidebar.textContent).toContain("50 XP практики");
+    expect(sidebar.textContent).toContain("Уровень пути 2 · В движении");
+    expect(sidebar.textContent).not.toContain("50 XP практики");
     expect(sidebar.textContent).toContain(
       "XP показывает участие, а не уровень знаний.",
+    );
+    expect(sidebar.textContent).toContain(
+      "Уровень пути и медали тоже показывают участие.",
     );
     expect(sidebar.textContent).not.toContain("Решено самостоятельно");
     expect(sidebar.textContent).not.toContain("Как гарантировать результат");

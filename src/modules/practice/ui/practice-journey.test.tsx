@@ -5,28 +5,52 @@ import {
   ProgressPracticeJourney,
 } from "./practice-journey";
 
-describe("Practice Journey surfaces", () => {
-  it("hides the Home block for a fresh learner and offers only a fixed milestone", () => {
+describe("Practice Journey v1 surfaces", () => {
+  it("keeps Home quiet for a fresh learner and shows a compact next goal later", () => {
     expect(renderToStaticMarkup(<HomePracticeJourney totalXp={0} />)).toBe("");
+
     const markup = renderToStaticMarkup(<HomePracticeJourney totalXp={70} />);
+    expect(markup).toContain("Путь практики");
+    expect(markup).toContain("Уровень пути 2");
+    expect(markup).toContain("В движении");
     expect(markup).toContain("70 XP");
-    expect(markup).toContain("До отметки «100 XP практики» — 30 XP.");
-    const after100 = renderToStaticMarkup(
-      <HomePracticeJourney totalXp={120} />,
-    );
-    expect(after100).toContain("120 XP");
-    expect(after100).not.toContain("До отметки");
+    expect(markup).toContain("До уровня пути 3");
+    expect(markup).toContain("10 XP");
+    expect(markup).toContain("Следующая медаль: «Первая сотня» · 100 XP");
+    expect(markup).toContain('aria-label="Прогресс до уровня пути 3"');
   });
 
-  it("shows fixed milestone states in text on Progress", () => {
+  it("keeps XP growing after the highest v1 level", () => {
+    const markup = renderToStaticMarkup(<HomePracticeJourney totalXp={430} />);
+    expect(markup).toContain("Уровень пути 6");
+    expect(markup).toContain("Длинная дистанция");
+    expect(markup).toContain("430 XP");
+    expect(markup).toContain(
+      "Верхняя отметка пути этой версии достигнута. XP продолжают копиться.",
+    );
+    expect(markup).not.toContain("Следующая медаль");
+  });
+
+  it("shows levels and collectible participation badges on Progress", () => {
     const markup = renderToStaticMarkup(
       <ProgressPracticeJourney totalXp={50} />,
     );
+
+    expect(markup).toContain("Уровень пути 2");
+    expect(markup).toContain("В движении");
+    expect(markup).toContain("До уровня пути 3");
+    expect(markup).toContain("30 XP");
     expect(markup).toContain("XP отмечает практику, а не уровень знаний.");
-    expect(markup).toContain("Первый шаг");
-    expect(markup).toContain("50 XP практики");
-    expect(markup).toContain("100 XP практики");
-    expect(markup).toContain("Получена");
-    expect(markup).toContain("Впереди");
+    expect(markup).toContain("Уровни пути и медали тоже показывают участие.");
+    for (const label of [
+      "Первый шаг",
+      "Начал разгон",
+      "Первая сотня",
+      "Стабильный темп",
+      "Большой путь",
+    ])
+      expect(markup).toContain(label);
+    expect(markup.match(/Получена/g)).toHaveLength(2);
+    expect(markup.match(/Впереди/g)).toHaveLength(3);
   });
 });

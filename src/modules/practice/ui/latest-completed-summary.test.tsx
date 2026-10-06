@@ -174,7 +174,8 @@ describe("persisted Summary session identity", () => {
       for (let reload = 0; reload < 2; reload++) {
         const text = await renderMountedSummary();
         expect(text).toContain("Всего 50 XP");
-        expect(text).toContain("50 XP практики");
+        expect(text).toContain("Новая медаль");
+        expect(text).toContain("Начал разгон");
         expect(text).not.toContain("Первый шаг");
       }
       expect(readServerPracticeJourneyFinish).toHaveBeenCalledTimes(2);

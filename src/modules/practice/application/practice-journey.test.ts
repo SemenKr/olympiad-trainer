@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   calculatePracticeJourneyFinish,
+  getNextPracticeJourneyBadge,
+  getNextPracticeJourneyLevel,
   getNextPracticeJourneyMilestone,
+  getPracticeJourneyBadges,
+  getPracticeJourneyLevel,
+  getPracticeJourneyLevelProgress,
   getPracticeJourneyMilestones,
+  getPracticeJourneyRewardDelta,
 } from "./practice-journey";
 import type { CompletedPracticeEpisodeFactsV1 } from "./completed-practice-episode";
 
@@ -131,7 +137,7 @@ describe("Practice Journey XP", () => {
     },
   );
 
-  it("keeps cumulative XP growing without inventing a milestone after 100", () => {
+  it("keeps cumulative XP growing without inventing a legacy milestone after 100", () => {
     expect(
       calculatePracticeJourneyFinish(episode({ validSubmissionCount: 1 }), 100),
     ).toEqual({
@@ -143,5 +149,83 @@ describe("Practice Journey XP", () => {
     expect(
       getPracticeJourneyMilestones(110).map(({ reached }) => reached),
     ).toEqual([true, true, true]);
+  });
+});
+
+describe("Practice Journey v1 projections", () => {
+  it.each([
+    [0, 1, "Старт"],
+    [29, 1, "Старт"],
+    [30, 2, "В движении"],
+    [79, 2, "В движении"],
+    [80, 3, "В ритме"],
+    [150, 4, "Набираю ход"],
+    [250, 5, "Держу темп"],
+    [400, 6, "Длинная дистанция"],
+    [999, 6, "Длинная дистанция"],
+  ] as const)("maps %s XP to level %s", (xp, level, label) => {
+    expect(getPracticeJourneyLevel(xp)).toMatchObject({ level, label });
+  });
+
+  it("derives progress to the next level without persistence", () => {
+    expect(getPracticeJourneyLevelProgress(50)).toEqual({
+      current: { level: 2, threshold: 30, label: "В движении" },
+      next: { level: 3, threshold: 80, label: "В ритме" },
+      xpToNext: 30,
+      progressValue: 20,
+      progressMax: 50,
+      progressPercent: 40,
+    });
+    expect(getNextPracticeJourneyLevel(400)).toBeNull();
+    expect(getPracticeJourneyLevelProgress(430).progressPercent).toBe(100);
+  });
+
+  it("derives badge collection and the next badge from total XP", () => {
+    expect(
+      getPracticeJourneyBadges(100).map(({ label, reached }) => [
+        label,
+        reached,
+      ]),
+    ).toEqual([
+      ["Первый шаг", true],
+      ["Начал разгон", true],
+      ["Первая сотня", true],
+      ["Стабильный темп", false],
+      ["Большой путь", false],
+    ]);
+    expect(getNextPracticeJourneyBadge(100)).toEqual({
+      threshold: 200,
+      label: "Стабильный темп",
+    });
+    expect(getNextPracticeJourneyBadge(400)).toBeNull();
+  });
+
+  it("derives level and badge crossings from immutable Finish totals", () => {
+    expect(getPracticeJourneyRewardDelta(70, 100)).toEqual({
+      newLevel: { level: 3, threshold: 80, label: "В ритме" },
+      newBadges: [{ threshold: 100, label: "Первая сотня" }],
+    });
+    expect(getPracticeJourneyRewardDelta(100, 110)).toEqual({
+      newLevel: null,
+      newBadges: [],
+    });
+  });
+
+  it("treats v1 rewards as projections instead of changing XP rules", () => {
+    const finish = calculatePracticeJourneyFinish(
+      episode(
+        { validSubmissionCount: 3 },
+        { solutionExposed: true },
+        { skipped: true },
+      ),
+      70,
+    );
+    expect(finish.earnedXp).toBe(20);
+    expect(finish.totalXp).toBe(90);
+    expect(getPracticeJourneyRewardDelta(70, finish.totalXp).newLevel).toEqual({
+      level: 3,
+      threshold: 80,
+      label: "В ритме",
+    });
   });
 });

@@ -2,7 +2,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--ot-space-10);
+  gap: var(--ot-space-12);
   padding: var(--ot-space-16);
   background: var(--ot-color-primary-soft);
   border: var(--ot-border-width-default) solid var(--ot-color-border-default);
@@ -10,14 +10,22 @@
   overflow-wrap: anywhere;
 
   h2,
+  h3,
   p,
   ul {
     margin: 0;
   }
 
   h2 {
-    font-size: var(--ot-font-size-body);
-    line-height: var(--ot-line-height-body);
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-heading);
+    line-height: var(--ot-line-height-heading);
+  }
+
+  h3 {
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-label);
+    line-height: var(--ot-line-height-label);
   }
 
   p,
@@ -26,24 +34,146 @@
     font-size: var(--ot-font-size-body);
     line-height: var(--ot-line-height-body);
   }
+}
+
+.level-row,
+.progress-label,
+.badges li,
+.badge-label {
+  display: flex;
+  min-width: 0;
+}
+
+.level-row,
+.progress-label,
+.badges li {
+  justify-content: space-between;
+}
+
+.level-row {
+  align-items: flex-start;
+  gap: var(--ot-space-12);
+}
+
+.kicker {
+  margin-bottom: var(--ot-space-4) !important;
+  color: var(--ot-color-primary) !important;
+  font-size: var(--ot-font-size-micro) !important;
+  font-weight: 700;
+  line-height: var(--ot-line-height-micro) !important;
+  text-transform: uppercase;
+}
+
+.level-name {
+  color: var(--ot-color-text-primary) !important;
+  font-size: var(--ot-font-size-heading) !important;
+  font-weight: 700;
+  line-height: var(--ot-line-height-heading) !important;
+}
+
+.total {
+  flex: none;
+  color: var(--ot-color-primary) !important;
+  font-size: var(--ot-font-size-heading) !important;
+  font-weight: 700;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-6);
+
+  progress {
+    width: 100%;
+    height: 10px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    accent-color: var(--ot-color-primary);
+  }
+}
+
+.progress-label {
+  gap: var(--ot-space-12);
+  color: var(--ot-color-text-secondary);
+  font-size: var(--ot-font-size-caption);
+  line-height: var(--ot-line-height-caption);
+
+  strong {
+    flex: none;
+    color: var(--ot-color-text-primary);
+  }
+}
+
+.next-badge {
+  padding-top: var(--ot-space-10);
+  border-top: var(--ot-border-width-default) solid
+    var(--ot-color-border-default);
+  font-size: var(--ot-font-size-caption) !important;
+  line-height: var(--ot-line-height-caption) !important;
+}
+
+.badges {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-10);
+  padding-top: var(--ot-space-4);
 
   ul {
     display: flex;
     flex-direction: column;
-    gap: var(--ot-space-6);
+    gap: var(--ot-space-8);
     padding: 0;
     list-style: none;
   }
 
   li {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--ot-space-12);
+    align-items: center;
+    gap: var(--ot-space-10);
+    padding: var(--ot-space-10) 0;
+    border-top: var(--ot-border-width-default) solid
+      var(--ot-color-border-default);
   }
 }
 
-.total {
-  color: var(--ot-color-primary) !important;
-  font-size: var(--ot-font-size-heading) !important;
-  font-weight: 700;
+.badge-icon {
+  flex: none;
+  color: var(--ot-color-primary);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.badge-label {
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-label);
+    line-height: var(--ot-line-height-label);
+  }
+
+  span {
+    font-size: var(--ot-font-size-caption);
+    line-height: var(--ot-line-height-caption);
+  }
+}
+
+.reached {
+  opacity: 1;
+}
+
+.upcoming {
+  opacity: 0.68;
+}
+
+@media (forced-colors: active) {
+  .progress progress {
+    border: 1px solid CanvasText;
+  }
+
+  .badge-icon {
+    color: CanvasText;
+  }
 }

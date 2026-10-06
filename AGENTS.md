@@ -28,8 +28,9 @@ Skills do not approve scope, product requirements, architecture or Git actions.
 ## Working style
 
 Check repository state, relevant evidence and task scope before changes.
-Choose the smallest sufficient, reviewable diff using existing conventions.
-Prefer simple production-like solutions, explicit trade-offs and useful vertical slices.
+Prefer the largest coherent vertical slice that delivers one complete user value and still remains independently reviewable.
+Within that slice, keep the diff focused: use existing conventions and avoid unrelated changes.
+Prefer simple production-like solutions and explicit trade-offs over artificial task fragmentation.
 Do not expand scope, invent requirements, add unrelated refactors or speculative abstractions.
 Do not create hypothetical placeholder files, duplicate concepts or unnecessary boilerplate.
 Do not add dependencies without a concrete demonstrated requirement and authorization.

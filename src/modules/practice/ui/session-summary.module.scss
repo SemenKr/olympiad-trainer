@@ -91,6 +91,43 @@
   background: var(--ot-color-success-soft);
 }
 
+.celebration {
+  background: var(--ot-color-primary-soft);
+  border-color: var(--ot-color-primary);
+  animation: reward-reveal var(--ot-duration-reveal) var(--ot-ease-standard);
+}
+
+.reward {
+  display: flex;
+  align-items: center;
+  gap: var(--ot-space-10);
+  padding: var(--ot-space-10) 0;
+  border-top: var(--ot-border-width-default) solid
+    var(--ot-color-border-default);
+
+  h3 {
+    margin: 0;
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-label);
+    line-height: var(--ot-line-height-label);
+  }
+}
+
+.reward-icon {
+  flex: none;
+  color: var(--ot-color-primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.summary .reward-kicker {
+  color: var(--ot-color-primary);
+  font-size: var(--ot-font-size-micro);
+  font-weight: 700;
+  line-height: var(--ot-line-height-micro);
+  text-transform: uppercase;
+}
+
 .result {
   display: flex;
   min-width: 0;
@@ -187,6 +224,25 @@
   }
 }
 
+@keyframes reward-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration {
+    animation: none;
+    transform: none;
+  }
+}
+
 @media (forced-colors: active) {
   .header h1:focus-visible,
   .primary:focus-visible,
@@ -197,5 +253,13 @@
 
   .secondary {
     border-color: CanvasText;
+  }
+
+  .celebration {
+    border-color: CanvasText;
+  }
+
+  .reward-icon {
+    color: CanvasText;
   }
 }
