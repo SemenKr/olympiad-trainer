@@ -243,7 +243,9 @@ export function PracticeFinishPrompt({
 }: Readonly<{ disabled: boolean; onFinish: () => void }>) {
   return (
     <div className={styles["finish-prompt"]}>
-      <p>Готово с этой задачей. Можно завершить тренировку и посмотреть итоги.</p>
+      <p>
+        Готово с этой задачей. Можно завершить тренировку и посмотреть итоги.
+      </p>
       <button
         className={styles["next-action"]}
         disabled={disabled}
