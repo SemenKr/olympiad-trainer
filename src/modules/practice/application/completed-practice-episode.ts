@@ -96,7 +96,7 @@ export const PRACTICE_PACKS = [
   },
   {
     id: "pack-j",
-    name: "Набор J: считаем и сравниваем",
+    name: "Считаем и сравниваем",
     problemIds: [
       "chocolate-promotion-price",
       "school-lesson-teacher-count",
@@ -105,7 +105,7 @@ export const PRACTICE_PACKS = [
   },
   {
     id: "pack-k",
-    name: "Набор K: выводы и доказательства",
+    name: "Выводы и доказательства",
     problemIds: [
       "apple-harvest-assignments",
       "liar-council-maximum",
@@ -114,7 +114,7 @@ export const PRACTICE_PACKS = [
   },
   {
     id: "pack-l",
-    name: "Набор L: порядок и варианты",
+    name: "Порядок и варианты",
     problemIds: [
       "five-fridays-calendar",
       "circular-table-seat-count",
