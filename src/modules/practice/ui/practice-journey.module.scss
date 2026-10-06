@@ -100,7 +100,8 @@
 
 .next-badge {
   padding-top: var(--ot-space-10);
-  border-top: var(--ot-border-width-default) solid var(--ot-color-border-default);
+  border-top: var(--ot-border-width-default) solid
+    var(--ot-color-border-default);
   font-size: var(--ot-font-size-caption) !important;
   line-height: var(--ot-line-height-caption) !important;
 }
