@@ -35,6 +35,35 @@ function renderSummary(
 }
 
 describe("SessionSummary", () => {
+  it("continues a completed Pack along Learning Path without mastery claims", () => {
+    const packA = [
+      "granddaughters-first",
+      "cutout-area-ratio",
+      "domino-placements",
+    ];
+    const markup = renderToStaticMarkup(
+      <SessionSummary
+        completedPackIds={["pack-a"]}
+        results={packA.map((problemId) => ({
+          problemId,
+          problemTitle: problemId,
+          summary: {
+            outcome: "no-valid-submissions" as const,
+            validSubmissionCount: 0,
+            hintExposures: [],
+            solutionExposure: null,
+          },
+        }))}
+      />,
+    );
+    expect(markup).toContain("Следующий ориентир пути");
+    expect(markup).toContain("Считаем и сравниваем");
+    expect(markup).toContain('href="/practice/pack?pack=pack-j"');
+    expect(markup).toContain("Продолжить путь");
+    expect(markup).not.toMatch(/освоен|готов к следующему уровню/i);
+  });
+
+
   it("encourages completion without presenting it as an ability claim", () => {
     const markup = renderSummary("incorrect-only");
 

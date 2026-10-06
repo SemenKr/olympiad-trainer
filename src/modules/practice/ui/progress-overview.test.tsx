@@ -9,6 +9,8 @@ vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(async () => []),
   readServerPracticeJourney: vi.fn(async () => 0),
+  readServerReviewAvailability: vi.fn(async () => false),
+  readServerLearningPath: vi.fn(async () => []),
 }));
 
 import {
@@ -22,6 +24,7 @@ import {
   ProgressEvidenceContent,
   RecentPracticeHistory,
 } from "./progress-overview";
+import { ProgressLearningPath } from "./learning-path";
 import {
   PROGRESS_EVIDENCE_STORAGE_KEY,
   readVerifiedGuaranteeProgressEvidence,
@@ -98,6 +101,18 @@ async function renderEvidence(evidence?: GuaranteeProgressEvidenceV0) {
 }
 
 describe("Progress overview", () => {
+  it("keeps Learning Path participation separate from capability evidence", () => {
+    const markup = renderToStaticMarkup(
+      <ProgressLearningPath completedPackIds={["pack-a", "pack-j"]} />,
+    );
+    expect(markup).toContain("Путь тренировок");
+    expect(markup).toContain("2 из 12 наборов");
+    expect(markup).toContain("Следующий ориентир:");
+    expect(markup).toContain("Пропорции и баланс");
+    expect(markup).toContain("Продолжить путь");
+    expect(markup).not.toMatch(/освоен|уровень знаний|слаб/i);
+  });
+
   it("labels Pack A as additional Practice in recent history", () => {
     const markup = renderToStaticMarkup(
       <RecentPracticeHistory

@@ -9,13 +9,16 @@ import {
   readServerRecentPracticeEpisodes,
   readServerPracticeJourney,
   readServerReviewAvailability,
+  readServerLearningPath,
 } from "../../../app/progress/actions";
 
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
+import type { PackId } from "../application/completed-practice-episode";
 import type { RecentPracticeEpisode } from "../server/learner-progress-persistence";
 import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./progress-overview.module.scss";
 import { ProgressPracticeJourney } from "./practice-journey";
+import { ProgressLearningPath } from "./learning-path";
 import { ReviewEntry } from "./review-entry";
 
 type ProgressLoad =
@@ -31,6 +34,7 @@ type ProgressLoad =
       episodes: readonly RecentPracticeEpisode[];
       journeyTotalXp: number;
       reviewAvailable: boolean | null;
+      completedPackIds: readonly PackId[];
     };
 
 export function ProgressOverview() {
@@ -49,10 +53,17 @@ export function ProgressOverview() {
             readServerRecentPracticeEpisodes(),
             readServerPracticeJourney(),
             readServerReviewAvailability().catch(() => null),
+            readServerLearningPath(),
           ]),
         )
         .then(
-          ([interpretations, episodes, journeyTotalXp, reviewAvailable]) => {
+          ([
+            interpretations,
+            episodes,
+            journeyTotalXp,
+            reviewAvailable,
+            completedPackIds,
+          ]) => {
             if (active)
               setLoad({
                 status: "ready",
@@ -60,6 +71,7 @@ export function ProgressOverview() {
                 episodes,
                 journeyTotalXp,
                 reviewAvailable,
+                completedPackIds,
               });
           },
         )
@@ -127,6 +139,12 @@ export function ProgressOverview() {
               />
             ))}
           </section>
+          <div className={styles.path}>
+            <ProgressLearningPath
+              completedPackIds={load.completedPackIds}
+              className={styles["path-card"]}
+            />
+          </div>
           <div className={styles.journey}>
             <ProgressPracticeJourney
               totalXp={load.journeyTotalXp}

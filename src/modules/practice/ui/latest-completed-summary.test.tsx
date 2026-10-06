@@ -7,6 +7,7 @@ vi.mock("../../../app/practice/actions", () => ({
 }));
 vi.mock("../../../app/progress/actions", () => ({
   readServerPracticeJourneyFinish: vi.fn(async () => null),
+  readServerLearningPath: vi.fn(async () => []),
 }));
 
 import {
@@ -52,7 +53,10 @@ describe("latest completed Summary route", () => {
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { readServerPracticeJourneyFinish } from "../../../app/progress/actions";
+import {
+  readServerLearningPath,
+  readServerPracticeJourneyFinish,
+} from "../../../app/progress/actions";
 import {
   completePracticeSession,
   createPracticeSessionSnapshot,
@@ -179,6 +183,7 @@ describe("persisted Summary session identity", () => {
         expect(text).not.toContain("Первый шаг");
       }
       expect(readServerPracticeJourneyFinish).toHaveBeenCalledTimes(2);
+      expect(readServerLearningPath).toHaveBeenCalledTimes(2);
       expect(vi.mocked(readServerPracticeJourneyFinish).mock.calls).toEqual([
         [sessionB],
         [sessionB],
@@ -198,6 +203,7 @@ describe("persisted Summary session identity", () => {
     expect(text).toContain("Тренировка завершена");
     expect(text).not.toContain("XP");
     expect(readServerPracticeJourneyFinish).not.toHaveBeenCalled();
+    expect(readServerLearningPath).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid persisted identity instead of falling back to the URL", async () => {
