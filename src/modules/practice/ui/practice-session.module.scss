@@ -141,6 +141,22 @@
   cursor: pointer;
 }
 
+.finish-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-12);
+  padding-top: var(--ot-space-16);
+  border-top: var(--ot-border-width-default) solid
+    var(--ot-color-border-default);
+
+  p {
+    margin: 0;
+    color: var(--ot-color-text-secondary);
+    font-size: var(--ot-font-size-caption);
+    line-height: var(--ot-line-height-caption);
+  }
+}
+
 .no-next {
   display: flex;
   width: min(100% - 2rem, 42rem);
@@ -162,7 +178,8 @@
   gap: var(--ot-space-12);
 }
 
-.hint-action:disabled {
+.hint-action:disabled,
+.next-action:disabled {
   cursor: wait;
   opacity: 0.72;
 }

@@ -38,6 +38,14 @@
   gap: var(--ot-space-12);
 }
 
+.summary .encouragement {
+  padding: var(--ot-space-12) var(--ot-space-16);
+  color: var(--ot-color-text-primary);
+  background: var(--ot-color-primary-soft);
+  border-radius: var(--ot-radius-12);
+  font-weight: 600;
+}
+
 .summary .eyebrow {
   color: var(--ot-color-primary);
   font-size: var(--ot-font-size-micro);

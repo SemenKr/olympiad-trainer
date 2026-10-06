@@ -24,6 +24,7 @@ import { revealPracticeSolution } from "@/app/practice/actions";
 import { NoNextPracticeSurface } from "./no-next-practice-surface";
 
 import {
+  PracticeFinishPrompt,
   PracticeHintRevealError,
   PracticeSession,
   PracticeSolutionRevealError,
@@ -88,6 +89,20 @@ const problems = [
     solution: { solutionId: "table-impossible-sums-full-solution" },
   },
 ] as const;
+
+describe("Practice finish prompt", () => {
+  it("makes the final completion action explicit in the task flow", () => {
+    const markup = renderToStaticMarkup(
+      <PracticeFinishPrompt disabled={false} onFinish={vi.fn()} />,
+    );
+
+    expect(markup).toContain(
+      "Готово с этой задачей. Можно завершить тренировку и посмотреть итоги.",
+    );
+    expect(markup).toContain("Завершить тренировку");
+    expect(markup).not.toContain('disabled=""');
+  });
+});
 
 describe("PracticeSession hint reveal error", () => {
   it("renders a visible, accessibly announced retry message", () => {
