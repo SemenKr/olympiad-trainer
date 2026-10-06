@@ -4,11 +4,11 @@ Status: Adopted — 2026-10-05
 
 ## Goal
 
-Validate the current Grade 5 learner journey with real learners before adding more product scope.
+Validate the Grade 5 learner journey with real learners while the product continues through bounded, versioned iterations.
 
-This study checks whether a learner can understand and use the current product with limited adult intervention. It focuses on usability, comprehension and learner control. It does not attempt to establish mastery, retention, recommendation quality or learning effectiveness.
+This study checks whether a learner can understand and use the tested product build with limited adult intervention. It focuses on usability, comprehension and learner control. It does not attempt to establish mastery, retention, recommendation quality or learning effectiveness.
 
-The current product remains frozen during initial validation except for Critical issues and narrowly scoped consequential fixes.
+Learner Validation is an ongoing research track, not a development gate. Product work may continue in parallel, and learner feedback can reprioritize upcoming slices.
 
 ## Baseline
 
@@ -19,6 +19,20 @@ Initial production baseline:
 - Product state: Home, Practice, Summary, Progress, Packs, Review/Reconfirmation v0 and Simulation v0 are available.
 
 Every session must record the actual build or commit used. If the product changes between sessions, the new baseline must be recorded and observations from different builds must not be treated as identical evidence.
+
+## Development during the study
+
+The product is not frozen while Learner Validation v0 runs.
+
+- Continue small, reviewable product slices using the normal project workflow.
+- Record the exact tested build for every learner visit.
+- Treat a finding as evidence about the build that was actually observed.
+- Fix Critical findings immediately.
+- Reprioritize repeated consequential findings into the nearest suitable slice.
+- Preserve isolated preferences and feature requests as observations until there is enough product rationale to adopt them.
+- When a relevant UX changes, prefer retesting that scenario with a fresh learner rather than assuming the previous finding is resolved.
+
+Product work can be roadmap-driven or feedback-driven. The study itself does not automatically authorize every requested feature.
 
 ## Research questions
 
