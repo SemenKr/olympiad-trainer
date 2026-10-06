@@ -7,6 +7,7 @@ vi.mock("@/app/practice/actions", () => ({
 
 vi.mock("./progress/actions", () => ({
   readServerReviewAvailability: vi.fn(async () => false),
+  readServerLearningPath: vi.fn(async () => []),
 }));
 
 vi.mock("@/app/progress/actions", () => ({
@@ -98,6 +99,7 @@ const fresh = {
   completed: null,
   availability: insufficient,
   hasPracticeHistory: false,
+  completedPackIds: [],
 };
 
 describe("Home Practice precedence", () => {
@@ -140,9 +142,9 @@ describe("Home Practice precedence", () => {
     expect(returning).not.toContain("Решить 3 задачи");
     for (const pack of PRACTICE_PACKS)
       expect(returning).not.toContain(pack.name);
-    expect(returning.indexOf("Пока без новой задачи")).toBeLessThan(
-      returning.indexOf("Выбрать набор"),
-    );
+    expect(returning).toContain("Продолжи с набора");
+    expect(returning).toContain("Разные способы рассуждать");
+    expect(returning).toContain("Продолжить путь");
     expect(render(null, false)).toContain('href="/practice/choose"');
     const active = {
       ...unfinished,
@@ -248,6 +250,7 @@ describe("Home Practice precedence", () => {
           unfinished: null,
           completed: null,
           hasPracticeHistory: true,
+          completedPackIds: [],
           availability: {
             status: "recommendation",
             problemId: "pages-without-digit-one",
@@ -268,6 +271,7 @@ describe("Home Practice precedence", () => {
           unfinished: null,
           completed: null,
           hasPracticeHistory: true,
+          completedPackIds: [],
           availability: exhausted,
         }}
       />,
@@ -281,6 +285,7 @@ describe("Home Practice precedence", () => {
           unfinished: null,
           completed: null,
           hasPracticeHistory: true,
+          completedPackIds: [],
           availability: {
             status: "recommendation",
             problemId: "parrots-guaranteed-colors",
@@ -311,6 +316,7 @@ describe("Home Practice precedence", () => {
           completed,
           availability: recommendation,
           hasPracticeHistory: true,
+          completedPackIds: [],
         }}
       />,
     );
@@ -325,6 +331,7 @@ describe("Home Practice precedence", () => {
           completed,
           availability: recommendation,
           hasPracticeHistory: true,
+          completedPackIds: [],
         }}
       />,
     );
@@ -350,6 +357,7 @@ describe("Home Practice precedence", () => {
           completed,
           availability: insufficient,
           hasPracticeHistory: true,
+          completedPackIds: [],
         }}
       />,
     );
@@ -368,9 +376,9 @@ describe("Home Practice precedence", () => {
       <HomePracticeContent stored={{ ...fresh, completed }} />,
     );
 
-    expect(markup).toContain("Пока без новой задачи");
+    expect(markup).toContain("Продолжи с набора");
+    expect(markup).toContain("Продолжить путь");
     expect(markup).toContain("Открыть прогресс");
-    expect(markup).not.toContain(`class="${styles.primary}"`);
     expect(markup).not.toContain("Начать тренировку");
     expect(markup).not.toContain("Продолжить тренировку");
     expect(markup).toContain("Последняя тренировка");
@@ -388,6 +396,7 @@ describe("Home Practice precedence", () => {
           completed,
           availability: insufficient,
           hasPracticeHistory: true,
+          completedPackIds: [],
         }}
       />,
     );
@@ -465,6 +474,7 @@ describe("adopted neutral Home fallback", () => {
             ...fresh,
             availability,
             hasPracticeHistory: true,
+          completedPackIds: [],
             reviewAvailable: true,
           }}
         />,
@@ -495,6 +505,7 @@ describe("Home Review remains secondary", () => {
         reason: "Полезная задача",
       },
       hasPracticeHistory: true,
+          completedPackIds: [],
       reviewAvailable: true,
     };
     const markup = renderToStaticMarkup(<HomePracticeContent stored={base} />);
@@ -525,6 +536,7 @@ describe("Home Review remains secondary", () => {
           completed: null,
           availability: { status: "insufficient-evidence" },
           hasPracticeHistory: true,
+          completedPackIds: [],
         }}
       />,
     );
@@ -545,6 +557,7 @@ it("preserves adaptive primary when secondary Review availability fails", () => 
           reason: "Полезная задача",
         },
         hasPracticeHistory: true,
+          completedPackIds: [],
         reviewAvailable: null,
       }}
     />,
