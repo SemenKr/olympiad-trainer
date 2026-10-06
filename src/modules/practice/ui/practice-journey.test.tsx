@@ -15,9 +15,7 @@ describe("Practice Journey v1 surfaces", () => {
     expect(markup).toContain("70 XP");
     expect(markup).toContain("До уровня пути 3");
     expect(markup).toContain("10 XP");
-    expect(markup).toContain(
-      "Следующая медаль: «Первая сотня» · 100 XP",
-    );
+    expect(markup).toContain("Следующая медаль: «Первая сотня» · 100 XP");
     expect(markup).toContain('aria-label="Прогресс до уровня пути 3"');
   });
 
