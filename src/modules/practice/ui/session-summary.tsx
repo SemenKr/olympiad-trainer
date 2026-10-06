@@ -289,11 +289,10 @@ export function SessionSummary({
                 </p>
               ) : null}
               <p className={styles.xp}>+{journeyFinish.earnedXp} XP</p>
-              <p>За эту тренировку · всего {journeyFinish.totalXp} XP</p>
-              <p>
-                XP, уровень пути и медали показывают участие, а не уровень
-                знаний.
-              </p>
+              <p>За эту тренировку</p>
+              <p>Всего {journeyFinish.totalXp} XP</p>
+              <p>XP показывает участие, а не уровень знаний.</p>
+              <p>Уровень пути и медали тоже показывают участие.</p>
             </section>
           ) : null}
 
