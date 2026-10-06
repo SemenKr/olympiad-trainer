@@ -173,7 +173,7 @@ describe("persisted Summary session identity", () => {
       );
       for (let reload = 0; reload < 2; reload++) {
         const text = await renderMountedSummary();
-        expect(text).toContain("всего 50 XP");
+        expect(text).toContain("Всего 50 XP");
         expect(text).toContain("Новая медаль");
         expect(text).toContain("Начал разгон");
         expect(text).not.toContain("Первый шаг");
