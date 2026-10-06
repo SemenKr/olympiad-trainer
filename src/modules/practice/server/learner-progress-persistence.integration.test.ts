@@ -19,6 +19,7 @@ import {
   readNextUsefulProblem,
   readPracticeJourneyTotal,
   readPracticeJourneyFinish,
+  readCompletedPackIds,
   startReview,
   readReviewAvailability,
 } from "./learner-progress-persistence";
@@ -318,6 +319,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receiptRows).toHaveLength(1);
     expect(receiptRows[0].episodeMode).toBe("pack");
+    expect(receiptRows[0].packId).toBe("pack-c");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
     expect(episodeRows).toHaveLength(1);
     expect(episodeRows[0].episodeFacts).toEqual(pack.facts);
     await expect(
@@ -356,6 +359,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
           ),
         ),
     ).toHaveLength(0);
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
   });
   it("stores Pack B once in history without changing progress or adaptive availability", async () => {
     const id = await learner();
@@ -410,6 +414,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receipts).toHaveLength(1);
     expect(receipts[0].episodeMode).toBe("pack");
+    expect(receipts[0].packId).toBe("pack-b");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-b"]);
     expect(episodes).toHaveLength(1);
     expect(episodes[0].episodeFacts).toEqual(pack.facts);
     await expect(
@@ -501,6 +507,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receipts).toHaveLength(1);
     expect(receipts[0].episodeMode).toBe("pack");
+    expect(receipts[0].packId).toBe("pack-a");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-a"]);
     expect(episodes).toHaveLength(1);
     expect(episodes[0].episodeFacts).toEqual(pack.facts);
     expect(JSON.stringify(episodes[0].episodeFacts)).not.toMatch(

@@ -13,6 +13,7 @@ import {
   readNextUsefulProblem,
   readPracticeJourneyFinish,
   readPracticeJourneyTotal,
+  readCompletedPackIds,
 } from "../../modules/practice/server/learner-progress-persistence";
 import type { PracticeJourneyFinish } from "../../modules/practice/application/practice-journey";
 
@@ -51,6 +52,10 @@ export async function persistPracticeFinishEvidence(
 
 export async function readServerPracticeJourney() {
   return readPracticeJourneyTotal(await resolveLearnerFromCookie());
+}
+
+export async function readServerLearningPath() {
+  return readCompletedPackIds(await resolveLearnerFromCookie());
 }
 
 export async function readServerPracticeJourneyFinish(sessionId: string) {
