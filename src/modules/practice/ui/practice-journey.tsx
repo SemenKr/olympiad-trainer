@@ -10,10 +10,11 @@ function JourneyLevelProgress({ totalXp }: { totalXp: number }) {
 
   return (
     <>
+      <h2>Путь практики</h2>
       <div className={styles["level-row"]}>
         <div>
           <p className={styles.kicker}>Уровень пути {progress.current.level}</p>
-          <h2>{progress.current.label}</h2>
+          <p className={styles["level-name"]}>{progress.current.label}</p>
         </div>
         <p className={styles.total}>{totalXp} XP</p>
       </div>
@@ -65,7 +66,10 @@ export function ProgressPracticeJourney({
   return (
     <section className={`${styles.journey} ${className ?? ""}`}>
       <JourneyLevelProgress totalXp={totalXp} />
-      <p>XP, уровни пути и медали показывают практику, а не уровень знаний.</p>
+      <p>
+        XP отмечает практику, а не уровень знаний. Уровни пути и медали тоже
+        показывают участие.
+      </p>
 
       <div className={styles.badges}>
         <h3>Медали пути</h3>
