@@ -7,6 +7,14 @@ import type { ReasoningCheckpointInterpretation } from "../application/reasoning
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
 import {
+  packById,
+  packHref,
+  packIdFromProblemIds,
+  type PackId,
+  type CompletedPracticeEpisodeMode,
+} from "../application/completed-practice-episode";
+import { getLearningPathProjection } from "../application/learning-path";
+import {
   getPracticeJourneyLevel,
   getPracticeJourneyRewardDelta,
   type PracticeJourneyFinish,
@@ -18,7 +26,8 @@ type SessionSummaryProps = Readonly<{
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   journeyFinish?: PracticeJourneyFinish | null;
-  mode?: "review";
+  completedPackIds?: readonly PackId[] | null;
+  mode?: CompletedPracticeEpisodeMode;
 }>;
 
 export function getPracticeRemainingText(
@@ -92,6 +101,7 @@ export function SessionSummary({
   tableInterpretation,
   headingRef,
   journeyFinish,
+  completedPackIds,
   mode,
 }: SessionSummaryProps) {
   const presentedResults = results.flatMap((result) => {
@@ -147,6 +157,17 @@ export function SessionSummary({
   const hasJourneyCelebration =
     journeyReward !== null &&
     (journeyReward.newLevel !== null || journeyReward.newBadges.length > 0);
+  const completedPackId =
+    mode === "pack"
+      ? packIdFromProblemIds(results.map((result) => result.problemId))
+      : null;
+  const learningPath =
+    completedPackId && completedPackIds?.includes(completedPackId)
+      ? getLearningPathProjection(completedPackIds)
+      : null;
+  const nextPathPack = learningPath?.nextPackId
+    ? packById(learningPath.nextPackId)
+    : null;
   const sockResult = results.find(
     (result) =>
       result.problemId === "guaranteed-sock-pair" ||
@@ -301,9 +322,39 @@ export function SessionSummary({
             className={styles.actions}
           >
             <h2>Что дальше</h2>
-            <Link className={styles.primary} href="/">
-              На главную
-            </Link>
+            {completedPackId && nextPathPack ? (
+              <>
+                <p>
+                  Следующий ориентир пути — «{nextPathPack.name}». Это не оценка
+                  сложности или знаний.
+                </p>
+                <Link
+                  className={styles.primary}
+                  href={packHref(nextPathPack.id)}
+                >
+                  Продолжить путь
+                </Link>
+              </>
+            ) : completedPackId && learningPath?.allRecorded ? (
+              <>
+                <p>
+                  Во всех наборах пути есть сохранённое завершение. Можно
+                  выбрать любой набор и пройти его ещё раз.
+                </p>
+                <Link className={styles.primary} href="/practice/choose">
+                  Выбрать тренировку
+                </Link>
+              </>
+            ) : (
+              <Link className={styles.primary} href="/">
+                На главную
+              </Link>
+            )}
+            {learningPath ? (
+              <Link className={styles.secondary} href="/">
+                На главную
+              </Link>
+            ) : null}
             <Link className={styles.secondary} href="/progress">
               Мой прогресс
             </Link>

@@ -8,12 +8,15 @@ import {
   readServerAdaptiveAvailability,
   readServerPracticeJourney,
   readServerReviewAvailability,
+  readServerLearningPath,
 } from "@/app/progress/actions";
 import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
 import {
   PRACTICE_PACKS,
   packHref,
   packIdFromProblemIds,
+  packById,
+  type PackId,
 } from "../modules/practice/application/completed-practice-episode";
 import {
   getStoredProblemTitle,
@@ -28,6 +31,7 @@ import {
 import type { PracticeSessionResult } from "@/modules/practice/ui/two-problem-session-state";
 import { ensureServerProgressImported } from "@/modules/practice/ui/server-progress-import";
 import { HomePracticeJourney } from "../modules/practice/ui/practice-journey";
+import { getLearningPathProjection } from "../modules/practice/application/learning-path";
 
 import styles from "./page.module.scss";
 import { ReviewEntry } from "../modules/practice/ui/review-entry";
@@ -39,6 +43,7 @@ type StoredPractice = Readonly<{
   availability: AdaptiveAvailability;
   hasPracticeHistory: boolean;
   reviewAvailable?: boolean | null;
+  completedPackIds?: readonly PackId[] | null;
 }>;
 
 export function HomePracticeAction() {
@@ -61,18 +66,24 @@ export function HomePracticeAction() {
         .then(async ([unfinished, completed]) => {
           let adaptive: Pick<
             StoredPractice,
-            "availability" | "hasPracticeHistory" | "reviewAvailable"
+            | "availability"
+            | "hasPracticeHistory"
+            | "reviewAvailable"
+            | "completedPackIds"
           > = {
             availability: { status: "insufficient-evidence" },
             hasPracticeHistory: false,
+            completedPackIds: [],
           };
           if (!unfinished.value) {
             await ensureServerProgressImported();
-            const [availability, reviewAvailable] = await Promise.all([
-              readServerAdaptiveAvailability(),
-              readServerReviewAvailability().catch(() => null),
-            ]);
-            adaptive = { ...availability, reviewAvailable };
+            const [availability, reviewAvailable, completedPackIds] =
+              await Promise.all([
+                readServerAdaptiveAvailability(),
+                readServerReviewAvailability().catch(() => null),
+                readServerLearningPath().catch(() => null),
+              ]);
+            adaptive = { ...availability, reviewAvailable, completedPackIds };
           }
           if (active)
             setStored({
@@ -109,7 +120,13 @@ export function HomePracticeAction() {
     );
   }
   return stored ? (
-    <HomePracticeContent stored={stored} />
+    <HomePracticeContent
+      stored={stored}
+      onPathRetry={() => {
+        setStored(null);
+        setLoadRetry((value) => value + 1);
+      }}
+    />
   ) : (
     <HomePracticeLayout>
       <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
@@ -117,13 +134,26 @@ export function HomePracticeAction() {
   );
 }
 
-export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
-  const hasNoNextAction =
+export function HomePracticeContent({
+  stored,
+  onPathRetry,
+}: {
+  stored: StoredPractice;
+  onPathRetry?: () => void;
+}) {
+  const path =
+    stored.completedPackIds === null
+      ? null
+      : getLearningPathProjection(stored.completedPackIds ?? []);
+  const returning = stored.completed !== null || stored.hasPracticeHistory;
+  const nextPathPack = path?.nextPackId ? packById(path.nextPackId) : null;
+  const neutral =
     !stored.unfinished &&
     stored.availability.status !== "recommendation" &&
-    (stored.completed !== null || stored.hasPracticeHistory);
+    returning &&
+    path?.allRecorded === true;
   return (
-    <HomePracticeLayout stored={stored} neutral={hasNoNextAction}>
+    <HomePracticeLayout stored={stored} neutral={neutral}>
       {stored.unfinished ? (
         <section aria-label="Текущая тренировка">
           <h2>Тренировка не закончена</h2>
@@ -181,21 +211,7 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
                 : "Возраст братьев"}
           </Link>
         </section>
-      ) : hasNoNextAction ? (
-        <section>
-          <p className={styles.eyebrow}>Что сейчас?</p>
-          <h2>
-            {stored.availability.status === "transfer-exhausted"
-              ? "Новых подходящих задач пока нет"
-              : "Пока без новой задачи"}
-          </h2>
-          <p>
-            {stored.availability.status === "transfer-exhausted"
-              ? "Все подходящие задачи из текущего набора уже были в работе."
-              : "Пока недостаточно проверенной работы, чтобы честно выбрать следующую полезную задачу."}
-          </p>
-        </section>
-      ) : (
+      ) : !returning ? (
         <section>
           <p className={styles.eyebrow}>Что сейчас?</p>
           <h2>Начни с первой тренировки</h2>
@@ -205,6 +221,46 @@ export function HomePracticeContent({ stored }: { stored: StoredPractice }) {
           </p>
           <Link className={styles.primary} href="/practice">
             Начать тренировку
+          </Link>
+        </section>
+      ) : !path ? (
+        <section aria-label="Путь тренировок">
+          <p role="alert">Не удалось загрузить отметки пути.</p>
+          {onPathRetry ? (
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={onPathRetry}
+            >
+              Повторить
+            </button>
+          ) : null}
+          <Link className={styles.secondary} href="/practice/choose">
+            Выбрать набор
+          </Link>
+        </section>
+      ) : nextPathPack ? (
+        <section aria-label="Путь тренировок">
+          <p className={styles.eyebrow}>ПУТЬ ТРЕНИРОВОК</p>
+          <h2>Продолжи с набора «{nextPathPack.name}»</h2>
+          <p>
+            Это ориентир по существующим тренировкам, а не оценка знаний. Можно
+            выбрать и другой набор.
+          </p>
+          <Link className={styles.primary} href={packHref(nextPathPack.id)}>
+            Продолжить путь
+          </Link>
+        </section>
+      ) : (
+        <section aria-label="Путь тренировок">
+          <p className={styles.eyebrow}>ПУТЬ ТРЕНИРОВОК</p>
+          <h2>Во всех наборах есть сохранённое завершение</h2>
+          <p>
+            Это не означает, что вся математика 5 класса освоена. Можно
+            вернуться к любому набору и потренироваться ещё.
+          </p>
+          <Link className={styles.primary} href="/practice/choose">
+            Выбрать тренировку
           </Link>
         </section>
       )}

@@ -21,3 +21,7 @@ Journey totals and every existing milestone remain in a separate card, explicitl
 - Cards grow to fit real conclusions and milestone/history data. Mobile controls span available width with 48px targets. Existing heading focus, loading announcements and retry controls remain; focus indicators and forced-color outlines are preserved.
 
 This presentation slice supersedes the corresponding layout hierarchy in the earlier Summary and Progress wireframes. It changes no Practice Shell, Home/Chooser or Simulation screen and introduces no new learner data or scoring logic.
+
+## Learning Path and Journey v1 extensions
+
+[Journey v1](../04-architecture/practice-journey-v1.md) supersedes milestone presentation with participation levels/badges. [Learning Path v1](learning-path-v1.md) adds Pack-only Summary continuation when a matching durable marker exists, with Home fallback for other modes or unknown Path data. Progress adds a separate Path card between evidence and Journey in mobile reading order; it never converts completion markers into capability evidence.

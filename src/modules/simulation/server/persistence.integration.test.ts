@@ -40,6 +40,7 @@ describe.skipIf(!testUrl)(
         "0008_practice_journey.sql",
         "0009_practice_review.sql",
         "0010_simulation.sql",
+        "0011_learning_path_pack_receipts.sql",
       ];
       for (const name of names)
         await client.query(await readFile(`db/migrations/${name}`, "utf8"));

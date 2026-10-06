@@ -53,7 +53,13 @@
 }
 
 .content {
-  grid-template-areas: "next" "evidence" "journey" "destinations" "recent";
+  grid-template-areas:
+    "next"
+    "evidence"
+    "path"
+    "journey"
+    "destinations"
+    "recent";
 }
 
 .next {
@@ -65,7 +71,7 @@
 }
 
 .content:has(.next:empty) {
-  grid-template-areas: "evidence" "journey" "destinations" "recent";
+  grid-template-areas: "evidence" "path" "journey" "destinations" "recent";
 }
 
 .evidence {
@@ -74,6 +80,11 @@
   min-width: 0;
   flex-direction: column;
   gap: var(--ot-space-16);
+}
+
+.path {
+  grid-area: path;
+  min-width: 0;
 }
 
 .journey {
@@ -152,6 +163,7 @@
   background: var(--ot-color-surface-soft);
 }
 
+.progress .path-card,
 .progress .journey-card {
   padding: var(--ot-space-20);
   background: var(--ot-color-surface);
@@ -239,13 +251,22 @@
   }
 
   .content {
-    grid-template-areas: "evidence next" "evidence journey" "evidence destinations" "recent .";
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      "evidence next"
+      "evidence path"
+      "evidence journey"
+      "evidence destinations"
+      "recent .";
+    grid-template-rows: auto auto auto 1fr auto;
   }
 
   .content:has(.next:empty) {
-    grid-template-areas: "evidence journey" "evidence destinations" "recent .";
-    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "evidence path"
+      "evidence journey"
+      "evidence destinations"
+      "recent .";
+    grid-template-rows: auto auto 1fr auto;
   }
 }
 

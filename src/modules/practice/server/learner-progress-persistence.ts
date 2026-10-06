@@ -4,9 +4,12 @@ import { isEligibleReviewSource } from "../application/review";
 import { randomUUID, createHash } from "node:crypto";
 import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import {
+  packById,
+  packIdFromProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
+  type PackId,
 } from "../application/completed-practice-episode";
 import {
   classifyAdaptiveAvailability,
@@ -523,6 +526,15 @@ export async function persistFinishContributions(
       facts: checked,
     };
   }
+  const completedPackId =
+    completedEpisode?.mode === "pack"
+      ? packIdFromProblemIds(
+          completedEpisode.facts.problems.map((problem) => problem.problemId),
+        )
+      : null;
+  if (completedEpisode?.mode === "pack" && !completedPackId)
+    throw new Error("Completed Pack identity could not be verified.");
+
   const contributionHash = hash(
     JSON.stringify(
       completedEpisode
@@ -697,9 +709,31 @@ export async function persistFinishContributions(
       sessionId,
       contributionHash,
       episodeMode: completedEpisode?.mode ?? null,
+      packId: completedPackId,
     });
     return journeyFinish;
   });
+}
+
+export async function readCompletedPackIds(
+  learnerId: string,
+): Promise<readonly PackId[]> {
+  const rows = await getProgressDb()
+    .select({
+      packId: practiceFinishReceipts.packId,
+      mode: practiceFinishReceipts.episodeMode,
+    })
+    .from(practiceFinishReceipts)
+    .where(eq(practiceFinishReceipts.learnerId, learnerId));
+  const result: PackId[] = [];
+  for (const row of rows) {
+    if (row.packId === null) continue;
+    const pack = packById(row.packId);
+    if (!pack || row.mode !== "pack")
+      throw new Error("Learning Path Pack receipt could not be verified.");
+    if (!result.includes(pack.id)) result.push(pack.id);
+  }
+  return result;
 }
 
 export async function readPracticeJourneyTotal(learnerId: string) {

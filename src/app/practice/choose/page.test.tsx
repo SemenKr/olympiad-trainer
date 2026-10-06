@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   PRACTICE_PACKS,
   packHref,
 } from "../../../modules/practice/application/completed-practice-episode";
+vi.mock("../../progress/actions", () => ({
+  readServerLearningPath: vi.fn(async () => []),
+}));
+
 import ChoosePracticePage from "./page";
 
 describe("Choose Practice", () => {
@@ -22,7 +26,7 @@ describe("Choose Practice", () => {
       );
       expect(markup).toContain(`aria-label="Начать набор «${pack.name}»"`);
     }
-    expect(markup).toContain("не заменяет следующий шаг с Главной");
+    expect(markup).toContain("Свободный выбор остаётся доступен");
     expect(markup).toContain('href="/"');
     expect(markup).not.toContain("/simulation");
     expect(markup).not.toContain("/practice/transfer");

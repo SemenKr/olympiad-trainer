@@ -11,8 +11,16 @@ import { readVerifiedLatestCompletedResults } from "./practice-session-storage";
 import { SessionSummary } from "./session-summary";
 import styles from "./session-summary.module.scss";
 import type { PracticeSessionResult } from "./two-problem-session-state";
-import { readServerPracticeJourneyFinish } from "../../../app/progress/actions";
+import {
+  readServerLearningPath,
+  readServerPracticeJourneyFinish,
+} from "../../../app/progress/actions";
 import type { PracticeJourneyFinish } from "../application/practice-journey";
+import {
+  packIdFromProblemIds,
+  type PackId,
+  type CompletedPracticeEpisodeMode,
+} from "../application/completed-practice-episode";
 
 export function LatestCompletedSummary() {
   const [results, setResults] = useState<
@@ -26,7 +34,10 @@ export function LatestCompletedSummary() {
   const [loadRetry, setLoadRetry] = useState(0);
   const [journeyFinish, setJourneyFinish] =
     useState<PracticeJourneyFinish | null>(null);
-  const [mode, setMode] = useState<"review" | undefined>();
+  const [mode, setMode] = useState<CompletedPracticeEpisodeMode | undefined>();
+  const [completedPackIds, setCompletedPackIds] = useState<
+    readonly PackId[] | null
+  >(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -48,9 +59,14 @@ export function LatestCompletedSummary() {
             setInterpretation(verifiedInterpretation);
             setTableInterpretation(verifiedTableInterpretation ?? null);
             setResults(value);
-            setMode(completedMode);
+            const packId =
+              completedMode !== "review" && value
+                ? packIdFromProblemIds(value.map((result) => result.problemId))
+                : null;
+            setMode(completedMode ?? (packId ? "pack" : undefined));
             setJourneyFinish(null);
-            if (sessionId && active)
+            setCompletedPackIds(null);
+            if (sessionId && active) {
               void readServerPracticeJourneyFinish(sessionId)
                 .then((reward) => {
                   if (active) setJourneyFinish(reward);
@@ -58,6 +74,15 @@ export function LatestCompletedSummary() {
                 .catch(() => {
                   if (active) setJourneyFinish(null);
                 });
+              if (packId)
+                void readServerLearningPath()
+                  .then((packIds) => {
+                    if (active) setCompletedPackIds(packIds);
+                  })
+                  .catch(() => {
+                    if (active) setCompletedPackIds(null);
+                  });
+            }
           },
         )
         .catch(() => {
@@ -111,6 +136,7 @@ export function LatestCompletedSummary() {
       tableInterpretation={tableInterpretation}
       results={results}
       journeyFinish={journeyFinish}
+      completedPackIds={completedPackIds}
       mode={mode}
     />
   );
@@ -122,6 +148,7 @@ export function LatestCompletedSummaryContent({
   reasoningInterpretation,
   tableInterpretation,
   journeyFinish = null,
+  completedPackIds = null,
   mode,
 }: {
   results: readonly PracticeSessionResult[] | null;
@@ -129,7 +156,8 @@ export function LatestCompletedSummaryContent({
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   journeyFinish?: PracticeJourneyFinish | null;
-  mode?: "review";
+  completedPackIds?: readonly PackId[] | null;
+  mode?: CompletedPracticeEpisodeMode;
 }) {
   if (!results) {
     return (
@@ -150,6 +178,7 @@ export function LatestCompletedSummaryContent({
       tableInterpretation={tableInterpretation}
       results={results}
       journeyFinish={journeyFinish}
+      completedPackIds={completedPackIds}
       mode={mode}
     />
   );

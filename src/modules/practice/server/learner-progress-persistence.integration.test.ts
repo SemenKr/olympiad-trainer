@@ -19,6 +19,7 @@ import {
   readNextUsefulProblem,
   readPracticeJourneyTotal,
   readPracticeJourneyFinish,
+  readCompletedPackIds,
   startReview,
   readReviewAvailability,
 } from "./learner-progress-persistence";
@@ -318,6 +319,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receiptRows).toHaveLength(1);
     expect(receiptRows[0].episodeMode).toBe("pack");
+    expect(receiptRows[0].packId).toBe("pack-c");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
     expect(episodeRows).toHaveLength(1);
     expect(episodeRows[0].episodeFacts).toEqual(pack.facts);
     await expect(
@@ -356,6 +359,101 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
           ),
         ),
     ).toHaveLength(0);
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
+  });
+  it("leaves a pre-v1 null Pack receipt unknown even on a matching retry", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const sessionId = randomUUID();
+    const pack = {
+      mode: "pack" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          noAnswer("largest-valid-eight-digit"),
+          noAnswer("three-numbers-digit-sums"),
+          noAnswer("mountain-plain-flights"),
+        ],
+      },
+    };
+    await persistFinishContributions(id, sessionId, [], undefined, pack);
+    await getProgressDb()
+      .update(practiceFinishReceipts)
+      .set({ packId: null })
+      .where(
+        and(
+          eq(practiceFinishReceipts.learnerId, id),
+          eq(practiceFinishReceipts.sessionId, sessionId),
+        ),
+      );
+    await persistFinishContributions(id, sessionId, [], undefined, pack);
+    expect(await readCompletedPackIds(id)).toEqual([]);
+    expect(await readCompletedPackIds(await learner())).toEqual([]);
+  });
+  it.each([null, "core", "transfer", "review"] as const)(
+    "rejects non-null Pack identity for mode %s at the SQL boundary",
+    async (episodeMode) => {
+      const id = await learner();
+      await expect(
+        getProgressDb().insert(practiceFinishReceipts).values({
+          learnerId: id,
+          sessionId: randomUUID(),
+          contributionHash: "test",
+          episodeMode,
+          packId: "pack-a",
+        }),
+      ).rejects.toThrow();
+      expect(await readCompletedPackIds(id)).toEqual([]);
+    },
+  );
+  it("serializes concurrent Pack retries and counts repeated sessions once", async () => {
+    const id = await learner();
+    await importLegacyProgress(id, null);
+    const sessionId = randomUUID();
+    const pack = {
+      mode: "pack" as const,
+      facts: {
+        version: 1 as const,
+        problems: [
+          noAnswer("largest-valid-eight-digit"),
+          noAnswer("three-numbers-digit-sums"),
+          noAnswer("mountain-plain-flights"),
+        ],
+      },
+    };
+    await Promise.all([
+      persistFinishContributions(id, sessionId, [], undefined, pack),
+      persistFinishContributions(id, sessionId, [], undefined, pack),
+    ]);
+    await persistFinishContributions(id, randomUUID(), [], undefined, pack);
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
+    expect(await readCompletedPackIds(await learner())).toEqual([]);
+    expect(await readPracticeJourneyTotal(id)).toBe(0);
+    for (let index = 0; index < 50; index++)
+      await persistFinishContributions(id, randomUUID(), [], undefined, pack);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, id),
+            eq(practiceCompletedEpisodes.sessionId, sessionId),
+          ),
+        ),
+    ).toEqual([]);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(
+          and(
+            eq(practiceFinishReceipts.learnerId, id),
+            eq(practiceFinishReceipts.sessionId, sessionId),
+          ),
+        ),
+    ).toHaveLength(1);
+    expect(await readCompletedPackIds(id)).toEqual(["pack-c"]);
   });
   it("stores Pack B once in history without changing progress or adaptive availability", async () => {
     const id = await learner();
@@ -410,6 +508,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receipts).toHaveLength(1);
     expect(receipts[0].episodeMode).toBe("pack");
+    expect(receipts[0].packId).toBe("pack-b");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-b"]);
     expect(episodes).toHaveLength(1);
     expect(episodes[0].episodeFacts).toEqual(pack.facts);
     await expect(
@@ -501,6 +601,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       );
     expect(receipts).toHaveLength(1);
     expect(receipts[0].episodeMode).toBe("pack");
+    expect(receipts[0].packId).toBe("pack-a");
+    expect(await readCompletedPackIds(id)).toEqual(["pack-a"]);
     expect(episodes).toHaveLength(1);
     expect(episodes[0].episodeFacts).toEqual(pack.facts);
     expect(JSON.stringify(episodes[0].episodeFacts)).not.toMatch(

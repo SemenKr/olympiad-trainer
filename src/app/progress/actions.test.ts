@@ -10,6 +10,7 @@ vi.mock("../../modules/practice/server/learner-progress-persistence", () => ({
   readRecentPracticeEpisodes: vi.fn(async () => []),
   readPracticeJourneyTotal: vi.fn(async () => 0),
   readPracticeJourneyFinish: vi.fn(async () => null),
+  readCompletedPackIds: vi.fn(async () => []),
 }));
 
 import {
@@ -18,6 +19,7 @@ import {
   readServerProgress,
   readServerRecentPracticeEpisodes,
   readServerPracticeJourney,
+  readServerLearningPath,
 } from "./actions";
 import {
   importLegacyProgress,
@@ -25,6 +27,7 @@ import {
   readLearnerProgress,
   readRecentPracticeEpisodes,
   readPracticeJourneyTotal,
+  readCompletedPackIds,
 } from "../../modules/practice/server/learner-progress-persistence";
 
 beforeEach(() => vi.clearAllMocks());
@@ -38,6 +41,7 @@ describe("Progress server actions", () => {
     await readServerProgress();
     await readServerRecentPracticeEpisodes();
     await readServerPracticeJourney();
+    await readServerLearningPath();
     expect(importLegacyProgress).toHaveBeenCalledWith(
       "cookie-owned-learner",
       null,
@@ -54,5 +58,6 @@ describe("Progress server actions", () => {
     expect(readPracticeJourneyTotal).toHaveBeenCalledWith(
       "cookie-owned-learner",
     );
+    expect(readCompletedPackIds).toHaveBeenCalledWith("cookie-owned-learner");
   });
 });

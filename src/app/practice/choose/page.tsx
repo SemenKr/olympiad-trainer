@@ -5,6 +5,8 @@ import {
   packHref,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { HomeNavigation } from "../../home-navigation";
+import { LearningPathGuideLoader } from "../../../modules/practice/ui/learning-path";
+import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
@@ -13,13 +15,21 @@ export default function ChoosePracticePage() {
       <HomeNavigation current="Тренировки" />
       <header className={styles.introduction}>
         <p className={styles.eyebrow}>5 КЛАСС · МАТЕМАТИКА</p>
-        <h1>Выбери тренировку</h1>
+        <h1>Тренировки</h1>
         <p>
-          В каждом наборе по 3 задачи. Выбирай сам — это не заменяет следующий
-          шаг с Главной.
+          Можно идти по предложенному пути или выбрать любой набор самому. Путь
+          не означает порядок сложности или уровень знаний.
         </p>
       </header>
-      <ul aria-label="Наборы задач" className={styles["pack-grid"]}>
+      <LearningPathGuideLoader />
+      <section
+        className={styles["free-choice"]}
+        aria-labelledby="all-packs-title"
+      >
+        <h2 id="all-packs-title">Все наборы</h2>
+        <p>Свободный выбор остаётся доступен в любой момент.</p>
+      </section>
+      <ul aria-label="Все наборы задач" className={styles["pack-grid"]}>
         {PRACTICE_PACKS.map((pack) => (
           <li key={pack.id}>
             <article
@@ -30,6 +40,12 @@ export default function ChoosePracticePage() {
                 НАБОР {pack.id.replace("pack-", "").toUpperCase()}
               </p>
               <h2 id={`${pack.id}-title`}>{pack.name}</h2>
+              <p>
+                {
+                  LEARNING_PATH_V1.find((entry) => entry.packId === pack.id)
+                    ?.description
+                }
+              </p>
               <p>{pack.problemIds.length} задачи</p>
               <Link
                 className={styles.secondary}

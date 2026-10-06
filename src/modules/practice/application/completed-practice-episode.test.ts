@@ -125,7 +125,7 @@ describe("completed Practice episode facts", () => {
       },
       {
         id: "pack-j",
-        name: "Набор J: считаем и сравниваем",
+        name: "Считаем и сравниваем",
         problemIds: [
           "chocolate-promotion-price",
           "school-lesson-teacher-count",
@@ -134,7 +134,7 @@ describe("completed Practice episode facts", () => {
       },
       {
         id: "pack-k",
-        name: "Набор K: выводы и доказательства",
+        name: "Выводы и доказательства",
         problemIds: [
           "apple-harvest-assignments",
           "liar-council-maximum",
@@ -143,7 +143,7 @@ describe("completed Practice episode facts", () => {
       },
       {
         id: "pack-l",
-        name: "Набор L: порядок и варианты",
+        name: "Порядок и варианты",
         problemIds: [
           "five-fridays-calendar",
           "circular-table-seat-count",

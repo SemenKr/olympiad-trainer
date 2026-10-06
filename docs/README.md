@@ -5,3 +5,5 @@
 - [03-ux](03-ux/) — пользовательские сценарии и актуальные UX-контракты, включая [Finish & Encouragement UX v0](03-ux/finish-encouragement-v0.md).
 - [04-architecture](04-architecture/) — принятые domain/architecture контракты, включая Durable Practice History, Knowledge Support, [Practice Journey v1](04-architecture/practice-journey-v1.md), Review / Reconfirmation и Olympiad Simulation.
 - [05-development](05-development/) — процесс разработки и Agent System.
+
+Learning Path v1: [архитектурный контракт](04-architecture/learning-path-v1.md), [UX-контракт](03-ux/learning-path-v1.md). Реализация на feature-ветке; контракт не заявляет деплой.

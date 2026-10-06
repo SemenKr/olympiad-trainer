@@ -250,6 +250,21 @@
   }
 }
 
+.free-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ot-space-8);
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  p {
+    color: var(--ot-color-text-secondary);
+  }
+}
+
 .pack-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
