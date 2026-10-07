@@ -2,6 +2,7 @@ import type { PackId } from "../application/completed-practice-episode";
 
 import {
   boolean,
+  bigint,
   index,
   uniqueIndex,
   integer,
@@ -16,6 +17,12 @@ import {
 export const learners = pgTable("learners", {
   id: uuid("id").primaryKey().defaultRandom(),
   anonymousTokenHash: text("anonymous_token_hash").notNull().unique(),
+  credentialGeneration: bigint("credential_generation", { mode: "bigint" })
+    .notNull()
+    .default(BigInt(0)),
+  browserCredentialExpiresAt: timestamp("browser_credential_expires_at", {
+    withTimezone: true,
+  }).notNull(),
   guaranteeEvidence: jsonb("guarantee_evidence").notNull(),
   impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
   enumerationEvidence: jsonb("enumeration_evidence").notNull(),

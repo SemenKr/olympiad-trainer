@@ -1,3 +1,4 @@
+import { learnerContext } from "../../../test/learner-fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const { readRows } = vi.hoisted(() => ({ readRows: vi.fn() }));
@@ -16,7 +17,9 @@ describe("Learning Path receipt reads", () => {
       { packId: "pack-j", mode: "pack" },
       { packId: "pack-j", mode: "pack" },
     ]);
-    expect(await readCompletedPackIds("learner")).toEqual(["pack-j"]);
+    expect(await readCompletedPackIds(learnerContext("learner"))).toEqual([
+      "pack-j",
+    ]);
   });
   it.each([
     { packId: "pack-z", mode: "pack" },
@@ -24,14 +27,22 @@ describe("Learning Path receipt reads", () => {
     { packId: "pack-a", mode: null },
   ])("rejects malformed persisted identity $packId/$mode", async (row) => {
     readRows.mockResolvedValue([row]);
-    await expect(readCompletedPackIds("learner")).rejects.toThrow(
-      "could not be verified",
-    );
+    await expect(
+      readCompletedPackIds(learnerContext("learner")),
+    ).rejects.toThrow("could not be verified");
   });
   it("propagates read failure instead of inventing an empty path", async () => {
     readRows.mockRejectedValue(new Error("database unavailable"));
-    await expect(readCompletedPackIds("learner")).rejects.toThrow(
-      "database unavailable",
-    );
+    await expect(
+      readCompletedPackIds(learnerContext("learner")),
+    ).rejects.toThrow("database unavailable");
   });
 });
+
+vi.mock("./learner-auth", () => ({
+  withAuthenticatedLearner: async (
+    _context: unknown,
+    operation: (tx: ReturnType<typeof getProgressDb>) => Promise<unknown>,
+  ) => operation(getProgressDb()),
+}));
+import { getProgressDb } from "./progress-db";

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Onest } from "next/font/google";
 import "./globals.scss";
+import LearnerIdentityGate from "./identity/learner-identity-gate";
 
 const onest = Onest({
   subsets: ["cyrillic", "latin"],
@@ -20,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html className={onest.variable} lang="ru">
-      <body>{children}</body>
+      <body>
+        <LearnerIdentityGate>{children}</LearnerIdentityGate>
+      </body>
     </html>
   );
 }

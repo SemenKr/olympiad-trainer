@@ -1,3 +1,7 @@
+import {
+  learnerContext,
+  createTestLearner,
+} from "../../../test/learner-fixture";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
@@ -5,7 +9,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { eq } from "drizzle-orm";
 import { getProgressDb } from "../../practice/server/progress-db";
-import { findOrCreateLearner } from "../../practice/server/learner-progress-persistence";
 import {
   learners,
   practiceCompletedEpisodes,
@@ -42,13 +45,14 @@ describe.skipIf(!testUrl)(
         "0009_practice_review.sql",
         "0010_simulation.sql",
         "0011_learning_path_pack_receipts.sql",
+        "0012_learner_identity_boundary.sql",
       ];
       for (const name of names)
         await client.query(await readFile(`db/migrations/${name}`, "utf8"));
       const url = new URL(testUrl!);
       url.searchParams.set("options", `-c search_path=${schema}`);
       process.env.DATABASE_URL = url.toString();
-      owner = await findOrCreateLearner(`simulation-${randomUUID()}`);
+      owner = await createTestLearner(`simulation-${randomUUID()}`);
     });
     afterAll(async () => {
       vi.restoreAllMocks();
@@ -66,13 +70,13 @@ describe.skipIf(!testUrl)(
         .from(learners)
         .where(eq(learners.id, owner));
       const starts = await Promise.all([
-        transactSimulation(owner, { kind: "start" }),
-        transactSimulation(owner, { kind: "start" }),
+        transactSimulation(learnerContext(owner), { kind: "start" }),
+        transactSimulation(learnerContext(owner), { kind: "start" }),
       ]);
       const attempt = starts[0].attempt!;
       expect(starts[1].attempt?.sessionId).toBe(attempt.sessionId);
       const requests = ["first", "second"].map((draft) =>
-        transactSimulation(owner, {
+        transactSimulation(learnerContext(owner), {
           kind: "save",
           sessionId: attempt.sessionId,
           revision: 0,
@@ -83,13 +87,14 @@ describe.skipIf(!testUrl)(
       expect(
         results.filter((result) => result.status === "fulfilled"),
       ).toHaveLength(1);
-      const saved = (await transactSimulation(owner, { kind: "read" }))
-        .attempt!;
-      const foreign = await findOrCreateLearner(
+      const saved = (
+        await transactSimulation(learnerContext(owner), { kind: "read" })
+      ).attempt!;
+      const foreign = await createTestLearner(
         `simulation-other-${randomUUID()}`,
       );
       await expect(
-        transactSimulation(foreign, {
+        transactSimulation(learnerContext(foreign), {
           kind: "finish",
           sessionId: attempt.sessionId,
           revision: saved.revision,
@@ -98,7 +103,7 @@ describe.skipIf(!testUrl)(
         }),
       ).rejects.toThrow("Unknown simulation");
       const finished = (
-        await transactSimulation(owner, {
+        await transactSimulation(learnerContext(owner), {
           kind: "finish",
           sessionId: attempt.sessionId,
           revision: saved.revision,
@@ -122,29 +127,33 @@ describe.skipIf(!testUrl)(
       }
     });
     it("resumes the original deadline and accepts only exact retries without another revision", async () => {
-      const learner = await findOrCreateLearner(
+      const learner = await createTestLearner(
         `simulation-retry-${randomUUID()}`,
       );
-      const initial = (await transactSimulation(learner, { kind: "start" }))
-        .attempt!;
+      const initial = (
+        await transactSimulation(learnerContext(learner), { kind: "start" })
+      ).attempt!;
       const operation = {
         kind: "save" as const,
         sessionId: initial.sessionId,
         revision: initial.revision,
         work: { drafts: ["reasoning", "", "", ""] as const, selectedIndex: 2 },
       };
-      const saved = (await transactSimulation(learner, operation)).attempt!;
-      expect((await transactSimulation(learner, operation)).attempt).toEqual(
-        saved,
-      );
+      const saved = (
+        await transactSimulation(learnerContext(learner), operation)
+      ).attempt!;
+      expect(
+        (await transactSimulation(learnerContext(learner), operation)).attempt,
+      ).toEqual(saved);
       await expect(
-        transactSimulation(learner, {
+        transactSimulation(learnerContext(learner), {
           ...operation,
           work: { ...operation.work, selectedIndex: 1 },
         }),
       ).rejects.toThrow("another tab");
       expect(
-        (await transactSimulation(learner, { kind: "start" })).attempt,
+        (await transactSimulation(learnerContext(learner), { kind: "start" }))
+          .attempt,
       ).toEqual(saved);
       expect(saved.deadlineAt).toBe(initial.deadlineAt);
       const finish = {
@@ -153,13 +162,15 @@ describe.skipIf(!testUrl)(
         revision: saved.revision,
         confirmed: true,
       };
-      const finished = (await transactSimulation(learner, finish)).attempt!;
-      expect((await transactSimulation(learner, finish)).attempt).toEqual(
-        finished,
-      );
+      const finished = (
+        await transactSimulation(learnerContext(learner), finish)
+      ).attempt!;
+      expect(
+        (await transactSimulation(learnerContext(learner), finish)).attempt,
+      ).toEqual(finished);
       expect(
         (
-          await transactSimulation(learner, {
+          await transactSimulation(learnerContext(learner), {
             ...operation,
             revision: finished.revision,
             work: { drafts: ["forbidden edit", "", "", ""], selectedIndex: 0 },
@@ -167,23 +178,25 @@ describe.skipIf(!testUrl)(
         ).attempt,
       ).toEqual(finished);
       expect(
-        (await transactSimulation(learner, { kind: "start" })).attempt,
+        (await transactSimulation(learnerContext(learner), { kind: "start" }))
+          .attempt,
       ).toEqual(finished);
     });
     it.each(["read", "save", "finish"] as const)(
       "%s materializes timeout exactly at the deadline and persists only earlier drafts",
       async (kind) => {
-        const learner = await findOrCreateLearner(
+        const learner = await createTestLearner(
           `simulation-boundary-${randomUUID()}`,
         );
-        const initial = (await transactSimulation(learner, { kind: "start" }))
-          .attempt!;
+        const initial = (
+          await transactSimulation(learnerContext(learner), { kind: "start" })
+        ).attempt!;
         const now = vi
           .spyOn(Date, "now")
           .mockReturnValue(initial.deadlineAt - 1);
         try {
           const saved = (
-            await transactSimulation(learner, {
+            await transactSimulation(learnerContext(learner), {
               kind: "save",
               sessionId: initial.sessionId,
               revision: 0,
@@ -196,7 +209,7 @@ describe.skipIf(!testUrl)(
           now.mockReturnValue(initial.deadlineAt);
           const result = (
             await transactSimulation(
-              learner,
+              learnerContext(learner),
               kind === "read"
                 ? { kind }
                 : {
@@ -219,7 +232,11 @@ describe.skipIf(!testUrl)(
             selectedIndex: 0,
           });
           expect(
-            (await transactSimulation(learner, { kind: "read" })).attempt,
+            (
+              await transactSimulation(learnerContext(learner), {
+                kind: "read",
+              })
+            ).attempt,
           ).toEqual(result);
         } finally {
           now.mockRestore();
@@ -227,12 +244,15 @@ describe.skipIf(!testUrl)(
       },
     );
     it("materializes timeout even when the first subsequent request tries to save late work", async () => {
-      const expiredOwner = await findOrCreateLearner(
+      const expiredOwner = await createTestLearner(
         `simulation-expired-${randomUUID()}`,
       );
-      const { attempt } = await transactSimulation(expiredOwner, {
-        kind: "start",
-      });
+      const { attempt } = await transactSimulation(
+        learnerContext(expiredOwner),
+        {
+          kind: "start",
+        },
+      );
       const startedAt = new Date(Date.now() - 46 * 60 * 1000);
       await getProgressDb()
         .update(simulationAttempts)
@@ -241,7 +261,7 @@ describe.skipIf(!testUrl)(
           deadlineAt: new Date(startedAt.getTime() + 45 * 60 * 1000),
         })
         .where(eq(simulationAttempts.learnerId, expiredOwner));
-      const result = await transactSimulation(expiredOwner, {
+      const result = await transactSimulation(learnerContext(expiredOwner), {
         kind: "save",
         sessionId: attempt!.sessionId,
         revision: 0,

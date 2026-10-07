@@ -1,8 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { getProgressDb } from "../../practice/server/progress-db";
-import { learners } from "../../practice/server/progress-schema";
+import {
+  withAuthenticatedLearner,
+  type AuthenticatedLearner,
+} from "../../practice/server/learner-auth";
 import { simulationAttempts } from "./schema";
 import {
   expireSimulation,
@@ -54,9 +56,10 @@ type Operation =
     }>;
 
 export async function transactSimulation(
-  learnerId: string,
+  context: AuthenticatedLearner,
   operation: Operation,
 ) {
+  const learnerId = context.learnerId;
   const input =
     operation.kind === "save" || operation.kind === "finish"
       ? {
@@ -66,14 +69,7 @@ export async function transactSimulation(
           confirmed: operation.confirmed === true,
         }
       : null;
-  return getProgressDb().transaction(async (tx) => {
-    // Lock the existing identity row even for the first Start; concurrent Starts share one attempt.
-    const [learner] = await tx
-      .select({ id: learners.id })
-      .from(learners)
-      .where(eq(learners.id, learnerId))
-      .for("update");
-    if (!learner) throw new Error("Unknown learner.");
+  return withAuthenticatedLearner(context, async (tx) => {
     const [row] = await tx
       .select()
       .from(simulationAttempts)
