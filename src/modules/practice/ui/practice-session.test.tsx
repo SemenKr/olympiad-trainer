@@ -141,6 +141,16 @@ describe("PracticeSession solution reveal", () => {
     expect(markup).not.toContain("6 × 17");
     expect(revealPracticeSolution).not.toHaveBeenCalled();
   });
+
+  it("does not expose the next task until the active saved task has been restored", () => {
+    const markup = renderToStaticMarkup(
+      <PracticeSession problems={problems} />,
+    );
+
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain("Загружаем тренировку");
+    expect(markup).not.toContain("Следующая задача");
+  });
 });
 
 describe("Practice no-next surface", () => {
