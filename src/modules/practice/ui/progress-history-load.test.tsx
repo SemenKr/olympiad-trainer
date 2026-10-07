@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
@@ -21,8 +21,12 @@ import {
   readServerReviewAvailability,
 } from "../../../app/progress/actions";
 import { ProgressOverview } from "./progress-overview";
+import { ensureServerProgressImported } from "./server-progress-import";
+
+beforeEach(() => vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true));
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
   document.body.replaceChildren();
 });
@@ -169,4 +173,24 @@ it("keeps capability/Journey/history available when the secondary Review read fa
   await act(async () => {
     root.unmount();
   });
+});
+
+it("does not read or show Progress as empty when legacy import fails", async () => {
+  vi.mocked(ensureServerProgressImported).mockRejectedValueOnce(
+    Error("Import unavailable"),
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<ProgressOverview />));
+    expect(container.textContent).toContain("Не удалось загрузить прогресс");
+    expect(container.textContent).toContain("Попробовать ещё раз");
+    expect(readServerProgress).not.toHaveBeenCalled();
+    expect(readServerRecentPracticeEpisodes).not.toHaveBeenCalled();
+    expect(readServerPracticeJourney).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Недавняя работа");
+  } finally {
+    await act(async () => root.unmount());
+  }
 });

@@ -123,6 +123,7 @@ async function finish(sessionId: string, count: number) {
 
 beforeEach(() => {
   installImmediatePracticeSessionLock();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   vi.clearAllMocks();
   window.history.replaceState(null, "", "/practice/summary");
@@ -221,4 +222,64 @@ describe("persisted Summary session identity", () => {
     );
     expect(readServerPracticeJourneyFinish).not.toHaveBeenCalled();
   });
+});
+
+it("keeps completed bytes and shows a retryable error when Summary storage cannot be read", async () => {
+  const results = await finish(sessionA, 1);
+  const before = localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+  const read = Storage.prototype.getItem;
+  const spy = vi
+    .spyOn(Storage.prototype, "getItem")
+    .mockImplementationOnce(function (this: Storage, key) {
+      if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY)
+        throw Error("Storage unavailable");
+      return read.call(this, key);
+    });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<LatestCompletedSummary />));
+    expect(container.textContent).toContain(
+      "Не удалось проверить сохранённые итоги.",
+    );
+    expect(container.textContent).not.toContain("Тренировка завершена");
+    expect(container.textContent).not.toContain("Итоги тренировки недоступны");
+    expect(localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
+      before,
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("button")!.click(),
+    );
+    expect(container.textContent).toContain("Тренировка завершена");
+    expect(
+      await readVerifiedLatestCompletedResults(async () => ({ valid: false })),
+    ).toMatchObject({ value: results });
+  } finally {
+    spy.mockRestore();
+    await act(async () => root.unmount());
+  }
+});
+
+it("offers Path continuation for a validated early Pack Summary only after a durable marker read", async () => {
+  const results = [
+    {
+      problemId: "granddaughters-first",
+      problemTitle: "Кто пришёл первым?",
+      summary: {
+        outcome: "no-valid-submissions" as const,
+        validSubmissionCount: 0,
+        hintExposures: [],
+        solutionExposure: null,
+      },
+    },
+  ];
+  expect(saveLatestCompletedResults(results, undefined, sessionA)).toBe(true);
+  vi.mocked(readServerPracticeJourneyFinish).mockResolvedValueOnce(null);
+  vi.mocked(readServerLearningPath).mockResolvedValueOnce(["pack-a"]);
+  const text = await renderMountedSummary();
+  expect(text).toContain("Продолжить путь");
+  expect(text).toContain("не было проверенного ответа");
+  expect(text).not.toContain("Вырезанная фигура");
+  expect(readServerLearningPath).toHaveBeenCalledOnce();
 });

@@ -139,6 +139,101 @@ function result(
 }
 
 describe("latest completed Practice storage", () => {
+  it.each([
+    ["set", "olympiad-trainer:practice-server-finish-request"],
+    ["set", "olympiad-trainer:practice-progress-finish-pending"],
+    ["set", PRACTICE_LATEST_COMPLETED_STORAGE_KEY],
+    ["remove", PRACTICE_SESSION_STORAGE_KEY],
+    ["remove", "olympiad-trainer:practice-progress-finish-pending"],
+    ["remove", "olympiad-trainer:practice-server-finish-request"],
+  ] as const)(
+    "recovers a current Finish after %s fails for %s",
+    async (operation, failingKey) => {
+      const storage = memoryStorage();
+      const session = {
+        sessionId: crypto.randomUUID(),
+        activeProblemIndex: 2 as const,
+        completedResults: [
+          result(0, "no-valid-submissions", true),
+          result(1, "no-valid-submissions", true),
+        ],
+      };
+      const answer = createMultipleChoiceSetAnswerState();
+      const results = [
+        ...session.completedResults,
+        result(2, "no-valid-submissions"),
+      ];
+      await seedActiveSnapshot(session, answer, storage);
+      const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+      let fail = true;
+      const failingStorage = {
+        ...storage,
+        setItem: (key: string, value: string) => {
+          if (fail && operation === "set" && key === failingKey) {
+            fail = false;
+            throw Error("Local write unavailable");
+          }
+          storage.setItem(key, value);
+        },
+        removeItem: (key: string) => {
+          if (fail && operation === "remove" && key === failingKey) {
+            fail = false;
+            throw Error("Local removal unavailable");
+          }
+          storage.removeItem(key);
+        },
+      };
+      const persist = vi.fn(async (_payload: unknown) => undefined);
+      expect(
+        await completePracticeSession(
+          session,
+          answer,
+          results,
+          failingStorage,
+          persist,
+        ),
+      ).toBe(false);
+      expect(fail).toBe(false);
+      const requestKey = "olympiad-trainer:practice-server-finish-request";
+      const request = storage.getItem(requestKey);
+      if (request !== null) {
+        expect(
+          await createPracticeSessionSnapshot(
+            startTwoProblemSession(),
+            createShortNumericAnswerState(),
+            storage,
+          ),
+        ).toBe(false);
+        expect(
+          await savePracticeSessionSnapshot(session, answer, storage),
+        ).toBe(false);
+        expect(storage.getItem(requestKey)).toBe(request);
+      }
+      const restored = await readPracticeSessionSnapshot(storage);
+      if (restored) {
+        expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+        expect(
+          await completePracticeSession(
+            session,
+            answer,
+            results,
+            storage,
+            persist,
+          ),
+        ).toBe(true);
+      }
+      expect(readLatestCompletedResults(storage)).toEqual(results);
+      expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+      expect(storage.getItem(requestKey)).toBeNull();
+      expect(
+        storage.getItem("olympiad-trainer:practice-progress-finish-pending"),
+      ).toBeNull();
+      expect(persist).toHaveBeenCalled();
+      for (const [payload] of persist.mock.calls)
+        expect(payload).toEqual(persist.mock.calls[0][0]);
+    },
+  );
+
   it("latches after successful Finish before navigation can write or Pause", async () => {
     const storage = memoryStorage();
     const session = {

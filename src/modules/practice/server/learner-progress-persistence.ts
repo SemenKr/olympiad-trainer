@@ -5,7 +5,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import {
   packById,
-  packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
@@ -528,7 +528,7 @@ export async function persistFinishContributions(
   }
   const completedPackId =
     completedEpisode?.mode === "pack"
-      ? packIdFromProblemIds(
+      ? packIdFromCompletedProblemIds(
           completedEpisode.facts.problems.map((problem) => problem.problemId),
         )
       : null;

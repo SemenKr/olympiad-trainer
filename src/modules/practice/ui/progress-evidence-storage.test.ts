@@ -62,6 +62,7 @@ import {
   readPracticeSessionSnapshot,
   readVerifiedPracticeSessionSnapshot,
   saveLatestCompletedResults,
+  readLatestCompletedResults,
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
 } from "./practice-session-storage";
@@ -216,7 +217,7 @@ function fact(
 
 describe("guarantee Progress evidence", () => {
   it.each([0, 1] as const)(
-    "rejects new early core Finish at problem index %s without freezing Practice or submitting a legacy receipt",
+    "persists an early core Finish at problem index %s without a legacy receipt or unopened facts",
     async (activeProblemIndex) => {
       const storage = memoryStorage();
       const earlySession = {
@@ -243,42 +244,65 @@ describe("guarantee Progress evidence", () => {
       };
       await seedActiveSnapshot(earlySession, earlyAnswer, storage);
       saveLatestCompletedResults([firstResult], storage);
-      const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
-      const previousSummary = storage.getItem(
-        PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
-      );
       const latch = { current: false };
       const navigate = vi.fn();
-      for (let retry = 0; retry < 2; retry++) {
-        expect(
-          await finishPracticeSessionAndNavigate(
-            latch,
-            earlySession,
-            earlyAnswer,
-            [...earlySession.completedResults, currentResult],
-            navigate,
-            storage,
-          ),
-        ).toBe(false);
-        expect(persistPracticeFinishEvidence).not.toHaveBeenCalled();
-        expect(
-          storage.getItem("olympiad-trainer:practice-server-finish-request"),
-        ).toBeNull();
-        expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
-        expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
-          previousSummary,
-        );
-        expect(latch.current).toBe(false);
-        expect(navigate).not.toHaveBeenCalled();
-        expect(
-          await savePracticeSessionWhileActive(
-            latch,
-            earlySession,
-            earlyAnswer,
-            storage,
-          ),
-        ).toBe(true);
-      }
+      const results = [...earlySession.completedResults, currentResult];
+      expect(
+        await finishPracticeSessionAndNavigate(
+          latch,
+          earlySession,
+          earlyAnswer,
+          results,
+          navigate,
+          storage,
+        ),
+      ).toBe(true);
+      expect(persistPracticeFinishEvidence).toHaveBeenCalledExactlyOnceWith(
+        earlySession.sessionId,
+        [],
+        undefined,
+        {
+          mode: "core",
+          facts: {
+            version: 1,
+            problems: results.map((entry) => ({
+              problemId: entry.problemId,
+              outcome: entry.summary.outcome,
+              skipped: entry.taskOutcome === "skipped",
+              validSubmissionCount: entry.summary.validSubmissionCount,
+              hintLevelsExposed: [],
+              solutionExposed: false,
+              checkpoint: null,
+            })),
+          },
+        },
+      );
+      expect(
+        storage.getItem("olympiad-trainer:practice-server-finish-request"),
+      ).toBeNull();
+      expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+      expect(readLatestCompletedResults(storage)).toEqual(results);
+      expect(latch.current).toBe(true);
+      expect(navigate).toHaveBeenCalledOnce();
+      expect(
+        await finishPracticeSessionAndNavigate(
+          latch,
+          earlySession,
+          earlyAnswer,
+          results,
+          navigate,
+          storage,
+        ),
+      ).toBe(false);
+      expect(
+        await savePracticeSessionWhileActive(
+          latch,
+          earlySession,
+          earlyAnswer,
+          storage,
+        ),
+      ).toBe(false);
+      expect(navigate).toHaveBeenCalledOnce();
     },
   );
 

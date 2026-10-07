@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   finishPractice,
@@ -661,3 +661,77 @@ describe("Pack C Practice snapshot and Finish", () => {
     ).toBe(true);
   });
 });
+
+it.each([1, 2])(
+  "restores and retries an early Pack Finish after %i opened tasks without unopened results",
+  async (length) => {
+    const store = storage();
+    let session = startPackPracticeSession();
+    const answer = {
+      selectedOptionIds: [],
+      status: "typing" as const,
+      practice: startPractice(),
+    };
+    expect(await createPracticeSessionSnapshot(session, answer, store)).toBe(
+      true,
+    );
+    if (length === 2) {
+      session = advancePracticeSession(session, result(0, emptySummary, true))!;
+      expect(
+        await savePracticeSessionSnapshot(
+          session,
+          {
+            rawAnswer: "",
+            status: "typing",
+            practice: startPractice(),
+          },
+          store,
+        ),
+      ).toBe(true);
+    }
+    const current = await readPracticeSessionSnapshot(store);
+    if (!current || "status" in current) throw Error("Expected active Pack");
+    const restoredAnswer = restoreAnswerState(current);
+    const results = [...session.completedResults, result(length - 1)];
+    const persist = vi
+      .fn(async (_request: ServerPracticeFinishPayload) => undefined)
+      .mockRejectedValueOnce(Error("Lost Finish response"));
+    expect(
+      await completePracticeSession(
+        session,
+        restoredAnswer,
+        results,
+        store,
+        persist,
+      ),
+    ).toBe(false);
+    expect(await readPracticeSessionSnapshot(store)).toEqual(current);
+    expect(
+      await createPracticeSessionSnapshot(
+        startPackPracticeSession(),
+        answer,
+        store,
+      ),
+    ).toBe(false);
+    expect(
+      await completePracticeSession(
+        session,
+        restoredAnswer,
+        results,
+        store,
+        persist,
+      ),
+    ).toBe(true);
+    expect(persist.mock.calls[0]).toEqual(persist.mock.calls[1]);
+    expect(persist.mock.calls[1][0].episodeFacts?.problems).toHaveLength(
+      length,
+    );
+    expect(
+      await readVerifiedLatestCompletedResults(
+        async () => ({ valid: false }),
+        store,
+      ),
+    ).toMatchObject({ value: results });
+    expect(await readPracticeSessionSnapshot(store)).toBeNull();
+  },
+);

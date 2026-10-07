@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/app/practice/actions", () => ({
+vi.mock("./practice/actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
 
@@ -10,24 +10,24 @@ vi.mock("./progress/actions", () => ({
   readServerLearningPath: vi.fn(async () => []),
 }));
 
-vi.mock("@/app/progress/actions", () => ({
+vi.mock("./progress/actions", () => ({
   readServerAdaptiveAvailability: vi.fn(async () => ({
     availability: { status: "insufficient-evidence" },
     hasPracticeHistory: false,
   })),
 }));
 
-vi.mock("@/modules/practice/ui/server-progress-import", () => ({
+vi.mock("../modules/practice/ui/server-progress-import", () => ({
   ensureServerProgressImported: vi.fn(async () => null),
 }));
 
-vi.mock("@/modules/practice/ui/practice-session-storage", () => ({
+vi.mock("../modules/practice/ui/practice-session-storage", () => ({
   getStoredProblemTitle: () => "Совпадающие места",
   readVerifiedLatestCompletedResults: vi.fn(),
   readVerifiedPracticeSessionSnapshot: vi.fn(),
 }));
 
-vi.mock("@/modules/practice/ui/session-summary", () => ({
+vi.mock("../modules/practice/ui/session-summary", () => ({
   getPracticeResultLabel: () => null,
   getPracticeRemainingText: () =>
     "В этой тренировке по задаче не было проверенного ответа.",

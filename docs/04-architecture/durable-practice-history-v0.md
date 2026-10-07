@@ -10,7 +10,7 @@ Durable Practice History v0 adds a bounded server-side projection of completed P
 
 ## Finish contract
 
-- Each successful Finish creates exactly one completed-episode projection for that episode.
+- Each successful Finish creates exactly one completed-episode projection for that episode. Early core/Pack Finish records the nonempty ordered prefix of opened tasks only; it does not fabricate facts for unopened tasks. Active and no-next snapshots retain their full registered task tuple. Review source eligibility retains its existing full-core boundary; accepting early Finish does not create a new Review opportunity.
 - `practice_finish_receipts` remains the idempotency source. Retrying a Finish returns the same completed result and does not create another episode; the server-assigned `completed_at` is stable on retry.
 - The episode projection, its evidence, adaptive facts and Finish receipt are written atomically in one database transaction. A failed transaction leaves none of those Finish writes committed.
 - `completed_at` is assigned by the server.
