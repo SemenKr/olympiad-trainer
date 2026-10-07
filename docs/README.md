@@ -11,3 +11,5 @@ Learning Path v1: [архитектурный контракт](04-architecture/
 Olympiad Foundations: [исследовательский прототип v0.1](02-research/olympiad-foundations-prototype-v0.1.md) и [карточки примеров](02-research/olympiad-foundations-learner-cards-v0.1.md). Кандидат для проверки понятности подхода; не принятая учебная программа или production-функция.
 
 Следующее наблюдение за новичком: [полевой лист LV-03](02-research/learner-validation-lv03-field-sheet.md) для печати и краткой записи по действующим протоколам.
+
+Learner Identity & Recovery v1: [предложение архитектуры и продуктового контракта](04-architecture/learner-identity-recovery-v1.md). **Не принято**; требуется явное решение человека до реализации. Текущая анонимная идентификация пока не меняется.
