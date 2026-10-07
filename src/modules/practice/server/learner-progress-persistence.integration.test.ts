@@ -24,7 +24,10 @@ import {
   readReviewAvailability,
 } from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
-import { validateCompletedEpisode } from "../application/completed-practice-episode";
+import {
+  PRACTICE_PACKS,
+  validateCompletedEpisode,
+} from "../application/completed-practice-episode";
 import {
   learners,
   practiceCompletedEpisodes,
@@ -167,6 +170,65 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it.each([1, 2])(
+    "persists an early core and every Pack Finish with %i opened tasks, retrying without invented facts",
+    async (length) => {
+      for (const mode of [
+        "core",
+        ...PRACTICE_PACKS.map((pack) => pack.id),
+      ] as const) {
+        const id = await learner();
+        await importLegacyProgress(id, null);
+        const foreign = await learner();
+        await importLegacyProgress(foreign, null);
+        const pack = PRACTICE_PACKS.find((entry) => entry.id === mode);
+        const ids = pack?.problemIds ?? [
+          "coinciding-seats",
+          "guaranteed-sock-pair",
+          "table-impossible-sums",
+        ];
+        const episode = {
+          mode: pack ? ("pack" as const) : ("core" as const),
+          facts: {
+            version: 1 as const,
+            problems: ids.slice(0, length).map(noAnswer),
+          },
+        };
+        const sessionId = randomUUID();
+        const before = await readLearnerProgress(id);
+        await persistFinishContributions(id, sessionId, [], undefined, episode);
+        await persistFinishContributions(id, sessionId, [], undefined, episode);
+        expect(await readLearnerProgress(id)).toEqual(before);
+        const episodes = await readRecentPracticeEpisodes(id);
+        expect(episodes).toHaveLength(1);
+        expect(episodes[0].problems).toHaveLength(length);
+        expect(await readCompletedPackIds(id)).toEqual(pack ? [pack.id] : []);
+        expect(await readRecentPracticeEpisodes(foreign)).toEqual([]);
+        expect(await readCompletedPackIds(foreign)).toEqual([]);
+        await expect(
+          persistFinishContributions(id, sessionId, [], undefined, {
+            ...episode,
+            facts: {
+              ...episode.facts,
+              problems: ids.slice(0, length + 1).map(noAnswer),
+            },
+          }),
+        ).rejects.toThrow("changed after Finish");
+        await getProgressDb()
+          .delete(practiceCompletedEpisodes)
+          .where(
+            and(
+              eq(practiceCompletedEpisodes.learnerId, id),
+              eq(practiceCompletedEpisodes.sessionId, sessionId),
+            ),
+          );
+        await persistFinishContributions(id, sessionId, [], undefined, episode);
+        expect(await readRecentPracticeEpisodes(id)).toEqual([]);
+        expect(await readCompletedPackIds(id)).toEqual(pack ? [pack.id] : []);
+      }
+    },
+  );
+
   it("records zero XP for Skip-only Finish and no reward without an episode", async () => {
     const id = await learner();
     await importLegacyProgress(id, null);

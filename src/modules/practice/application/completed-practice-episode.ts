@@ -158,6 +158,17 @@ export function packIdFromProblemIds(
   );
 }
 
+// Early Finish records only opened tasks, in the registered Pack order.
+export function packIdFromCompletedProblemIds(
+  problemIds: readonly string[],
+): PackId | null {
+  if (problemIds.length < 1 || problemIds.length > 3) return null;
+  const matches = PRACTICE_PACKS.filter((pack) =>
+    Array.from(problemIds).every((id, index) => id === pack.problemIds[index]),
+  );
+  return matches.length === 1 ? matches[0].id : null;
+}
+
 export type CompletedPracticeProblemFact = Readonly<{
   problemId: string;
   outcome: "no-valid-submissions" | "incorrect-only" | "eventually-correct";
@@ -239,7 +250,8 @@ export function validateCompletedEpisode(
   const problems = value.problems;
   if (mode === "core") {
     if (
-      problems.length !== CORE_EPISODE_PROBLEM_IDS.length ||
+      problems.length < 1 ||
+      problems.length > CORE_EPISODE_PROBLEM_IDS.length ||
       !problems.every(
         (fact, index) =>
           record(fact) && fact.problemId === CORE_EPISODE_PROBLEM_IDS[index],
@@ -248,7 +260,7 @@ export function validateCompletedEpisode(
       return null;
   } else if (mode === "pack") {
     if (
-      !packIdFromProblemIds(
+      !packIdFromCompletedProblemIds(
         problems.map((fact) =>
           record(fact) && typeof fact.problemId === "string"
             ? fact.problemId

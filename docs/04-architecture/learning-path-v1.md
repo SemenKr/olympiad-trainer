@@ -14,13 +14,13 @@ The deterministic projection chooses the earliest entry without a recorded compl
 
 A completion marker means only a **successfully persisted Pack Finish**, including early Finish, skipped tasks, incorrect-only work or solution exposure. It does not mean all tasks were solved, independently solved, or a topic mastered.
 
-Migration `0011_learning_path_pack_receipts.sql` adds nullable `pack_id` to `practice_finish_receipts`. The server derives it from the exact ordered tuple after validating the completed episode, only for `mode: pack`. Clients cannot submit a Pack identity or learner ID. SQL constrains non-null IDs to the twelve registered Packs and requires non-null `episode_mode = pack`; other and legacy modes keep null.
+Migration `0011_learning_path_pack_receipts.sql` adds nullable `pack_id` to `practice_finish_receipts`. The server derives it from a validated nonempty ordered prefix of the registered tuple (one to three opened tasks) after validating the completed episode, only for `mode: pack`. Clients cannot submit a Pack identity or learner ID. SQL constrains non-null IDs to the twelve registered Packs and requires non-null `episode_mode = pack`; other and legacy modes keep null.
 
 The marker is inserted in the existing learner-row-locked Finish transaction alongside history, evidence, XP and the receipt. No partial marker survives rollback. The immutable contribution hash and retry request stay unchanged. Identical retries return the stored result; changed payloads conflict. Retry never annotates a pre-v1 receipt or recreates pruned history.
 
 Reads use learner-scoped Finish receipts, validate Pack IDs/modes and deduplicate identities. They do not derive markers from Recent History, XP, answers, capability evidence or browser-local Summary. Pruning completed episodes cannot remove a receipt marker.
 
-**No backfill.** Existing receipts retain null `pack_id`, including on matching retries. Such history is unknown for Path purposes, not proof that a learner never practised. No old episode, answer or completion is reconstructed. Local Practice drafts and latest Summary keep their existing format. The Summary renderer identifies ordinary Pack summaries from their validated exact registered tuple, while Review remains explicit; only Pack mode with a matching durable marker offers guided continuation.
+**No backfill.** Existing receipts retain null `pack_id`, including on matching retries. Such history is unknown for Path purposes, not proof that a learner never practised. No old episode, answer or completion is reconstructed. Local Practice drafts and latest Summary keep their existing format. The Summary renderer identifies ordinary Pack summaries from their validated nonempty ordered registered prefix, while Review remains explicit; only Pack mode with a matching durable marker offers guided continuation.
 
 ## Navigation and learning boundaries
 

@@ -17,7 +17,7 @@ import {
 } from "../../../app/progress/actions";
 import type { PracticeJourneyFinish } from "../application/practice-journey";
 import {
-  packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   type PackId,
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
@@ -61,7 +61,9 @@ export function LatestCompletedSummary() {
             setResults(value);
             const packId =
               completedMode !== "review" && value
-                ? packIdFromProblemIds(value.map((result) => result.problemId))
+                ? packIdFromCompletedProblemIds(
+                    value.map((result) => result.problemId),
+                  )
                 : null;
             setMode(completedMode ?? (packId ? "pack" : undefined));
             setJourneyFinish(null);

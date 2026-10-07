@@ -21,3 +21,7 @@ Use a managed PostgreSQL database for each local, preview and production environ
 ## Learning Path v1
 
 [Learning Path v1](learning-path-v1.md) adds nullable `pack_id` to Finish receipts via migration 0011. Only validated Pack Finish writes the derived identity, atomically within the existing transaction. No cursor/table/backfill or altered contribution hash. Reads validate and deduplicate learner-scoped receipt IDs; legacy null IDs remain unknown and retries do not annotate them.
+
+## Recovery hardening
+
+Home makes a verified unfinished episode available for Resume without waiting for the previous Summary. A failed secondary Summary verification is announced separately with retry; it cannot replace Resume or offer a fresh session. Unfinished verification failures remain blocking and retryable. Local creation, saves and clears confirm the resulting storage bytes before reporting success; failed writes retain the existing recoverable snapshot where available.

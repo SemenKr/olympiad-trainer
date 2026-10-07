@@ -10,6 +10,7 @@ import {
   packHref,
   packProblemIds,
   packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   type PackId,
 } from "./completed-practice-episode";
 
@@ -181,7 +182,7 @@ describe("completed Practice episode facts", () => {
           (PRACTICE_PACKS.indexOf(pack) + 1) % PRACTICE_PACKS.length
         ];
       for (const invalid of [
-        pack.problemIds.slice(0, 2),
+        [],
         [...pack.problemIds].reverse(),
         [pack.problemIds[0], pack.problemIds[0], pack.problemIds[2]],
         [pack.problemIds[0], next.problemIds[1], pack.problemIds[2]],
@@ -238,7 +239,7 @@ describe("completed Practice episode facts", () => {
     for (const ids of [
       [...PACK_B_PROBLEM_IDS].reverse(),
       [PACK_B_PROBLEM_IDS[0], PACK_A_PROBLEM_IDS[1], PACK_B_PROBLEM_IDS[2]],
-      PACK_B_PROBLEM_IDS.slice(0, 2),
+      [],
     ]) {
       expect(packIdFromProblemIds(ids)).toBeNull();
       expect(
@@ -396,4 +397,30 @@ describe("completed Practice episode facts", () => {
     });
     expect(JSON.stringify(solution)).not.toContain("hidden");
   });
+});
+
+it("accepts nonempty ordered early Finish prefixes without inventing unopened tasks", () => {
+  for (const pack of PRACTICE_PACKS) {
+    for (const length of [1, 2, 3]) {
+      const ids = pack.problemIds.slice(0, length);
+      const facts = completedEpisodeFacts(
+        ids.map((problemId) => ({ problemId, summary: empty })),
+      );
+      expect(packIdFromCompletedProblemIds(ids)).toBe(pack.id);
+      expect(validateCompletedEpisode("pack", facts)).toEqual(facts);
+    }
+    expect(packIdFromCompletedProblemIds(pack.problemIds.slice(1))).toBeNull();
+    expect(
+      packIdFromCompletedProblemIds([pack.problemIds[0], pack.problemIds[2]]),
+    ).toBeNull();
+  }
+  expect(packIdFromCompletedProblemIds([])).toBeNull();
+  for (const length of [1, 2, 3]) {
+    const facts = completedEpisodeFacts(
+      ["coinciding-seats", "guaranteed-sock-pair", "table-impossible-sums"]
+        .slice(0, length)
+        .map((problemId) => ({ problemId, summary: empty })),
+    );
+    expect(validateCompletedEpisode("core", facts)).toEqual(facts);
+  }
 });

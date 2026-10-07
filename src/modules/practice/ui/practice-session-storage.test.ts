@@ -608,6 +608,45 @@ describe("unfinished Practice storage", () => {
     expect(await readPracticeSessionSnapshot(storage)).toBeNull();
   });
 
+  it("does not acknowledge storage mutations that leave the previous bytes intact", async () => {
+    const storage = memoryStorage();
+    const session = startTwoProblemSession();
+    const answer = createShortNumericAnswerState();
+    const ignoringStorage = {
+      ...storage,
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    expect(
+      await createPracticeSessionSnapshot(session, answer, ignoringStorage),
+    ).toBe(false);
+    expect(await createPracticeSessionSnapshot(session, answer, storage)).toBe(
+      true,
+    );
+    const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        editShortNumericAnswer(answer, "draft"),
+        ignoringStorage,
+      ),
+    ).toBe(false);
+    const noNext = { ...noNextSession(), sessionId: session.sessionId };
+    expect(
+      await saveNoNextPracticeSessionSnapshot(noNext, ignoringStorage),
+    ).toBe(false);
+    expect(await clearPracticeSessionSnapshot(ignoringStorage)).toBe(false);
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        editShortNumericAnswer(answer, "draft"),
+        storage,
+      ),
+    ).toBe(true);
+    expect((await readActiveSnapshot(storage)).rawAnswer).toBe("draft");
+  });
+
   it("rechecks ownership inside the lock after another tab replaces the session", async () => {
     const storage = memoryStorage();
     const firstSession = startTwoProblemSession();

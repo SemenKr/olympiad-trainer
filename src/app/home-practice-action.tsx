@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { verifyPersistedReasoningCheckpointObservation } from "@/app/practice/actions";
+import { verifyPersistedReasoningCheckpointObservation } from "./practice/actions";
 import {
   readServerAdaptiveAvailability,
   readServerPracticeJourney,
   readServerReviewAvailability,
   readServerLearningPath,
-} from "@/app/progress/actions";
-import type { AdaptiveAvailability } from "@/modules/practice/application/adaptive-availability";
+} from "./progress/actions";
+import type { AdaptiveAvailability } from "../modules/practice/application/adaptive-availability";
 import {
   PRACTICE_PACKS,
   packHref,
@@ -23,13 +23,13 @@ import {
   readVerifiedLatestCompletedResults,
   readVerifiedPracticeSessionSnapshot,
   type UnfinishedPracticeSessionSnapshot,
-} from "@/modules/practice/ui/practice-session-storage";
+} from "../modules/practice/ui/practice-session-storage";
 import {
   getPracticeRemainingText,
   getPracticeResultLabel,
-} from "@/modules/practice/ui/session-summary";
-import type { PracticeSessionResult } from "@/modules/practice/ui/two-problem-session-state";
-import { ensureServerProgressImported } from "@/modules/practice/ui/server-progress-import";
+} from "../modules/practice/ui/session-summary";
+import type { PracticeSessionResult } from "../modules/practice/ui/two-problem-session-state";
+import { ensureServerProgressImported } from "../modules/practice/ui/server-progress-import";
 import { HomePracticeJourney } from "../modules/practice/ui/practice-journey";
 import { getLearningPathProjection } from "../modules/practice/application/learning-path";
 
@@ -40,6 +40,7 @@ type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
   completedSessionId?: string | null;
+  completedLoadError?: boolean;
   availability: AdaptiveAvailability;
   hasPracticeHistory: boolean;
   reviewAvailable?: boolean | null;
@@ -50,20 +51,54 @@ export function HomePracticeAction() {
   const [stored, setStored] = useState<StoredPractice | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadRetry, setLoadRetry] = useState(0);
+  const [summaryRetryPending, setSummaryRetryPending] = useState(false);
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      void Promise.all([
-        readVerifiedPracticeSessionSnapshot(
-          verifyPersistedReasoningCheckpointObservation,
-        ),
-        readVerifiedLatestCompletedResults(
-          verifyPersistedReasoningCheckpointObservation,
-        ),
-      ])
-        .then(async ([unfinished, completed]) => {
+      void readVerifiedPracticeSessionSnapshot(
+        verifyPersistedReasoningCheckpointObservation,
+      )
+        .then(async (unfinished) => {
+          if (!active) return;
+          if (unfinished.value) {
+            setStored({
+              unfinished: unfinished.value,
+              completed: null,
+              availability: { status: "insufficient-evidence" },
+              hasPracticeHistory: false,
+            });
+            // A previous Summary is secondary to the recoverable current episode.
+            void readVerifiedLatestCompletedResults(
+              verifyPersistedReasoningCheckpointObservation,
+            ).then(
+              (completed) => {
+                if (active)
+                  setStored((current) =>
+                    current
+                      ? {
+                          ...current,
+                          completed: completed.value,
+                          completedSessionId: completed.sessionId,
+                        }
+                      : current,
+                  );
+              },
+              () => {
+                if (active)
+                  setStored((current) =>
+                    current
+                      ? { ...current, completedLoadError: true }
+                      : current,
+                  );
+              },
+            );
+            return;
+          }
+          const completed = await readVerifiedLatestCompletedResults(
+            verifyPersistedReasoningCheckpointObservation,
+          );
           let adaptive: Pick<
             StoredPractice,
             | "availability"
@@ -102,6 +137,32 @@ export function HomePracticeAction() {
     };
   }, [loadRetry]);
 
+  async function retrySummary() {
+    if (summaryRetryPending) return;
+    setSummaryRetryPending(true);
+    try {
+      const completed = await readVerifiedLatestCompletedResults(
+        verifyPersistedReasoningCheckpointObservation,
+      );
+      setStored((current) =>
+        current
+          ? {
+              ...current,
+              completed: completed.value,
+              completedSessionId: completed.sessionId,
+              completedLoadError: false,
+            }
+          : current,
+      );
+    } catch {
+      setStored((current) =>
+        current ? { ...current, completedLoadError: true } : current,
+      );
+    } finally {
+      setSummaryRetryPending(false);
+    }
+  }
+
   if (loadError) {
     return (
       <HomePracticeLayout>
@@ -122,6 +183,8 @@ export function HomePracticeAction() {
   return stored ? (
     <HomePracticeContent
       stored={stored}
+      onSummaryRetry={retrySummary}
+      summaryRetryPending={summaryRetryPending}
       onPathRetry={() => {
         setStored(null);
         setLoadRetry((value) => value + 1);
@@ -137,9 +200,13 @@ export function HomePracticeAction() {
 export function HomePracticeContent({
   stored,
   onPathRetry,
+  onSummaryRetry,
+  summaryRetryPending,
 }: {
   stored: StoredPractice;
   onPathRetry?: () => void;
+  onSummaryRetry?: () => void;
+  summaryRetryPending?: boolean;
 }) {
   const path =
     stored.completedPackIds === null
@@ -153,7 +220,12 @@ export function HomePracticeContent({
     returning &&
     path?.allRecorded === true;
   return (
-    <HomePracticeLayout stored={stored} neutral={neutral}>
+    <HomePracticeLayout
+      stored={stored}
+      neutral={neutral}
+      onSummaryRetry={onSummaryRetry}
+      summaryRetryPending={summaryRetryPending}
+    >
       {stored.unfinished ? (
         <section aria-label="Текущая тренировка">
           <h2>Тренировка не закончена</h2>
@@ -272,10 +344,14 @@ function HomePracticeLayout({
   children,
   stored,
   neutral = false,
+  onSummaryRetry,
+  summaryRetryPending,
 }: Readonly<{
   children: ReactNode;
   stored?: StoredPractice;
   neutral?: boolean;
+  onSummaryRetry?: () => void;
+  summaryRetryPending?: boolean;
 }>) {
   return (
     <div className={styles.content}>
@@ -371,6 +447,19 @@ function HomePracticeLayout({
           <h3 id="learner-principle-title">Сначала — твой ход</h3>
           <p>Подсказка не появляется сама. Сначала попробуй решить задачу.</p>
         </section>
+        {stored?.completedLoadError ? (
+          <section aria-label="Последняя тренировка" className={styles.card}>
+            <p role="alert">Не удалось проверить сохранённые итоги.</p>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={onSummaryRetry}
+              disabled={summaryRetryPending}
+            >
+              {summaryRetryPending ? "Проверяем…" : "Повторить"}
+            </button>
+          </section>
+        ) : null}
         {stored?.completed ? (
           <section
             aria-label="Последняя тренировка"

@@ -21,6 +21,7 @@ import {
   PRACTICE_PACKS,
   packProblemIds,
   packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   validateCompletedEpisode,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
@@ -857,8 +858,8 @@ export function validateLatestCompletedResults(
   value: unknown,
   mode?: "review",
 ): readonly PracticeSessionResult[] | null {
-  const completedPackProblems = Array.isArray(value)
-    ? storedPackProblems(
+  const completedPackId = Array.isArray(value)
+    ? packIdFromCompletedProblemIds(
         value.map((result) =>
           record(result) && typeof result.problemId === "string"
             ? result.problemId
@@ -866,6 +867,13 @@ export function validateLatestCompletedResults(
         ),
       )
     : null;
+  const completedPackProblems =
+    completedPackId && Array.isArray(value)
+      ? storedPackProblems(packProblemIds(completedPackId))!.slice(
+          0,
+          value.length,
+        )
+      : null;
   if (
     Array.isArray(value) &&
     completedPackProblems &&
@@ -1439,8 +1447,9 @@ export async function createPracticeSessionSnapshot(
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
       )
         return false;
-      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(snapshot));
-      return true;
+      const raw = JSON.stringify(snapshot);
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+      return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
     });
   } catch {
     return false;
@@ -1468,8 +1477,9 @@ export async function savePracticeSessionSnapshot(
       )
         return false;
       if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
-      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(snapshot));
-      return true;
+      const raw = JSON.stringify(snapshot);
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+      return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
     });
   } catch {
     return false;
@@ -1491,8 +1501,9 @@ export async function saveNoNextPracticeSessionSnapshot(
       )
         return false;
       if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
-      store.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(session));
-      return true;
+      const raw = JSON.stringify(session);
+      store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+      return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
     });
   } catch {
     return false;
@@ -1502,7 +1513,7 @@ export async function saveNoNextPracticeSessionSnapshot(
 function clearPracticeSessionSnapshotInsideLock(storage: Storage): boolean {
   try {
     storage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
-    return true;
+    return storage.getItem(PRACTICE_SESSION_STORAGE_KEY) === null;
   } catch {
     return false;
   }

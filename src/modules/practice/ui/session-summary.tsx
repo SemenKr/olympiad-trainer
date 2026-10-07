@@ -9,7 +9,7 @@ import type { PracticeSessionResult } from "./two-problem-session-state";
 import {
   packById,
   packHref,
-  packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   type PackId,
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
@@ -159,7 +159,7 @@ export function SessionSummary({
     (journeyReward.newLevel !== null || journeyReward.newBadges.length > 0);
   const completedPackId =
     mode === "pack"
-      ? packIdFromProblemIds(results.map((result) => result.problemId))
+      ? packIdFromCompletedProblemIds(results.map((result) => result.problemId))
       : null;
   const learningPath =
     completedPackId && completedPackIds?.includes(completedPackId)
