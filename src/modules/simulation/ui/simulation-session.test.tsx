@@ -365,6 +365,120 @@ describe("student simulation flow", () => {
     expect(server?.drafts[0]).toBe("newer reasoning");
     expect(host.textContent).toContain("PROTECTED REFERENCE");
   });
+  it("does not let a disposed editor's late Save response overwrite a remounted draft", async () => {
+    await mount();
+    await click("Начать");
+    const save = vi.mocked(saveSimulation).getMockImplementation()!;
+    let respond!: () => void;
+    const response = new Promise<void>((resolve) => {
+      respond = resolve;
+    });
+    vi.mocked(saveSimulation).mockImplementationOnce(async (...args) => {
+      const snapshot = await save(...args);
+      await response;
+      return snapshot;
+    });
+    await type("sent before leaving");
+    await advance(300);
+    await act(async () => root.render(null));
+    await mount();
+    await type("new reasoning after return");
+    const copy = localStorage.getItem(SIMULATION_PENDING_KEY);
+    await act(async () => respond());
+    expect(localStorage.getItem(SIMULATION_PENDING_KEY)).toBe(copy);
+    await act(async () => root.render(null));
+    await mount();
+    expect(host.querySelector("textarea")?.value).toBe(
+      "new reasoning after return",
+    );
+  });
+  it("keeps failed saves visibly unsaved rather than claiming an active save", async () => {
+    await mount();
+    await click("Начать");
+    vi.mocked(saveSimulation).mockRejectedValueOnce(new Error("offline"));
+    await type("unsent reasoning");
+    await advance(300);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(
+      "Черновики ещё не сохранены на сервере",
+    );
+  });
+  it("restores newer local work after a committed Save loses its response across reload", async () => {
+    await mount();
+    await click("Начать");
+    const save = vi.mocked(saveSimulation).getMockImplementation()!;
+    vi.mocked(saveSimulation).mockImplementationOnce(async (...args) => {
+      await save(...args);
+      throw new Error("lost response");
+    });
+    await type("committed work");
+    await advance(300);
+    await type("newer unsent work");
+    await act(async () => root.render(null));
+    await mount();
+    expect(host.querySelector("textarea")?.value).toBe("newer unsent work");
+    await advance(300);
+    expect(server?.drafts[0]).toBe("newer unsent work");
+  });
+  it("retains the conflict copy and stops restore rather than overwriting the server", async () => {
+    server = {
+      ...newSimulation(id, 1000),
+      revision: 2,
+      drafts: ["other editor", "", "", ""],
+    };
+    storeSimulationDraft({
+      ...server,
+      revision: 0,
+      drafts: ["my local work", "", "", ""],
+    });
+    const copy = localStorage.getItem(SIMULATION_PENDING_KEY);
+    await mount();
+    await click("Повторить восстановление");
+    expect(host.textContent).toContain("конфликте черновиков");
+    expect(host.querySelector("textarea")).toBeNull();
+    expect(localStorage.getItem(SIMULATION_PENDING_KEY)).toBe(copy);
+    expect(saveSimulation).not.toHaveBeenCalled();
+    expect(readSimulationReferences).not.toHaveBeenCalled();
+  });
+  it("does not reveal references while a failed Finish is unconfirmed by the server", async () => {
+    await mount();
+    await click("Начать");
+    await type("local work");
+    await advance(300);
+    vi.mocked(finishSimulation).mockRejectedValueOnce(new Error("offline"));
+    await click("Завершить раньше");
+    await click("Да, завершить");
+    expect(server?.finishedAt).toBeNull();
+    expect(readSimulationReferences).not.toHaveBeenCalled();
+    await click("Продолжить работу");
+    await type("continued work");
+    await advance(300);
+    expect(server?.finishedAt).toBeNull();
+    await advance(300);
+    expect(server?.drafts[0]).toBe("continued work");
+    expect(host.querySelector("textarea")?.disabled).toBe(false);
+  });
+  it("rejects edits when local storage fails and preserves the previous draft", async () => {
+    await mount();
+    await click("Начать");
+    await type("recoverable work");
+    await advance(300);
+    const copy = localStorage.getItem(SIMULATION_PENDING_KEY);
+    const storage = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota");
+      });
+    try {
+      await type("unrecoverable edit");
+      expect(host.querySelector("textarea")?.value).toBe("recoverable work");
+      expect(localStorage.getItem(SIMULATION_PENDING_KEY)).toBe(copy);
+      expect(host.textContent).toContain(
+        "Не удалось сохранить локальную копию",
+      );
+    } finally {
+      storage.mockRestore();
+    }
+  });
   it("the visible timer uses elapsed monotonic time instead of the browser wall clock", async () => {
     await mount();
     await click("Начать");
