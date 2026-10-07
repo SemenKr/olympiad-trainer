@@ -190,6 +190,8 @@ export function SimulationSession({
                 confirmed || confirmedFinish.current,
               )
             : await saveSimulation(sent.sessionId, sent.revision, sent);
+        // A released editor must never replace the next editor’s local recovery copy.
+        if (!ownsEditor.current) return;
         if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
         acceptClock(snapshot);
         const latest = current.current;
@@ -319,6 +321,7 @@ export function SimulationSession({
     setError("");
     try {
       const snapshot = await startSimulation();
+      if (!ownsEditor.current) return;
       acceptClock(snapshot);
       if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
       storeSimulationDraft(snapshot.attempt);
@@ -444,7 +447,9 @@ export function SimulationSession({
                   ? "Время вышло. Завершаем работу…"
                   : saved
                     ? "Все черновики сохранены"
-                    : "Сохраняем черновики…"}
+                    : error && !busy
+                      ? "Черновики ещё не сохранены на сервере"
+                      : "Сохраняем черновики…"}
               </p>
             </div>
             <section

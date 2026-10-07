@@ -11,6 +11,7 @@ import {
   practiceCompletedEpisodes,
   practiceFinishReceipts,
   practiceJourneyAwards,
+  practiceReviewAssignments,
 } from "../../practice/server/progress-schema";
 import { simulationAttempts } from "./schema";
 import { transactSimulation } from "./persistence";
@@ -113,12 +114,118 @@ describe.skipIf(!testUrl)(
         practiceCompletedEpisodes,
         practiceFinishReceipts,
         practiceJourneyAwards,
+        practiceReviewAssignments,
       ]) {
         expect(
           await db.select().from(table).where(eq(table.learnerId, owner)),
         ).toEqual([]);
       }
     });
+    it("resumes the original deadline and accepts only exact retries without another revision", async () => {
+      const learner = await findOrCreateLearner(
+        `simulation-retry-${randomUUID()}`,
+      );
+      const initial = (await transactSimulation(learner, { kind: "start" }))
+        .attempt!;
+      const operation = {
+        kind: "save" as const,
+        sessionId: initial.sessionId,
+        revision: initial.revision,
+        work: { drafts: ["reasoning", "", "", ""] as const, selectedIndex: 2 },
+      };
+      const saved = (await transactSimulation(learner, operation)).attempt!;
+      expect((await transactSimulation(learner, operation)).attempt).toEqual(
+        saved,
+      );
+      await expect(
+        transactSimulation(learner, {
+          ...operation,
+          work: { ...operation.work, selectedIndex: 1 },
+        }),
+      ).rejects.toThrow("another tab");
+      expect(
+        (await transactSimulation(learner, { kind: "start" })).attempt,
+      ).toEqual(saved);
+      expect(saved.deadlineAt).toBe(initial.deadlineAt);
+      const finish = {
+        ...operation,
+        kind: "finish" as const,
+        revision: saved.revision,
+        confirmed: true,
+      };
+      const finished = (await transactSimulation(learner, finish)).attempt!;
+      expect((await transactSimulation(learner, finish)).attempt).toEqual(
+        finished,
+      );
+      expect(
+        (
+          await transactSimulation(learner, {
+            ...operation,
+            revision: finished.revision,
+            work: { drafts: ["forbidden edit", "", "", ""], selectedIndex: 0 },
+          })
+        ).attempt,
+      ).toEqual(finished);
+      expect(
+        (await transactSimulation(learner, { kind: "start" })).attempt,
+      ).toEqual(finished);
+    });
+    it.each(["read", "save", "finish"] as const)(
+      "%s materializes timeout exactly at the deadline and persists only earlier drafts",
+      async (kind) => {
+        const learner = await findOrCreateLearner(
+          `simulation-boundary-${randomUUID()}`,
+        );
+        const initial = (await transactSimulation(learner, { kind: "start" }))
+          .attempt!;
+        const now = vi
+          .spyOn(Date, "now")
+          .mockReturnValue(initial.deadlineAt - 1);
+        try {
+          const saved = (
+            await transactSimulation(learner, {
+              kind: "save",
+              sessionId: initial.sessionId,
+              revision: 0,
+              work: {
+                drafts: ["before deadline", "", "", ""],
+                selectedIndex: 0,
+              },
+            })
+          ).attempt!;
+          now.mockReturnValue(initial.deadlineAt);
+          const result = (
+            await transactSimulation(
+              learner,
+              kind === "read"
+                ? { kind }
+                : {
+                    kind,
+                    sessionId: initial.sessionId,
+                    revision: saved.revision,
+                    work: {
+                      drafts: ["at deadline", "", "", ""],
+                      selectedIndex: 3,
+                    },
+                    confirmed: true,
+                  },
+            )
+          ).attempt!;
+          expect(result).toMatchObject({
+            finishedAt: initial.deadlineAt,
+            finishReason: "timeout",
+            revision: saved.revision + 1,
+            drafts: saved.drafts,
+            selectedIndex: 0,
+          });
+          expect(
+            (await transactSimulation(learner, { kind: "read" })).attempt,
+          ).toEqual(result);
+        } finally {
+          now.mockRestore();
+        }
+      },
+    );
     it("materializes timeout even when the first subsequent request tries to save late work", async () => {
       const expiredOwner = await findOrCreateLearner(
         `simulation-expired-${randomUUID()}`,
