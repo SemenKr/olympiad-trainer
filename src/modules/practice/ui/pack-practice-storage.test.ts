@@ -694,7 +694,7 @@ it.each([1, 2])(
     const restoredAnswer = restoreAnswerState(current);
     const results = [...session.completedResults, result(length - 1)];
     const persist = vi
-      .fn(async (_request: ServerPracticeFinishPayload) => undefined)
+      .fn(async () => undefined)
       .mockRejectedValueOnce(Error("Lost Finish response"));
     expect(
       await completePracticeSession(
