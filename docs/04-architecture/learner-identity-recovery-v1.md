@@ -1,8 +1,8 @@
-# Learner Identity & Recovery v1 — proposal
+# Learner Identity & Recovery v1
 
-Task: `OT-LEARNER-IDENTITY-ARCH-01`. Status: **READY for human decision; NOT ADOPTED; no implementation authorized by this document.**
+Task: `OT-LEARNER-IDENTITY-ARCH-01`. Status: **Adopted — 2026-10-07. Architecture decisions D1–D5 were explicitly accepted from proposal revision `ead0980b83751b124181bda0bd09f45640c9f7dc`. Recovery is not yet implemented or shipped.**
 
-This is a proposed product and architecture contract, not a description of shipped recovery. Adoption must identify this document's exact commit and resolve the decisions below. Existing adopted contracts remain authoritative until then.
+This is the adopted product and architecture contract for the bounded v1 recovery direction. It authorizes implementation only through separately scoped reviewed slices; production migration, feature enablement and release remain separate gates. Existing adopted learning/domain contracts remain authoritative and unchanged unless this contract explicitly defines an identity boundary.
 
 ## 1. Problem and evidence
 
@@ -28,11 +28,11 @@ This establishes a technical access-loss risk and an operational restriction. It
 
 Keeping the current browser-only identity is the baseline: zero new mechanism but does not solve the stated loss. Email/password and social login add account lifecycle/provider obligations without a demonstrated requirement. An account platform is not needed to retain the existing learner UUID.
 
-## 3. Recommended v1 and adoption decisions
+## 3. Adopted v1 and decisions
 
-Recommend optional offline recovery, anonymous by default, one live browser credential per learner. Recovery transfers access and revokes the previous browser credential. A browser profile still represents one learner; this is not a household profile switcher.
+Use optional offline recovery, anonymous by default, with one live browser credential per learner. Recovery transfers access and revokes the previous browser credential. A browser profile still represents one learner; this is not a household profile switcher.
 
-**Human decisions required before implementation:**
+**Adopted decisions D1–D5:**
 
 | Decision                           | Recommended choice                                                                                                                                           | Alternative and consequence                                                                                   |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
@@ -42,7 +42,7 @@ Recommend optional offline recovery, anonymous by default, one live browser cred
 | D4: Credential lifetime            | One-time code, no calendar expiry while unused; replacement requires saving the next code before activation                                                  | Expiring codes reduce exposure but strand learners who reasonably kept an old paper copy                      |
 | D5: Local work and privacy         | Quarantine ambiguous local work; no automatic import into a recovered identity; no new contact PII; approve the bounded security-data retention in section 8 | Permissive reassignment risks another child's facts; broader retention requires its own justification         |
 
-Approval of documentation or a PR merge must not be interpreted as adoption unless the human explicitly adopts these choices at a named revision. If any choice is rejected, revise the dependent proposal first.
+These choices were explicitly adopted by the product owner from proposal revision `ead0980b83751b124181bda0bd09f45640c9f7dc` on 2026-10-07. Later changes to D1–D5 require a new explicit product decision and contract revision.
 
 ## 4. Identity and recovery domain model
 
@@ -176,7 +176,7 @@ Recovery entry can be canceled without changing the browser learner. Completed r
 
 ## 12. Implementation slices in dependency order
 
-1. **Adopt and validate:** explicitly decide D1–D5, child/guardian comprehension of save/replace flow, notice/retention policy and hosting abuse controls. No production feature until these gates are resolved.
+1. **Validate release gates:** D1–D5 are adopted. Before user-facing recovery is enabled, validate child/guardian comprehension of the save/replace flow and approve the notice/retention policy and hosting abuse controls. These gates do not block server-side identity-boundary work while recovery remains disabled.
 2. **Identity boundary:** additive schema, explicit initialization/status/resolution, server expiry and generation checks across learner-scoped reads/writes; transaction-level revocation tests. Recovery stays disabled.
 3. **Local ownership migration:** owner envelopes and switch barrier across Practice, legacy import, Summary and Simulation; stale-tab/reload/uncertain-outcome tests. Preserve payload semantics and existing locks.
 4. **Credential lifecycle:** pending enrollment/replacement/recovery, secure delivery, confirmation, atomic consume/rotate, limiter and cleanup using existing PostgreSQL. Test concurrent winners and response loss with no learning changes.
@@ -203,4 +203,4 @@ OAuth, social login, email/password infrastructure, guardian accounts/relationsh
 - Browser verification covers keyboard-only and 320px/1280px flows, focus/errors/status, copy failure and secret exposure. Validate the child/guardian custody explanation with observed users before claiming usability.
 - Migration and rollback rehearsals prove existing-cookie compatibility and enforcement during deployment transitions. Relevant unit/integration/browser checks and independent architecture/security/product review pass with no unresolved Critical/Major findings.
 
-These are proposed implementation acceptance criteria. This documentation task performs consistency review only; it does not claim any of these production behaviors exist or have passed runtime/security testing.
+These are the adopted implementation acceptance criteria for the bounded v1 direction. This architecture task performed consistency review only; none of the recovery behaviors are claimed to exist or to have passed runtime/security testing until their implementation slices are completed and released.
