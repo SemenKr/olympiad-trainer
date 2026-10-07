@@ -183,7 +183,9 @@ describe("latest completed Practice storage", () => {
           storage.removeItem(key);
         },
       };
-      const persist = vi.fn(async (_payload: unknown) => undefined);
+      const persist = vi
+        .fn<(payload: unknown) => Promise<void>>()
+        .mockResolvedValue(undefined);
       expect(
         await completePracticeSession(
           session,
