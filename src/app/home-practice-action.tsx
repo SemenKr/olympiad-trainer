@@ -166,6 +166,9 @@ export function HomePracticeAction() {
   if (loadError) {
     return (
       <HomePracticeLayout>
+        <h2 tabIndex={-1} autoFocus>
+          Не удалось открыть домашнюю страницу
+        </h2>
         <p role="alert">Не удалось проверить сохранённую тренировку.</p>
         <button
           className={styles.primary}
@@ -192,7 +195,9 @@ export function HomePracticeAction() {
     />
   ) : (
     <HomePracticeLayout>
-      <p role="status">Проверяем, есть ли незаконченная тренировка…</p>
+      <p aria-live="polite" role="status">
+        Проверяем, есть ли незаконченная тренировка…
+      </p>
     </HomePracticeLayout>
   );
 }
@@ -449,6 +454,7 @@ function HomePracticeLayout({
         </section>
         {stored?.completedLoadError ? (
           <section aria-label="Последняя тренировка" className={styles.card}>
+            <h3>Последняя тренировка недоступна</h3>
             <p role="alert">Не удалось проверить сохранённые итоги.</p>
             <button
               type="button"

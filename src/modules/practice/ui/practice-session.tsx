@@ -162,18 +162,6 @@ export function getActivePracticeProblem(
   return problem;
 }
 
-function PracticeRestoreError({ onRetry }: Readonly<{ onRetry: () => void }>) {
-  return (
-    <main>
-      <p role="alert">Не удалось проверить сохранённую тренировку.</p>
-      <button onClick={onRetry} type="button">
-        Повторить
-      </button>
-      <Link href="/">На главную</Link>
-    </main>
-  );
-}
-
 type PracticeProblemEpisodeProps = Readonly<{
   position?: string;
   review?: boolean;
@@ -375,6 +363,9 @@ export function PracticeSession({
   const [packUnavailable, setPackUnavailable] = useState(false);
   const [reviewUnavailable, setReviewUnavailable] = useState(false);
   const [restoreRetry, setRestoreRetry] = useState(0);
+  const [focusNextProblem, setFocusNextProblem] = useState(false);
+  const restoreHeadingRef = useRef<HTMLHeadingElement>(null);
+  const unavailableHeadingRef = useRef<HTMLHeadingElement>(null);
   const [loaded, setLoaded] = useState<
     | {
         session: ActivePracticeSessionState;
@@ -481,6 +472,8 @@ export function PracticeSession({
             observation: snapshot?.reasoningCheckpointObservation ?? null,
             interpretation,
           });
+          if (snapshot && snapshot.activeProblemIndex > 0)
+            setFocusNextProblem(true);
         })
         .catch(() => {
           if (active) setRestoreError(true);
@@ -504,12 +497,32 @@ export function PracticeSession({
     setRestoreRetry((value) => value + 1);
   };
 
-  if (restoreError) return <PracticeRestoreError onRetry={retryRestore} />;
+  useEffect(() => {
+    if (restoreError) restoreHeadingRef.current?.focus();
+    if (reviewUnavailable || packUnavailable)
+      unavailableHeadingRef.current?.focus();
+  }, [restoreError, reviewUnavailable, packUnavailable]);
+
+  if (restoreError)
+    return (
+      <main>
+        <h1 ref={restoreHeadingRef} tabIndex={-1}>
+          Тренировка недоступна
+        </h1>
+        <p role="alert">Не удалось проверить сохранённую тренировку.</p>
+        <button onClick={retryRestore} type="button">
+          Повторить
+        </button>
+        <Link href="/">На главную</Link>
+      </main>
+    );
 
   if (reviewUnavailable)
     return (
       <main>
-        <h1>Повторная попытка</h1>
+        <h1 ref={unavailableHeadingRef} tabIndex={-1}>
+          Повторная попытка недоступна
+        </h1>
         <p>Пока нет подходящей завершённой тренировки для повторной попытки.</p>
         <Link href="/progress">Посмотреть прогресс</Link>
       </main>
@@ -518,14 +531,20 @@ export function PracticeSession({
   if (packUnavailable)
     return (
       <main>
-        <h1>Дополнительная практика</h1>
+        <h1 ref={unavailableHeadingRef} tabIndex={-1}>
+          Дополнительная практика недоступна
+        </h1>
         <p>Сначала заверши первую тренировку.</p>
         <Link href="/practice">Начать тренировку</Link>
       </main>
     );
 
   if (!loaded) {
-    return <main aria-busy="true">Загружаем тренировку…</main>;
+    return (
+      <main aria-busy="true" role="status">
+        Загружаем тренировку…
+      </main>
+    );
   }
 
   if (completionPending) {
@@ -597,7 +616,19 @@ export function PracticeSession({
     pagesProblem,
     packs,
   );
-  if (!activeProblem) return <PracticeRestoreError onRetry={retryRestore} />;
+  if (!activeProblem)
+    return (
+      <main>
+        <h1 ref={restoreHeadingRef} tabIndex={-1}>
+          Тренировка недоступна
+        </h1>
+        <p role="alert">Не удалось проверить сохранённую тренировку.</p>
+        <button onClick={retryRestore} type="button">
+          Повторить
+        </button>
+        <Link href="/">На главную</Link>
+      </main>
+    );
   const restoredProblem = activeProblem;
 
   async function handleNextProblem(
@@ -636,6 +667,7 @@ export function PracticeSession({
       observation: null,
       interpretation: null,
     });
+    setFocusNextProblem(true);
     return true;
   }
 
@@ -696,6 +728,7 @@ export function PracticeSession({
         observation: null,
         interpretation: null,
       });
+      setFocusNextProblem(true);
       return true;
     }
 
@@ -744,7 +777,7 @@ export function PracticeSession({
       }
       sessionId={sessionState.sessionId}
       completionLatch={completionLatch}
-      focusHeadingOnMount={sessionState.activeProblemIndex > 0}
+      focusHeadingOnMount={focusNextProblem}
       hasNextProblem={
         isFixedPracticeSession(sessionState) &&
         sessionState.activeProblemIndex < 2
@@ -969,10 +1002,10 @@ function PracticeProblemEpisode({
   }, [initialAnswerState, problem, restoreRetry]);
 
   useEffect(() => {
-    if (focusHeadingOnMount) {
+    if (focusHeadingOnMount && !restorePending && !restoreFailed) {
       problemHeadingRef.current?.focus();
     }
-  }, [focusHeadingOnMount]);
+  }, [focusHeadingOnMount, restorePending, restoreFailed]);
 
   useEffect(() => {
     if (
