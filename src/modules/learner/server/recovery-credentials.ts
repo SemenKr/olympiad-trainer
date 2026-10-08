@@ -123,7 +123,13 @@ async function findPending(secret: string) {
     .select()
     .from(learnerCredentialChanges)
     .where(
-      eq(learnerCredentialChanges.pendingSecretHash, pendingSecretHash(secret)),
+      and(
+        eq(
+          learnerCredentialChanges.pendingSecretHash,
+          pendingSecretHash(secret),
+        ),
+        sql`${learnerCredentialChanges.expiresAt} > clock_timestamp()`,
+      ),
     );
   if (!pending) throw new CredentialChangeUnavailable();
   return pending;

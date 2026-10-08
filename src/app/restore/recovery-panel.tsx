@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  reconcileAuthenticatedLocalOwner,
   transitionLocalIdentity,
   transitionRecoveredLocalIdentity,
 } from "../../modules/learner/local-ownership";
@@ -153,7 +154,12 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
 
       if (operation.mode === "recovery")
         await transitionRecoveredLocalIdentity(target, acknowledge);
-      else await transitionLocalIdentity(target, acknowledge);
+      else {
+        const current = await readAuthenticatedLearnerContext();
+        if (!isLocalLearnerOwner(current)) throw new Error("unavailable");
+        await reconcileAuthenticatedLocalOwner(current, true);
+        await transitionLocalIdentity(target, acknowledge);
+      }
 
       setOperation(null);
       router.replace("/progress");

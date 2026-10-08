@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const navigation = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 const identity = vi.hoisted(() => ({ read: vi.fn() }));
 const ownership = vi.hoisted(() => ({
+  reconcile: vi.fn(),
   transition: vi.fn(),
   recover: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock("../identity/actions", () => ({
   readAuthenticatedLearnerContext: identity.read,
 }));
 vi.mock("../../modules/learner/local-ownership", () => ({
+  reconcileAuthenticatedLocalOwner: ownership.reconcile,
   transitionLocalIdentity: ownership.transition,
   transitionRecoveredLocalIdentity: ownership.recover,
 }));
@@ -123,6 +125,10 @@ describe("Russian Recovery v1 panel", () => {
     enter("recovery-confirmation", successor);
     await click("Подтвердить");
     expect(ownership.transition).toHaveBeenCalledOnce();
+    expect(ownership.reconcile).toHaveBeenCalledWith(owner, true);
+    expect(ownership.reconcile.mock.invocationCallOrder[0]).toBeLessThan(
+      ownership.transition.mock.invocationCallOrder[0],
+    );
     expect(ownership.recover).not.toHaveBeenCalled();
     expect(navigation.replace).toHaveBeenCalledWith("/progress");
     expect(steps).toHaveLength(0);
