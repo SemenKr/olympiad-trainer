@@ -16,59 +16,40 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const learners = pgTable(
-  "learners",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    anonymousTokenHash: text("anonymous_token_hash").notNull().unique(),
-    recoveryCodeHash: text("recovery_code_hash").unique(),
-    recoveryEnabledAt: timestamp("recovery_enabled_at", { withTimezone: true }),
-    credentialGeneration: bigint("credential_generation", { mode: "bigint" })
-      .notNull()
-      .default(BigInt(0)),
-    browserCredentialExpiresAt: timestamp("browser_credential_expires_at", {
-      withTimezone: true,
-    }).notNull(),
-    guaranteeEvidence: jsonb("guarantee_evidence").notNull(),
-    impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
-    enumerationEvidence: jsonb("enumeration_evidence").notNull(),
-    legacyImportHash: text("legacy_import_hash"),
-    brothersAgesAttempted: boolean("brothers_ages_attempted")
-      .notNull()
-      .default(false),
-    brothersAgesSolutionExposed: boolean("brothers_ages_solution_exposed")
-      .notNull()
-      .default(false),
-    parrotsAttempted: boolean("parrots_attempted").notNull().default(false),
-    parrotsSolutionExposed: boolean("parrots_solution_exposed")
-      .notNull()
-      .default(false),
-    pagesAttempted: boolean("pages_attempted").notNull().default(false),
-    pagesSolutionExposed: boolean("pages_solution_exposed")
-      .notNull()
-      .default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    check(
-      "learners_recovery_pair",
-      sql`(${table.recoveryCodeHash} IS NULL) = (${table.recoveryEnabledAt} IS NULL)`,
-    ),
-    check(
-      "learners_recovery_hash",
-      sql`${table.recoveryCodeHash} IS NULL OR ${table.recoveryCodeHash} ~ '^[0-9a-f]{64}$'`,
-    ),
-    check(
-      "learners_credential_generation_check",
-      sql`${table.credentialGeneration} >= 0`,
-    ),
-  ],
-);
+export const learners = pgTable("learners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  anonymousTokenHash: text("anonymous_token_hash").notNull().unique(),
+  credentialGeneration: bigint("credential_generation", { mode: "bigint" })
+    .notNull()
+    .default(BigInt(0)),
+  browserCredentialExpiresAt: timestamp("browser_credential_expires_at", {
+    withTimezone: true,
+  }).notNull(),
+  guaranteeEvidence: jsonb("guarantee_evidence").notNull(),
+  impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
+  enumerationEvidence: jsonb("enumeration_evidence").notNull(),
+  legacyImportHash: text("legacy_import_hash"),
+  brothersAgesAttempted: boolean("brothers_ages_attempted")
+    .notNull()
+    .default(false),
+  brothersAgesSolutionExposed: boolean("brothers_ages_solution_exposed")
+    .notNull()
+    .default(false),
+  parrotsAttempted: boolean("parrots_attempted").notNull().default(false),
+  parrotsSolutionExposed: boolean("parrots_solution_exposed")
+    .notNull()
+    .default(false),
+  pagesAttempted: boolean("pages_attempted").notNull().default(false),
+  pagesSolutionExposed: boolean("pages_solution_exposed")
+    .notNull()
+    .default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export const learnerCredentialChanges = pgTable(
   "learner_credential_changes",

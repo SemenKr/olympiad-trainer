@@ -42,6 +42,7 @@ import {
   limitCredentialAttempts,
 } from "./identity-rate-limit";
 import { generateRecoveryCode, recoveryCodeHash } from "./recovery-secrets";
+import { recoveryLearners } from "./recovery-schema";
 
 const testUrl = process.env.DATABASE_TEST_URL;
 const schema = `recovery_${randomUUID().replaceAll("-", "")}`;
@@ -91,12 +92,17 @@ async function fresh() {
   return context;
 }
 async function row(context: AuthenticatedLearner) {
-  return (
+  const learner = (
     await getProgressDb()
       .select()
       .from(learners)
       .where(eq(learners.id, context.learnerId))
   )[0];
+  const [credentials] = await getProgressDb()
+    .select()
+    .from(recoveryLearners)
+    .where(eq(recoveryLearners.id, context.learnerId));
+  return { ...learner, ...credentials };
 }
 async function enrolled() {
   const context = await fresh();

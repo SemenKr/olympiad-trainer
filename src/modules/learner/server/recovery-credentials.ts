@@ -21,6 +21,7 @@ import {
   recoveryCodeHash,
 } from "./recovery-secrets";
 import { limitCredentialAttempts } from "./identity-rate-limit";
+import { recoveryLearners } from "./recovery-schema";
 
 type Kind = (typeof learnerCredentialChanges.$inferSelect)["kind"];
 type Transaction = Parameters<
@@ -33,9 +34,19 @@ export class CredentialChangeUnavailable extends Error {
   }
 }
 
+// Caller already holds the shared learner-row lock through the Identity Boundary.
+async function lockedCredentials(tx: Transaction, learnerId: string) {
+  const [credentials] = await tx
+    .select()
+    .from(recoveryLearners)
+    .where(eq(recoveryLearners.id, learnerId));
+  if (!credentials) throw new CredentialChangeUnavailable();
+  return credentials;
+}
+
 async function insertPending(
   tx: Transaction,
-  learner: typeof learners.$inferSelect,
+  learner: typeof recoveryLearners.$inferSelect,
   kind: Kind,
 ) {
   const [{ count }] = await tx
@@ -75,9 +86,10 @@ export async function startAuthenticatedCredentialChange(
 ) {
   await limitCredentialAttempts("authenticated-start", context.learnerId);
   return withAuthenticatedLearner(context, async (tx, learner) => {
-    if ((kind === "enrollment") !== (learner.recoveryCodeHash === null))
+    const credentials = await lockedCredentials(tx, learner.id);
+    if ((kind === "enrollment") !== (credentials.recoveryCodeHash === null))
       throw new CredentialChangeUnavailable();
-    return insertPending(tx, learner, kind);
+    return insertPending(tx, credentials, kind);
   });
 }
 
@@ -88,8 +100,8 @@ export async function startRecovery(code: string) {
   return getProgressDb().transaction(async (tx) => {
     const [learner] = await tx
       .select()
-      .from(learners)
-      .where(eq(learners.recoveryCodeHash, hash))
+      .from(recoveryLearners)
+      .where(eq(recoveryLearners.recoveryCodeHash, hash))
       .for("update");
     if (!learner) throw new CredentialChangeUnavailable();
     return insertPending(tx, learner, "recovery");
@@ -112,7 +124,7 @@ async function recheckPending(
   tx: Transaction,
   secret: string,
   code: string,
-  learner: typeof learners.$inferSelect,
+  learner: typeof recoveryLearners.$inferSelect,
   kind: Kind,
 ) {
   const [pending] = await tx
@@ -142,12 +154,12 @@ async function recheckPending(
 
 async function applySuccessor(
   tx: Transaction,
-  learner: typeof learners.$inferSelect,
+  learner: typeof recoveryLearners.$inferSelect,
   pending: typeof learnerCredentialChanges.$inferSelect,
   token?: string,
 ) {
   await tx
-    .update(learners)
+    .update(recoveryLearners)
     .set({
       recoveryCodeHash: pending.successorCodeHash,
       recoveryEnabledAt: learner.recoveryEnabledAt ?? sql`clock_timestamp()`,
@@ -161,7 +173,7 @@ async function applySuccessor(
           }
         : {}),
     })
-    .where(eq(learners.id, learner.id));
+    .where(eq(recoveryLearners.id, learner.id));
   await tx
     .delete(learnerCredentialChanges)
     .where(eq(learnerCredentialChanges.learnerId, learner.id));
@@ -187,21 +199,22 @@ export async function confirmCredentialChange(
     if (!context || context.learnerId !== pending.learnerId)
       throw new CredentialChangeUnavailable();
     return withAuthenticatedLearner(context, async (tx, learner) => {
+      const credentials = await lockedCredentials(tx, learner.id);
       const current = await recheckPending(
         tx,
         secret,
         code,
-        learner,
+        credentials,
         pending.kind,
       );
-      return { owner: await applySuccessor(tx, learner, current) };
+      return { owner: await applySuccessor(tx, credentials, current) };
     });
   }
   return getProgressDb().transaction(async (tx) => {
     const [learner] = await tx
       .select()
-      .from(learners)
-      .where(eq(learners.id, pending.learnerId))
+      .from(recoveryLearners)
+      .where(eq(recoveryLearners.id, pending.learnerId))
       .for("update");
     if (!learner) throw new CredentialChangeUnavailable();
     const current = await recheckPending(tx, secret, code, learner, "recovery");
@@ -225,16 +238,14 @@ export async function pendingTransitionContext(
   await limitCredentialAttempts("confirm-learner", pending.learnerId);
   if (context && pending.kind === "recovery")
     throw new CredentialChangeUnavailable();
-  const operation = async (
-    tx: Transaction,
-    learner: typeof learners.$inferSelect,
-  ) => {
-    await recheckPending(tx, secret, code, learner, pending.kind);
+  const operation = async (tx: Transaction, learner: { id: string }) => {
+    const credentials = await lockedCredentials(tx, learner.id);
+    await recheckPending(tx, secret, code, credentials, pending.kind);
     return {
       operationId: pending.id,
       target: {
         learnerId: learner.id,
-        generation: (learner.credentialGeneration + BigInt(1)).toString(),
+        generation: (credentials.credentialGeneration + BigInt(1)).toString(),
       },
     };
   };
