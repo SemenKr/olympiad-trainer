@@ -19,8 +19,12 @@ import {
   cleanupCredentialOperations,
   CredentialRateLimited,
   limitCredentialAttempts,
-  trustedRecoveryNetworkBucket,
 } from "../../../../modules/learner/server/identity-rate-limit";
+import {
+  credentialRequestOriginAllowed,
+  recoveryEnabled,
+  trustedRecoveryNetworkBucket,
+} from "../../../../modules/learner/server/recovery-security";
 import {
   BROWSER_LIFETIME_SECONDS,
   isPendingSecret,
@@ -52,27 +56,17 @@ function response(body: unknown, status = 200, retryAfter?: number) {
   });
 }
 
-const cookieOptions = {
+const credentialCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: process.env.NODE_ENV === "production" || process.env.VERCEL === "1",
   sameSite: "strict" as const,
   path: COOKIE_PATH,
-};
+});
 
 async function readInput(
   request: Request,
 ): Promise<{ action: Action; code?: string }> {
-  const url = new URL(request.url);
-  // Local/test-only surface. A host-provided request URL is not an origin allowlist.
-  // Production and Preview are hard disabled before cookies or database access.
-  if (
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-    url.search ||
-    request.headers.get("origin") !== url.origin ||
-    request.headers.get("host") !== url.host ||
-    (request.headers.has("sec-fetch-site") &&
-      request.headers.get("sec-fetch-site") !== "same-origin")
-  )
+  if (!credentialRequestOriginAllowed(request))
     throw new Error("Invalid request.");
   if (
     request.headers.get("content-type")?.split(";")[0].trim() !==
@@ -120,7 +114,7 @@ async function readInput(
 }
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === "production" || process.env.VERCEL)
+  if (!recoveryEnabled())
     return response({ ok: false, error: "unavailable" }, 503);
   let input: Awaited<ReturnType<typeof readInput>>;
   try {
@@ -128,20 +122,25 @@ export async function POST(request: Request) {
   } catch {
     return response({ ok: false, error: "unavailable" }, 400);
   }
+  const { action, code } = input;
+  const needsNetwork = action === "recovery" || action.endsWith("-recovery");
+  const network = needsNetwork
+    ? trustedRecoveryNetworkBucket(request.headers)
+    : null;
+  if (needsNetwork && !network)
+    return response({ ok: false, error: "unavailable" }, 503);
   try {
-    const { action, code } = input;
-    if (action === "recovery" || action.endsWith("-recovery")) {
-      const network = trustedRecoveryNetworkBucket();
-      if (!network) return response({ ok: false, error: "unavailable" }, 503);
+    if (network) {
       await limitCredentialAttempts(
         action === "recovery"
           ? "recovery-start-network"
           : "recovery-confirm-network",
         network,
-        10,
+        action === "recovery" ? 10 : 30,
       );
     }
     const jar = await cookies();
+    const cookieOptions = credentialCookieOptions();
     if (
       action === "enrollment" ||
       action === "replacement" ||
