@@ -34,21 +34,44 @@ export async function limitCredentialAttempts(
     throw new CredentialRateLimited(result.rows[0].retry_after);
 }
 
-// Bounded batches; scheduled execution/24-hour retention is a separate launch gate.
+export const CREDENTIAL_CLEANUP_BATCH_SIZE = 100;
+
+// Bounded oldest-first batches; SKIP LOCKED permits safe overlapping cleanup.
 export async function cleanupCredentialOperations() {
   const db = getProgressDb();
-  await db.execute(sql`DELETE FROM learner_credential_changes WHERE id IN (
+  const pending =
+    await db.execute(sql`DELETE FROM learner_credential_changes WHERE id IN (
     SELECT id FROM learner_credential_changes WHERE expires_at <= clock_timestamp()
-    ORDER BY expires_at LIMIT 100
+    ORDER BY expires_at, id LIMIT ${CREDENTIAL_CLEANUP_BATCH_SIZE} FOR UPDATE SKIP LOCKED
   )`);
-  await db.execute(sql`DELETE FROM identity_rate_limit_buckets WHERE (bucket_key, window_start) IN (
+  const rates =
+    await db.execute(sql`DELETE FROM identity_rate_limit_buckets WHERE (bucket_key, window_start) IN (
     SELECT bucket_key, window_start FROM identity_rate_limit_buckets WHERE expires_at <= clock_timestamp()
-    ORDER BY expires_at LIMIT 100
+    ORDER BY expires_at, bucket_key, window_start LIMIT ${CREDENTIAL_CLEANUP_BATCH_SIZE} FOR UPDATE SKIP LOCKED
   )`);
+  return {
+    pendingDeleted: pending.rowCount ?? 0,
+    rateDeleted: rates.rowCount ?? 0,
+  };
 }
 
-// Fail closed. No trusted hosting source/daily keyed network hash is configured.
-// Never substitute x-forwarded-for, a database secret, or an unkeyed IP hash.
-export function trustedRecoveryNetworkBucket(): string | null {
-  return null;
+export const SCHEDULED_CLEANUP_MAX_BATCHES = 20;
+
+export async function scheduledCredentialCleanup() {
+  const total = { pendingDeleted: 0, rateDeleted: 0 };
+  for (let batch = 0; batch < SCHEDULED_CLEANUP_MAX_BATCHES; batch++) {
+    const result = await cleanupCredentialOperations();
+    total.pendingDeleted += result.pendingDeleted;
+    total.rateDeleted += result.rateDeleted;
+    if (
+      result.pendingDeleted < CREDENTIAL_CLEANUP_BATCH_SIZE &&
+      result.rateDeleted < CREDENTIAL_CLEANUP_BATCH_SIZE
+    )
+      break;
+  }
+  const result = await getProgressDb().execute<{ remaining: boolean }>(sql`
+    SELECT EXISTS (SELECT 1 FROM learner_credential_changes WHERE expires_at <= clock_timestamp())
+      OR EXISTS (SELECT 1 FROM identity_rate_limit_buckets WHERE expires_at <= clock_timestamp()) AS remaining
+  `);
+  return { ...total, complete: !result.rows[0].remaining };
 }

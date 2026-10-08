@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { randomBytes } from "node:crypto";
 vi.mock("server-only", () => ({}));
 const state = vi.hoisted(() => ({
   jar: new Map<string, string>(),
@@ -34,9 +35,22 @@ vi.mock("../../../../modules/learner/server/recovery-credentials", () => ({
 vi.mock("../../../../modules/learner/server/identity-rate-limit", () => ({
   cleanupCredentialOperations: state.cleanup,
   limitCredentialAttempts: state.limit,
-  trustedRecoveryNetworkBucket: state.network,
-  CredentialRateLimited: class extends Error {},
+  CredentialRateLimited: class extends Error {
+    constructor(public retryAfter: number) {
+      super("Rate limited.");
+    }
+  },
 }));
+vi.mock(
+  "../../../../modules/learner/server/recovery-security",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../../../modules/learner/server/recovery-security")
+    >()),
+    trustedRecoveryNetworkBucket: state.network,
+  }),
+);
+import { CredentialRateLimited } from "../../../../modules/learner/server/identity-rate-limit";
 import { POST } from "./route";
 import { PENDING_COOKIE_NAME } from "../../../../modules/learner/server/credential-cookies";
 import {
@@ -71,6 +85,12 @@ beforeEach(() => {
   state.jar.clear();
   vi.stubEnv("NODE_ENV", "test");
   vi.stubEnv("VERCEL", "");
+  vi.stubEnv("RECOVERY_ENABLED", "true");
+  vi.stubEnv(
+    "RECOVERY_NETWORK_HMAC_KEY",
+    randomBytes(32).toString("base64url"),
+  );
+  vi.stubEnv("CRON_SECRET", randomBytes(32).toString("base64url"));
   state.start.mockResolvedValue({ operationId: "operation", code, secret });
   state.recover.mockResolvedValue({ operationId: "operation", code, secret });
   state.confirm.mockResolvedValue({ owner });
@@ -85,13 +105,82 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 describe("credential HTTP boundary", () => {
   it.each(["production", "preview"])(
-    "hard disables %s before any DB/auth work",
+    "disabled feature rejects %s before any DB/auth work",
     async (target) => {
       if (target === "production") vi.stubEnv("NODE_ENV", "production");
       else vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("RECOVERY_ENABLED", undefined);
       expect((await POST(request({ action: "enrollment" }))).status).toBe(503);
       expect(state.auth).not.toHaveBeenCalled();
       expect(state.cleanup).not.toHaveBeenCalled();
+    },
+  );
+  it.each([undefined, "", "false", "invalid", "TRUE"])(
+    "feature unset/invalid rejects before body, network or DB",
+    async (flag) => {
+      vi.stubEnv("RECOVERY_ENABLED", flag);
+      expect((await POST(request({ action: "enrollment" }))).status).toBe(503);
+      expect(state.network).not.toHaveBeenCalled();
+      expect(state.auth).not.toHaveBeenCalled();
+      expect(state.cleanup).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["RECOVERY_NETWORK_HMAC_KEY", "CRON_SECRET"])(
+    "enabled but missing security configuration fails closed",
+    async (name) => {
+      vi.stubEnv(name, undefined);
+      expect((await POST(request({ action: "enrollment" }))).status).toBe(503);
+      expect(state.auth).not.toHaveBeenCalled();
+      expect(state.cleanup).not.toHaveBeenCalled();
+    },
+  );
+  it("enabled Vercel Preview may execute with valid controlled config and trusted origin", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "trainer-preview.vercel.app");
+    state.network.mockReturnValue("a".repeat(64));
+    const result = await POST(
+      request(
+        { action: "recovery", code },
+        {
+          origin: "https://trainer-preview.vercel.app",
+          host: "trainer-preview.vercel.app",
+        },
+        "https://trainer-preview.vercel.app/api/identity/credentials",
+      ),
+    );
+    expect(result.status).toBe(200);
+    expect(state.limit).toHaveBeenCalledWith(
+      "recovery-start-network",
+      "a".repeat(64),
+      10,
+    );
+  });
+  it.each(["recovery", "context-recovery", "confirm-recovery"])(
+    "network limit is enforced before sensitive %s service work",
+    async (action) => {
+      state.network.mockReturnValue("a".repeat(64));
+      state.jar.set(PENDING_COOKIE_NAME, secret);
+      state.limit.mockRejectedValueOnce(new CredentialRateLimited(90));
+      const result = await POST(request({ action, code }));
+      expect(result.status).toBe(429);
+      expect(result.headers.get("Retry-After")).toBe("90");
+      expect(await result.json()).toEqual({
+        ok: false,
+        error: "retry-later",
+        retryAfter: 90,
+      });
+      expect(state.limit).toHaveBeenCalledWith(
+        action === "recovery"
+          ? "recovery-start-network"
+          : "recovery-confirm-network",
+        "a".repeat(64),
+        action === "recovery" ? 10 : 30,
+      );
+      expect(state.recover).not.toHaveBeenCalled();
+      expect(state.context).not.toHaveBeenCalled();
+      expect(state.confirm).not.toHaveBeenCalled();
     },
   );
   it.each([
