@@ -1,3 +1,12 @@
+import {
+  installTestLocalOwner,
+  rawTestLearnerStorage,
+} from "../../learner/local-ownership.test-helper";
+import {
+  captureLearnerStorage,
+  currentLocalLearnerOwner,
+  reconcileAuthenticatedLocalOwner,
+} from "../../learner/local-ownership";
 // @vitest-environment jsdom
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -39,7 +48,7 @@ let server: SimulationAttempt | null;
 let root: Root;
 let host: HTMLDivElement;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   vi.useFakeTimers({
     toFake: [
@@ -63,6 +72,7 @@ beforeEach(() => {
       ),
     },
   });
+  await installTestLocalOwner(window.localStorage);
   vi.mocked(readSimulation).mockImplementation(async () => ({
     attempt: server ? expireSimulation(server, Date.now()) : null,
     serverNow: Date.now(),
@@ -212,6 +222,7 @@ describe("student simulation flow", () => {
       expect.any(Number),
       expect.objectContaining({ drafts: ["submitted proof", "", "", ""] }),
       true,
+      expect.objectContaining({ generation: "0" }),
     );
     expect(host.querySelector("textarea")).toBeNull();
     expect(host.textContent).toContain("submitted proof");
@@ -259,7 +270,10 @@ describe("student simulation flow", () => {
     await click("Посмотреть сданную работу");
     expect(host.textContent).toContain("saved proof");
     expect(host.querySelector("textarea")).toBeNull();
-    expect(readSimulationReferences).toHaveBeenCalledWith(id);
+    expect(readSimulationReferences).toHaveBeenCalledWith(
+      id,
+      expect.objectContaining({ generation: "0" }),
+    );
   });
   it("keeps an unsent local timeout copy separate from frozen server submission and offers download", async () => {
     server = {
@@ -392,6 +406,33 @@ describe("student simulation flow", () => {
       "new reasoning after return",
     );
   });
+  it("ignores a late Save response after authenticated generation changes", async () => {
+    await mount();
+    await click("Начать");
+    const save = vi.mocked(saveSimulation).getMockImplementation()!;
+    let respond!: () => void;
+    const response = new Promise<void>((resolve) => {
+      respond = resolve;
+    });
+    vi.mocked(saveSimulation).mockImplementationOnce(async (...args) => {
+      const snapshot = await save(...args);
+      await response;
+      return snapshot;
+    });
+    await type("pending reasoning");
+    await advance(300);
+    const before = localStorage.getItem(SIMULATION_PENDING_KEY);
+    const owner = currentLocalLearnerOwner();
+    await reconcileAuthenticatedLocalOwner(
+      { ...owner, generation: "1" },
+      true,
+      rawTestLearnerStorage(window.localStorage),
+    );
+    await act(async () => respond());
+    expect(captureLearnerStorage().getItem(SIMULATION_PENDING_KEY)).toBe(
+      before,
+    );
+  });
   it("keeps failed saves visibly unsaved rather than claiming an active save", async () => {
     await mount();
     await click("Начать");
@@ -488,7 +529,10 @@ describe("student simulation flow", () => {
   });
   it("a second tab cannot bypass the editor lock by retrying restore", async () => {
     vi.mocked(navigator.locks.request).mockImplementation(
-      async (_name, _options, callback) => callback!(null),
+      async (_name, _options, callback) =>
+        callback!(
+          _name.includes("identity") ? ({ name: _name } as Lock) : null,
+        ),
     );
     await mount();
     expect(host.textContent).toContain("другой вкладке");
@@ -504,6 +548,8 @@ describe("student simulation flow", () => {
     let requests = 0;
     vi.mocked(navigator.locks.request).mockImplementation(
       async (_name, _options, callback) => {
+        if (_name.includes("identity"))
+          return callback!({ name: _name } as Lock);
         if (held) return callback!(null);
         held = true;
         if (++requests === 1) await acquisition;
@@ -529,6 +575,8 @@ describe("student simulation flow", () => {
     let held = false;
     vi.mocked(navigator.locks.request).mockImplementation(
       async (_name, _options, callback) => {
+        if (_name.includes("identity"))
+          return callback!({ name: _name } as Lock);
         if (held) return callback!(null);
         held = true;
         await Promise.resolve();
@@ -555,7 +603,11 @@ describe("student simulation flow", () => {
     let competing = true;
     vi.mocked(navigator.locks.request).mockImplementation(
       async (_name, _options, callback) =>
-        callback!(competing ? null : ({ name: "editor" } as Lock)),
+        callback!(
+          !_name.includes("identity") && competing
+            ? null
+            : ({ name: "editor" } as Lock),
+        ),
     );
     await mount();
     await click("Повторить восстановление");

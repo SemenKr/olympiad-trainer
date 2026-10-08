@@ -9,7 +9,7 @@ import {
   readServerPracticeJourney,
   readServerReviewAvailability,
   readServerLearningPath,
-} from "./progress/actions";
+} from "../modules/learner/progress-client";
 import type { AdaptiveAvailability } from "../modules/practice/application/adaptive-availability";
 import {
   PRACTICE_PACKS,

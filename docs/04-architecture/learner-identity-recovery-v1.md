@@ -147,6 +147,29 @@ Legacy unbound local data can be bound once only while a **pre-existing valid co
 
 Bound data for the **same** verified learner may resume after recovery, updating credential generation under the barrier and retaining exact pending request IDs/hashes. Different-owner data stays isolated. Switching away from a valid current learner requires an explicit warning if its server history has no recovery code, with an option to cancel and enable recovery first. Never claim that merely retaining its local namespace preserves access to its server history.
 
+### Local ownership foundation (slice 3)
+
+The browser boundary reads authenticated public `{ learnerId, generation }` metadata before mounting learner views. Generation is serialized as a decimal string to preserve PostgreSQL bigint precision. This metadata is not a credential. Progress/import/Finish, Review, Knowledge Support and Simulation actions compare expected context with the HttpOnly credential; persistence still rechecks credential authority inside its existing transactions.
+
+The local inventory is:
+
+| Existing key suffix                | Payload retained                                         |
+| ---------------------------------- | -------------------------------------------------------- |
+| `practice-session`                 | Unfinished Practice, including no-next state             |
+| `practice-latest-completed`        | Latest Summary                                           |
+| `progress-evidence-v0`             | Legacy local evidence awaiting acknowledged import       |
+| `practice-progress-finish-pending` | Legacy/current local Finish commit/reconciliation marker |
+| `practice-server-finish-request`   | Immutable pending server Finish request                  |
+| `simulation-pending-v0`            | Simulation work and pending save recovery copy           |
+
+All original keys use the `olympiad-trainer:` prefix. Owner-scoped keys use `olympiad-trainer:learner:<learnerId>:<suffix>` and a version-1 envelope containing owner metadata and the exact original serialized payload string. Storage consumers see the original payload through a captured owner-scoped Storage adapter. No ownership fields enter mathematical facts, request IDs or learning receipts. Legacy originals remain preserved and ignored after a successful one-time binding; they are not another import source. Partial migration failure preserves originals and blocks the learner boundary.
+
+`local-owner-v1` records the active authenticated context and original legacy association; `identity-switch-v1` records a non-secret operation ID, source and intended target. The shared identity lock uses the existing `identity-initialization` name. Practice mutations/imports acquire a shared identity lock before `practice-session-mutation`; the Simulation editor holds shared identity before `simulation-editor`. A transition acquires those three locks exclusively in that order with `ifAvailable`, writes/read-backs its durable marker and only then permits a supplied acknowledgement. Held editors are never stolen. No recovery acknowledgement endpoint exists in this slice; tests simulate it.
+
+An unresolved marker requires a fresh authenticated read. Verified target reconciliation activates its namespace; source or unrelated context stays blocked with the existing retry/error surface. Same-learner generation updates retain exact payloads and pending request identity. Captured adapters reject old leases after generation/context change, and derived Progress/Support responses verify their lease before returning. Storage events invalidate mounted views; their in-memory state is discarded, while source bytes remain. Simulation also checks the captured lease before applying asynchronous server responses. There is no shared persistent recommendation cache or import promise to transfer; the existing Simulation editor-lifetime promise coordinates lock disposal only.
+
+This foundation adds no database migration and does not expose Restore, Start fresh, enrollment, credential replacement or recovery UI. Recovery remains disabled. Old deployments/open tabs that do not participate in ownership enforcement must be excluded before recovery is eventually enabled, as required above.
+
 ## 10. Failure and recovery cases
 
 | Scenario                                           | Required result                                                                                                                                                   |

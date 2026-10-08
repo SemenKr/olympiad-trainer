@@ -1,3 +1,4 @@
+import { captureLearnerStorage } from "../../learner/local-ownership";
 import {
   requireSimulationId,
   requireSimulationRevision,
@@ -11,8 +12,9 @@ export const SIMULATION_PENDING_KEY = "olympiad-trainer:simulation-pending-v0";
 export function storeSimulationDraft(
   attempt: SimulationAttempt,
   pending: SimulationAttempt | null = null,
+  storage: Storage = captureLearnerStorage(),
 ) {
-  localStorage.setItem(
+  storage.setItem(
     SIMULATION_PENDING_KEY,
     JSON.stringify({
       sessionId: attempt.sessionId,
@@ -32,8 +34,9 @@ export function storeSimulationDraft(
 
 export function restoreSimulationDraft(
   attempt: SimulationAttempt,
+  storage: Storage = captureLearnerStorage(),
 ): SimulationAttempt {
-  const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
+  const raw = storage.getItem(SIMULATION_PENDING_KEY);
   if (!raw || attempt.finishedAt !== null) return attempt;
   const input: unknown = JSON.parse(raw);
   if (typeof input !== "object" || input === null)
@@ -58,8 +61,11 @@ export function restoreSimulationDraft(
   throw new Error("Local simulation draft conflicts with server state.");
 }
 
-export function hasUnsubmittedDrafts(attempt: SimulationAttempt): boolean {
-  const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
+export function hasUnsubmittedDrafts(
+  attempt: SimulationAttempt,
+  storage: Storage = captureLearnerStorage(),
+): boolean {
+  const raw = storage.getItem(SIMULATION_PENDING_KEY);
   if (!raw) return false;
   try {
     const value = JSON.parse(raw);

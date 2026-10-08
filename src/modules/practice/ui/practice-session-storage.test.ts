@@ -673,6 +673,8 @@ describe("unfinished Practice storage", () => {
           options: LockOptions,
           operation: () => unknown,
         ) => {
+          if (name === "olympiad-trainer:identity-initialization")
+            return Promise.resolve(operation());
           expect(name).toBe("olympiad-trainer:practice-session-mutation");
           expect(options.mode).toBe("exclusive");
           const result = queue.then(operation);

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { readServerReviewAvailability } from "../../../app/progress/actions";
+import { readServerReviewAvailability } from "../../learner/progress-client";
 
 export function ReviewEntry({
   available,

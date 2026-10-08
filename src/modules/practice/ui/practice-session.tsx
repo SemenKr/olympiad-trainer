@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  captureLearnerStorage,
+  currentLocalLearnerOwner,
+} from "../../learner/local-ownership";
+
 import Link from "next/link";
 import { KnowledgeSupport } from "../../knowledge-support/ui/knowledge-support";
 import { useRouter } from "next/navigation";
@@ -18,7 +23,7 @@ import {
   readServerAdaptiveAvailability,
   readServerNextUsefulProblem,
   startServerReview,
-} from "../../../app/progress/actions";
+} from "../../learner/progress-client";
 
 import type {
   LearnerSafePracticeProblem,
@@ -272,6 +277,8 @@ export async function finishPracticeSessionAndNavigate(
   navigate: () => void,
   storage?: Storage,
 ): Promise<boolean> {
+  storage ??= captureLearnerStorage();
+  const owner = currentLocalLearnerOwner();
   if (completionLatch.current) return false;
   if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
     return false;
@@ -282,6 +289,7 @@ export async function finishPracticeSessionAndNavigate(
     return false;
   }
   if (importedLegacyFinish === session.sessionId) {
+    storage.getItem("olympiad-trainer:practice-session");
     completionLatch.current = true;
     navigate();
     return true;
@@ -309,16 +317,22 @@ export async function finishPracticeSessionAndNavigate(
             mode: request.episodeMode,
             facts: request.episodeFacts,
           },
+          owner,
         )
       : request.adaptiveFacts
         ? persistPracticeFinishEvidence(
             request.sessionId,
             request.contributions,
             request.adaptiveFacts,
+            undefined,
+            owner,
           )
         : persistPracticeFinishEvidence(
             request.sessionId,
             request.contributions,
+            undefined,
+            undefined,
+            owner,
           );
   const completed =
     "status" in session
@@ -332,6 +346,7 @@ export async function finishPracticeSessionAndNavigate(
           persist,
         ));
   if (!completed) return false;
+  storage.getItem("olympiad-trainer:practice-session");
   completionLatch.current = true;
   navigate();
   return true;
@@ -354,6 +369,9 @@ export function PracticeSession({
         ? (pagesProblem ?? problems[0])
         : (transferProblem ?? problems[0]);
   const router = useRouter();
+  const [learnerStorage] = useState(() =>
+    typeof window === "undefined" ? undefined : captureLearnerStorage(),
+  );
   const completionLatch = useRef(false);
   const noNextMutationGate = useRef(false);
   const [noNextMutationPending, setNoNextMutationPending] = useState(false);
@@ -383,6 +401,7 @@ export function PracticeSession({
       if (!active) return;
       void readVerifiedPracticeSessionSnapshot(
         verifyPersistedReasoningCheckpointObservation,
+        learnerStorage,
       )
         .then(async ({ value: snapshot, interpretation }) => {
           if (!active) return;
@@ -410,7 +429,7 @@ export function PracticeSession({
                 ? startPackPracticeSession(startPackId)
                 : startPracticeSession();
           if (!snapshot && startMode === "review") {
-            await ensureServerProgressImported();
+            await ensureServerProgressImported(learnerStorage);
             const sessionId = await startServerReview();
             if (!sessionId) {
               if (active) setReviewUnavailable(true);
@@ -438,7 +457,7 @@ export function PracticeSession({
                     : problems[0],
               );
           if (!snapshot && startMode === "transfer") {
-            await ensureServerProgressImported();
+            await ensureServerProgressImported(learnerStorage);
             const recommendation = await readServerNextUsefulProblem();
             if (recommendation?.problemId !== startTransferProblemId) {
               if (active) setRestoreError(true);
@@ -446,11 +465,12 @@ export function PracticeSession({
             }
           }
           if (!snapshot && startMode === "pack") {
-            await ensureServerProgressImported();
+            await ensureServerProgressImported(learnerStorage);
             const [availability, completed] = await Promise.all([
               readServerAdaptiveAvailability(),
               readVerifiedLatestCompletedResults(
                 verifyPersistedReasoningCheckpointObservation,
+                learnerStorage,
               ),
             ]);
             if (!availability.hasPracticeHistory && !completed.value) {
@@ -460,7 +480,11 @@ export function PracticeSession({
           }
           if (
             !snapshot &&
-            !(await createPracticeSessionSnapshot(session, answer))
+            !(await createPracticeSessionSnapshot(
+              session,
+              answer,
+              learnerStorage,
+            ))
           ) {
             if (active) setRestoreError(true);
             return;
@@ -483,6 +507,7 @@ export function PracticeSession({
       active = false;
     };
   }, [
+    learnerStorage,
     restoreRetry,
     problems,
     packs,
@@ -575,6 +600,7 @@ export function PracticeSession({
                 `/practice/summary?session=${noNextSession.sessionId}`,
               );
             },
+            learnerStorage,
           ).then((completed) => {
             if (!completed) {
               setNoNextStorageError(true);
@@ -587,16 +613,17 @@ export function PracticeSession({
           if (completionLatch.current || noNextMutationGate.current) return;
           noNextMutationGate.current = true;
           setNoNextMutationPending(true);
-          void saveNoNextPracticeSessionSnapshot(noNextSession).then(
-            (saved) => {
-              if (saved) router.push("/");
-              else {
-                setNoNextStorageError(true);
-                noNextMutationGate.current = false;
-                setNoNextMutationPending(false);
-              }
-            },
-          );
+          void saveNoNextPracticeSessionSnapshot(
+            noNextSession,
+            learnerStorage,
+          ).then((saved) => {
+            if (saved) router.push("/");
+            else {
+              setNoNextStorageError(true);
+              noNextMutationGate.current = false;
+              setNoNextMutationPending(false);
+            }
+          });
         }}
         storageError={noNextStorageError}
       />
@@ -659,7 +686,13 @@ export function PracticeSession({
         ? activePackProblems![nextSession.activeProblemIndex]
         : problems[nextSession.activeProblemIndex],
     );
-    if (!(await savePracticeSessionSnapshot(nextSession, nextAnswer)))
+    if (
+      !(await savePracticeSessionSnapshot(
+        nextSession,
+        nextAnswer,
+        learnerStorage,
+      ))
+    )
       return false;
     setLoaded({
       session: nextSession,
@@ -700,6 +733,7 @@ export function PracticeSession({
         setCompletionPending(true);
         router.push(`/practice/summary?session=${sessionState.sessionId}`);
       },
+      learnerStorage,
     );
   }
 
@@ -720,7 +754,13 @@ export function PracticeSession({
           ? activePackProblems![nextSession.activeProblemIndex]
           : problems[nextSession.activeProblemIndex],
       );
-      if (!(await savePracticeSessionSnapshot(nextSession, answer)))
+      if (
+        !(await savePracticeSessionSnapshot(
+          nextSession,
+          answer,
+          learnerStorage,
+        ))
+      )
         return false;
       setLoaded({
         session: nextSession,
@@ -743,7 +783,7 @@ export function PracticeSession({
           };
     if (
       !noNextSession ||
-      !(await saveNoNextPracticeSessionSnapshot(noNextSession))
+      !(await saveNoNextPracticeSessionSnapshot(noNextSession, learnerStorage))
     )
       return false;
     setLoaded({ session: noNextSession });
@@ -759,7 +799,7 @@ export function PracticeSession({
         completionLatch,
         sessionState,
         answer,
-        undefined,
+        learnerStorage,
         observation,
       ))
     )
@@ -791,7 +831,7 @@ export function PracticeSession({
           completionLatch,
           sessionState,
           answer,
-          undefined,
+          learnerStorage,
           observation,
         )
       }
@@ -804,7 +844,7 @@ export function PracticeSession({
           completionLatch,
           sessionState,
           answer,
-          undefined,
+          learnerStorage,
           observation,
         )
       }

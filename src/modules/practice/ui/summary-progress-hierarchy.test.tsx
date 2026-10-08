@@ -1,8 +1,9 @@
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../app/progress/actions", () => ({
   readServerProgress: vi.fn(),
@@ -22,6 +23,8 @@ import {
 } from "../../../app/progress/actions";
 import { ProgressOverview } from "./progress-overview";
 import { SessionSummary } from "./session-summary";
+
+beforeEach(installImmediatePracticeSessionLock);
 
 describe("Summary and Progress hierarchy", () => {
   it("keeps episode outcomes and checkpoint evidence outside Journey/actions", () => {

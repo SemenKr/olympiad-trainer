@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../modules/practice/server/learner-identity", () => ({
+  resolveExpectedLearnerFromCookie: vi.fn(async () => "cookie-owned-learner"),
   resolveLearnerFromCookie: vi.fn(async () => "cookie-owned-learner"),
 }));
 vi.mock("../../modules/practice/server/learner-progress-persistence", () => ({
@@ -30,18 +31,22 @@ import {
   readCompletedPackIds,
 } from "../../modules/practice/server/learner-progress-persistence";
 
+const owner = {
+  learnerId: "00000000-0000-4000-8000-000000000001",
+  generation: "0",
+};
 beforeEach(() => vi.clearAllMocks());
 
 describe("Progress server actions", () => {
   it("always scopes import, Finish and read to the cookie-resolved learner", async () => {
-    await importBrowserProgressEvidence(null);
+    await importBrowserProgressEvidence(null, owner);
     await persistPracticeFinishEvidence(crypto.randomUUID(), [
       { bucket: "guarantee", value: { learnerId: "forged" } },
     ]);
-    await readServerProgress();
-    await readServerRecentPracticeEpisodes();
-    await readServerPracticeJourney();
-    await readServerLearningPath();
+    await readServerProgress(owner);
+    await readServerRecentPracticeEpisodes(owner);
+    await readServerPracticeJourney(owner);
+    await readServerLearningPath(owner);
     expect(importLegacyProgress).toHaveBeenCalledWith(
       "cookie-owned-learner",
       null,

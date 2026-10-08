@@ -10,7 +10,7 @@ import {
   readServerPracticeJourney,
   readServerReviewAvailability,
   readServerLearningPath,
-} from "../../../app/progress/actions";
+} from "../../learner/progress-client";
 
 import type { LearnerProgressInterpretation } from "../application/reasoning-checkpoint";
 import type { PackId } from "../application/completed-practice-episode";

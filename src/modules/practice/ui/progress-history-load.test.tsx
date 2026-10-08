@@ -1,3 +1,4 @@
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -30,6 +31,8 @@ afterEach(() => {
   vi.clearAllMocks();
   document.body.replaceChildren();
 });
+
+beforeEach(installImmediatePracticeSessionLock);
 
 describe("durable history on Progress reload", () => {
   it("loads recent activity again after remount and keeps capability wording", async () => {

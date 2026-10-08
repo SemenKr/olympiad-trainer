@@ -1,3 +1,4 @@
+import { TEST_LOCAL_OWNER } from "../../learner/local-ownership.test-helper";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 
@@ -77,9 +78,9 @@ import { ensureServerProgressImported } from "./server-progress-import";
 import type { PracticeSessionResult } from "./two-problem-session-state";
 import type { NoNextPracticeSessionState as NoNextTwoProblemSessionState } from "./fixed-practice-session-state";
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
-  installImmediatePracticeSessionLock();
+  await installImmediatePracticeSessionLock();
 });
 
 function memoryStorage(): Storage {
@@ -276,6 +277,8 @@ describe("guarantee Progress evidence", () => {
             })),
           },
         },
+
+        TEST_LOCAL_OWNER,
       );
       expect(
         storage.getItem("olympiad-trainer:practice-server-finish-request"),
@@ -637,7 +640,10 @@ describe("guarantee Progress evidence", () => {
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
       priorCompleted,
     );
-    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(priorProgress);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
+      priorProgress,
+      TEST_LOCAL_OWNER,
+    );
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
     const requestKey = "olympiad-trainer:practice-server-finish-request";
     const immutableRequest = storage.getItem(requestKey);
@@ -662,7 +668,9 @@ describe("guarantee Progress evidence", () => {
     expect(completed).toEqual([firstResult, sockResult]);
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(requestKey)).toBeNull();
-    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+    expect(
+      vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
+    ).toEqual([
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
     ]);
@@ -768,7 +776,9 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+    expect(
+      vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
+    ).toEqual([
       [
         thirdSession.sessionId,
         expectedContributions,
@@ -862,7 +872,9 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+    expect(
+      vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
+    ).toEqual([
       [
         session.sessionId,
         [{ bucket: "guarantee", value: originalContribution }],
@@ -1211,7 +1223,10 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(localProgress);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
+      localProgress,
+      TEST_LOCAL_OWNER,
+    );
     expect(persistPracticeFinishEvidence).not.toHaveBeenCalled();
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -1348,10 +1363,9 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(vi.mocked(importBrowserProgressEvidence).mock.calls).toEqual([
-      [afterProgress],
-      [afterProgress],
-    ]);
+    expect(
+      vi.mocked(importBrowserProgressEvidence).mock.calls.map(withoutOwner),
+    ).toEqual([[afterProgress], [afterProgress]]);
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(pendingKey)).toBeNull();
     expect(persistPracticeFinishEvidence).not.toHaveBeenCalled();
@@ -1490,7 +1504,9 @@ describe("guarantee Progress evidence", () => {
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(requestKey)).toBeNull();
-    expect(vi.mocked(persistPracticeFinishEvidence).mock.calls).toEqual([
+    expect(
+      vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
+    ).toEqual([
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
       [session.sessionId, JSON.parse(immutableRequest!).contributions],
     ]);
@@ -1588,11 +1604,25 @@ describe("guarantee Progress evidence", () => {
         storage,
       ),
     ).toBe(true);
-    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(prior);
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
+      prior,
+      TEST_LOCAL_OWNER,
+    );
     expect(persistPracticeFinishEvidence).toHaveBeenCalledWith(
       session.sessionId,
       [],
+
+      undefined,
+      undefined,
+      TEST_LOCAL_OWNER,
     );
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
   });
 });
+
+function withoutOwner(call: readonly unknown[]) {
+  expect(call.at(-1)).toEqual(TEST_LOCAL_OWNER);
+  const payload = call.slice(0, -1);
+  while (payload.at(-1) === undefined) payload.pop();
+  return payload;
+}

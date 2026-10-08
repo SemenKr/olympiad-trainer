@@ -1,3 +1,4 @@
+import { installTestLocalOwner } from "../../learner/local-ownership.test-helper";
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { newSimulation, updateSimulation } from "../domain/simulation";
@@ -8,7 +9,20 @@ import {
   SIMULATION_PENDING_KEY,
 } from "./simulation-storage";
 const server = newSimulation("00000000-0000-4000-8000-000000000001", 1000);
-beforeEach(() => localStorage.clear());
+beforeEach(async () => {
+  window.localStorage.clear();
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: {
+      request: async (
+        name: string,
+        _options: unknown,
+        callback: (lock: Lock) => unknown,
+      ) => callback({ name } as Lock),
+    },
+  });
+  await installTestLocalOwner(window.localStorage);
+});
 describe("simulation reload recovery", () => {
   it("restores pending drafts and selection while preserving trusted deadline", () => {
     storeSimulationDraft({

@@ -1,7 +1,8 @@
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../app/progress/actions", () => ({
   readServerLearningPath: vi.fn(),
 }));
@@ -14,6 +15,8 @@ afterEach(() => {
   vi.resetAllMocks();
   document.body.replaceChildren();
 });
+beforeEach(installImmediatePracticeSessionLock);
+
 describe("Learning Path guide", () => {
   it("keeps every Pack selectable, with distinct accessible names and the next suggested entry", async () => {
     vi.mocked(readServerLearningPath).mockResolvedValue(["pack-a"]);

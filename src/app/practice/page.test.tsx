@@ -1,3 +1,4 @@
+import { installTestLocalOwner } from "../../modules/learner/local-ownership.test-helper";
 import { JSDOM } from "jsdom";
 import { act } from "react";
 import type { Root } from "react-dom/client";
@@ -73,8 +74,8 @@ beforeEach(async () => {
       request: async (
         _name: string,
         _options: unknown,
-        operation: () => unknown,
-      ) => operation(),
+        operation: (lock: Lock) => unknown,
+      ) => operation({ name: _name } as Lock),
     },
   });
   vi.stubGlobal("window", dom.window);
@@ -84,6 +85,7 @@ beforeEach(async () => {
   vi.stubGlobal("localStorage", dom.window.localStorage);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  await installTestLocalOwner(dom.window.localStorage);
   container = document.createElement("div");
   document.body.append(container);
   root = (await import("react-dom/client")).createRoot(container);

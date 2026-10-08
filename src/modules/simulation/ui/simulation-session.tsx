@@ -1,4 +1,9 @@
 "use client";
+import {
+  captureLearnerStorage,
+  currentLocalLearnerOwner,
+  withLocalIdentityRead,
+} from "../../learner/local-ownership";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -35,6 +40,16 @@ export function SimulationSession({
 }: {
   problems: readonly SimulationProblem[];
 }) {
+  const [learnerStorage] = useState(() => captureLearnerStorage());
+  const [owner] = useState(() => currentLocalLearnerOwner());
+  const ownerCurrent = useCallback(() => {
+    try {
+      learnerStorage.getItem(SIMULATION_PENDING_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [learnerStorage]);
   const [attempt, setAttempt] = useState<SimulationAttempt | null>(null);
   const current = useRef<SimulationAttempt | null>(null);
   const [ready, setReady] = useState(false);
@@ -81,14 +96,14 @@ export function SimulationSession({
     async (isCurrent?: () => boolean) => {
       setError("");
       try {
-        const snapshot = await readSimulation();
-        if (isCurrent?.() === false) return;
+        const snapshot = await readSimulation(owner);
+        if (isCurrent?.() === false || !ownerCurrent()) return;
         acceptClock(snapshot);
         const restored = snapshot.attempt
-          ? restoreSimulationDraft(snapshot.attempt)
+          ? restoreSimulationDraft(snapshot.attempt, learnerStorage)
           : null;
         if (restored?.finishedAt !== null && restored)
-          setUnsubmitted(hasUnsubmittedDrafts(restored));
+          setUnsubmitted(hasUnsubmittedDrafts(restored, learnerStorage));
         dirty.current = !!(
           restored &&
           snapshot.attempt &&
@@ -98,13 +113,13 @@ export function SimulationSession({
         setSaved(!dirty.current);
         setReady(true);
       } catch {
-        if (isCurrent?.() === false) return;
+        if (isCurrent?.() === false || !ownerCurrent()) return;
         setError(
           "Не удалось восстановить симуляцию. Проверь соединение и попробуй ещё раз. При конфликте черновиков сохрани локальную копию перед продолжением.",
         );
       }
     },
-    [acceptClock, showAttempt],
+    [acceptClock, showAttempt, owner, learnerStorage, ownerCurrent],
   );
 
   useEffect(() => {
@@ -129,25 +144,27 @@ export function SimulationSession({
       .then(async () => {
         if (disposed) return;
         setError("");
-        await navigator.locks.request(
-          "olympiad-trainer:simulation-editor",
-          { ifAvailable: true },
-          async (lock) => {
-            if (disposed) return;
-            if (!lock) {
-              setError(
-                "Симуляция уже открыта в другой вкладке. Закрой её и обнови эту страницу.",
-              );
-              return;
-            }
-            ownsEditor.current = true;
-            try {
-              void load(() => !disposed);
-              await released;
-            } finally {
-              ownsEditor.current = false;
-            }
-          },
+        await withLocalIdentityRead(() =>
+          navigator.locks.request(
+            "olympiad-trainer:simulation-editor",
+            { ifAvailable: true },
+            async (lock) => {
+              if (disposed) return;
+              if (!lock) {
+                setError(
+                  "Симуляция уже открыта в другой вкладке. Закрой её и обнови эту страницу.",
+                );
+                return;
+              }
+              ownsEditor.current = true;
+              try {
+                void load(() => !disposed);
+                await released;
+              } finally {
+                ownsEditor.current = false;
+              }
+            },
+          ),
         );
       })
       .catch(() => {
@@ -179,7 +196,7 @@ export function SimulationSession({
       setError("");
       try {
         pendingSave.current = sent;
-        storeSimulationDraft(latestBeforeSave, sent);
+        storeSimulationDraft(latestBeforeSave, sent, learnerStorage);
         const replaying = !sameSimulationWork(sent, latestBeforeSave);
         const snapshot =
           (finish || confirmedFinish.current) && !replaying
@@ -188,10 +205,11 @@ export function SimulationSession({
                 sent.revision,
                 sent,
                 confirmed || confirmedFinish.current,
+                owner,
               )
-            : await saveSimulation(sent.sessionId, sent.revision, sent);
+            : await saveSimulation(sent.sessionId, sent.revision, sent, owner);
         // A released editor must never replace the next editor’s local recovery copy.
-        if (!ownsEditor.current) return;
+        if (!ownsEditor.current || !ownerCurrent()) return;
         if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
         acceptClock(snapshot);
         const latest = current.current;
@@ -213,9 +231,9 @@ export function SimulationSession({
           setConfirming(false);
           const unsent = !!(latest && !sameSimulationWork(latest, next));
           setUnsubmitted(unsent);
-          if (!unsent) localStorage.removeItem(SIMULATION_PENDING_KEY);
+          if (!unsent) learnerStorage.removeItem(SIMULATION_PENDING_KEY);
           confirmedFinish.current = false;
-        } else storeSimulationDraft(next);
+        } else storeSimulationDraft(next, null, learnerStorage);
       } catch {
         setSaved(false);
         setError(
@@ -226,7 +244,7 @@ export function SimulationSession({
         setBusy(false);
       }
     },
-    [acceptClock, showAttempt],
+    [acceptClock, showAttempt, owner, learnerStorage, ownerCurrent],
   );
 
   useEffect(() => {
@@ -265,30 +283,35 @@ export function SimulationSession({
     };
   }, [activeSessionId, synchronize]);
 
-  const loadReferences = useCallback(async (id: string) => {
-    try {
-      setReferences(await readSimulationReferences(id));
-      setReferenceError(false);
-    } catch {
-      setReferenceError(true);
-    }
-  }, []);
+  const loadReferences = useCallback(
+    async (id: string) => {
+      try {
+        const result = await readSimulationReferences(id, owner);
+        if (!ownerCurrent()) return;
+        setReferences(result);
+        setReferenceError(false);
+      } catch {
+        setReferenceError(true);
+      }
+    },
+    [owner, ownerCurrent],
+  );
 
   useEffect(() => {
     if (attempt?.finishedAt !== null && attempt?.sessionId) {
       let cancelled = false;
-      void readSimulationReferences(attempt.sessionId)
+      void readSimulationReferences(attempt.sessionId, owner)
         .then((result) => {
-          if (!cancelled) setReferences(result);
+          if (!cancelled && ownerCurrent()) setReferences(result);
         })
         .catch(() => {
-          if (!cancelled) setReferenceError(true);
+          if (!cancelled && ownerCurrent()) setReferenceError(true);
         });
       return () => {
         cancelled = true;
       };
     }
-  }, [attempt?.sessionId, attempt?.finishedAt]);
+  }, [attempt?.sessionId, attempt?.finishedAt, owner, ownerCurrent]);
 
   useEffect(() => {
     if (confirming) cancelRef.current?.focus();
@@ -305,7 +328,7 @@ export function SimulationSession({
     if (seconds === 0 || next.finishedAt !== null) return;
     // Write before updating the editor so a reload cannot lose acknowledged keystrokes.
     try {
-      storeSimulationDraft(next, pendingSave.current);
+      storeSimulationDraft(next, pendingSave.current, learnerStorage);
       dirty.current = true;
       setSaved(false);
       showAttempt(next);
@@ -320,11 +343,11 @@ export function SimulationSession({
     setBusy(true);
     setError("");
     try {
-      const snapshot = await startSimulation();
-      if (!ownsEditor.current) return;
+      const snapshot = await startSimulation(owner);
+      if (!ownsEditor.current || !ownerCurrent()) return;
       acceptClock(snapshot);
       if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
-      storeSimulationDraft(snapshot.attempt);
+      storeSimulationDraft(snapshot.attempt, null, learnerStorage);
       showAttempt(snapshot.attempt);
       setSaved(true);
     } catch {
@@ -345,7 +368,7 @@ export function SimulationSession({
     <button
       className={styles.secondary}
       onClick={() => {
-        const raw = localStorage.getItem(SIMULATION_PENDING_KEY);
+        const raw = learnerStorage.getItem(SIMULATION_PENDING_KEY);
         if (!raw) return;
         const url = URL.createObjectURL(
           new Blob([raw], { type: "application/json" }),

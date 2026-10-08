@@ -1,3 +1,7 @@
+import {
+  captureLearnerStorage,
+  withLocalIdentityRead,
+} from "../../learner/local-ownership";
 import type {
   ActivePractice,
   PracticeHintExposure,
@@ -62,10 +66,12 @@ const PRACTICE_SESSION_MUTATION_LOCK =
 function withPracticeSessionLock<T>(operation: () => T): Promise<T> {
   if (typeof navigator === "undefined" || !navigator.locks?.request)
     return Promise.reject(new Error("Practice session lock is unavailable."));
-  return navigator.locks.request(
-    PRACTICE_SESSION_MUTATION_LOCK,
-    { mode: "exclusive" },
-    operation,
+  return withLocalIdentityRead(() =>
+    navigator.locks.request(
+      PRACTICE_SESSION_MUTATION_LOCK,
+      { mode: "exclusive" },
+      operation,
+    ),
   );
 }
 
@@ -1302,8 +1308,11 @@ export async function readPracticeSessionSnapshot(
 ): Promise<UnfinishedPracticeSessionSnapshot | null> {
   try {
     return (
-      (await readPracticeSessionSnapshotWithRaw(storage ?? window.localStorage))
-        ?.snapshot ?? null
+      (
+        await readPracticeSessionSnapshotWithRaw(
+          storage ?? captureLearnerStorage(),
+        )
+      )?.snapshot ?? null
     );
   } catch {
     return null;
@@ -1333,7 +1342,7 @@ export async function readVerifiedPracticeSessionSnapshot(
   verifyCheckpoint: VerifyCheckpoint,
   storage?: Storage,
 ): Promise<VerifiedCheckpointData<UnfinishedPracticeSessionSnapshot | null>> {
-  const store = storage ?? window.localStorage;
+  const store = storage ?? captureLearnerStorage();
   const saved = await readPracticeSessionSnapshotWithRaw(store);
   if (!saved) return { value: null, interpretation: null };
   const { snapshot, raw } = saved;
@@ -1439,7 +1448,7 @@ export async function createPracticeSessionSnapshot(
   const snapshot = activeSessionSnapshot(session, answer);
   if (!validatePracticeSessionSnapshot(snapshot)) return false;
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
       if (
         store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null ||
@@ -1469,7 +1478,7 @@ export async function savePracticeSessionSnapshot(
   );
   if (!validSessionId(session.sessionId)) return false;
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1493,7 +1502,7 @@ export async function saveNoNextPracticeSessionSnapshot(
   const validated = validatePracticeSessionSnapshot(session);
   if (!validated || !("status" in validated)) return false;
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1523,7 +1532,7 @@ export async function clearPracticeSessionSnapshot(
   storage?: Storage,
 ): Promise<boolean> {
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(
       () =>
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) === null &&
@@ -1590,7 +1599,7 @@ export function readLatestCompletedResults(
   storage?: Storage,
 ): readonly PracticeSessionResult[] | null {
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
     if (raw === null) return null;
     return validateLatestCompletedSummary(JSON.parse(raw))?.results ?? null;
@@ -1608,7 +1617,7 @@ export async function readVerifiedLatestCompletedResults(
     mode?: "review";
   }
 > {
-  const store = storage ?? window.localStorage;
+  const store = storage ?? captureLearnerStorage();
   const raw = store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
   let summary: LatestCompletedSummary | null = null;
   try {
@@ -1661,7 +1670,7 @@ export function saveLatestCompletedResults(
   )
     return false;
   try {
-    (storage ?? window.localStorage).setItem(
+    (storage ?? captureLearnerStorage()).setItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
@@ -1881,7 +1890,7 @@ export async function isCurrentPracticeFinish(
 ): Promise<boolean> {
   const expected = expectedUnfinishedForFinish(session, answer, results);
   try {
-    const store = storage ?? window.localStorage;
+    const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
       const currentUnfinished = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
@@ -2471,7 +2480,7 @@ export async function completePracticeSession(
   if (expectedUnfinished === null && !serverPersist) return false;
   let store: Storage;
   try {
-    store = storage ?? window.localStorage;
+    store = storage ?? captureLearnerStorage();
   } catch {
     return false;
   }

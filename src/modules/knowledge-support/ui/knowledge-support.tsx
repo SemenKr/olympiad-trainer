@@ -7,7 +7,7 @@ import {
   submitKnowledgeDiagnostic,
   openKnowledgeLesson,
   submitKnowledgeMicroCheck,
-} from "../../../app/practice/knowledge-support-actions";
+} from "../../learner/support-client";
 import type { PracticeState } from "../../practice/application/practice-state";
 import {
   CARRIER_PROBLEM_ID,

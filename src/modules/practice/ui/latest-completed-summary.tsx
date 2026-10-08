@@ -14,7 +14,7 @@ import type { PracticeSessionResult } from "./two-problem-session-state";
 import {
   readServerLearningPath,
   readServerPracticeJourneyFinish,
-} from "../../../app/progress/actions";
+} from "../../learner/progress-client";
 import type { PracticeJourneyFinish } from "../application/practice-journey";
 import {
   packIdFromCompletedProblemIds,

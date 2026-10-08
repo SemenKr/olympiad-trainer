@@ -3,14 +3,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./actions", () => ({
-  readLearnerIdentityStatus: vi.fn(),
+  readAuthenticatedLearnerContext: vi.fn(),
   initializeFreshAnonymousLearner: vi.fn(),
 }));
 import {
-  readLearnerIdentityStatus,
+  readAuthenticatedLearnerContext,
   initializeFreshAnonymousLearner,
 } from "./actions";
 import LearnerIdentityGate from "./learner-identity-gate";
+const owner = {
+  learnerId: "00000000-0000-4000-8000-000000000001",
+  generation: "0",
+};
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
@@ -19,7 +23,16 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Object.defineProperty(navigator, "locks", {
     configurable: true,
-    value: { request: async (_name: string, fn: () => Promise<void>) => fn() },
+    value: {
+      request: async (
+        _name: string,
+        options: unknown,
+        callback?: (lock: Lock) => unknown,
+      ) =>
+        typeof options === "function"
+          ? options()
+          : callback!({ name: _name } as Lock),
+    },
   });
   container = document.createElement("div");
   document.body.append(container);
@@ -39,10 +52,33 @@ async function render() {
   );
 }
 describe("explicit fresh-browser initialization gate", () => {
+  it.each(["malformed", "unknown", "expired", "revoked"])(
+    "%s credential never binds/imports/deletes legacy work",
+    async () => {
+      const key = "olympiad-trainer:practice-server-finish-request";
+      localStorage.setItem(key, "legacy pending request");
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(
+        "unavailable",
+      );
+      await render();
+      expect(container.textContent).not.toContain("learner content");
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(localStorage.getItem(key)).toBe("legacy pending request");
+      expect(
+        localStorage.getItem("olympiad-trainer:local-owner-v1"),
+      ).toBeNull();
+      expect(
+        Object.keys(localStorage).some((key) =>
+          key.startsWith("olympiad-trainer:learner:"),
+        ),
+      ).toBe(false);
+    },
+  );
   it("initializes fresh storage before rendering learner operations", async () => {
-    vi.mocked(readLearnerIdentityStatus)
+    vi.mocked(readAuthenticatedLearnerContext)
       .mockResolvedValueOnce("missing")
-      .mockResolvedValueOnce("available");
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValueOnce(owner);
     await render();
     expect(initializeFreshAnonymousLearner).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("learner content");
@@ -52,12 +88,19 @@ describe("explicit fresh-browser initialization gate", () => {
       "olympiad-trainer:practice-server-finish-request",
       "pending bytes",
     );
-    vi.mocked(readLearnerIdentityStatus).mockResolvedValue("available");
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
     await render();
     expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
     expect(container.textContent).toContain("learner content");
     expect(
       localStorage.getItem("olympiad-trainer:practice-server-finish-request"),
+    ).toBe("pending bytes");
+    expect(
+      JSON.parse(
+        localStorage.getItem(
+          `olympiad-trainer:learner:${owner.learnerId}:practice-server-finish-request`,
+        )!,
+      ).payload,
     ).toBe("pending bytes");
   });
   it.each([
@@ -72,7 +115,7 @@ describe("explicit fresh-browser initialization gate", () => {
     async (key) => {
       const name = `olympiad-trainer:${key}`;
       localStorage.setItem(name, "saved bytes");
-      vi.mocked(readLearnerIdentityStatus).mockResolvedValue("missing");
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("missing");
       await render();
       expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
       expect(container.querySelector('[role="alert"]')).not.toBeNull();
@@ -81,9 +124,9 @@ describe("explicit fresh-browser initialization gate", () => {
     },
   );
   it("does not replace unavailable identity and retries a transient failure", async () => {
-    vi.mocked(readLearnerIdentityStatus)
+    vi.mocked(readAuthenticatedLearnerContext)
       .mockResolvedValueOnce("unavailable")
-      .mockResolvedValueOnce("available");
+      .mockResolvedValueOnce(owner);
     await render();
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     await act(async () => container.querySelector("button")!.click());
@@ -91,7 +134,7 @@ describe("explicit fresh-browser initialization gate", () => {
     expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
   });
   it("fails closed when local storage inspection fails", async () => {
-    vi.mocked(readLearnerIdentityStatus).mockResolvedValue("missing");
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("missing");
     const spy = vi
       .spyOn(Storage.prototype, "length", "get")
       .mockImplementation(() => {

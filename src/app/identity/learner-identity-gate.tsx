@@ -3,8 +3,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   initializeFreshAnonymousLearner,
-  readLearnerIdentityStatus,
+  readAuthenticatedLearnerContext,
 } from "./actions";
+import {
+  hasLocalLearnerBytes,
+  reconcileAuthenticatedLocalOwner,
+  suspendLocalLearner,
+  LOCAL_IDENTITY_EVENT,
+  LOCAL_OWNER_KEY,
+  IDENTITY_SWITCH_KEY,
+  IDENTITY_LOCK,
+} from "../../modules/learner/local-ownership";
 
 export default function LearnerIdentityGate({
   children,
@@ -18,41 +27,64 @@ export default function LearnerIdentityGate({
     async function prepare() {
       if (!navigator.locks?.request)
         throw new Error("Identity lock unavailable");
-      await navigator.locks.request(
-        "olympiad-trainer:identity-initialization",
-        async () => {
-          const status = await readLearnerIdentityStatus();
+      let authenticated = await readAuthenticatedLearnerContext();
+      if (!active) return;
+      if (authenticated === "unavailable")
+        throw new Error("Identity unavailable");
+      const preexisting = authenticated !== "missing";
+      if (authenticated === "missing")
+        await navigator.locks.request(IDENTITY_LOCK, async () => {
+          const status = await readAuthenticatedLearnerContext();
           if (status === "unavailable") throw new Error("Identity unavailable");
           if (status === "missing") {
             // Existing local work is not evidence of ownership after cookie loss.
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (
-                key?.startsWith("olympiad-trainer:") ||
-                key?.startsWith("olympiad-trainer-")
-              )
-                throw new Error(
-                  "Local learner work requires its original identity",
-                );
-            }
+            if (hasLocalLearnerBytes(localStorage))
+              throw new Error(
+                "Local learner work requires its original identity",
+              );
             await initializeFreshAnonymousLearner();
-            if ((await readLearnerIdentityStatus()) !== "available")
-              throw new Error("Identity unavailable");
           }
-        },
-      );
+          authenticated = await readAuthenticatedLearnerContext();
+        });
+      if (typeof authenticated === "string")
+        throw new Error("Identity unavailable");
+      if (active)
+        await reconcileAuthenticatedLocalOwner(authenticated, preexisting);
     }
     void prepare()
       .then(() => {
         if (active) setState("ready");
       })
       .catch(() => {
-        if (active) setState("error");
+        if (active) {
+          suspendLocalLearner();
+          setState("error");
+        }
       });
     return () => {
       active = false;
     };
   }, [retry]);
+  useEffect(() => {
+    const invalidate = () => {
+      setState("loading");
+      setRetry((value) => value + 1);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key === null ||
+        event.key === LOCAL_OWNER_KEY ||
+        event.key === IDENTITY_SWITCH_KEY
+      )
+        invalidate();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(LOCAL_IDENTITY_EVENT, invalidate);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(LOCAL_IDENTITY_EVENT, invalidate);
+    };
+  }, []);
   if (state === "ready") return children;
   return (
     <main>

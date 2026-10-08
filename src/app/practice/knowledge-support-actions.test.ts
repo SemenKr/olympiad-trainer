@@ -4,13 +4,13 @@ vi.mock("../../modules/simulation/server/assistance-guard", () => ({
   requireSimulationAssistanceAllowed: vi.fn(async () => {}),
 }));
 vi.mock("../../modules/practice/server/learner-identity", () => ({
-  resolveLearnerFromCookie: vi.fn(async () => "cookie-learner"),
+  resolveExpectedLearnerFromCookie: vi.fn(async () => "cookie-learner"),
 }));
 vi.mock("../../modules/knowledge-support/server/persistence", () => ({
   persistSupportStep: vi.fn(),
   readSupportObservation: vi.fn(async () => null),
 }));
-import { resolveLearnerFromCookie } from "../../modules/practice/server/learner-identity";
+import { resolveExpectedLearnerFromCookie } from "../../modules/practice/server/learner-identity";
 import {
   persistSupportStep,
   readSupportObservation,
@@ -27,6 +27,10 @@ import {
   startPractice,
 } from "../../modules/practice/application/practice-state";
 
+const owner = {
+  learnerId: "00000000-0000-4000-8000-000000000001",
+  generation: "0",
+};
 const sessionId = "00000000-0000-4000-8000-000000000001";
 const context = {
   problemId: "five-piles-stones",
@@ -48,17 +52,22 @@ beforeEach(() => {
 });
 describe("Knowledge Support server actions", () => {
   it("takes identity from the cookie and passes no caller-provided outcome or topic to persistence", async () => {
-    await readKnowledgeSupport(sessionId);
+    await readKnowledgeSupport(sessionId, owner);
     expect(readSupportObservation).toHaveBeenCalledWith(
       "cookie-learner",
       sessionId,
     );
-    await submitKnowledgeDiagnostic(sessionId, "B", {
-      ...context,
-      outcome: "correct",
-      learnerId: "another-learner",
-      topicId: "other",
-    });
+    await submitKnowledgeDiagnostic(
+      sessionId,
+      "B",
+      {
+        ...context,
+        outcome: "correct",
+        learnerId: "another-learner",
+        topicId: "other",
+      },
+      owner,
+    );
     expect(persistSupportStep).toHaveBeenLastCalledWith(
       "cookie-learner",
       sessionId,
@@ -66,14 +75,14 @@ describe("Knowledge Support server actions", () => {
       "B",
       true,
     );
-    await openKnowledgeLesson(sessionId);
+    await openKnowledgeLesson(sessionId, owner);
     expect(persistSupportStep).toHaveBeenLastCalledWith(
       "cookie-learner",
       sessionId,
       "lesson",
       null,
     );
-    await submitKnowledgeMicroCheck(sessionId, "A");
+    await submitKnowledgeMicroCheck(sessionId, "A", owner);
     expect(persistSupportStep).toHaveBeenLastCalledWith(
       "cookie-learner",
       sessionId,
@@ -82,11 +91,11 @@ describe("Knowledge Support server actions", () => {
     );
   });
   it("returns protected content only after successful authorized persistence", async () => {
-    expect(await readKnowledgeSupport(sessionId)).toBeNull();
-    expect(await submitKnowledgeDiagnostic(sessionId, "B", context)).toEqual(
-      observation,
-    );
-    expect(await openKnowledgeLesson(sessionId)).toEqual({
+    expect(await readKnowledgeSupport(sessionId, owner)).toBeNull();
+    expect(
+      await submitKnowledgeDiagnostic(sessionId, "B", context, owner),
+    ).toEqual(observation);
+    expect(await openKnowledgeLesson(sessionId, owner)).toEqual({
       observation,
       lesson: expect.stringContaining("12 ÷ 3 = 4"),
     });
@@ -96,20 +105,20 @@ describe("Knowledge Support server actions", () => {
       microCheckOutcome: "incorrect",
     });
     expect(
-      (await submitKnowledgeMicroCheck(sessionId, "D")).feedback.text,
+      (await submitKnowledgeMicroCheck(sessionId, "D", owner)).feedback.text,
     ).toContain("6 + 4 = 10");
     vi.mocked(persistSupportStep).mockRejectedValueOnce(
       new Error("An incorrect diagnostic is required."),
     );
-    await expect(openKnowledgeLesson(sessionId)).rejects.toThrow(
+    await expect(openKnowledgeLesson(sessionId, owner)).rejects.toThrow(
       "incorrect diagnostic",
     );
     vi.mocked(persistSupportStep).mockRejectedValueOnce(
       new Error("Open the lesson first."),
     );
-    await expect(submitKnowledgeMicroCheck(sessionId, "D")).rejects.toThrow(
-      "lesson first",
-    );
+    await expect(
+      submitKnowledgeMicroCheck(sessionId, "D", owner),
+    ).rejects.toThrow("lesson first");
   });
   it("uses authoritative carrier eligibility for both availability and diagnostic submission", async () => {
     const forged = {
@@ -119,8 +128,8 @@ describe("Knowledge Support server actions", () => {
         submissions: [{ answer: "60", outcome: "incorrect" }],
       },
     };
-    expect(await readKnowledgeSupportEligibility(forged)).toBe(false);
-    await submitKnowledgeDiagnostic(sessionId, "B", forged);
+    expect(await readKnowledgeSupportEligibility(forged, owner)).toBe(false);
+    await submitKnowledgeDiagnostic(sessionId, "B", forged, owner);
     expect(persistSupportStep).toHaveBeenLastCalledWith(
       "cookie-learner",
       sessionId,
@@ -128,22 +137,29 @@ describe("Knowledge Support server actions", () => {
       "B",
       false,
     );
-    expect(await readKnowledgeSupportEligibility(context)).toBe(true);
+    expect(await readKnowledgeSupportEligibility(context, owner)).toBe(true);
   });
   it("validates request values before resolving identity or accessing persistence", async () => {
-    await expect(readKnowledgeSupport("bad-session")).rejects.toThrow();
-    await expect(openKnowledgeLesson("bad-session")).rejects.toThrow();
-    await expect(submitKnowledgeMicroCheck(sessionId, "E")).rejects.toThrow();
+    await expect(readKnowledgeSupport("bad-session", owner)).rejects.toThrow();
+    await expect(openKnowledgeLesson("bad-session", owner)).rejects.toThrow();
     await expect(
-      submitKnowledgeDiagnostic(sessionId, "E", context),
+      submitKnowledgeMicroCheck(sessionId, "E", owner),
     ).rejects.toThrow();
     await expect(
-      submitKnowledgeDiagnostic(sessionId, "A", {
-        ...context,
-        problemId: "other",
-      }),
+      submitKnowledgeDiagnostic(sessionId, "E", context, owner),
     ).rejects.toThrow();
-    expect(resolveLearnerFromCookie).not.toHaveBeenCalled();
+    await expect(
+      submitKnowledgeDiagnostic(
+        sessionId,
+        "A",
+        {
+          ...context,
+          problemId: "other",
+        },
+        owner,
+      ),
+    ).rejects.toThrow();
+    expect(resolveExpectedLearnerFromCookie).not.toHaveBeenCalled();
     expect(persistSupportStep).not.toHaveBeenCalled();
   });
 });

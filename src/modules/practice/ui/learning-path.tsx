@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { readServerLearningPath } from "../../../app/progress/actions";
+import { readServerLearningPath } from "../../learner/progress-client";
 import {
   getLearningPathProjection,
   type LearningPathEntry,

@@ -1,3 +1,4 @@
+import { installTestLocalOwner } from "../../learner/local-ownership.test-helper";
 import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -81,7 +82,7 @@ let container: HTMLDivElement;
 let persisted: SupportObservation | null;
 let dom: JSDOM;
 
-beforeEach(() => {
+beforeEach(async () => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "http://localhost",
   });
@@ -91,8 +92,9 @@ beforeEach(() => {
   vi.stubGlobal("Event", dom.window.Event);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
-  installImmediatePracticeSessionLock();
+  await installImmediatePracticeSessionLock();
   localStorage.clear();
+  await installTestLocalOwner(window.localStorage);
   persisted = null;
   vi.mocked(readKnowledgeSupport).mockImplementation(async () => persisted);
   vi.mocked(readKnowledgeSupportEligibility).mockImplementation(
