@@ -37,7 +37,11 @@ type ProgressLoad =
       completedPackIds: readonly PackId[] | null;
     };
 
-export function ProgressOverview() {
+export function ProgressOverview({
+  recoveryAvailable = false,
+}: {
+  recoveryAvailable?: boolean;
+} = {}) {
   const [load, setLoad] = useState<ProgressLoad>({ status: "loading" });
   const [retry, setRetry] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -90,7 +94,10 @@ export function ProgressOverview() {
 
   return (
     <main aria-busy={load.status === "loading"} className={styles.progress}>
-      <HomeNavigation current="Мой прогресс" />
+      <HomeNavigation
+        current="Мой прогресс"
+        recoveryAvailable={recoveryAvailable}
+      />
       <header className={styles.header}>
         <p className={styles.eyebrow}>5 класс · математика</p>
         <h1 ref={headingRef} tabIndex={-1}>

@@ -66,6 +66,13 @@
   }
 }
 
+.recovery-link {
+  justify-content: flex-end;
+  color: var(--ot-color-primary) !important;
+  font-size: var(--ot-font-size-caption) !important;
+  text-align: right;
+}
+
 .content,
 .main-column,
 .side-column,

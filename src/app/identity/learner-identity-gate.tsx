@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import {
   initializeFreshAnonymousLearner,
   readAuthenticatedLearnerContext,
@@ -20,9 +21,13 @@ export default function LearnerIdentityGate({
 }: {
   children: ReactNode;
 }) {
+  const pathname = usePathname();
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [retry, setRetry] = useState(0);
   useEffect(() => {
+    // Restore must remain reachable before anonymous initialization. In
+    // particular, a lost-cookie browser cannot be assigned a new learner here.
+    if (pathname === "/restore") return;
     let active = true;
     async function prepare() {
       if (!navigator.locks?.request)
@@ -64,7 +69,7 @@ export default function LearnerIdentityGate({
     return () => {
       active = false;
     };
-  }, [retry]);
+  }, [pathname, retry]);
   useEffect(() => {
     const invalidate = () => {
       setState("loading");
@@ -85,7 +90,7 @@ export default function LearnerIdentityGate({
       window.removeEventListener(LOCAL_IDENTITY_EVENT, invalidate);
     };
   }, []);
-  if (state === "ready") return children;
+  if (pathname === "/restore" || state === "ready") return children;
   return (
     <main>
       <h1>Олимпиадный тренажёр</h1>

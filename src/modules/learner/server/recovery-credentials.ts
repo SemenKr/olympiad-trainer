@@ -93,6 +93,15 @@ export async function startAuthenticatedCredentialChange(
   });
 }
 
+export async function readRecoveryCredentialStatus(
+  context: AuthenticatedLearner,
+) {
+  return withAuthenticatedLearner(context, async (tx, learner) => {
+    const credentials = await lockedCredentials(tx, learner.id);
+    return { enabled: credentials.recoveryCodeHash !== null };
+  });
+}
+
 export async function startRecovery(code: string) {
   if (!isRecoveryCode(code)) throw new CredentialChangeUnavailable();
   const hash = recoveryCodeHash(code);

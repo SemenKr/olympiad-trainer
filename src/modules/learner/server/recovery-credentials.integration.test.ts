@@ -34,6 +34,7 @@ import {
   cancelCredentialChange,
   confirmCredentialChange,
   pendingTransitionContext,
+  readRecoveryCredentialStatus,
   startAuthenticatedCredentialChange,
   startRecovery,
 } from "./recovery-credentials";
@@ -162,6 +163,22 @@ describe.skipIf(!testUrl)("PostgreSQL recovery lifecycle", () => {
     } finally {
       await client.end();
     }
+  });
+
+  it("reads recovery status only for the authenticated learner and changes it on enrollment", async () => {
+    const context = await fresh();
+    await expect(readRecoveryCredentialStatus(context)).resolves.toEqual({
+      enabled: false,
+    });
+    const pending = await startAuthenticatedCredentialChange(
+      context,
+      "enrollment",
+    );
+    await confirmCredentialChange(pending.secret, pending.code, context);
+    const current = await resolveLearnerFromCookie();
+    await expect(readRecoveryCredentialStatus(current)).resolves.toEqual({
+      enabled: true,
+    });
   });
   it("two authenticated confirmations have one winner and reject an old captured context", async () => {
     const context = await fresh();

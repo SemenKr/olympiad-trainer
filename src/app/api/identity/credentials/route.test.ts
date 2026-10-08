@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   confirm: vi.fn(),
   cancel: vi.fn(),
   context: vi.fn(),
+  status: vi.fn(),
   cleanup: vi.fn(),
   limit: vi.fn(),
   network: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("../../../../modules/learner/server/recovery-credentials", () => ({
   confirmCredentialChange: state.confirm,
   cancelCredentialChange: state.cancel,
   pendingTransitionContext: state.context,
+  readRecoveryCredentialStatus: state.status,
 }));
 vi.mock("../../../../modules/learner/server/identity-rate-limit", () => ({
   cleanupCredentialOperations: state.cleanup,
@@ -155,6 +157,47 @@ describe("credential HTTP boundary", () => {
       "recovery-start-network",
       "a".repeat(64),
       10,
+    );
+  });
+  it("uses only the explicit development network test address, never local forwarding headers", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("RECOVERY_LOCAL_TEST_NETWORK_ADDRESS", "127.0.0.1");
+    state.network.mockImplementation(
+      (
+        _headers: Headers,
+        _env: Record<string, string>,
+        testAddress: string,
+      ) => {
+        expect(testAddress).toBe("127.0.0.1");
+        return "a".repeat(64);
+      },
+    );
+    const response = await POST(
+      request(
+        { action: "recovery", code },
+        { "x-forwarded-for": "203.0.113.77" },
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(state.limit).toHaveBeenCalledWith(
+      "recovery-start-network",
+      "a".repeat(64),
+      10,
+    );
+  });
+  it("reads only recovery-enabled status behind the authenticated identity boundary", async () => {
+    state.status.mockResolvedValue({ enabled: true });
+    const result = await POST(request({ action: "status-authenticated" }));
+    expect(result.status).toBe(200);
+    expect(result.headers.get("cache-control")).toBe("no-store");
+    expect(await result.json()).toEqual({ ok: true, enabled: true });
+    expect(state.auth).toHaveBeenCalledOnce();
+    expect(state.status).toHaveBeenCalledWith(
+      expect.objectContaining({ learnerId: owner.learnerId }),
+    );
+    expect(state.limit).toHaveBeenCalledWith(
+      "authenticated-context",
+      owner.learnerId,
     );
   });
   it.each(["recovery", "context-recovery", "confirm-recovery"])(

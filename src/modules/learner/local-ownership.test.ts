@@ -10,6 +10,7 @@ import {
   hasLocalLearnerBytes,
   reconcileAuthenticatedLocalOwner,
   transitionLocalIdentity,
+  transitionRecoveredLocalIdentity,
   suspendLocalLearner,
   LEARNER_LOCAL_KEYS,
   LOCAL_OWNER_KEY,
@@ -298,6 +299,79 @@ describe("authenticated local ownership", () => {
     await reconcileAuthenticatedLocalOwner(renewed, true, store);
     expect(currentLocalLearnerOwner()).toEqual(renewed);
   });
+  it("lost-cookie recovery enters the existing barrier without importing legacy or foreign work", async () => {
+    store.setItem(LEARNER_LOCAL_KEYS[0], "ambiguous legacy practice");
+    const foreignNamespace = ownerStorageKey(a, LEARNER_LOCAL_KEYS[5]);
+    store.setItem(
+      foreignNamespace,
+      JSON.stringify({ version: 1, owner: a, payload: "foreign simulation" }),
+    );
+    const acknowledge = vi.fn(async () => {
+      expect(requests).toEqual([IDENTITY_LOCK, PRACTICE_LOCK, SIMULATION_LOCK]);
+      expect(JSON.parse(store.getItem(IDENTITY_SWITCH_KEY)!)).toMatchObject({
+        source: null,
+        target: b,
+      });
+      expect(() => currentLocalLearnerOwner()).toThrow();
+      return b;
+    });
+
+    await transitionRecoveredLocalIdentity(b, acknowledge, store);
+
+    expect(acknowledge).toHaveBeenCalledOnce();
+    expect(store.getItem(LEARNER_LOCAL_KEYS[0])).toBe(
+      "ambiguous legacy practice",
+    );
+    expect(JSON.parse(store.getItem(foreignNamespace)!)).toMatchObject({
+      owner: a,
+      payload: "foreign simulation",
+    });
+    expect(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))).toBeNull();
+    expect(store.getItem(LOCAL_OWNER_KEY)).toContain(b.learnerId);
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+  });
+  it("rebinds same-learner local work after lost-cookie recovery and rejects stale leases", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    const old = captureLearnerStorage();
+    old.setItem(LEARNER_LOCAL_KEYS[4], "same learner pending Finish");
+    await transitionRecoveredLocalIdentity(renewed, async () => renewed, store);
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[4])).toBe(
+      "same learner pending Finish",
+    );
+    expect(() => old.setItem(LEARNER_LOCAL_KEYS[4], "late Finish")).toThrow();
+  });
+  it("recovers a committed lost response from an unbound browser without importing legacy bytes", async () => {
+    store.setItem(LEARNER_LOCAL_KEYS[2], "unowned legacy evidence");
+    await expect(
+      transitionRecoveredLocalIdentity(
+        b,
+        async () => {
+          throw new Error("response lost");
+        },
+        store,
+      ),
+    ).rejects.toThrow("response lost");
+    expect(store.getItem(IDENTITY_SWITCH_KEY)).not.toBeNull();
+    await reconcileAuthenticatedLocalOwner(b, true, store);
+    expect(store.getItem(IDENTITY_SWITCH_KEY)).toBeNull();
+    expect(store.getItem(LEARNER_LOCAL_KEYS[2])).toBe(
+      "unowned legacy evidence",
+    );
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[2])).toBeNull();
+  });
+  it.each([IDENTITY_LOCK, PRACTICE_LOCK, SIMULATION_LOCK])(
+    "recovery in an unbound browser waits for the existing %s barrier",
+    async (lock) => {
+      held.add(lock);
+      const acknowledge = vi.fn(async () => b);
+      await expect(
+        transitionRecoveredLocalIdentity(b, acknowledge, store),
+      ).rejects.toThrow();
+      expect(acknowledge).not.toHaveBeenCalled();
+      expect(store.getItem(IDENTITY_SWITCH_KEY)).toBeNull();
+      expect(store.getItem(LOCAL_OWNER_KEY)).toBeNull();
+    },
+  );
   it.each(["read", "write", "readback"])(
     "storage %s failure blocks acknowledgement and preserves payloads",
     async (mode) => {

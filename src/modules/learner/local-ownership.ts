@@ -21,9 +21,10 @@ export const LEARNER_LOCAL_KEYS = [
 type Binding = { owner: LocalLearnerOwner; legacyOwner: string | null };
 type SwitchMarker = {
   operationId: string;
-  source: LocalLearnerOwner;
+  source: LocalLearnerOwner | null;
   target: LocalLearnerOwner;
 };
+type BoundSwitchMarker = SwitchMarker & { source: LocalLearnerOwner };
 let active: {
   owner: LocalLearnerOwner;
   store: Storage;
@@ -227,7 +228,7 @@ function rewriteGeneration(
 
 function completeSwitch(
   store: Storage,
-  marker: SwitchMarker,
+  marker: BoundSwitchMarker,
   authenticated: LocalLearnerOwner,
   binding: Binding,
 ) {
@@ -258,6 +259,48 @@ function completeSwitch(
     }
   }
   const raw = JSON.stringify({ ...binding, owner: authenticated });
+  confirmedWrite(store, LOCAL_OWNER_KEY, raw);
+  store.removeItem(IDENTITY_SWITCH_KEY);
+  if (store.getItem(IDENTITY_SWITCH_KEY) !== null) fail();
+  active = { owner: authenticated, store, bindingRaw: raw };
+}
+
+// Recovery can begin before this browser has an authenticated owner binding.
+// Unlike ordinary initialization, this path never imports origin-wide legacy
+// bytes. Only an existing namespace for the recovered learner can be rebound.
+function completeRecoveredSwitch(
+  store: Storage,
+  marker: SwitchMarker,
+  authenticated: LocalLearnerOwner,
+  binding: Binding | null,
+) {
+  if (!sameLocalLearnerOwner(authenticated, marker.target)) fail();
+  if (binding) {
+    if (!marker.source || !sameLocalLearnerOwner(marker.source, binding.owner))
+      fail();
+    completeSwitch(store, marker as BoundSwitchMarker, authenticated, binding);
+    return;
+  }
+
+  validateNamespace(store, authenticated);
+  for (const key of LEARNER_LOCAL_KEYS) {
+    const namespaced = ownerStorageKey(authenticated, key);
+    const raw = store.getItem(namespaced);
+    if (raw === null) continue;
+    const value = JSON.parse(raw);
+    if (
+      !isLocalLearnerOwner(value?.owner) ||
+      value.owner.learnerId !== authenticated.learnerId ||
+      BigInt(value.owner.generation) > BigInt(authenticated.generation)
+    )
+      fail();
+    confirmedWrite(
+      store,
+      namespaced,
+      envelope(authenticated, readEnvelope(raw, value.owner)),
+    );
+  }
+  const raw = JSON.stringify({ owner: authenticated, legacyOwner: null });
   confirmedWrite(store, LOCAL_OWNER_KEY, raw);
   store.removeItem(IDENTITY_SWITCH_KEY);
   if (store.getItem(IDENTITY_SWITCH_KEY) !== null) fail();
@@ -299,18 +342,24 @@ export async function reconcileAuthenticatedLocalOwner(
     if (markerBytes !== null) {
       const marker = JSON.parse(markerBytes) as SwitchMarker;
       if (
-        !latest ||
-        !isLocalLearnerOwner(marker?.source) ||
+        (!latest && marker?.source !== null) ||
+        (latest && marker?.source === null) ||
+        !(marker?.source === null || isLocalLearnerOwner(marker?.source)) ||
         !isLocalLearnerOwner(marker?.target) ||
         typeof marker.operationId !== "string"
       )
         fail();
       if (
+        marker.source &&
         sameLocalLearnerOwner(owner, marker.source) &&
         !sameLocalLearnerOwner(marker.source, marker.target)
       )
         fail();
-      completeSwitch(store, marker, owner, latest);
+      if (marker.source === null) {
+        completeRecoveredSwitch(store, marker, owner, latest);
+        return;
+      }
+      completeSwitch(store, marker as BoundSwitchMarker, owner, latest!);
       return;
     }
     if (latest) {
@@ -326,7 +375,7 @@ export async function reconcileAuthenticatedLocalOwner(
       };
       confirmedWrite(store, IDENTITY_SWITCH_KEY, JSON.stringify(marker));
       active = null;
-      completeSwitch(store, marker, owner, latest);
+      completeSwitch(store, marker as BoundSwitchMarker, owner, latest);
       return;
     }
     const legacy = LEARNER_LOCAL_KEYS.map(
@@ -394,6 +443,32 @@ export async function transitionLocalIdentity(
     suspendLocalLearner(true);
     const authenticated = await acknowledge();
     completeSwitch(store, marker, authenticated, binding);
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
+  });
+}
+
+// The recovery code and pending server context are authority for this transition.
+// Local bytes only select whether a same-owner namespace may be rebound; they
+// never select the target learner and legacy unowned keys are left untouched.
+export async function transitionRecoveredLocalIdentity(
+  target: LocalLearnerOwner,
+  acknowledge: () => Promise<LocalLearnerOwner>,
+  store: Storage = window.localStorage,
+) {
+  if (!isLocalLearnerOwner(target)) fail();
+  if (active) return transitionLocalIdentity(target, acknowledge, store);
+  return withIdentityBarrier(async () => {
+    const binding = readBinding(store);
+    const marker: SwitchMarker = {
+      operationId: crypto.randomUUID(),
+      source: binding?.owner ?? null,
+      target,
+    };
+    confirmedWrite(store, IDENTITY_SWITCH_KEY, JSON.stringify(marker));
+    suspendLocalLearner(true);
+    const authenticated = await acknowledge();
+    completeRecoveredSwitch(store, marker, authenticated, binding);
     if (typeof window !== "undefined")
       window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
   });

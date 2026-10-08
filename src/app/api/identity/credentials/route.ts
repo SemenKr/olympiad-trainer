@@ -12,6 +12,7 @@ import {
   cancelCredentialChange,
   confirmCredentialChange,
   pendingTransitionContext,
+  readRecoveryCredentialStatus,
   startAuthenticatedCredentialChange,
   startRecovery,
 } from "../../../../modules/learner/server/recovery-credentials";
@@ -43,6 +44,7 @@ const actions = [
   "context-authenticated",
   "context-recovery",
   "cancel",
+  "status-authenticated",
 ] as const;
 type Action = (typeof actions)[number];
 
@@ -124,8 +126,16 @@ export async function POST(request: Request) {
   }
   const { action, code } = input;
   const needsNetwork = action === "recovery" || action.endsWith("-recovery");
+  const localTestAddress =
+    process.env.NODE_ENV === "development" && process.env.VERCEL !== "1"
+      ? process.env.RECOVERY_LOCAL_TEST_NETWORK_ADDRESS
+      : undefined;
   const network = needsNetwork
-    ? trustedRecoveryNetworkBucket(request.headers)
+    ? trustedRecoveryNetworkBucket(
+        request.headers,
+        process.env,
+        localTestAddress,
+      )
     : null;
   if (needsNetwork && !network)
     return response({ ok: false, error: "unavailable" }, 503);
@@ -141,6 +151,14 @@ export async function POST(request: Request) {
     }
     const jar = await cookies();
     const cookieOptions = credentialCookieOptions();
+    if (action === "status-authenticated") {
+      const context = await resolveLearnerFromCookie();
+      await limitCredentialAttempts("authenticated-context", context.learnerId);
+      return response({
+        ok: true,
+        ...(await readRecoveryCredentialStatus(context)),
+      });
+    }
     if (
       action === "enrollment" ||
       action === "replacement" ||
