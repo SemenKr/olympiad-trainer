@@ -203,6 +203,8 @@ Hosting evidence: [Vercel request headers](https://vercel.com/docs/headers/reque
 
 Remaining production gates: verify the reported production 0013 schema; dedicated `RECOVERY_NETWORK_HMAC_KEY` and `CRON_SECRET` provisioning; verified trusted deployment origins; Firewall activation; operational alerting for cleanup 503s and scheduler/database outages; hosting-log privacy/retention; approval of the learner recovery notice; and explicit `RECOVERY_ENABLED=true` only after all gates. This task creates no recovery codes for real learners and performs no production credential mutations.
 
+Production preparation evidence and the proposed manual inspection policy are tracked in the [Recovery production runbook](../05-development/recovery-production-runbook.md). Verified configuration does not close unapproved hosting/deletion/privacy or monitoring-coverage decisions, and the notice requires reviewed publication before enablement.
+
 ## 10. Failure and recovery cases
 
 | Scenario                                           | Required result                                                                                                                                                   |
