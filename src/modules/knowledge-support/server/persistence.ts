@@ -1,8 +1,10 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
-import { getProgressDb } from "../../practice/server/progress-db";
-import { learners } from "../../practice/server/progress-schema";
+import {
+  withAuthenticatedLearner,
+  type AuthenticatedLearner,
+} from "../../practice/server/learner-auth";
 import {
   CARRIER_PROBLEM_ID,
   TOPIC_ID,
@@ -33,33 +35,30 @@ function observation(row: typeof attempts.$inferSelect): SupportObservation {
 }
 
 export async function readSupportObservation(
-  learnerId: string,
+  context: AuthenticatedLearner,
   sessionId: string,
 ): Promise<SupportObservation | null> {
-  const [row] = await getProgressDb()
-    .select()
-    .from(attempts)
-    .where(key(learnerId, sessionId));
-  return row ? observation(row) : null;
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const [row] = await tx
+      .select()
+      .from(attempts)
+      .where(key(learnerId, sessionId));
+    return row ? observation(row) : null;
+  });
 }
 
 export async function persistSupportStep(
-  learnerId: string,
+  context: AuthenticatedLearner,
   sessionId: string,
   step: "diagnostic" | "lesson" | "micro-check",
   selectedOption: unknown,
   diagnosticEligible: boolean = false,
 ): Promise<SupportObservation> {
+  const learnerId = context.learnerId;
   const where = key(learnerId, sessionId);
   const optionId = step === "lesson" ? null : requireOptionId(selectedOption);
-  return getProgressDb().transaction(async (tx) => {
-    // Serialize first inserts and retries as well as subsequent steps for this learner.
-    const [learner] = await tx
-      .select({ id: learners.id })
-      .from(learners)
-      .where(eq(learners.id, learnerId))
-      .for("update");
-    if (!learner) throw new Error("Unknown learner.");
+  return withAuthenticatedLearner(context, async (tx) => {
     const [prior] = await tx.select().from(attempts).where(where);
     if (step === "diagnostic") {
       if (prior) {

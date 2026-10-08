@@ -1,3 +1,4 @@
+import { learnerContext } from "../../../test/learner-fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("../../practice/server/progress-db", () => ({
@@ -14,7 +15,18 @@ const queryBoundary = {
     from: (table: unknown) => ({
       where: () => {
         const result =
-          table === learners ? [{ id: "learner" }] : row ? [row] : [];
+          table === learners
+            ? [
+                {
+                  id: "learner",
+                  anonymousTokenHash: "test-token-hash",
+                  credentialGeneration: BigInt(0),
+                  valid: true,
+                },
+              ]
+            : row
+              ? [row]
+              : [];
         return Object.assign(Promise.resolve(result), {
           for: async () => result,
         });
@@ -58,7 +70,14 @@ const step = (
   kind: "diagnostic" | "lesson" | "micro-check",
   option: unknown = null,
   eligible = true,
-) => persistSupportStep("learner", sessionId, kind, option, eligible);
+) =>
+  persistSupportStep(
+    learnerContext("learner"),
+    sessionId,
+    kind,
+    option,
+    eligible,
+  );
 beforeEach(() => {
   row = null;
   writeTables.length = 0;
@@ -66,7 +85,9 @@ beforeEach(() => {
 
 describe("dedicated persistence boundary (transaction double)", () => {
   it("stores only factual support observations; identical retries preserve all timestamps", async () => {
-    expect(await readSupportObservation("learner", sessionId)).toBeNull();
+    expect(
+      await readSupportObservation(learnerContext("learner"), sessionId),
+    ).toBeNull();
     await step("diagnostic", "B");
     const diagnosticBytes = JSON.stringify(row);
     await step("diagnostic", "B");
@@ -81,7 +102,9 @@ describe("dedicated persistence boundary (transaction double)", () => {
     await step("micro-check", "A");
     expect(JSON.stringify(row)).toBe(completedBytes);
     await expect(step("micro-check", "D")).rejects.toThrow("conflicts");
-    expect(await readSupportObservation("learner", sessionId)).toEqual({
+    expect(
+      await readSupportObservation(learnerContext("learner"), sessionId),
+    ).toEqual({
       diagnosticSelectedOptionId: "B",
       diagnosticOutcome: "incorrect",
       lessonOpened: true,

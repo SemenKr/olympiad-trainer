@@ -56,7 +56,10 @@ import {
   assessReasoningCheckpointOption,
   getProblemDefinition,
 } from "./problem-catalog";
-import { getProgressDb } from "./progress-db";
+import {
+  withAuthenticatedLearner,
+  type AuthenticatedLearner,
+} from "./learner-auth";
 import {
   learners,
   practiceCompletedEpisodes,
@@ -133,28 +136,11 @@ function validatedBuckets(
   return { guarantee, impossibility, enumeration };
 }
 
-export async function findOrCreateLearner(anonymousTokenHash: string) {
-  const db = getProgressDb();
-  const [row] = await db
-    .insert(learners)
-    .values({
-      anonymousTokenHash,
-      guaranteeEvidence: emptyGuaranteeProgressEvidence(),
-      impossibilityEvidence: emptyImpossibilityProgressEvidence(),
-      enumerationEvidence: emptyEnumerationProgressEvidence(),
-    })
-    .onConflictDoUpdate({
-      target: learners.anonymousTokenHash,
-      set: { anonymousTokenHash },
-    })
-    .returning({ id: learners.id });
-  return row.id;
-}
-
 export async function importLegacyProgress(
-  learnerId: string,
+  context: AuthenticatedLearner,
   raw: unknown,
 ): Promise<void> {
+  const learnerId = context.learnerId;
   if (!(raw === null || (typeof raw === "string" && raw.length <= 32768)))
     throw new Error("Invalid legacy Progress data.");
   const originalHash = hash(raw ?? NO_LOCAL_EVIDENCE);
@@ -176,12 +162,7 @@ export async function importLegacyProgress(
     incoming.enumeration,
   );
 
-  await getProgressDb().transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(learners)
-      .where(eq(learners.id, learnerId))
-      .for("update");
+  await withAuthenticatedLearner(context, async (tx, row) => {
     if (!row) throw new Error("Learner identity is unavailable.");
     if (row.legacyImportHash !== null) {
       if (raw === null || row.legacyImportHash === originalHash) return;
@@ -410,12 +391,13 @@ function validAdaptiveFinishFacts(
 }
 
 export async function persistFinishContributions(
-  learnerId: string,
+  context: AuthenticatedLearner,
   sessionId: unknown,
   input: unknown,
   adaptiveFacts?: unknown,
   episode?: unknown,
 ): Promise<PracticeJourneyFinish | null> {
+  const learnerId = context.learnerId;
   if (
     typeof sessionId !== "string" ||
     !SESSION_ID.test(sessionId) ||
@@ -549,12 +531,7 @@ export async function persistFinishContributions(
           : { contributions: ordered, adaptiveFacts },
     ),
   );
-  return getProgressDb().transaction(async (tx) => {
-    const [learner] = await tx
-      .select()
-      .from(learners)
-      .where(eq(learners.id, learnerId))
-      .for("update");
+  return withAuthenticatedLearner(context, async (tx, learner) => {
     if (!learner || learner.legacyImportHash === null)
       throw new Error("Legacy Progress import is required.");
     const [assignment] = await tx
@@ -716,52 +693,61 @@ export async function persistFinishContributions(
 }
 
 export async function readCompletedPackIds(
-  learnerId: string,
+  context: AuthenticatedLearner,
 ): Promise<readonly PackId[]> {
-  const rows = await getProgressDb()
-    .select({
-      packId: practiceFinishReceipts.packId,
-      mode: practiceFinishReceipts.episodeMode,
-    })
-    .from(practiceFinishReceipts)
-    .where(eq(practiceFinishReceipts.learnerId, learnerId));
-  const result: PackId[] = [];
-  for (const row of rows) {
-    if (row.packId === null) continue;
-    const pack = packById(row.packId);
-    if (!pack || row.mode !== "pack")
-      throw new Error("Learning Path Pack receipt could not be verified.");
-    if (!result.includes(pack.id)) result.push(pack.id);
-  }
-  return result;
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const rows = await tx
+      .select({
+        packId: practiceFinishReceipts.packId,
+        mode: practiceFinishReceipts.episodeMode,
+      })
+      .from(practiceFinishReceipts)
+      .where(eq(practiceFinishReceipts.learnerId, learnerId));
+    const result: PackId[] = [];
+    for (const row of rows) {
+      if (row.packId === null) continue;
+      const pack = packById(row.packId);
+      if (!pack || row.mode !== "pack")
+        throw new Error("Learning Path Pack receipt could not be verified.");
+      if (!result.includes(pack.id)) result.push(pack.id);
+    }
+    return result;
+  });
 }
 
-export async function readPracticeJourneyTotal(learnerId: string) {
-  const rows = await getProgressDb()
-    .select({ earnedXp: practiceJourneyAwards.earnedXp })
-    .from(practiceJourneyAwards)
-    .where(eq(practiceJourneyAwards.learnerId, learnerId));
-  return rows.reduce((total, award) => total + award.earnedXp, 0);
+export async function readPracticeJourneyTotal(context: AuthenticatedLearner) {
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const rows = await tx
+      .select({ earnedXp: practiceJourneyAwards.earnedXp })
+      .from(practiceJourneyAwards)
+      .where(eq(practiceJourneyAwards.learnerId, learnerId));
+    return rows.reduce((total, award) => total + award.earnedXp, 0);
+  });
 }
 
 export async function readPracticeJourneyFinish(
-  learnerId: string,
+  context: AuthenticatedLearner,
   sessionId: string,
 ): Promise<PracticeJourneyFinish | null> {
-  const [award] = await getProgressDb()
-    .select({
-      earnedXp: practiceJourneyAwards.earnedXp,
-      totalXp: practiceJourneyAwards.totalXp,
-      newlyReachedMilestone: practiceJourneyAwards.newlyReachedMilestone,
-    })
-    .from(practiceJourneyAwards)
-    .where(
-      and(
-        eq(practiceJourneyAwards.learnerId, learnerId),
-        eq(practiceJourneyAwards.sessionId, sessionId),
-      ),
-    );
-  return award ?? null;
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const [award] = await tx
+      .select({
+        earnedXp: practiceJourneyAwards.earnedXp,
+        totalXp: practiceJourneyAwards.totalXp,
+        newlyReachedMilestone: practiceJourneyAwards.newlyReachedMilestone,
+      })
+      .from(practiceJourneyAwards)
+      .where(
+        and(
+          eq(practiceJourneyAwards.learnerId, learnerId),
+          eq(practiceJourneyAwards.sessionId, sessionId),
+        ),
+      );
+    return award ?? null;
+  });
 }
 
 export type RecentPracticeEpisode = Readonly<{
@@ -779,58 +765,61 @@ export type RecentPracticeEpisode = Readonly<{
 }>;
 
 export async function readRecentPracticeEpisodes(
-  learnerId: string,
+  context: AuthenticatedLearner,
 ): Promise<readonly RecentPracticeEpisode[]> {
-  const rows = await getProgressDb()
-    .select({
-      mode: practiceCompletedEpisodes.mode,
-      facts: practiceCompletedEpisodes.episodeFacts,
-      completedAt: practiceCompletedEpisodes.completedAt,
-    })
-    .from(practiceCompletedEpisodes)
-    .where(eq(practiceCompletedEpisodes.learnerId, learnerId))
-    .orderBy(
-      desc(practiceCompletedEpisodes.completedAt),
-      desc(practiceCompletedEpisodes.sessionId),
-    )
-    .limit(10);
-  return rows.map((row) => {
-    const checked = validateCompletedEpisode(row.mode, row.facts);
-    if (
-      !checked ||
-      !(row.completedAt instanceof Date) ||
-      Number.isNaN(row.completedAt.getTime())
-    )
-      throw new Error("Completed Practice history could not be verified.");
-    const problems = checked.problems.map((fact) => {
-      const definition = getProblemDefinition(fact.problemId);
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const rows = await tx
+      .select({
+        mode: practiceCompletedEpisodes.mode,
+        facts: practiceCompletedEpisodes.episodeFacts,
+        completedAt: practiceCompletedEpisodes.completedAt,
+      })
+      .from(practiceCompletedEpisodes)
+      .where(eq(practiceCompletedEpisodes.learnerId, learnerId))
+      .orderBy(
+        desc(practiceCompletedEpisodes.completedAt),
+        desc(practiceCompletedEpisodes.sessionId),
+      )
+      .limit(10);
+    return rows.map((row) => {
+      const checked = validateCompletedEpisode(row.mode, row.facts);
       if (
-        fact.checkpoint &&
-        definition.reasoningCheckpoint?.id !== fact.checkpoint.checkpointId
+        !checked ||
+        !(row.completedAt instanceof Date) ||
+        Number.isNaN(row.completedAt.getTime())
       )
         throw new Error("Completed Practice history could not be verified.");
+      const problems = checked.problems.map((fact) => {
+        const definition = getProblemDefinition(fact.problemId);
+        if (
+          fact.checkpoint &&
+          definition.reasoningCheckpoint?.id !== fact.checkpoint.checkpointId
+        )
+          throw new Error("Completed Practice history could not be verified.");
+        return {
+          problemTitle: definition.title,
+          outcome: fact.outcome,
+          skipped: fact.skipped,
+          validSubmissionCount: fact.validSubmissionCount,
+          hintLevelsExposed: fact.hintLevelsExposed,
+          solutionExposed: fact.solutionExposed,
+          checkpoint: fact.checkpoint
+            ? { outcome: fact.checkpoint.outcome }
+            : null,
+        };
+      });
       return {
-        problemTitle: definition.title,
-        outcome: fact.outcome,
-        skipped: fact.skipped,
-        validSubmissionCount: fact.validSubmissionCount,
-        hintLevelsExposed: fact.hintLevelsExposed,
-        solutionExposed: fact.solutionExposed,
-        checkpoint: fact.checkpoint
-          ? { outcome: fact.checkpoint.outcome }
-          : null,
+        mode: row.mode,
+        completedAt: row.completedAt.toISOString(),
+        problems,
       };
     });
-    return {
-      mode: row.mode,
-      completedAt: row.completedAt.toISOString(),
-      problems,
-    };
   });
 }
 
 export async function readNextUsefulProblem(
-  learnerId: string,
+  context: AuthenticatedLearner,
 ): Promise<null | Readonly<{
   problemId:
     | "brothers-ages-products"
@@ -838,83 +827,88 @@ export async function readNextUsefulProblem(
     | "pages-without-digit-one";
   reason: string;
 }>> {
-  const { availability } = await readAdaptiveAvailability(learnerId);
+  const { availability } = await readAdaptiveAvailability(context);
   return availability.status === "recommendation"
     ? { problemId: availability.problemId, reason: availability.reason }
     : null;
 }
 
-export async function readAdaptiveAvailability(learnerId: string): Promise<
+export async function readAdaptiveAvailability(
+  context: AuthenticatedLearner,
+): Promise<
   Readonly<{
     availability: AdaptiveAvailability;
     hasPracticeHistory: boolean;
   }>
 > {
-  const [row] = await getProgressDb()
-    .select()
-    .from(learners)
-    .where(eq(learners.id, learnerId));
-  if (!row || row.legacyImportHash === null)
-    throw new Error("Legacy Progress import is required.");
-  const { guarantee, impossibility, enumeration } = validatedBuckets(
-    row.guaranteeEvidence,
-    row.impossibilityEvidence,
-    row.enumerationEvidence,
-  );
-  const hasVerifiedFacts =
-    facts(guarantee, impossibility, enumeration).length > 0;
-  const hasTransferAttempt =
-    row.brothersAgesAttempted ||
-    row.brothersAgesSolutionExposed ||
-    row.parrotsAttempted ||
-    row.parrotsSolutionExposed ||
-    row.pagesAttempted ||
-    row.pagesSolutionExposed;
-  const [receipt] = await getProgressDb()
-    .select({ sessionId: practiceFinishReceipts.sessionId })
-    .from(practiceFinishReceipts)
-    .where(eq(practiceFinishReceipts.learnerId, learnerId))
-    .limit(1);
-  const [adaptiveReceipt] = await getProgressDb()
-    .select({ sessionId: practiceFinishReceipts.sessionId })
-    .from(practiceFinishReceipts)
-    .where(
-      and(
-        eq(practiceFinishReceipts.learnerId, learnerId),
-        or(
-          isNull(practiceFinishReceipts.episodeMode),
-          and(
-            ne(practiceFinishReceipts.episodeMode, "pack"),
-            ne(practiceFinishReceipts.episodeMode, "review"),
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const [row] = await tx
+      .select()
+      .from(learners)
+      .where(eq(learners.id, learnerId));
+    if (!row || row.legacyImportHash === null)
+      throw new Error("Legacy Progress import is required.");
+    const { guarantee, impossibility, enumeration } = validatedBuckets(
+      row.guaranteeEvidence,
+      row.impossibilityEvidence,
+      row.enumerationEvidence,
+    );
+    const hasVerifiedFacts =
+      facts(guarantee, impossibility, enumeration).length > 0;
+    const hasTransferAttempt =
+      row.brothersAgesAttempted ||
+      row.brothersAgesSolutionExposed ||
+      row.parrotsAttempted ||
+      row.parrotsSolutionExposed ||
+      row.pagesAttempted ||
+      row.pagesSolutionExposed;
+    const [receipt] = await tx
+      .select({ sessionId: practiceFinishReceipts.sessionId })
+      .from(practiceFinishReceipts)
+      .where(eq(practiceFinishReceipts.learnerId, learnerId))
+      .limit(1);
+    const [adaptiveReceipt] = await tx
+      .select({ sessionId: practiceFinishReceipts.sessionId })
+      .from(practiceFinishReceipts)
+      .where(
+        and(
+          eq(practiceFinishReceipts.learnerId, learnerId),
+          or(
+            isNull(practiceFinishReceipts.episodeMode),
+            and(
+              ne(practiceFinishReceipts.episodeMode, "pack"),
+              ne(practiceFinishReceipts.episodeMode, "review"),
+            ),
           ),
         ),
-      ),
-    )
-    .limit(1);
-  const hasPracticeHistory =
-    hasVerifiedFacts || hasTransferAttempt || !!receipt;
-  const availability = classifyAdaptiveAvailability(
-    guarantee,
-    impossibility,
-    {
-      brothersAttempted: row.brothersAgesAttempted,
-      brothersSolutionExposed: row.brothersAgesSolutionExposed,
-      parrotsAttempted: row.parrotsAttempted,
-      parrotsSolutionExposed: row.parrotsSolutionExposed,
-      pagesAttempted: row.pagesAttempted,
-      pagesSolutionExposed: row.pagesSolutionExposed,
-    },
-    enumeration,
-    !!adaptiveReceipt,
-  );
-  return {
-    availability,
-    hasPracticeHistory,
-  };
+      )
+      .limit(1);
+    const hasPracticeHistory =
+      hasVerifiedFacts || hasTransferAttempt || !!receipt;
+    const availability = classifyAdaptiveAvailability(
+      guarantee,
+      impossibility,
+      {
+        brothersAttempted: row.brothersAgesAttempted,
+        brothersSolutionExposed: row.brothersAgesSolutionExposed,
+        parrotsAttempted: row.parrotsAttempted,
+        parrotsSolutionExposed: row.parrotsSolutionExposed,
+        pagesAttempted: row.pagesAttempted,
+        pagesSolutionExposed: row.pagesSolutionExposed,
+      },
+      enumeration,
+      !!adaptiveReceipt,
+    );
+    return {
+      availability,
+      hasPracticeHistory,
+    };
+  });
 }
 
 export async function readLearnerProgress(
-  learnerId: string,
+  context: AuthenticatedLearner,
 ): Promise<
   readonly [
     LearnerProgressInterpretation,
@@ -922,37 +916,40 @@ export async function readLearnerProgress(
     LearnerProgressInterpretation,
   ]
 > {
-  const [row] = await getProgressDb()
-    .select()
-    .from(learners)
-    .where(eq(learners.id, learnerId));
-  if (!row || row.legacyImportHash === null)
-    throw new Error("Legacy Progress import is required.");
-  const { guarantee, impossibility, enumeration } = validatedBuckets(
-    row.guaranteeEvidence,
-    row.impossibilityEvidence,
-    row.enumerationEvidence,
-  );
-  const first = deriveGuaranteeProgressInterpretation(guarantee);
-  const second = deriveImpossibilityProgressInterpretation(impossibility);
-  const third = deriveEnumerationProgressInterpretation(enumeration);
-  return [
-    {
-      learnerLabel: first.learnerLabel,
-      progressGroup: first.progressGroup,
-      conclusion: first.conclusion,
-    },
-    {
-      learnerLabel: second.learnerLabel,
-      progressGroup: second.progressGroup,
-      conclusion: second.conclusion,
-    },
-    {
-      learnerLabel: third.learnerLabel,
-      progressGroup: third.progressGroup,
-      conclusion: third.conclusion,
-    },
-  ];
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const [row] = await tx
+      .select()
+      .from(learners)
+      .where(eq(learners.id, learnerId));
+    if (!row || row.legacyImportHash === null)
+      throw new Error("Legacy Progress import is required.");
+    const { guarantee, impossibility, enumeration } = validatedBuckets(
+      row.guaranteeEvidence,
+      row.impossibilityEvidence,
+      row.enumerationEvidence,
+    );
+    const first = deriveGuaranteeProgressInterpretation(guarantee);
+    const second = deriveImpossibilityProgressInterpretation(impossibility);
+    const third = deriveEnumerationProgressInterpretation(enumeration);
+    return [
+      {
+        learnerLabel: first.learnerLabel,
+        progressGroup: first.progressGroup,
+        conclusion: first.conclusion,
+      },
+      {
+        learnerLabel: second.learnerLabel,
+        progressGroup: second.progressGroup,
+        conclusion: second.conclusion,
+      },
+      {
+        learnerLabel: third.learnerLabel,
+        progressGroup: third.progressGroup,
+        conclusion: third.conclusion,
+      },
+    ];
+  });
 }
 
 const eligibleUnassignedReviewSource = sql`mode = 'core'
@@ -963,44 +960,45 @@ const eligibleUnassignedReviewSource = sql`mode = 'core'
       AND a.review_source_session_id = practice_completed_episodes.session_id)`;
 
 export async function readReviewAvailability(
-  learnerId: string,
+  context: AuthenticatedLearner,
 ): Promise<boolean> {
-  const db = getProgressDb();
-  const [pending] = await db
-    .select()
-    .from(practiceReviewAssignments)
-    .where(
-      and(
-        eq(practiceReviewAssignments.learnerId, learnerId),
-        sql`NOT EXISTS (SELECT 1 FROM practice_finish_receipts r WHERE r.learner_id = practice_review_assignments.learner_id AND r.session_id = practice_review_assignments.session_id)`,
-      ),
-    )
-    .limit(1);
-  if (pending) return true;
-  const [source] = await db
-    .select()
-    .from(practiceCompletedEpisodes)
-    .where(
-      and(
-        eq(practiceCompletedEpisodes.learnerId, learnerId),
-        eligibleUnassignedReviewSource,
-      ),
-    )
-    .orderBy(
-      desc(practiceCompletedEpisodes.completedAt),
-      desc(practiceCompletedEpisodes.sessionId),
-    )
-    .limit(1);
-  return !!source && isEligibleReviewSource(source.mode, source.episodeFacts);
+  return withAuthenticatedLearner(context, async (tx) => {
+    const learnerId = context.learnerId;
+    const db = tx;
+    const [pending] = await db
+      .select()
+      .from(practiceReviewAssignments)
+      .where(
+        and(
+          eq(practiceReviewAssignments.learnerId, learnerId),
+          sql`NOT EXISTS (SELECT 1 FROM practice_finish_receipts r WHERE r.learner_id = practice_review_assignments.learner_id AND r.session_id = practice_review_assignments.session_id)`,
+        ),
+      )
+      .limit(1);
+    if (pending) return true;
+    const [source] = await db
+      .select()
+      .from(practiceCompletedEpisodes)
+      .where(
+        and(
+          eq(practiceCompletedEpisodes.learnerId, learnerId),
+          eligibleUnassignedReviewSource,
+        ),
+      )
+      .orderBy(
+        desc(practiceCompletedEpisodes.completedAt),
+        desc(practiceCompletedEpisodes.sessionId),
+      )
+      .limit(1);
+    return !!source && isEligibleReviewSource(source.mode, source.episodeFacts);
+  });
 }
 
-export async function startReview(learnerId: string): Promise<string | null> {
-  return getProgressDb().transaction(async (tx) => {
-    const [learner] = await tx
-      .select()
-      .from(learners)
-      .where(eq(learners.id, learnerId))
-      .for("update");
+export async function startReview(
+  context: AuthenticatedLearner,
+): Promise<string | null> {
+  const learnerId = context.learnerId;
+  return withAuthenticatedLearner(context, async (tx, learner) => {
     if (!learner || learner.legacyImportHash === null)
       throw new Error("Legacy Progress import is required.");
     // Concurrent starts and lost browser snapshots reuse the same pending attempt.

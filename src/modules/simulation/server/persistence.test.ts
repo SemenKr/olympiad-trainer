@@ -1,3 +1,4 @@
+import { learnerContext } from "../../../test/learner-fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 vi.mock("server-only", () => ({}));
@@ -18,10 +19,18 @@ vi.mock("../../practice/server/progress-db", () => ({
               state.predicates.push(predicate);
               const rows =
                 selections++ === 0
-                  ? [{ id: "owner" }]
-                  : state.row
-                    ? [state.row]
-                    : [];
+                  ? [
+                      {
+                        id: "owner",
+                        anonymousTokenHash: "test-token-hash",
+                        credentialGeneration: BigInt(0),
+                      },
+                    ]
+                  : selections === 2
+                    ? [{ valid: true }]
+                    : state.row
+                      ? [state.row]
+                      : [];
               const result = Promise.resolve(rows);
               return Object.assign(result, {
                 for: (lock: string) => {
@@ -65,10 +74,13 @@ beforeEach(() => {
 });
 describe("isolated simulation persistence", () => {
   it("serializes Start, resumes the same attempt and scopes operations to the cookie learner", async () => {
-    const started = await transactSimulation("owner", { kind: "start" });
+    const started = await transactSimulation(learnerContext("owner"), {
+      kind: "start",
+    });
     expect(started.attempt).toMatchObject({ mode: "simulation", revision: 0 });
     expect(
-      (await transactSimulation("owner", { kind: "start" })).attempt,
+      (await transactSimulation(learnerContext("owner"), { kind: "start" }))
+        .attempt,
     ).toEqual(started.attempt);
     expect(state.locks).toEqual(["update", "update"]);
     const dialect = new PgDialect();
@@ -82,17 +94,19 @@ describe("isolated simulation persistence", () => {
     expect(state.writes).toEqual([simulationAttempts]);
   });
   it("saves/finishes only Simulation data, never Practice evidence/episodes/awards", async () => {
-    const { attempt } = await transactSimulation("owner", { kind: "start" });
+    const { attempt } = await transactSimulation(learnerContext("owner"), {
+      kind: "start",
+    });
     if (!attempt) throw new Error("missing test attempt");
     const work = { drafts: ["reasoning", "", "", ""], selectedIndex: 2 };
-    const saved = await transactSimulation("owner", {
+    const saved = await transactSimulation(learnerContext("owner"), {
       kind: "save",
       sessionId: attempt.sessionId,
       revision: 0,
       work,
     });
     expect(saved.attempt).toMatchObject({ ...work, revision: 1 });
-    const finished = await transactSimulation("owner", {
+    const finished = await transactSimulation(learnerContext("owner"), {
       kind: "finish",
       sessionId: attempt.sessionId,
       revision: 1,
@@ -110,15 +124,19 @@ describe("isolated simulation persistence", () => {
     expect(Object.keys(state.row!)).not.toContain("adaptiveFacts");
   });
   it("read finalizes an expired attempt at its deadline; late requests cannot replace drafts", async () => {
-    const { attempt } = await transactSimulation("owner", { kind: "start" });
+    const { attempt } = await transactSimulation(learnerContext("owner"), {
+      kind: "start",
+    });
     if (!attempt) throw new Error("missing test attempt");
     vi.mocked(Date.now).mockReturnValue(1000 + SIMULATION_DURATION_MS);
-    const expired = await transactSimulation("owner", { kind: "read" });
+    const expired = await transactSimulation(learnerContext("owner"), {
+      kind: "read",
+    });
     expect(expired.attempt).toMatchObject({
       finishedAt: attempt.deadlineAt,
       finishReason: "timeout",
     });
-    const late = await transactSimulation("owner", {
+    const late = await transactSimulation(learnerContext("owner"), {
       kind: "save",
       sessionId: attempt.sessionId,
       revision: 0,
@@ -127,7 +145,9 @@ describe("isolated simulation persistence", () => {
     expect(late.attempt?.drafts).toEqual(["", "", "", ""]);
   });
   it("rejects foreign sessions, malformed work, stale overwrites and unconfirmed Finish", async () => {
-    const { attempt } = await transactSimulation("owner", { kind: "start" });
+    const { attempt } = await transactSimulation(learnerContext("owner"), {
+      kind: "start",
+    });
     if (!attempt) throw new Error("missing test attempt");
     const base = {
       kind: "finish" as const,
@@ -135,20 +155,20 @@ describe("isolated simulation persistence", () => {
       revision: 0,
       work: attempt,
     };
-    await expect(transactSimulation("owner", base)).rejects.toThrow(
-      "confirmation",
-    );
     await expect(
-      transactSimulation("owner", {
+      transactSimulation(learnerContext("owner"), base),
+    ).rejects.toThrow("confirmation");
+    await expect(
+      transactSimulation(learnerContext("owner"), {
         ...base,
         sessionId: "00000000-0000-4000-8000-000000000009",
       }),
     ).rejects.toThrow("Unknown simulation");
     await expect(
-      transactSimulation("owner", { ...base, work: {} }),
+      transactSimulation(learnerContext("owner"), { ...base, work: {} }),
     ).rejects.toThrow("work");
     await expect(
-      transactSimulation("owner", { ...base, revision: 7 }),
+      transactSimulation(learnerContext("owner"), { ...base, revision: 7 }),
     ).rejects.toThrow("another tab");
     expect(state.writes).toHaveLength(1);
   });

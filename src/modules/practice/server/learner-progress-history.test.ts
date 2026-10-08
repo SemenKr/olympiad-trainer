@@ -1,3 +1,4 @@
+import { learnerContext } from "../../../test/learner-fixture";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -69,7 +70,9 @@ describe("public Practice history projection", () => {
         },
       };
       readRows.mockResolvedValueOnce([row]);
-      const history = await readRecentPracticeEpisodes("private-learner");
+      const history = await readRecentPracticeEpisodes(
+        learnerContext("private-learner"),
+      );
       expect(history).toEqual([
         {
           mode: "pack",
@@ -96,7 +99,9 @@ describe("public Practice history projection", () => {
     async (outcome) => {
       const row = storedRow(outcome);
       readRows.mockResolvedValueOnce([row]);
-      const history = await readRecentPracticeEpisodes("private-learner");
+      const history = await readRecentPracticeEpisodes(
+        learnerContext("private-learner"),
+      );
       expect(history[0]).toEqual({
         mode: "core",
         completedAt: "2026-09-28T12:00:00.000Z",
@@ -135,8 +140,16 @@ describe("public Practice history projection", () => {
       outcome: "correct",
     };
     readRows.mockResolvedValueOnce([row]);
-    await expect(readRecentPracticeEpisodes("private-learner")).rejects.toThrow(
-      "could not be verified",
-    );
+    await expect(
+      readRecentPracticeEpisodes(learnerContext("private-learner")),
+    ).rejects.toThrow("could not be verified");
   });
 });
+
+vi.mock("./learner-auth", () => ({
+  withAuthenticatedLearner: async (
+    _context: unknown,
+    operation: (tx: ReturnType<typeof getProgressDb>) => Promise<unknown>,
+  ) => operation(getProgressDb()),
+}));
+import { getProgressDb } from "./progress-db";

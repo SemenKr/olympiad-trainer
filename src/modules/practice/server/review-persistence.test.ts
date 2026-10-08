@@ -1,3 +1,4 @@
+import { learnerContext } from "../../../test/learner-fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 vi.mock("server-only", () => ({}));
@@ -16,6 +17,17 @@ vi.mock("./progress-db", () => ({
           where: (condition: unknown) => {
             const finish = (kind: string) => {
               state.operations.push({ table, condition, kind });
+              if (kind === "lock") {
+                const rows = state.rows.shift() ?? [];
+                state.rows.unshift([{ valid: true }]);
+                return Promise.resolve(
+                  rows.map((row) => ({
+                    ...(row as object),
+                    anonymousTokenHash: "test-token-hash",
+                    credentialGeneration: BigInt(0),
+                  })),
+                );
+              }
               return Promise.resolve(state.rows.shift() ?? []);
             };
             return {
@@ -109,7 +121,7 @@ describe("server-owned Review boundary", () => {
       [],
       [{ sessionId: sourceId, mode: "core", episodeFacts: sourceFacts }],
     ];
-    const issued = await startReview(learnerId);
+    const issued = await startReview(learnerContext(learnerId));
     expect(issued).toMatch(/^[0-9a-f-]{36}$/);
     expect(state.operations[0]).toMatchObject({ kind: "lock" });
     const operations = state.operations as {
@@ -117,13 +129,13 @@ describe("server-owned Review boundary", () => {
       order?: Parameters<PgDialect["sqlToQuery"]>[0][];
     }[];
     const dialect = new PgDialect();
-    const condition = dialect.sqlToQuery(operations[3].condition!);
+    const condition = dialect.sqlToQuery(operations[4].condition!);
     expect(condition.params).toContain(learnerId);
     expect(condition.sql).toContain("NOT EXISTS");
     expect(condition.sql).toContain("eventually-correct");
     expect(condition.sql).toContain("solutionExposed");
     expect(
-      operations[2]
+      operations[3]
         .order!.map((order) => dialect.sqlToQuery(order).sql)
         .join(" "),
     ).toMatch(/completed_at.*desc.*session_id.*desc/);
@@ -140,7 +152,7 @@ describe("server-owned Review boundary", () => {
   });
   it("reuses a pending attempt without picking another source", async () => {
     state.rows = [[learner], [assignment]];
-    expect(await startReview(learnerId)).toBe(sessionId);
+    expect(await startReview(learnerContext(learnerId))).toBe(sessionId);
     expect(state.writes).toEqual([]);
   });
   it.each(["missing", "foreign", "ineligible"])(
@@ -166,7 +178,7 @@ describe("server-owned Review boundary", () => {
       ];
       await expect(
         persistFinishContributions(
-          learnerId,
+          learnerContext(learnerId),
           sessionId,
           [],
           undefined,
@@ -181,7 +193,13 @@ describe("server-owned Review boundary", () => {
     async (value) => {
       state.rows = [[learner], [assignment]];
       await expect(
-        persistFinishContributions(learnerId, sessionId, [], undefined, value),
+        persistFinishContributions(
+          learnerContext(learnerId),
+          sessionId,
+          [],
+          undefined,
+          value,
+        ),
       ).rejects.toThrow("assignment");
       expect(state.writes).toEqual([]);
     },
@@ -203,11 +221,17 @@ describe("server-owned Review boundary", () => {
       },
     ])
       await expect(
-        persistFinishContributions(learnerId, sessionId, [], undefined, bad),
+        persistFinishContributions(
+          learnerContext(learnerId),
+          sessionId,
+          [],
+          undefined,
+          bad,
+        ),
       ).rejects.toThrow();
     await expect(
       persistFinishContributions(
-        learnerId,
+        learnerContext(learnerId),
         sessionId,
         [],
         { attempted: true, solutionExposed: false },
@@ -225,7 +249,7 @@ describe("server-owned Review boundary", () => {
       [],
     ];
     const award = await persistFinishContributions(
-      learnerId,
+      learnerContext(learnerId),
       sessionId,
       [],
       undefined,
