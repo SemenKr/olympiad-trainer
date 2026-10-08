@@ -1,7 +1,9 @@
 import type { PackId } from "../application/completed-practice-episode";
+import { sql } from "drizzle-orm";
 
 import {
   boolean,
+  check,
   bigint,
   index,
   uniqueIndex,
@@ -48,6 +50,89 @@ export const learners = pgTable("learners", {
     .notNull()
     .defaultNow(),
 });
+
+export const learnerCredentialChanges = pgTable(
+  "learner_credential_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    learnerId: uuid("learner_id")
+      .notNull()
+      .references(() => learners.id, { onDelete: "cascade" }),
+    kind: text("kind")
+      .$type<"enrollment" | "replacement" | "recovery">()
+      .notNull(),
+    pendingSecretHash: text("pending_secret_hash").notNull().unique(),
+    expectedGeneration: bigint("expected_generation", {
+      mode: "bigint",
+    }).notNull(),
+    successorCodeHash: text("successor_code_hash").notNull().unique(),
+    recoveryAuthorityHash: text("recovery_authority_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
+    expiresAt: timestamp("expires_at", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp() + interval '10 minutes'`),
+  },
+  (table) => [
+    index("learner_credential_changes_learner_idx").on(table.learnerId),
+    index("learner_credential_changes_expiry_idx").on(table.expiresAt),
+    check(
+      "learner_credential_changes_kind_check",
+      sql`${table.kind} IN ('enrollment', 'replacement', 'recovery')`,
+    ),
+    check(
+      "learner_credential_changes_expected_generation_check",
+      sql`${table.expectedGeneration} >= 0`,
+    ),
+    check(
+      "learner_credential_changes_pending_secret_hash_check",
+      sql`${table.pendingSecretHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "learner_credential_changes_successor_code_hash_check",
+      sql`${table.successorCodeHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "learner_credential_changes_recovery_authority_hash_check",
+      sql`${table.recoveryAuthorityHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "learner_credential_changes_check",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "learner_credential_changes_check1",
+      sql`(${table.kind} = 'recovery') = (${table.recoveryAuthorityHash} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const identityRateLimitBuckets = pgTable(
+  "identity_rate_limit_buckets",
+  {
+    bucketKey: text("bucket_key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.bucketKey, table.windowStart] }),
+    index("identity_rate_limit_buckets_expiry_idx").on(table.expiresAt),
+    check(
+      "identity_rate_limit_buckets_bucket_key_check",
+      sql`${table.bucketKey} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "identity_rate_limit_buckets_attempts_check",
+      sql`${table.attempts} > 0`,
+    ),
+    check(
+      "identity_rate_limit_buckets_check",
+      sql`${table.expiresAt} > ${table.windowStart}`,
+    ),
+  ],
+);
 
 export const practiceFinishReceipts = pgTable(
   "practice_finish_receipts",
