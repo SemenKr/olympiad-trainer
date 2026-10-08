@@ -23,6 +23,8 @@ Disabled production Chromium smoke passed Home, Restore, Practice, Progress and 
 
 ## Operational inspection policy
 
+**Owner-confirmed blockers (2026-10-08):** manual monitoring coverage is unavailable, and there is no existing approved hosting-log privacy/retention or deletion/backup policy. The manual inspection proposal below is therefore not adopted or staffed. Activation preparation is **NOT READY**. A new owner decision must establish an available monitoring arrangement and approve the missing privacy/deletion/backup policy before enablement; do not automatically purchase monitoring or introduce another service.
+
 Use existing Vercel Logs, Cron Jobs, Observability and Firewall views. No paid plan upgrade, external monitoring service, log drain or telemetry dependency is introduced. The repository owner is the operational maintainer; before enablement the owner must accept this manual coverage and the notice through the reviewed release change.
 
 [Vercel runtime logs](https://vercel.com/docs/logs/runtime) retain one hour on Hobby. [Automated anomaly alerts](https://vercel.com/docs/alerts) require Pro with Observability Plus or Enterprise. Do not describe manual inspection as configured automatic notification. Manual coverage requires a maintainer; inability to cover the inspection schedule blocks enablement until an owner-adopted alternative exists.
@@ -63,3 +65,5 @@ The adopted contract also requires deployment-specific treatment of authenticate
 The Russian `/restore` notice explains account/email-free access, bearer-code possession, outside-browser storage with adult help, old-code invalidation after confirmed replacement/recovery, and irreversible loss when both browser access and the valid code are lost. It is informational even while Recovery is unavailable.
 
 Repository publication requires tests, independent security/release review, PR CI and disabled Preview. Merge requires explicit owner approval. After approved merge, verify the resulting canonical main SHA/deployment READY and rerun disabled production smoke; the notice is not production-delivered until then. Public enablement remains a separate explicit human action. Never set `RECOVERY_ENABLED=true` during preparation, and never describe this as a public release.
+
+Draft publication: [PR #85](https://github.com/SemenKr/olympiad-trainer/pull/85). Initial reviewed commit `02ef3696b53cef0268322d3f09a28827a43e9356` passed [CI 37806715558](https://github.com/SemenKr/olympiad-trainer/actions/runs/37806715558) and has READY Preview `dpl_5zwZ9xqQCUCNFk1SJfKx4TfjMm7a`; final documentary status updates require their own CI/Preview confirmation. Independent implementation review: Critical 0 / Major 0 / Minor 0, with the activation-readiness gates above still blocking. This is a draft preparation change, not a public release.
