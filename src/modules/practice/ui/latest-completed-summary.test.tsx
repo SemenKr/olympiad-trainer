@@ -1,3 +1,4 @@
+import { installTestLocalOwner } from "../../learner/local-ownership.test-helper";
 // @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -121,10 +122,11 @@ async function finish(sessionId: string, count: number) {
   return results;
 }
 
-beforeEach(() => {
-  installImmediatePracticeSessionLock();
+beforeEach(async () => {
+  await installImmediatePracticeSessionLock();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  await installTestLocalOwner(window.localStorage);
   vi.clearAllMocks();
   window.history.replaceState(null, "", "/practice/summary");
 });
@@ -186,8 +188,8 @@ describe("persisted Summary session identity", () => {
       expect(readServerPracticeJourneyFinish).toHaveBeenCalledTimes(2);
       expect(readServerLearningPath).not.toHaveBeenCalled();
       expect(vi.mocked(readServerPracticeJourneyFinish).mock.calls).toEqual([
-        [sessionB],
-        [sessionB],
+        [sessionB, expect.objectContaining({ generation: "0" })],
+        [sessionB, expect.objectContaining({ generation: "0" })],
       ]);
     },
   );
@@ -228,11 +230,14 @@ it("keeps completed bytes and shows a retryable error when Summary storage canno
   const results = await finish(sessionA, 1);
   const before = localStorage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
   const read = Storage.prototype.getItem;
+  let failOnce = true;
   const spy = vi
     .spyOn(Storage.prototype, "getItem")
-    .mockImplementationOnce(function (this: Storage, key) {
-      if (key === PRACTICE_LATEST_COMPLETED_STORAGE_KEY)
+    .mockImplementation(function (this: Storage, key) {
+      if (key.endsWith(":practice-latest-completed") && failOnce) {
+        failOnce = false;
         throw Error("Storage unavailable");
+      }
       return read.call(this, key);
     });
   const container = document.createElement("div");

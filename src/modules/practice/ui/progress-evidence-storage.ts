@@ -1,3 +1,4 @@
+import { captureLearnerStorage } from "../../learner/local-ownership";
 import {
   deriveGuaranteeProgressInterpretation,
   emptyGuaranteeProgressEvidence,
@@ -44,7 +45,7 @@ export async function readVerifiedPracticeProgressEvidence(
     ReasoningCheckpointInterpretation,
   ];
 }> {
-  const store = storage ?? window.localStorage;
+  const store = storage ?? captureLearnerStorage();
   const raw = store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
   if (raw === null) {
     const empty = progressEvidenceBuckets(emptyPracticeProgressEvidence());
@@ -105,7 +106,7 @@ export async function readVerifiedGuaranteeProgressEvidence(
   evidence: GuaranteeProgressEvidence;
   interpretation: ReasoningCheckpointInterpretation;
 }> {
-  const store = storage ?? window.localStorage;
+  const store = storage ?? captureLearnerStorage();
   const raw = store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
   if (raw === null) {
     const evidence = emptyGuaranteeProgressEvidence();

@@ -2,7 +2,8 @@
 
 import { requireSimulationAssistanceAllowed } from "../../modules/simulation/server/assistance-guard";
 
-import { resolveLearnerFromCookie } from "../../modules/practice/server/learner-identity";
+import type { LocalLearnerOwner } from "../../modules/learner/local-owner-context";
+import { resolveExpectedLearnerFromCookie } from "../../modules/practice/server/learner-identity";
 import {
   requireOptionId,
   requireSessionId,
@@ -19,13 +20,21 @@ import {
 } from "../../modules/knowledge-support/server/content";
 import { MICRO_CORRECT } from "../../modules/knowledge-support/domain/content";
 
-export async function readKnowledgeSupport(sessionId: string) {
-  await requireSimulationAssistanceAllowed();
+export async function readKnowledgeSupport(
+  sessionId: string,
+  expected: LocalLearnerOwner,
+) {
   requireSessionId(sessionId);
-  return readSupportObservation(await resolveLearnerFromCookie(), sessionId);
+  const authenticated = await resolveExpectedLearnerFromCookie(expected);
+  await requireSimulationAssistanceAllowed();
+  return readSupportObservation(authenticated, sessionId);
 }
 
-export async function readKnowledgeSupportEligibility(context: unknown) {
+export async function readKnowledgeSupportEligibility(
+  context: unknown,
+  expected: LocalLearnerOwner,
+) {
+  await resolveExpectedLearnerFromCookie(expected);
   await requireSimulationAssistanceAllowed();
   return requireDiagnosticEligibility(context);
 }
@@ -34,13 +43,15 @@ export async function submitKnowledgeDiagnostic(
   sessionId: string,
   selectedOptionId: unknown,
   context: unknown,
+  expected: LocalLearnerOwner,
 ) {
-  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
   const eligible = requireDiagnosticEligibility(context);
+  const authenticated = await resolveExpectedLearnerFromCookie(expected);
+  await requireSimulationAssistanceAllowed();
   return persistSupportStep(
-    await resolveLearnerFromCookie(),
+    authenticated,
     sessionId,
     "diagnostic",
     selectedOptionId,
@@ -48,11 +59,15 @@ export async function submitKnowledgeDiagnostic(
   );
 }
 
-export async function openKnowledgeLesson(sessionId: string) {
-  await requireSimulationAssistanceAllowed();
+export async function openKnowledgeLesson(
+  sessionId: string,
+  expected: LocalLearnerOwner,
+) {
   requireSessionId(sessionId);
+  const authenticated = await resolveExpectedLearnerFromCookie(expected);
+  await requireSimulationAssistanceAllowed();
   const observation = await persistSupportStep(
-    await resolveLearnerFromCookie(),
+    authenticated,
     sessionId,
     "lesson",
     null,
@@ -63,12 +78,14 @@ export async function openKnowledgeLesson(sessionId: string) {
 export async function submitKnowledgeMicroCheck(
   sessionId: string,
   selectedOptionId: unknown,
+  expected: LocalLearnerOwner,
 ) {
-  await requireSimulationAssistanceAllowed();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
+  const authenticated = await resolveExpectedLearnerFromCookie(expected);
+  await requireSimulationAssistanceAllowed();
   const observation = await persistSupportStep(
-    await resolveLearnerFromCookie(),
+    authenticated,
     sessionId,
     "micro-check",
     selectedOptionId,

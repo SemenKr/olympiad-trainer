@@ -1,3 +1,4 @@
+import { installImmediatePracticeSessionLock } from "../modules/practice/ui/practice-session-lock.test-helper";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -55,6 +56,8 @@ afterEach(() => {
   document.body.replaceChildren();
   vi.unstubAllGlobals();
 });
+
+beforeEach(installImmediatePracticeSessionLock);
 
 it("keeps Resume usable while the secondary latest Summary verification is pending", async () => {
   let resolve!: (

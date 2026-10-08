@@ -59,6 +59,7 @@ const db = {
 import {
   initializeAnonymousLearner,
   resolveLearnerFromCookie,
+  resolveExpectedLearnerFromCookie,
 } from "./learner-identity";
 
 beforeEach(() => {
@@ -68,6 +69,38 @@ beforeEach(() => {
   state.settings = undefined;
 });
 describe("explicit anonymous identity boundary", () => {
+  it("local context alone cannot authenticate; cookie and exact expected owner/generation are required", async () => {
+    const expected = {
+      learnerId: "00000000-0000-4000-8000-000000000001",
+      generation: "0",
+    };
+    await expect(resolveExpectedLearnerFromCookie(expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    await initializeAnonymousLearner();
+    state.row!.id = expected.learnerId;
+    expect((await resolveExpectedLearnerFromCookie(expected)).learnerId).toBe(
+      expected.learnerId,
+    );
+    await expect(
+      resolveExpectedLearnerFromCookie({ ...expected, generation: "1" }),
+    ).rejects.toThrow("identity is unavailable");
+    await expect(
+      resolveExpectedLearnerFromCookie({
+        ...expected,
+        learnerId: "00000000-0000-4000-8000-000000000002",
+      }),
+    ).rejects.toThrow("identity is unavailable");
+    state.row!.credentialGeneration = BigInt(1);
+    await expect(resolveExpectedLearnerFromCookie(expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    state.cookie = undefined;
+    await expect(resolveExpectedLearnerFromCookie(expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    expect(state.inserts).toBe(1);
+  });
   it("initializes once explicitly and resolves the same UUID without another insert", async () => {
     await initializeAnonymousLearner();
     const first = await resolveLearnerFromCookie();

@@ -42,6 +42,11 @@ import { transactSimulation } from "../../simulation/server/persistence";
 import { requireSimulationAssistanceAllowed } from "../../simulation/server/assistance-guard";
 import { readSimulationReferences } from "../../../app/simulation/actions";
 import {
+  importBrowserProgressEvidence,
+  persistPracticeFinishEvidence,
+} from "../../../app/progress/actions";
+import { startSimulation } from "../../../app/simulation/actions";
+import {
   readSupportObservation,
   persistSupportStep,
 } from "../../knowledge-support/server/persistence";
@@ -103,6 +108,64 @@ async function rotate(context: AuthenticatedLearner, token = false) {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL authenticated learner boundary", () => {
+  it("rejects browser-local writes captured under another owner or older generation before any new receipt/attempt", async () => {
+    const first = await fresh();
+    const expected = {
+      learnerId: first.learnerId,
+      generation: first.generation.toString(),
+    };
+    const session = randomUUID();
+    await importBrowserProgressEvidence(null, expected);
+    await persistPracticeFinishEvidence(
+      session,
+      [],
+      undefined,
+      undefined,
+      expected,
+    );
+    await rotate(first);
+    await expect(
+      persistPracticeFinishEvidence(
+        randomUUID(),
+        [],
+        undefined,
+        undefined,
+        expected,
+      ),
+    ).rejects.toThrow("identity is unavailable");
+    await expect(importBrowserProgressEvidence(null, expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    await expect(startSimulation(expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    const second = await fresh();
+    await expect(
+      persistPracticeFinishEvidence(
+        session,
+        [],
+        undefined,
+        undefined,
+        expected,
+      ),
+    ).rejects.toThrow("identity is unavailable");
+    await expect(importBrowserProgressEvidence(null, expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    await expect(startSimulation(expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    expect(await readRecentPracticeEpisodes(second)).toEqual([]);
+    expect(
+      (await transactSimulation(second, { kind: "read" })).attempt,
+    ).toBeNull();
+    const receipts = await getProgressDb()
+      .select()
+      .from(practiceFinishReceipts)
+      .where(eq(practiceFinishReceipts.sessionId, session));
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].learnerId).toBe(first.learnerId);
+  });
   it("explicit initialization preserves a valid token's exact UUID, evidence and receipts on repeated resolution", async () => {
     const context = await fresh();
     await importLegacyProgress(context, null);
@@ -277,16 +340,22 @@ describe.skipIf(!testUrl)("PostgreSQL authenticated learner boundary", () => {
     await expect(
       requireSimulationAssistanceAllowed("exact-coin-payments"),
     ).rejects.toThrow("until Simulation Finish");
-    await expect(readSimulationReferences(started.sessionId)).rejects.toThrow(
-      "only after Finish",
-    );
+    await expect(
+      readSimulationReferences(started.sessionId, {
+        learnerId: context.learnerId,
+        generation: context.generation.toString(),
+      }),
+    ).rejects.toThrow("only after Finish");
     await rotate(context, true);
     await expect(
       requireSimulationAssistanceAllowed("exact-coin-payments"),
     ).rejects.toThrow("identity is unavailable");
-    await expect(readSimulationReferences(started.sessionId)).rejects.toThrow(
-      "identity is unavailable",
-    );
+    await expect(
+      readSimulationReferences(started.sessionId, {
+        learnerId: context.learnerId,
+        generation: context.generation.toString(),
+      }),
+    ).rejects.toThrow("identity is unavailable");
     cookie.value = undefined;
     await expect(
       requireSimulationAssistanceAllowed("exact-coin-payments"),

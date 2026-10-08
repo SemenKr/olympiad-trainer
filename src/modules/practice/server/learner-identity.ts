@@ -9,6 +9,10 @@ import { emptyGuaranteeProgressEvidence } from "../application/guarantee-progres
 import { emptyImpossibilityProgressEvidence } from "../application/impossibility-progress-evidence";
 import { emptyEnumerationProgressEvidence } from "../application/enumeration-progress-evidence";
 import {
+  isLocalLearnerOwner,
+  type LocalLearnerOwner,
+} from "../../learner/local-owner-context";
+import {
   LearnerIdentityUnavailable,
   withAuthenticatedLearner,
   type AuthenticatedLearner,
@@ -33,6 +37,19 @@ export async function resolveLearnerFromCookie(): Promise<AuthenticatedLearner> 
   if (!row) throw new LearnerIdentityUnavailable();
   const context = { ...row, tokenHash };
   return withAuthenticatedLearner(context, async () => context);
+}
+
+export async function resolveExpectedLearnerFromCookie(
+  expected: LocalLearnerOwner,
+): Promise<AuthenticatedLearner> {
+  const authenticated = await resolveLearnerFromCookie();
+  if (
+    !isLocalLearnerOwner(expected) ||
+    expected.learnerId !== authenticated.learnerId ||
+    expected.generation !== authenticated.generation.toString()
+  )
+    throw new LearnerIdentityUnavailable();
+  return authenticated;
 }
 
 // Called only by the explicit fresh-browser boundary, never by learning operations.

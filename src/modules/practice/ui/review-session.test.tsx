@@ -1,3 +1,5 @@
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
+import { installTestLocalOwner } from "../../learner/local-ownership.test-helper";
 import { JSDOM } from "jsdom";
 import { act, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -53,7 +55,7 @@ const problems = [
   getLearnerSafePracticeProblem("table-impossible-sums"),
 ] as const;
 let dom: JSDOM;
-beforeEach(() => {
+beforeEach(async () => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "http://localhost",
   });
@@ -62,6 +64,8 @@ beforeEach(() => {
   vi.stubGlobal("document", dom.window.document);
   vi.stubGlobal("navigator", dom.window.navigator);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  await installImmediatePracticeSessionLock();
+  await installTestLocalOwner(dom.window.localStorage);
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -88,6 +92,7 @@ describe("Review Practice entry", () => {
         sessionId: "00000000-0000-4000-8000-000000000011",
       }),
       expect.objectContaining({ rawAnswer: "", practice: startPractice() }),
+      expect.any(Object),
     );
     expect(readServerNextUsefulProblem).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain("Проверить рассуждение");

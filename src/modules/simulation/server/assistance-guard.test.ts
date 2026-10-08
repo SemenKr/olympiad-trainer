@@ -6,6 +6,7 @@ vi.mock("next/headers", () => ({
 vi.mock("../../practice/server/learner-identity", () => ({
   LEARNER_COOKIE_NAME: "learner",
   resolveLearnerFromCookie: vi.fn(async () => "owner"),
+  resolveExpectedLearnerFromCookie: vi.fn(async () => "owner"),
 }));
 vi.mock("./persistence", () => ({ transactSimulation: vi.fn() }));
 import { transactSimulation } from "./persistence";
@@ -41,10 +42,11 @@ describe("existing assistance endpoints cannot bypass active Simulation", () => 
     ).rejects.toThrow("until Simulation Finish");
   });
   it("blocks Knowledge Support even through its existing server actions", async () => {
-    await expect(openKnowledgeLesson(attempt.sessionId)).rejects.toThrow(
+    const owner = { learnerId: attempt.sessionId, generation: "0" };
+    await expect(openKnowledgeLesson(attempt.sessionId, owner)).rejects.toThrow(
       "until Simulation Finish",
     );
-    await expect(readKnowledgeSupportEligibility({})).rejects.toThrow(
+    await expect(readKnowledgeSupportEligibility({}, owner)).rejects.toThrow(
       "until Simulation Finish",
     );
   });

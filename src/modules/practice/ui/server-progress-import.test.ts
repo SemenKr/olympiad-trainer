@@ -9,9 +9,9 @@ import { installImmediatePracticeSessionLock } from "./practice-session-lock.tes
 import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import { ensureServerProgressImported } from "./server-progress-import";
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetAllMocks();
-  installImmediatePracticeSessionLock();
+  await installImmediatePracticeSessionLock();
 });
 
 function storage(initial: string): Storage {
@@ -43,7 +43,10 @@ describe("legacy browser Progress import", () => {
     );
     expect(store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe("{malformed");
     await ensureServerProgressImported(store);
-    expect(importBrowserProgressEvidence).toHaveBeenCalledWith("{malformed");
+    expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
+      "{malformed",
+      expect.objectContaining({ generation: "0" }),
+    );
     expect(store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBeNull();
   });
 
