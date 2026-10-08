@@ -12,4 +12,4 @@ Olympiad Foundations: [исследовательский прототип v0.1]
 
 Следующее наблюдение за новичком: [полевой лист LV-03](02-research/learner-validation-lv03-field-sheet.md) для печати и краткой записи по действующим протоколам.
 
-Learner Identity & Recovery v1: [принятый архитектурный и продуктовый контракт](04-architecture/learner-identity-recovery-v1.md). D1–D5 приняты 2026-10-07; recovery-функция ещё не реализована и текущая анонимная идентификация в production пока не меняется.
+Learner Identity & Recovery v1: [принятый архитектурный и продуктовый контракт](04-architecture/learner-identity-recovery-v1.md) и [production runbook](05-development/recovery-production-runbook.md). Recovery v1 реализован и развёрнут в выключенном состоянии; публичное включение остаётся отдельным решением владельца.

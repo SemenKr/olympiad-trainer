@@ -7,3 +7,27 @@
   margin-inline: auto;
   padding: var(--ot-space-24) var(--ot-space-16) var(--ot-space-28);
 }
+
+.notice {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ot-space-12);
+  overflow-wrap: anywhere;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: var(--ot-font-size-heading);
+    line-height: var(--ot-line-height-heading);
+  }
+
+  p {
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-body);
+    line-height: var(--ot-line-height-body);
+  }
+}
