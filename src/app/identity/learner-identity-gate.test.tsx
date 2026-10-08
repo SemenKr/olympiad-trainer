@@ -6,6 +6,10 @@ vi.mock("./actions", () => ({
   readAuthenticatedLearnerContext: vi.fn(),
   initializeFreshAnonymousLearner: vi.fn(),
 }));
+const navigation = vi.hoisted(() => ({ pathname: "/" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigation.pathname,
+}));
 import {
   readAuthenticatedLearnerContext,
   initializeFreshAnonymousLearner,
@@ -19,6 +23,7 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.clearAllMocks();
+  navigation.pathname = "/";
   localStorage.clear();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Object.defineProperty(navigator, "locks", {
@@ -147,5 +152,13 @@ describe("explicit fresh-browser initialization gate", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+  it("keeps Restore reachable without initializing a replacement learner", async () => {
+    navigation.pathname = "/restore";
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("missing");
+    await render();
+    expect(container.textContent).toContain("learner content");
+    expect(readAuthenticatedLearnerContext).not.toHaveBeenCalled();
+    expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
   });
 });

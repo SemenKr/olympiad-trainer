@@ -157,6 +157,57 @@ async function bucket(scope: string, input: string) {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL recovery release infrastructure", () => {
+  it("retained expired buckets cannot exhaust a current budget", async () => {
+    const scope = "expired-budget";
+    const identifier = randomUUID();
+    const key = operationalHash(`rate-limit:${scope}`, identifier);
+    await getProgressDb().execute(sql`
+      INSERT INTO identity_rate_limit_buckets(bucket_key, window_start, attempts, expires_at)
+      SELECT ${key}, to_timestamp(floor(extract(epoch FROM clock_timestamp()) / 900) * 900),
+        6, clock_timestamp()
+    `);
+    const results = await Promise.allSettled(
+      Array.from({ length: 8 }, () =>
+        limitCredentialAttempts(scope, identifier),
+      ),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(5);
+    expect((await bucket(scope, identifier)).attempts).toBe(6);
+  });
+  it("retained expired pending rows neither activate credentials nor charge the learner budget", async () => {
+    const context = await fresh();
+    const pending = await startAuthenticatedCredentialChange(
+      context,
+      "enrollment",
+    );
+    await getProgressDb().execute(sql`
+      UPDATE learner_credential_changes SET created_at = clock_timestamp() - interval '20 minutes',
+        expires_at = clock_timestamp() - interval '1 minute'
+      WHERE id = ${pending.operationId}
+    `);
+    const before = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, context.learnerId));
+    await expect(
+      confirmCredentialChange(pending.secret, pending.code, context),
+    ).rejects.toThrow();
+    expect(await bucket("confirm-learner", context.learnerId)).toBeUndefined();
+    expect(
+      await getProgressDb()
+        .select()
+        .from(learners)
+        .where(eq(learners.id, context.learnerId)),
+    ).toEqual(before);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(learnerCredentialChanges)
+        .where(eq(learnerCredentialChanges.id, pending.operationId)),
+    ).toHaveLength(1);
+  });
   it.each([5, 10, 30])(
     "shared atomic limiter permits exactly %i attempts under contention",
     async (budget) => {
@@ -402,5 +453,60 @@ describe.skipIf(!testUrl)("PostgreSQL recovery release infrastructure", () => {
     const second = await cleanupRequest(auth);
     expect(second.status).toBe(200);
     expect((await second.json()).rateDeleted).toBe(1);
+  });
+  it("scheduled cleanup returns non-success before the route deadline when a SQL statement stalls", async () => {
+    // beforeAll gives this file its own unique schema; these sequential tests
+    // never clear another integration file's operational fixtures.
+    await getProgressDb().delete(learnerCredentialChanges);
+    await getProgressDb().delete(identityRateLimitBuckets);
+    const key = randomBytes(32).toString("hex");
+    const suffix = randomUUID().replaceAll("-", "");
+    const functionName = `cleanup_delay_${suffix}`;
+    const triggerName = `cleanup_delay_trigger_${suffix}`;
+    const client = new pg.Client({
+      connectionString: process.env.DATABASE_URL,
+    });
+    await client.connect();
+    try {
+      await client.query(
+        `CREATE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN
+            IF OLD.bucket_key = '${key}' THEN PERFORM pg_sleep(2); END IF;
+            RETURN OLD;
+          END
+        $$`,
+      );
+      await client.query(
+        `CREATE TRIGGER ${triggerName} BEFORE DELETE ON identity_rate_limit_buckets
+          FOR EACH ROW EXECUTE FUNCTION ${functionName}()`,
+      );
+      await client.query(
+        `INSERT INTO identity_rate_limit_buckets(bucket_key, window_start, attempts, expires_at)
+         VALUES ($1, clock_timestamp() - interval '30 minutes', 1, clock_timestamp() - interval '15 minutes')`,
+        [key],
+      );
+      const start = Date.now();
+      const auth = new Request(
+        "http://localhost/api/internal/recovery-cleanup",
+        {
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        },
+      );
+      const response = await cleanupRequest(auth);
+      expect(response.status).toBe(503);
+      expect(Date.now() - start).toBeLessThan(5_000);
+      expect(
+        await getProgressDb()
+          .select()
+          .from(identityRateLimitBuckets)
+          .where(eq(identityRateLimitBuckets.bucketKey, key)),
+      ).toHaveLength(1);
+    } finally {
+      await client.query(
+        `DROP TRIGGER IF EXISTS ${triggerName} ON identity_rate_limit_buckets`,
+      );
+      await client.query(`DROP FUNCTION IF EXISTS ${functionName}()`);
+      await client.end();
+    }
   });
 });
