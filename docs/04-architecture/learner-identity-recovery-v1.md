@@ -2,7 +2,7 @@
 
 Task: `OT-LEARNER-IDENTITY-ARCH-01`. Status: **Adopted — 2026-10-07. Architecture decisions D1–D5 were explicitly accepted from proposal revision `ead0980b83751b124181bda0bd09f45640c9f7dc`. The adopted design is implemented and Recovery v1 is released to controlled canonical-host production; see the [production release record](../05-development/recovery-production-runbook.md#current-production-release-record).**
 
-This is the adopted product and architecture contract for the bounded v1 recovery direction. Its implementation/release gates were completed for the controlled production release recorded in the runbook. Existing adopted learning/domain contracts remain authoritative and unchanged unless this contract explicitly defines an identity boundary.
+This is the adopted product and architecture contract for the bounded v1 recovery direction. Technical implementation and the controlled canonical-host production release are complete as recorded in the runbook. Child/guardian comprehension of code custody remains an open learner-validation question; the technical release does not establish it. Existing adopted learning/domain contracts remain authoritative and unchanged unless this contract explicitly defines an identity boundary.
 
 ## 1. Problem and evidence
 
@@ -186,7 +186,7 @@ The Russian learner flow supports enrollment, code replacement and lost-cookie r
 
 ### Recovery release infrastructure (OT-LEARNER-RECOVERY-RELEASE-INFRA-01)
 
-R1–R8 below were explicitly adopted in the infrastructure task on 2026-10-08. D1–D5, learning behavior and Local Ownership are unchanged. The production owner reports production DB schema 0013 after the separately authorized migration operation; this RC task performs no production DB mutation and has not independently inspected production schema. No production secrets are set by this task. `RECOVERY_ENABLED` remains off and public recovery remains unavailable. The ordinary learner mapper remains compatible with 0012.
+R1–R8 below were explicitly adopted in the infrastructure task on 2026-10-08. D1–D5, learning behavior and Local Ownership are unchanged. The production owner reported production DB schema 0013 after the separately authorized migration operation; this infrastructure task performed no production DB mutation and did not independently inspect production schema. It set no production secrets and did not enable Recovery. The current production release status is recorded above in the runbook. The ordinary learner mapper remains compatible with 0012.
 
 | Decision | Implemented contract |
 | --- | --- |
@@ -234,7 +234,7 @@ Recovery entry can be canceled without changing the browser learner. Completed r
 
 ## 12. Historical implementation slices in dependency order
 
-1. **Validate release gates:** D1–D5 are adopted. Before controlled production release, validate child/guardian comprehension of the save/replace flow and approve the notice/retention policy and hosting abuse controls. These gates did not block server-side identity-boundary work while recovery remained disabled.
+1. **Validate learner assumptions:** D1–D5 are adopted. Validate child/guardian comprehension of the save/replace flow through learner research. The technical production release does not establish comprehension; see the open learner-validation question above. Notice/retention policy and hosting abuse controls were approved separately as recorded in the runbook.
 2. **Identity boundary:** additive schema, explicit initialization/status/resolution, server expiry and generation checks across learner-scoped reads/writes; transaction-level revocation tests. Recovery was kept disabled during the implementation slices.
 3. **Local ownership migration:** owner envelopes and switch barrier across Practice, legacy import, Summary and Simulation; stale-tab/reload/uncertain-outcome tests. Preserve payload semantics and existing locks.
 4. **Credential lifecycle:** pending enrollment/replacement/recovery, secure delivery, confirmation, atomic consume/rotate, limiter and cleanup using existing PostgreSQL. Test concurrent winners and response loss with no learning changes.
