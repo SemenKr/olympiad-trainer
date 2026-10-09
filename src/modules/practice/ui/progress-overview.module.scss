@@ -62,6 +62,11 @@
     "recent";
 }
 
+.work,
+.support {
+  display: contents;
+}
+
 .next {
   grid-area: next;
 }
@@ -250,23 +255,17 @@
     align-items: start;
   }
 
-  .content {
-    grid-template-areas:
-      "evidence next"
-      "evidence path"
-      "evidence journey"
-      "evidence destinations"
-      "recent .";
-    grid-template-rows: auto auto auto 1fr auto;
+  .content,
+  .content:has(.next:empty) {
+    grid-template-areas: none;
   }
 
-  .content:has(.next:empty) {
-    grid-template-areas:
-      "evidence path"
-      "evidence journey"
-      "evidence destinations"
-      "recent .";
-    grid-template-rows: auto auto 1fr auto;
+  .work,
+  .support {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--ot-space-32);
   }
 }
 

@@ -87,8 +87,8 @@ describe("durable history on Progress reload", () => {
       expect(
         container.textContent!.indexOf("Как гарантировать результат"),
       ).toBeLessThan(container.textContent!.indexOf("Путь практики"));
-      expect(container.textContent!.indexOf("Путь практики")).toBeLessThan(
-        container.textContent!.indexOf("Недавняя работа"),
+      expect(container.textContent!.indexOf("Недавняя работа")).toBeLessThan(
+        container.textContent!.indexOf("Путь практики"),
       );
       expect(readServerPracticeJourney).toHaveBeenCalled();
       expect(container.textContent).toContain("Как гарантировать результат");
@@ -170,8 +170,8 @@ it("keeps capability/Journey/history available when the secondary Review read fa
   });
   expect(container.querySelector('a[href="/practice/review"]')).not.toBeNull();
   expect(readServerProgress).toHaveBeenCalledTimes(1);
-  expect(container.textContent!.indexOf("Решить знакомую задачу")).toBeLessThan(
-    container.textContent!.indexOf("Evidence A"),
+  expect(container.textContent!.indexOf("Evidence A")).toBeLessThan(
+    container.textContent!.indexOf("Решить знакомую задачу"),
   );
   await act(async () => {
     root.unmount();
