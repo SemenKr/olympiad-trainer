@@ -59,7 +59,7 @@ import {
   readServerPracticeJourneyFinish,
 } from "../../../app/progress/actions";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   saveNoNextPracticeSessionSnapshot,
   saveLatestCompletedResults,
@@ -111,14 +111,14 @@ async function finish(sessionId: string, count: number) {
   };
   expect(await saveNoNextPracticeSessionSnapshot(session)).toBe(true);
   expect(
-    await completePracticeSession(
+    await completeServerBackedPracticeSession(
       session,
       null,
       results,
       undefined,
       async () => null,
     ),
-  ).toBe(true);
+  ).toBe("completed");
   return results;
 }
 

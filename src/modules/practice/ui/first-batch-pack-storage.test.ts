@@ -29,7 +29,7 @@ import {
 } from "./fixed-practice-session-state";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   getStoredProblemTitle,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
@@ -252,7 +252,7 @@ describe("first batch through generic Pack storage and Finish", () => {
       ]);
       const requests: ServerPracticeFinishPayload[] = [];
       expect(
-        await completePracticeSession(
+        await completeServerBackedPracticeSession(
           third,
           finalAnswer,
           results,
@@ -262,7 +262,7 @@ describe("first batch through generic Pack storage and Finish", () => {
             throw new Error("response lost");
           },
         ),
-      ).toBe(false);
+      ).toBe("outcome-unknown");
       expect(requests[0]).toMatchObject({
         episodeMode: "pack",
         contributions: [],
@@ -279,7 +279,7 @@ describe("first batch through generic Pack storage and Finish", () => {
         validateCompletedEpisode("pack", requests[0].episodeFacts),
       ).toEqual(requests[0].episodeFacts);
       expect(
-        await completePracticeSession(
+        await completeServerBackedPracticeSession(
           third,
           finalAnswer,
           results,
@@ -288,7 +288,7 @@ describe("first batch through generic Pack storage and Finish", () => {
             requests.push(request);
           },
         ),
-      ).toBe(true);
+      ).toBe("completed");
       expect(requests[1]).toEqual(requests[0]);
       expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
       expect(
@@ -348,7 +348,7 @@ describe("first batch through generic Pack storage and Finish", () => {
       expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);
       expect(JSON.stringify(noNext)).not.toContain("packId");
       expect(
-        await completePracticeSession(
+        await completeServerBackedPracticeSession(
           noNext,
           null,
           noNext.completedResults,
@@ -362,7 +362,7 @@ describe("first batch through generic Pack storage and Finish", () => {
             ).toEqual(request.episodeFacts);
           },
         ),
-      ).toBe(true);
+      ).toBe("completed");
     },
   );
 });

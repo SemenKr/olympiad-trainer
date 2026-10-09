@@ -154,6 +154,27 @@ describe("PracticeSession solution reveal", () => {
 });
 
 describe("Practice no-next surface", () => {
+  it.each([
+    ["outcome-unknown", "Они уже могли сохраниться"],
+    ["reconciliation-pending", "Итоги сохранены"],
+    ["blocked", "Не удалось подтвердить завершение"],
+  ] as const)(
+    "announces %s without claiming the Finish was not saved",
+    (outcome, message) => {
+      const markup = renderToStaticMarkup(
+        <NoNextPracticeSurface
+          onFinish={vi.fn()}
+          onPause={vi.fn()}
+          storageError
+          finishOutcome={outcome}
+        />,
+      );
+      expect(markup).toContain('role="alert"');
+      expect(markup).toContain(message);
+      expect(markup).not.toContain("Не удалось сохранить тренировку");
+      expect(markup).toContain("ещё раз");
+    },
+  );
   it("offers explicit Finish and Home without an active answer or reveal control", () => {
     const markup = renderToStaticMarkup(
       <NoNextPracticeSurface

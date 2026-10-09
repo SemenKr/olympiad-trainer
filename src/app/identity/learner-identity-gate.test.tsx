@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./actions", () => ({
@@ -15,6 +15,12 @@ import {
   initializeFreshAnonymousLearner,
 } from "./actions";
 import LearnerIdentityGate from "./learner-identity-gate";
+import { captureLearnerStorage } from "../../modules/learner/local-ownership";
+import {
+  createPracticeSessionSnapshot,
+  savePracticeSessionSnapshot,
+} from "../../modules/practice/ui/practice-session-storage";
+import { createShortNumericAnswerState } from "../../modules/practice/ui/short-numeric-answer-state";
 const owner = {
   learnerId: "00000000-0000-4000-8000-000000000001",
   generation: "0",
@@ -57,6 +63,39 @@ async function render() {
   );
 }
 describe("explicit fresh-browser initialization gate", () => {
+  it("fresh initialization followed by immediate navigation keeps Practice's captured storage writable", async () => {
+    vi.mocked(readAuthenticatedLearnerContext)
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValue(owner);
+    await render();
+    let lease!: Storage;
+    function PracticeProbe() {
+      [lease] = useState(captureLearnerStorage);
+      return <p>Practice mounted</p>;
+    }
+    navigation.pathname = "/practice";
+    await act(async () =>
+      root.render(
+        <LearnerIdentityGate>
+          <PracticeProbe />
+        </LearnerIdentityGate>,
+      ),
+    );
+    const session = {
+      sessionId: crypto.randomUUID(),
+      activeProblemIndex: 0 as const,
+      completedResults: [],
+    };
+    const answer = createShortNumericAnswerState();
+    expect(await createPracticeSessionSnapshot(session, answer, lease)).toBe(
+      true,
+    );
+    expect(await savePracticeSessionSnapshot(session, answer, lease)).toBe(
+      true,
+    );
+    expect(initializeFreshAnonymousLearner).toHaveBeenCalledOnce();
+  });
   it.each(["malformed", "unknown", "expired", "revoked"])(
     "%s credential never binds/imports/deletes legacy work",
     async () => {

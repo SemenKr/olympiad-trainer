@@ -7,7 +7,7 @@ import {
 import { startAdaptivePracticeSession } from "./fixed-practice-session-state";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
@@ -93,7 +93,7 @@ describe("one adaptive transfer episode", () => {
     };
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -103,7 +103,7 @@ describe("one adaptive transfer episode", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       adaptiveFacts: {
         problemId: "pages-without-digit-one",
@@ -124,7 +124,7 @@ describe("one adaptive transfer episode", () => {
       problemIds: ["pages-without-digit-one"],
     });
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -133,7 +133,7 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(readLatestCompletedResults(store)).toEqual([result]);
     expect(
@@ -192,7 +192,7 @@ describe("one adaptive transfer episode", () => {
     };
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -202,7 +202,7 @@ describe("one adaptive transfer episode", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       adaptiveFacts: {
         problemId: "parrots-guaranteed-colors",
@@ -220,7 +220,7 @@ describe("one adaptive transfer episode", () => {
       problemIds: ["parrots-guaranteed-colors"],
     });
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -229,7 +229,7 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(readLatestCompletedResults(store)).toEqual([result]);
     expect(
@@ -273,7 +273,7 @@ describe("one adaptive transfer episode", () => {
     };
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -283,7 +283,7 @@ describe("one adaptive transfer episode", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       sessionId: session.sessionId,
       adaptiveFacts: { attempted: true, solutionExposed: false },
@@ -302,7 +302,7 @@ describe("one adaptive transfer episode", () => {
       firstCorrectSubmissionCount: undefined,
     };
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [altered],
@@ -311,7 +311,7 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(readLatestCompletedResults(store)).toEqual([result]);
@@ -351,7 +351,7 @@ describe("one adaptive transfer episode", () => {
     };
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -360,7 +360,7 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[0]).toMatchObject({
       adaptiveFacts: { attempted: true, solutionExposed: false },
       contributions: [],
@@ -411,7 +411,7 @@ describe("one adaptive transfer episode", () => {
     } as Storage;
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -420,10 +420,10 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(false);
+    ).toBe("reconciliation-pending");
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).not.toBeNull();
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -432,7 +432,7 @@ describe("one adaptive transfer episode", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests).toHaveLength(2);
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -493,14 +493,14 @@ describe("one adaptive transfer episode", () => {
         requests.push(request);
       };
       expect(
-        await completePracticeSession(
+        await completeServerBackedPracticeSession(
           session,
           answer,
           [result],
           failingStore,
           persist,
         ),
-      ).toBe(false);
+      ).toBe("reconciliation-pending");
       expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
       expect(
         store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY),
@@ -508,21 +508,25 @@ describe("one adaptive transfer episode", () => {
       expect(store.getItem(pendingKey)).not.toBeNull();
       expect(store.getItem(requestKey)).not.toBeNull();
 
-      if (recovery === "restore")
-        expect(await readPracticeSessionSnapshot(store)).toBeNull();
-      else
-        expect(
-          await completePracticeSession(
-            session,
-            answer,
-            [result],
-            store,
-            persist,
-          ),
-        ).toBe(true);
+      if (recovery === "restore") {
+        expect((await readPracticeSessionSnapshot(store))?.sessionId).toBe(
+          session.sessionId,
+        );
+        expect(store.getItem(requestKey)).not.toBeNull();
+      }
+      expect(
+        await completeServerBackedPracticeSession(
+          session,
+          answer,
+          [result],
+          store,
+          persist,
+        ),
+      ).toBe("completed");
       expect(store.getItem(pendingKey)).toBeNull();
       expect(store.getItem(requestKey)).toBeNull();
-      expect(requests).toHaveLength(1);
+      expect(requests).toHaveLength(2);
+      expect(requests[1]).toEqual(requests[0]);
       expect(await readPracticeSessionSnapshot(store)).toBeNull();
       expect(readLatestCompletedResults(store)).toEqual([result]);
       expect(

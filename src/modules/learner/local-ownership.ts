@@ -315,7 +315,13 @@ export async function reconcileAuthenticatedLocalOwner(
   store: Storage = window.localStorage,
 ) {
   if (!isLocalLearnerOwner(owner)) fail();
-  const binding = readBinding(store);
+  let binding: Binding | null;
+  try {
+    binding = readBinding(store);
+  } catch (error) {
+    suspendLocalLearner();
+    throw error;
+  }
   const markerRaw = store.getItem(IDENTITY_SWITCH_KEY);
   if (
     markerRaw !== null ||
@@ -333,7 +339,13 @@ export async function reconcileAuthenticatedLocalOwner(
       suspendLocalLearner();
       throw error;
     }
-    active = { owner, store, bindingRaw: store.getItem(LOCAL_OWNER_KEY)! };
+    const bindingRaw = store.getItem(LOCAL_OWNER_KEY)!;
+    if (
+      active?.store !== store ||
+      !sameLocalLearnerOwner(active.owner, owner) ||
+      active.bindingRaw !== bindingRaw
+    )
+      active = { owner, store, bindingRaw };
     return;
   }
   await withIdentityBarrier(async () => {

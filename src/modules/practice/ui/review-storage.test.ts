@@ -5,7 +5,7 @@ import {
 } from "../application/practice-state";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   readPracticeSessionSnapshot,
   readVerifiedLatestCompletedResults,
@@ -70,7 +70,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
     });
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -80,7 +80,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
           throw Error("lost response");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       episodeMode: "review",
       contributions: [],
@@ -88,7 +88,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
     expect(requests[0].adaptiveFacts).toBeUndefined();
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).not.toBeNull();
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         answer,
         [result],
@@ -97,7 +97,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     const verify = vi.fn();
@@ -139,7 +139,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
     expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);
     let request: ServerPracticeFinishPayload | undefined;
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         noNext,
         null,
         [skipped],
@@ -148,7 +148,7 @@ describe("Review reuses durable browser Practice Finish and resume", () => {
           request = value;
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(request).toMatchObject({
       episodeMode: "review",
       contributions: [],

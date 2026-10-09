@@ -31,6 +31,7 @@ import { createMultipleChoiceSetAnswerState } from "./multiple-choice-set-answer
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import {
   completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
@@ -139,6 +140,85 @@ function result(
 }
 
 describe("latest completed Practice storage", () => {
+  it("keeps a locally finalized Finish pending until an authenticated replay acknowledges it", async () => {
+    const storage = memoryStorage();
+    const session = startTwoProblemSession();
+    const answer = createShortNumericAnswerState();
+    const results = [result(0, "no-valid-submissions")];
+    expect(await createPracticeSessionSnapshot(session, answer, storage)).toBe(
+      true,
+    );
+    const pendingKey = "olympiad-trainer:practice-progress-finish-pending";
+    const requestKey = "olympiad-trainer:practice-server-finish-request";
+    const failingCleanup = {
+      ...storage,
+      removeItem: (key: string) => {
+        if (key === pendingKey) throw new Error("Cleanup unavailable");
+        storage.removeItem(key);
+      },
+    };
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        results,
+        failingCleanup,
+        async () => {},
+      ),
+    ).toBe("reconciliation-pending");
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    const exactRequest = storage.getItem(requestKey);
+    expect(exactRequest).not.toBeNull();
+    const replay = vi.fn(async () => {
+      throw new Error("Action unavailable");
+    });
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        results,
+        storage,
+        replay,
+      ),
+    ).toBe("outcome-unknown");
+    expect(replay).toHaveBeenCalledOnce();
+    expect(storage.getItem(requestKey)).toBe(exactRequest);
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        results,
+        storage,
+        async () => {},
+      ),
+    ).toBe("completed");
+    expect(storage.getItem(requestKey)).toBeNull();
+  });
+  it("blocks Finish before sending or changing saved work when Web Locks are unavailable", async () => {
+    const storage = memoryStorage();
+    const session = startTwoProblemSession();
+    const answer = createShortNumericAnswerState();
+    expect(await createPracticeSessionSnapshot(session, answer, storage)).toBe(
+      true,
+    );
+    const before = storage.getItem(PRACTICE_SESSION_STORAGE_KEY);
+    vi.stubGlobal("navigator", {});
+    const persist = vi.fn(async () => {});
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        [result(0, "no-valid-submissions")],
+        storage,
+        persist,
+      ),
+    ).toBe("blocked");
+    expect(persist).not.toHaveBeenCalled();
+    expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+    expect(
+      storage.getItem("olympiad-trainer:practice-server-finish-request"),
+    ).toBeNull();
+  });
   it.each([
     ["set", "olympiad-trainer:practice-server-finish-request"],
     ["set", "olympiad-trainer:practice-progress-finish-pending"],
@@ -187,14 +267,19 @@ describe("latest completed Practice storage", () => {
         .fn<(payload: unknown) => Promise<void>>()
         .mockResolvedValue(undefined);
       expect(
-        await completePracticeSession(
+        await completeServerBackedPracticeSession(
           session,
           answer,
           results,
           failingStorage,
           persist,
         ),
-      ).toBe(false);
+      ).toBe(
+        operation === "set" &&
+          failingKey === "olympiad-trainer:practice-server-finish-request"
+          ? "blocked"
+          : "reconciliation-pending",
+      );
       expect(fail).toBe(false);
       const requestKey = "olympiad-trainer:practice-server-finish-request";
       const request = storage.getItem(requestKey);
@@ -215,14 +300,14 @@ describe("latest completed Practice storage", () => {
       if (restored) {
         expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
         expect(
-          await completePracticeSession(
+          await completeServerBackedPracticeSession(
             session,
             answer,
             results,
             storage,
             persist,
           ),
-        ).toBe(true);
+        ).toBe("completed");
       }
       expect(readLatestCompletedResults(storage)).toEqual(results);
       expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -293,7 +378,7 @@ describe("latest completed Practice storage", () => {
         },
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
 
     await navigationCheck;
     expect(navigations).toBe(1);
@@ -344,7 +429,7 @@ describe("latest completed Practice storage", () => {
         },
         failedWrite,
       ),
-    ).toBe(false);
+    ).toBe("reconciliation-pending");
     expect(completionLatch.current).toBe(false);
     expect(navigations).toBe(0);
     expect(await readPracticeSessionSnapshot(storage)).not.toBeNull();
@@ -367,7 +452,7 @@ describe("latest completed Practice storage", () => {
         },
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(navigations).toBe(1);
   });
 
@@ -698,7 +783,7 @@ describe("latest completed Practice storage", () => {
         navigate,
         failedClear,
       ),
-    ).toBe(false);
+    ).toBe("reconciliation-pending");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(originalNoNext);
     expect(readLatestCompletedResults(storage)).toEqual(previous);
 
@@ -719,7 +804,7 @@ describe("latest completed Practice storage", () => {
         navigate,
         failedCompletedWrite,
       ),
-    ).toBe(false);
+    ).toBe("reconciliation-pending");
     expect(completionLatch.current).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(originalNoNext);
@@ -734,7 +819,7 @@ describe("latest completed Practice storage", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(completionLatch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(await readPracticeSessionSnapshot(storage)).toBeNull();
@@ -775,7 +860,7 @@ describe("latest completed Practice storage", () => {
         navigate,
         failedWrites,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(latch.current).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
     expect(readLatestCompletedResults(storage)).toEqual(previous);
@@ -790,7 +875,7 @@ describe("latest completed Practice storage", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(navigate).toHaveBeenCalledOnce();
     expect(readLatestCompletedResults(storage)).toEqual(
       session.completedResults,
