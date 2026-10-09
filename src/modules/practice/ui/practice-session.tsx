@@ -74,7 +74,7 @@ import {
 import { NoNextPracticeSurface } from "./no-next-practice-surface";
 import styles from "./practice-session.module.scss";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   isCurrentPracticeFinish,
   readVerifiedPracticeSessionSnapshot,
@@ -83,6 +83,10 @@ import {
   saveNoNextPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
 } from "./practice-session-storage";
+import {
+  practiceFinishFeedback,
+  type PracticeFinishOutcome,
+} from "./practice-finish-outcome";
 import {
   editShortNumericAnswer,
   runShortNumericAnswerSubmission,
@@ -179,7 +183,7 @@ type PracticeProblemEpisodeProps = Readonly<{
     summary: PracticeSummary,
     answer: PracticeAnswerState,
     observation: ReasoningCheckpointObservation | null,
-  ) => Promise<boolean>;
+  ) => Promise<PracticeFinishOutcome>;
   onNextProblem: (
     summary: PracticeSummary,
     answer: PracticeAnswerState,
@@ -276,80 +280,83 @@ export async function finishPracticeSessionAndNavigate(
   results: readonly PracticeSessionResult[],
   navigate: () => void,
   storage?: Storage,
-): Promise<boolean> {
-  storage ??= captureLearnerStorage();
-  const owner = currentLocalLearnerOwner();
-  if (completionLatch.current) return false;
-  if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
-    return false;
-  let importedLegacyFinish: string | null;
+): Promise<PracticeFinishOutcome> {
+  let outcome: PracticeFinishOutcome = "outcome-unknown";
   try {
-    importedLegacyFinish = await ensureServerProgressImported(storage);
-  } catch {
-    return false;
-  }
-  if (importedLegacyFinish === session.sessionId) {
-    storage.getItem("olympiad-trainer:practice-session");
-    completionLatch.current = true;
-    navigate();
-    return true;
-  }
-  const persist = (request: {
-    sessionId: string;
-    contributions: readonly unknown[];
-    adaptiveFacts?: {
-      problemId:
-        | "brothers-ages-products"
-        | "parrots-guaranteed-colors"
-        | "pages-without-digit-one";
-      attempted: boolean;
-      solutionExposed: boolean;
-    };
-    episodeMode?: "core" | "transfer" | "exploration" | "pack" | "review";
-    episodeFacts?: unknown;
-  }) =>
-    request.episodeFacts
-      ? persistPracticeFinishEvidence(
-          request.sessionId,
-          request.contributions,
-          request.adaptiveFacts,
-          {
-            mode: request.episodeMode,
-            facts: request.episodeFacts,
-          },
-          owner,
-        )
-      : request.adaptiveFacts
+    storage ??= captureLearnerStorage();
+    const owner = currentLocalLearnerOwner();
+    if (completionLatch.current) return "blocked";
+    if (!(await isCurrentPracticeFinish(session, answer, results, storage)))
+      return "blocked";
+    let importedLegacyFinish: string | null;
+    try {
+      importedLegacyFinish = await ensureServerProgressImported(storage);
+    } catch {
+      return "outcome-unknown";
+    }
+    if (importedLegacyFinish === session.sessionId) {
+      outcome = "reconciliation-pending";
+      storage.getItem("olympiad-trainer:practice-session");
+      completionLatch.current = true;
+      navigate();
+      return "completed";
+    }
+    const persist = (request: {
+      sessionId: string;
+      contributions: readonly unknown[];
+      adaptiveFacts?: {
+        problemId:
+          | "brothers-ages-products"
+          | "parrots-guaranteed-colors"
+          | "pages-without-digit-one";
+        attempted: boolean;
+        solutionExposed: boolean;
+      };
+      episodeMode?: "core" | "transfer" | "exploration" | "pack" | "review";
+      episodeFacts?: unknown;
+    }) =>
+      request.episodeFacts
         ? persistPracticeFinishEvidence(
             request.sessionId,
             request.contributions,
             request.adaptiveFacts,
-            undefined,
+            {
+              mode: request.episodeMode,
+              facts: request.episodeFacts,
+            },
             owner,
           )
-        : persistPracticeFinishEvidence(
-            request.sessionId,
-            request.contributions,
-            undefined,
-            undefined,
-            owner,
-          );
-  const completed =
-    "status" in session
-      ? await completePracticeSession(session, null, results, storage, persist)
-      : answer !== null &&
-        (await completePracticeSession(
-          session,
-          answer,
-          results,
-          storage,
-          persist,
-        ));
-  if (!completed) return false;
-  storage.getItem("olympiad-trainer:practice-session");
-  completionLatch.current = true;
-  navigate();
-  return true;
+        : request.adaptiveFacts
+          ? persistPracticeFinishEvidence(
+              request.sessionId,
+              request.contributions,
+              request.adaptiveFacts,
+              undefined,
+              owner,
+            )
+          : persistPracticeFinishEvidence(
+              request.sessionId,
+              request.contributions,
+              undefined,
+              undefined,
+              owner,
+            );
+    outcome = await completeServerBackedPracticeSession(
+      session,
+      answer,
+      results,
+      storage,
+      persist,
+    );
+    if (outcome !== "completed") return outcome;
+    outcome = "reconciliation-pending";
+    storage.getItem("olympiad-trainer:practice-session");
+    completionLatch.current = true;
+    navigate();
+    return "completed";
+  } catch {
+    return outcome;
+  }
 }
 
 export function PracticeSession({
@@ -377,6 +384,10 @@ export function PracticeSession({
   const [noNextMutationPending, setNoNextMutationPending] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
   const [noNextStorageError, setNoNextStorageError] = useState(false);
+  const [noNextFinishOutcome, setNoNextFinishOutcome] = useState<Exclude<
+    PracticeFinishOutcome,
+    "completed"
+  > | null>(null);
   const [restoreError, setRestoreError] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
   const [reviewUnavailable, setReviewUnavailable] = useState(false);
@@ -601,8 +612,9 @@ export function PracticeSession({
               );
             },
             learnerStorage,
-          ).then((completed) => {
-            if (!completed) {
+          ).then((outcome) => {
+            if (outcome !== "completed") {
+              setNoNextFinishOutcome(outcome);
               setNoNextStorageError(true);
               noNextMutationGate.current = false;
               setNoNextMutationPending(false);
@@ -626,6 +638,7 @@ export function PracticeSession({
           });
         }}
         storageError={noNextStorageError}
+        finishOutcome={noNextFinishOutcome}
       />
     );
   }
@@ -886,6 +899,8 @@ function PracticeProblemEpisode({
   const [storageError, setStorageError] = useState<
     "save" | "pause" | "finish" | "next" | "skip" | "checkpoint" | null
   >(null);
+  const [finishOutcome, setFinishOutcome] =
+    useState<Exclude<PracticeFinishOutcome, "completed">>("blocked");
   const [transitionPending, setTransitionPending] = useState(false);
   const [checkpointObservation, setCheckpointObservation] = useState(
     initialCheckpointObservation,
@@ -1125,7 +1140,7 @@ function PracticeProblemEpisode({
 
   async function runPersistenceTransition(
     error: "pause" | "finish" | "next" | "skip",
-    persist: () => Promise<boolean>,
+    persist: () => Promise<boolean | PracticeFinishOutcome>,
   ) {
     if (transitionGate.current) return;
     transitionGate.current = true;
@@ -1133,9 +1148,15 @@ function PracticeProblemEpisode({
     try {
       await stableWriteTail.current;
       if (!episodeActiveRef.current || completionLatch.current) return;
-      if (await persist()) episodeActiveRef.current = false;
-      else setStorageError(error);
+      const outcome = await persist();
+      if (outcome === true || outcome === "completed")
+        episodeActiveRef.current = false;
+      else {
+        if (typeof outcome === "string") setFinishOutcome(outcome);
+        setStorageError(error);
+      }
     } catch {
+      if (error === "finish") setFinishOutcome("outcome-unknown");
       if (episodeActiveRef.current) setStorageError(error);
     } finally {
       if (episodeActiveRef.current && !completionLatch.current) {
@@ -1656,7 +1677,7 @@ function PracticeProblemEpisode({
                       ? "Не удалось пропустить задачу. Попробуй ещё раз."
                       : storageError === "checkpoint"
                         ? "Рассуждение проверено, но сохранить его не удалось. Попробуй ещё раз сохранить тренировку."
-                        : "Не удалось завершить тренировку. Попробуй ещё раз."}
+                        : practiceFinishFeedback(finishOutcome)}
             </p>
           ) : null}
 

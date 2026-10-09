@@ -24,6 +24,10 @@ Use a managed PostgreSQL database for each local, preview and production environ
 
 ## Recovery hardening
 
+Routine authenticated reconciliation of the same store, owner/generation and binding preserves an existing active storage lease when no identity switch is pending. Suspension, corrupt state, changed bindings and identity transitions still invalidate captured leases.
+
+Server-backed Practice Finish reports confirmed completion, unknown acknowledgement, incomplete local reconciliation after acknowledgement, or a blocked attempt. An uncertain outcome preserves the exact pending request; retry uses authenticated payload-idempotent replay. Reload restores the unfinished snapshot for that replay when local finalization was interrupted, rather than treating local completion bytes as server acknowledgement. Learner feedback distinguishes uncertainty from acknowledged persistence with incomplete browser reconciliation.
+
 Home makes a verified unfinished episode available for Resume without waiting for the previous Summary. A failed secondary Summary verification is announced separately with retry; it cannot replace Resume or offer a fresh session. Unfinished verification failures remain blocking and retryable. Local creation, saves and clears confirm the resulting storage bytes before reporting success; failed writes retain the existing recoverable snapshot where available.
 
 ## Identity Boundary foundation (slice 2)

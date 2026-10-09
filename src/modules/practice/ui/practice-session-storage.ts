@@ -2,6 +2,7 @@ import {
   captureLearnerStorage,
   withLocalIdentityRead,
 } from "../../learner/local-ownership";
+import type { PracticeFinishOutcome } from "./practice-finish-outcome";
 import type {
   ActivePractice,
   PracticeHintExposure,
@@ -1253,9 +1254,22 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
           !request ||
           store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !==
             request.completedAfter ||
-          !writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null)
+          !restorePracticeFinishValues(
+            store,
+            {
+              unfinished: request.unfinishedBefore,
+              completed: request.completedBefore,
+              progress: request.progressBefore,
+            },
+            {
+              unfinished: null,
+              completed: request.completedAfter,
+              progress: request.progressBefore,
+            },
+          )
         )
           throw new Error("Practice Finish recovery is unresolved.");
+        raw = request.unfinishedBefore;
       }
     }
     if (raw === null) return null;
@@ -2239,90 +2253,116 @@ export function acknowledgeLegacyFinishImportInsideLock(
   );
 }
 
-async function completeServerBackedPracticeSession(
+export async function completeServerBackedPracticeSession(
   session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
-  store: Storage,
+  storage: Storage | undefined,
   serverPersist: (request: ServerPracticeFinishPayload) => Promise<unknown>,
-): Promise<boolean> {
-  return withPracticeSessionLock(async () => {
-    const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
-    let request =
-      requestRaw === null ? null : readServerPracticeFinishRequest(requestRaw);
+): Promise<PracticeFinishOutcome> {
+  let outcome: PracticeFinishOutcome = "blocked";
+  try {
     if (
-      requestRaw !== null &&
-      (!request || request.sessionId !== session.sessionId)
+      ("status" in session && !validatePracticeSessionSnapshot(session)) ||
+      (!("status" in session) && !answer)
     )
-      return false;
-    if (!request) {
-      const completedAfter = serializeLatestCompletedSummary(
-        results,
-        session.sessionId,
-        session.mode === "review" ? "review" : undefined,
-      );
-      const unfinishedBefore = expectedUnfinishedForFinish(
-        session,
-        answer,
-        results,
-      );
-      const before = readPracticeFinishValues(store);
-      const contributions = results
-        .map(getPracticeProgressContribution)
-        .filter((entry) => entry !== null);
-      const adaptiveFacts = adaptiveFinishFacts(session, results);
-      const episodeMode = "mode" in session ? session.mode : "core";
-      const episodeFacts = completedEpisodeFacts(results);
+      return outcome;
+    const store = storage ?? captureLearnerStorage();
+    return await withPracticeSessionLock(async () => {
+      const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+      let request =
+        requestRaw === null
+          ? null
+          : readServerPracticeFinishRequest(requestRaw);
       if (
-        !validateLatestCompletedResults(
+        requestRaw !== null &&
+        (!request || request.sessionId !== session.sessionId)
+      )
+        return outcome;
+      // A stored request may have committed on an earlier attempt. Only an
+      // authenticated replay of these exact facts can settle that uncertainty.
+      if (request) outcome = "outcome-unknown";
+      if (!request) {
+        const completedAfter = serializeLatestCompletedSummary(
           results,
+          session.sessionId,
           session.mode === "review" ? "review" : undefined,
-        ) ||
-        !validateCompletedEpisode(episodeMode, episodeFacts) ||
-        !unfinishedBefore ||
-        !before ||
-        before.unfinished !== unfinishedBefore ||
-        store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
-        contributions.length > 2
-      )
-        return false;
-      request = {
-        sessionId: session.sessionId,
-        contributions,
-        ...(adaptiveFacts ? { adaptiveFacts } : {}),
-        episodeMode,
-        episodeFacts,
-        unfinishedBefore,
-        completedBefore: before.completed,
-        progressBefore: before.progress,
-        completedAfter,
-      };
-      if (
-        !writeAndConfirm(
-          store,
-          PRACTICE_SERVER_FINISH_REQUEST_KEY,
-          JSON.stringify(request),
+        );
+        const unfinishedBefore = expectedUnfinishedForFinish(
+          session,
+          answer,
+          results,
+        );
+        const before = readPracticeFinishValues(store);
+        const contributions = results
+          .map(getPracticeProgressContribution)
+          .filter((entry) => entry !== null);
+        const adaptiveFacts = adaptiveFinishFacts(session, results);
+        const episodeMode = "mode" in session ? session.mode : "core";
+        const episodeFacts = completedEpisodeFacts(results);
+        if (
+          !validateLatestCompletedResults(
+            results,
+            session.mode === "review" ? "review" : undefined,
+          ) ||
+          !validateCompletedEpisode(episodeMode, episodeFacts) ||
+          !unfinishedBefore ||
+          !before ||
+          before.unfinished !== unfinishedBefore ||
+          store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
+          contributions.length > 2
         )
-      )
-        return false;
-    }
+          return outcome;
+        request = {
+          sessionId: session.sessionId,
+          contributions,
+          ...(adaptiveFacts ? { adaptiveFacts } : {}),
+          episodeMode,
+          episodeFacts,
+          unfinishedBefore,
+          completedBefore: before.completed,
+          progressBefore: before.progress,
+          completedAfter,
+        };
+        if (
+          !writeAndConfirm(
+            store,
+            PRACTICE_SERVER_FINISH_REQUEST_KEY,
+            JSON.stringify(request),
+          )
+        )
+          return outcome;
+      }
 
-    const reconciliation = reconcilePendingPracticeProgressFinish(
-      store,
-      request.sessionId,
-      request.unfinishedBefore,
-      request.completedAfter,
-    );
-    if (reconciliation === "unresolved") return false;
-    if (reconciliation === "completed")
-      return writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null);
+      const reconciliation = reconcilePendingPracticeProgressFinish(
+        store,
+        request.sessionId,
+        request.unfinishedBefore,
+        request.completedAfter,
+      );
+      if (reconciliation === "unresolved") return outcome;
 
-    const before = readPracticeFinishValues(store);
-    if (
-      before?.unfinished === null &&
-      before.completed === request.completedAfter &&
-      before.progress === request.progressBefore
-    ) {
+      const before = readPracticeFinishValues(store);
+      if (!before) return outcome;
+      const alreadyFinalized =
+        reconciliation === "completed" ||
+        (before.unfinished === null &&
+          before.completed === request.completedAfter &&
+          before.progress === request.progressBefore);
+      if (!alreadyFinalized) {
+        if (
+          before.completed !== request.completedBefore ||
+          before.progress !== request.progressBefore ||
+          before.unfinished === null
+        )
+          return outcome;
+        const current = validatePracticeSessionSnapshot(
+          JSON.parse(before.unfinished),
+        );
+        if (current?.sessionId !== request.sessionId) return outcome;
+      }
+
+      outcome = "outcome-unknown";
       await serverPersist({
         sessionId: request.sessionId,
         contributions: request.contributions,
@@ -2336,110 +2376,102 @@ async function completeServerBackedPracticeSession(
             }
           : {}),
       });
-      return writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null);
-    }
-    if (
-      !before ||
-      before.completed !== request.completedBefore ||
-      before.progress !== request.progressBefore ||
-      before.unfinished === null
-    )
-      return false;
-    const current = validatePracticeSessionSnapshot(
-      JSON.parse(before.unfinished),
-    );
-    if (current?.sessionId !== request.sessionId) return false;
-
-    await serverPersist({
-      sessionId: request.sessionId,
-      contributions: request.contributions,
-      ...(request.adaptiveFacts
-        ? { adaptiveFacts: request.adaptiveFacts }
-        : {}),
-      ...(request.episodeFacts
-        ? {
-            episodeMode: request.episodeMode,
-            episodeFacts: request.episodeFacts,
-          }
-        : {}),
-    });
-    const unchanged = readPracticeFinishValues(store);
-    if (
-      !unchanged ||
-      unchanged.unfinished !== before.unfinished ||
-      unchanged.completed !== before.completed ||
-      unchanged.progress !== before.progress
-    )
-      return false;
-    if (
-      before.unfinished !== request.unfinishedBefore &&
-      !writeAndConfirm(
-        store,
-        PRACTICE_SESSION_STORAGE_KEY,
-        request.unfinishedBefore,
+      outcome = "reconciliation-pending";
+      const unchanged = readPracticeFinishValues(store);
+      if (alreadyFinalized) {
+        if (
+          !unchanged ||
+          unchanged.unfinished !== null ||
+          unchanged.completed !== request.completedAfter ||
+          unchanged.progress !== request.progressBefore
+        )
+          return outcome;
+        return writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null)
+          ? "completed"
+          : outcome;
+      }
+      if (
+        !unchanged ||
+        unchanged.unfinished !== before.unfinished ||
+        unchanged.completed !== before.completed ||
+        unchanged.progress !== before.progress
       )
-    )
-      return false;
+        return outcome;
+      if (
+        before.unfinished !== request.unfinishedBefore &&
+        !writeAndConfirm(
+          store,
+          PRACTICE_SESSION_STORAGE_KEY,
+          request.unfinishedBefore,
+        )
+      )
+        return outcome;
 
-    const pending: PendingPracticeProgressFinish = {
-      sessionId: request.sessionId,
-      unfinishedBefore: request.unfinishedBefore,
-      completedBefore: request.completedBefore,
-      progressBefore: request.progressBefore,
-      completedAfter: request.completedAfter,
-      progressAfter: request.progressBefore,
-      serverBacked: true,
-    };
-    if (
-      !writeAndConfirm(
+      const pending: PendingPracticeProgressFinish = {
+        sessionId: request.sessionId,
+        unfinishedBefore: request.unfinishedBefore,
+        completedBefore: request.completedBefore,
+        progressBefore: request.progressBefore,
+        completedAfter: request.completedAfter,
+        progressAfter: request.progressBefore,
+        serverBacked: true,
+      };
+      if (
+        !writeAndConfirm(
+          store,
+          PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+          JSON.stringify(pending),
+        )
+      )
+        return outcome;
+      const original = {
+        unfinished: request.unfinishedBefore,
+        completed: request.completedBefore,
+        progress: request.progressBefore,
+      };
+      const after = {
+        unfinished: null,
+        completed: request.completedAfter,
+        progress: request.progressBefore,
+      };
+      const rollback = () => {
+        if (restorePracticeFinishValues(store, original, after))
+          writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null);
+        return outcome;
+      };
+      const completed = validateLatestCompletedSummary(
+        JSON.parse(request.completedAfter),
+      );
+      if (
+        !completed ||
+        !saveLatestCompletedResults(
+          completed.results,
+          store,
+          completed.sessionId ?? undefined,
+          completed.mode,
+        )
+      )
+        return rollback();
+      if (!clearPracticeSessionSnapshotInsideLock(store)) return rollback();
+      const durable = readPracticeFinishValues(store);
+      if (
+        !durable ||
+        durable.unfinished !== null ||
+        durable.completed !== request.completedAfter ||
+        durable.progress !== request.progressBefore
+      )
+        return rollback();
+      return writeAndConfirm(
         store,
         PRACTICE_PROGRESS_FINISH_PENDING_KEY,
-        JSON.stringify(pending),
-      )
-    )
-      return false;
-    const original = {
-      unfinished: request.unfinishedBefore,
-      completed: request.completedBefore,
-      progress: request.progressBefore,
-    };
-    const after = {
-      unfinished: null,
-      completed: request.completedAfter,
-      progress: request.progressBefore,
-    };
-    const rollback = () => {
-      if (restorePracticeFinishValues(store, original, after))
-        writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null);
-      return false;
-    };
-    const completed = validateLatestCompletedSummary(
-      JSON.parse(request.completedAfter),
-    );
-    if (
-      !completed ||
-      !saveLatestCompletedResults(
-        completed.results,
-        store,
-        completed.sessionId ?? undefined,
-        completed.mode,
-      )
-    )
-      return rollback();
-    if (!clearPracticeSessionSnapshotInsideLock(store)) return rollback();
-    const durable = readPracticeFinishValues(store);
-    if (
-      !durable ||
-      durable.unfinished !== null ||
-      durable.completed !== request.completedAfter ||
-      durable.progress !== request.progressBefore
-    )
-      return rollback();
-    return (
-      writeAndConfirm(store, PRACTICE_PROGRESS_FINISH_PENDING_KEY, null) &&
-      writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null)
-    );
-  });
+        null,
+      ) && writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null)
+        ? "completed"
+        : outcome;
+    });
+  } catch {
+    return outcome;
+  }
 }
 
 export function completePracticeSession(
@@ -2447,26 +2479,20 @@ export function completePracticeSession(
   answer: PracticeAnswerState,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean>;
 export function completePracticeSession(
   session: FinishedPracticeSessionState,
   answer: null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean>;
 export async function completePracticeSession(
   session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
   results: readonly PracticeSessionResult[],
   storage?: Storage,
-  serverPersist?: (request: ServerPracticeFinishPayload) => Promise<unknown>,
 ): Promise<boolean> {
-  if (
-    !serverPersist &&
-    (session.mode === "review" || !validateLatestCompletedResults(results))
-  )
+  if (session.mode === "review" || !validateLatestCompletedResults(results))
     return false;
   if ("status" in session && !validatePracticeSessionSnapshot(session))
     return false;
@@ -2477,25 +2503,12 @@ export async function completePracticeSession(
     answer,
     results,
   );
-  if (expectedUnfinished === null && !serverPersist) return false;
+  if (expectedUnfinished === null) return false;
   let store: Storage;
   try {
     store = storage ?? captureLearnerStorage();
   } catch {
     return false;
-  }
-  if (serverPersist) {
-    try {
-      return await completeServerBackedPracticeSession(
-        session,
-        answer,
-        results,
-        store,
-        serverPersist,
-      );
-    } catch {
-      return false;
-    }
   }
   if (expectedUnfinished === null) return false;
   try {

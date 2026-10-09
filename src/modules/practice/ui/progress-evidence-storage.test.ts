@@ -257,7 +257,7 @@ describe("guarantee Progress evidence", () => {
           navigate,
           storage,
         ),
-      ).toBe(true);
+      ).toBe("completed");
       expect(persistPracticeFinishEvidence).toHaveBeenCalledExactlyOnceWith(
         earlySession.sessionId,
         [],
@@ -296,7 +296,7 @@ describe("guarantee Progress evidence", () => {
           navigate,
           storage,
         ),
-      ).toBe(false);
+      ).toBe("blocked");
       expect(
         await savePracticeSessionWhileActive(
           latch,
@@ -588,7 +588,7 @@ describe("guarantee Progress evidence", () => {
         vi.fn(),
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     const replacement = storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
     const removalsAfterFinish = remove.mock.calls.length;
     const writesAfterFinish = write.mock.calls.length;
@@ -633,7 +633,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(latch.current).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(priorUnfinished);
@@ -658,7 +658,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(latch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -749,7 +749,7 @@ describe("guarantee Progress evidence", () => {
         vi.fn(),
         storage,
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     const immutableRequest = storage.getItem(requestKey);
     expect(immutableRequest).not.toBeNull();
     expect(JSON.parse(immutableRequest!).contributions).toEqual(
@@ -775,7 +775,7 @@ describe("guarantee Progress evidence", () => {
         vi.fn(),
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(
       vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
     ).toEqual([
@@ -823,7 +823,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     const savedRequest = storage.getItem(requestKey);
     expect(savedRequest).not.toBeNull();
     expect(JSON.parse(savedRequest!)).toMatchObject({
@@ -871,7 +871,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(
       vi.mocked(persistPracticeFinishEvidence).mock.calls.map(withoutOwner),
     ).toEqual([
@@ -936,7 +936,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(newerUnfinished);
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
       priorCompleted,
@@ -991,7 +991,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(newerUnfinished);
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
       priorCompleted,
@@ -1093,7 +1093,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(
       beforeUnfinished,
     );
@@ -1113,7 +1113,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(
       beforeUnfinished,
     );
@@ -1181,7 +1181,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("blocked");
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(beforeNoNext);
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBe(
       beforeCompleted,
@@ -1222,7 +1222,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
       localProgress,
       TEST_LOCAL_OWNER,
@@ -1338,7 +1338,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(storage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY)).toBe(afterProgress);
     const pendingRaw = storage.getItem(pendingKey);
     expect(pendingRaw).not.toBeNull();
@@ -1362,7 +1362,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(
       vi.mocked(importBrowserProgressEvidence).mock.calls.map(withoutOwner),
     ).toEqual([[afterProgress], [afterProgress]]);
@@ -1442,7 +1442,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(latch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -1481,7 +1481,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         failingStorage,
       ),
-    ).toBe(false);
+    ).toBe("reconciliation-pending");
     expect(latch.current).toBe(false);
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
     expect(storage.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY)).toBeNull();
@@ -1498,7 +1498,7 @@ describe("guarantee Progress evidence", () => {
         navigate,
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(latch.current).toBe(true);
     expect(navigate).toHaveBeenCalledOnce();
     expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
@@ -1556,7 +1556,7 @@ describe("guarantee Progress evidence", () => {
           navigate,
           failingStorage,
         ),
-      ).toBe(false);
+      ).toBe("reconciliation-pending");
       expect(latch.current).toBe(false);
       expect(navigate).not.toHaveBeenCalled();
       expect(storage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(
@@ -1603,7 +1603,7 @@ describe("guarantee Progress evidence", () => {
         vi.fn(),
         storage,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(importBrowserProgressEvidence).toHaveBeenCalledWith(
       prior,
       TEST_LOCAL_OWNER,

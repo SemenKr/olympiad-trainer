@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
 } from "../practice/ui/practice-session-storage";
 import { createShortNumericAnswerState } from "../practice/ui/short-numeric-answer-state";
@@ -9,6 +9,7 @@ import {
   currentLocalLearnerOwner,
   hasLocalLearnerBytes,
   reconcileAuthenticatedLocalOwner,
+  requestForLocalOwner,
   transitionLocalIdentity,
   transitionRecoveredLocalIdentity,
   suspendLocalLearner,
@@ -70,6 +71,97 @@ beforeEach(() => {
 });
 
 describe("authenticated local ownership", () => {
+  it("preserves an already captured lease through routine same-owner reconciliation", async () => {
+    await reconcileAuthenticatedLocalOwner(a, false, store);
+    const lease = captureLearnerStorage();
+    lease.setItem(LEARNER_LOCAL_KEYS[0], "saved work");
+    await reconcileAuthenticatedLocalOwner({ ...a }, true, store);
+    expect(lease.getItem(LEARNER_LOCAL_KEYS[0])).toBe("saved work");
+    lease.setItem(LEARNER_LOCAL_KEYS[0], "continued work");
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBe(
+      "continued work",
+    );
+  });
+  it("accepts an in-flight owner-scoped response after routine reconciliation", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    let respond!: (value: string) => void;
+    const pending = requestForLocalOwner(
+      () =>
+        new Promise<string>((resolve) => {
+          respond = resolve;
+        }),
+    );
+    await reconcileAuthenticatedLocalOwner({ ...a }, true, store);
+    respond("authenticated response");
+    await expect(pending).resolves.toBe("authenticated response");
+  });
+  it.each(["binding", "store", "suspension", "corruption"])(
+    "invalidates captured leases after %s changes even for the same owner",
+    async (change) => {
+      await reconcileAuthenticatedLocalOwner(a, true, store);
+      const lease = captureLearnerStorage();
+      if (change === "binding") {
+        store.setItem(
+          LOCAL_OWNER_KEY,
+          JSON.stringify({ owner: a, legacyOwner: null }),
+        );
+      } else if (change === "store") {
+        store = memoryStorage();
+      } else if (change === "suspension") {
+        suspendLocalLearner();
+      } else {
+        const key = ownerStorageKey(a, LEARNER_LOCAL_KEYS[0]);
+        store.setItem(key, "corrupt");
+        await expect(
+          reconcileAuthenticatedLocalOwner(a, true, store),
+        ).rejects.toThrow();
+        store.removeItem(key);
+      }
+      await reconcileAuthenticatedLocalOwner(a, true, store);
+      expect(() => lease.getItem(LEARNER_LOCAL_KEYS[0])).toThrow();
+      expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+    },
+  );
+  it("completes Finish when the same owner is reconciled during acknowledgement", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    const lease = captureLearnerStorage();
+    const session = {
+      sessionId: crypto.randomUUID(),
+      activeProblemIndex: 0 as const,
+      completedResults: [],
+    };
+    const answer = createShortNumericAnswerState();
+    expect(await createPracticeSessionSnapshot(session, answer, lease)).toBe(
+      true,
+    );
+    const persist = vi.fn(async () => {
+      await reconcileAuthenticatedLocalOwner({ ...a }, true, store);
+    });
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        [
+          {
+            problemId: "coinciding-seats",
+            problemTitle: "Совпадающие места",
+            summary: {
+              outcome: "no-valid-submissions",
+              validSubmissionCount: 0,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+          },
+        ],
+        lease,
+        persist,
+      ),
+    ).toBe("completed");
+    expect(persist).toHaveBeenCalledOnce();
+    expect(lease.getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+    expect(lease.getItem(LEARNER_LOCAL_KEYS[4])).toBeNull();
+    expect(lease.getItem(LEARNER_LOCAL_KEYS[1])).not.toBeNull();
+  });
   it.each(["foreign", "newer", "corrupt"])(
     "never overwrites/removes a %s existing envelope, across all learner-local keys",
     async (kind) => {
@@ -132,7 +224,7 @@ describe("authenticated local ownership", () => {
     const sending = new Promise<void>((resolve) => {
       entered = resolve;
     });
-    const pending = completePracticeSession(
+    const pending = completeServerBackedPracticeSession(
       session,
       answer,
       [
@@ -159,7 +251,7 @@ describe("authenticated local ownership", () => {
     const request = scoped.getItem(LEARNER_LOCAL_KEYS[4]);
     await reconcileAuthenticatedLocalOwner(renewed, true, store);
     acknowledge();
-    expect(await pending).toBe(false);
+    expect(await pending).toBe("reconciliation-pending");
     const current = captureLearnerStorage();
     expect(current.getItem(LEARNER_LOCAL_KEYS[0])).toBe(unfinished);
     expect(current.getItem(LEARNER_LOCAL_KEYS[4])).toBe(request);

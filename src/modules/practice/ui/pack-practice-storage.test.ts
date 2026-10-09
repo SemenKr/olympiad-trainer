@@ -19,7 +19,7 @@ import {
 } from "./fixed-practice-session-state";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import {
-  completePracticeSession,
+  completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   getStoredProblemTitle,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
@@ -174,7 +174,7 @@ describe("Pack A Practice snapshot and Finish", () => {
     ];
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -184,7 +184,7 @@ describe("Pack A Practice snapshot and Finish", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       episodeMode: "pack",
       contributions: [],
@@ -201,7 +201,7 @@ describe("Pack A Practice snapshot and Finish", () => {
       activeProblemIndex: 2,
     });
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -210,7 +210,7 @@ describe("Pack A Practice snapshot and Finish", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(
@@ -283,7 +283,7 @@ describe("Pack A Practice snapshot and Finish", () => {
       ),
     ).toEqual(noNext);
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         noNext,
         null,
         noNext.completedResults,
@@ -293,7 +293,7 @@ describe("Pack A Practice snapshot and Finish", () => {
           expect(request.contributions).toEqual([]);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
   });
 });
 
@@ -394,7 +394,7 @@ describe("Pack B Practice snapshot and Finish", () => {
     ]);
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -404,7 +404,7 @@ describe("Pack B Practice snapshot and Finish", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       episodeMode: "pack",
       contributions: [],
@@ -417,7 +417,7 @@ describe("Pack B Practice snapshot and Finish", () => {
     });
     expect(requests[0]).not.toHaveProperty("adaptiveFacts");
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -426,7 +426,7 @@ describe("Pack B Practice snapshot and Finish", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(
@@ -490,7 +490,7 @@ describe("Pack B Practice snapshot and Finish", () => {
     expect(await saveNoNextPracticeSessionSnapshot(noNext, store)).toBe(true);
     expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         noNext,
         null,
         noNext.completedResults,
@@ -501,7 +501,7 @@ describe("Pack B Practice snapshot and Finish", () => {
           expect(request).not.toHaveProperty("adaptiveFacts");
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
   });
 });
 
@@ -576,7 +576,7 @@ describe("Pack C Practice snapshot and Finish", () => {
     ]);
     const requests: ServerPracticeFinishPayload[] = [];
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -586,7 +586,7 @@ describe("Pack C Practice snapshot and Finish", () => {
           throw new Error("response lost");
         },
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       episodeMode: "pack",
       contributions: [],
@@ -599,7 +599,7 @@ describe("Pack C Practice snapshot and Finish", () => {
     });
     expect(requests[0]).not.toHaveProperty("adaptiveFacts");
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         third,
         finalAnswer,
         results,
@@ -608,7 +608,7 @@ describe("Pack C Practice snapshot and Finish", () => {
           requests.push(request);
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(requests[1]).toEqual(requests[0]);
     expect(store.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     expect(
@@ -647,7 +647,7 @@ describe("Pack C Practice snapshot and Finish", () => {
     expect(await saveNoNextPracticeSessionSnapshot(noNext, store)).toBe(true);
     expect(await readPracticeSessionSnapshot(store)).toEqual(noNext);
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         noNext,
         null,
         noNext.completedResults,
@@ -658,7 +658,7 @@ describe("Pack C Practice snapshot and Finish", () => {
           expect(request).not.toHaveProperty("adaptiveFacts");
         },
       ),
-    ).toBe(true);
+    ).toBe("completed");
   });
 });
 
@@ -698,14 +698,14 @@ it.each([1, 2])(
       .mockResolvedValue(undefined)
       .mockRejectedValueOnce(Error("Lost Finish response"));
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         restoredAnswer,
         results,
         store,
         persist,
       ),
-    ).toBe(false);
+    ).toBe("outcome-unknown");
     expect(await readPracticeSessionSnapshot(store)).toEqual(current);
     expect(
       await createPracticeSessionSnapshot(
@@ -715,14 +715,14 @@ it.each([1, 2])(
       ),
     ).toBe(false);
     expect(
-      await completePracticeSession(
+      await completeServerBackedPracticeSession(
         session,
         restoredAnswer,
         results,
         store,
         persist,
       ),
-    ).toBe(true);
+    ).toBe("completed");
     expect(persist.mock.calls[0]).toEqual(persist.mock.calls[1]);
     expect(persist.mock.calls[1][0].episodeFacts?.problems).toHaveLength(
       length,

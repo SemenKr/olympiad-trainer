@@ -1,17 +1,23 @@
 import { useEffect, useId, useRef } from "react";
 
 import styles from "./practice-session.module.scss";
+import {
+  practiceFinishFeedback,
+  type PracticeFinishOutcome,
+} from "./practice-finish-outcome";
 
 export function NoNextPracticeSurface({
   onFinish,
   onPause,
   pending = false,
   storageError,
+  finishOutcome,
 }: {
   onFinish: () => void;
   onPause: () => void;
   pending?: boolean;
   storageError: boolean;
+  finishOutcome?: Exclude<PracticeFinishOutcome, "completed"> | null;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const descriptionId = useId();
@@ -34,7 +40,9 @@ export function NoNextPracticeSurface({
       </p>
       {storageError ? (
         <p aria-atomic="true" className={styles["hint-error"]} role="alert">
-          Не удалось сохранить тренировку. Попробуй ещё раз.
+          {finishOutcome
+            ? practiceFinishFeedback(finishOutcome)
+            : "Не удалось сохранить тренировку. Попробуй ещё раз."}
         </p>
       ) : null}
       <div className={styles["no-next-actions"]}>
