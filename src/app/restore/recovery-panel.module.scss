@@ -37,6 +37,18 @@
   }
 }
 
+.steps {
+  margin: 0;
+  padding-inline-start: var(--ot-space-20);
+  color: var(--ot-color-text-secondary);
+  font-size: var(--ot-font-size-body);
+  line-height: var(--ot-line-height-body);
+
+  li + li {
+    margin-top: var(--ot-space-8);
+  }
+}
+
 .actions,
 .form {
   display: flex;
