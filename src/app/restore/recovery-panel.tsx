@@ -55,6 +55,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [recovered, setRecovered] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     if (operation || error || account !== "loading")
       headingRef.current?.focus();
-  }, [account, error, operation]);
+  }, [account, error, operation, recovered]);
 
   async function start(nextMode: Mode, code?: string) {
     setWorking(true);
@@ -127,7 +128,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
   async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!operation || confirmation !== operation.code) {
-      setError("Введи код полностью, как он показан выше.");
+      setError("Вставь сохранённый код полностью, как он показан выше.");
       return;
     }
     setWorking(true);
@@ -162,8 +163,10 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
       }
 
       setOperation(null);
-      router.replace("/progress");
-      router.refresh();
+      setConfirmation("");
+      setRecoveryCode("");
+      if (operation.mode === "recovery") setRecovered(true);
+      else openHistory();
     } catch {
       setError(
         operation.mode === "recovery"
@@ -175,10 +178,17 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
     }
   }
 
+  function openHistory() {
+    router.replace("/progress");
+    router.refresh();
+  }
+
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(operation?.code ?? "");
-      setNotice("Код скопирован. Сохрани его вне этого браузера.");
+      setNotice(
+        "Код скопирован. Теперь сохрани его вне этого браузера и вставь сохранённую копию ниже.",
+      );
     } catch {
       setNotice("Не удалось скопировать. Выдели код и перепиши его вручную.");
     }
@@ -199,6 +209,23 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
       </section>
     );
 
+  if (recovered)
+    return (
+      <section className={styles.panel}>
+        <h1 ref={headingRef} tabIndex={-1}>
+          Доступ восстановлен
+        </h1>
+        <p>
+          Новый код заменил старый. Оставь у себя новую сохранённую копию вместо
+          прежней — старый код больше не работает.
+        </p>
+        <p>В этом браузере можно продолжать заниматься без кода.</p>
+        <button className={styles.primary} onClick={openHistory} type="button">
+          К истории
+        </button>
+      </section>
+    );
+
   if (operation)
     return (
       <section className={styles.panel} aria-busy={working}>
@@ -208,9 +235,9 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
             : "Сохрани код доступа"}
         </h1>
         <p>
-          Запиши код на бумаге или попроси близкого взрослого сохранить его вне
-          этого браузера. Он нужен, чтобы вернуть доступ к истории, если браузер
-          потеряется. Код нельзя будет показать повторно.
+          Код не нужно запоминать. Он поможет вернуть историю, если потеряется
+          доступ в браузере. После подтверждения мы не сможем показать его
+          снова.
         </p>
         {operation.mode === "replacement" ? (
           <p className={styles.warning}>
@@ -224,6 +251,15 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
             объединяются.
           </p>
         ) : null}
+        <ol className={styles.steps}>
+          <li>Скопируй код кнопкой ниже.</li>
+          <li>
+            Сохрани его вне этого браузера, например в заметке на другом
+            устройстве или на бумаге. Если нужно, попроси близкого взрослого
+            помочь.
+          </li>
+          <li>Открой сохранённую копию и вставь её в поле подтверждения.</li>
+        </ol>
         <p className={styles["secret-label"]}>Твой новый код</p>
         <code className={styles.code} aria-label="Новый код восстановления">
           {operation.code}
@@ -238,7 +274,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
         </button>
         <form className={styles.form} onSubmit={(event) => void confirm(event)}>
           <label htmlFor="recovery-confirmation">
-            Введи код ещё раз, чтобы подтвердить сохранение
+            Вставь сохранённую копию кода
           </label>
           <input
             autoComplete="off"
@@ -276,8 +312,9 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
         Доступ к истории
       </h1>
       <p>
-        Код помогает открыть ту же историю на новом устройстве. Он не переносит
-        черновики и работу, оставшуюся в другом браузере.
+        Для обычных занятий в этом браузере код не нужен. Он помогает вернуть
+        историю при потере доступа, но не переносит черновики из другого
+        браузера.
       </p>
       {account === "loading" ? (
         <p role="status">Проверяем доступ…</p>
@@ -287,13 +324,13 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
             <div className={styles.actions}>
               <h2>
                 {account.recoveryEnabled
-                  ? "Код уже сохранён"
+                  ? "Восстановление настроено"
                   : "Сохранить доступ"}
               </h2>
               <p>
                 {account.recoveryEnabled
                   ? "Если заменишь код, старый перестанет работать после подтверждения нового."
-                  : "Сохрани новый код вне браузера и подтверди его повторным вводом."}
+                  : "Код не нужно запоминать. Сохрани его вне этого браузера и вставь сохранённую копию для подтверждения."}
               </p>
               <button
                 className={styles.primary}
@@ -318,8 +355,8 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
           >
             <h2>Восстановить доступ</h2>
             <p>
-              Введи сохранённый код. При ошибке мы не сообщим, есть ли у него
-              история.
+              Вставь код из сохранённой копии. При ошибке мы не сообщим, есть ли
+              у него история.
             </p>
             <label htmlFor="recovery-code">Код восстановления</label>
             <input

@@ -122,7 +122,7 @@ describe("Russian Recovery v1 panel", () => {
     await click("Сохранить доступ");
     expect(container.textContent).toContain(successor);
     expect(container.textContent).toContain("вне этого браузера");
-    enter("recovery-confirmation", successor);
+    await act(async () => enter("recovery-confirmation", successor));
     await click("Подтвердить");
     expect(ownership.transition).toHaveBeenCalledOnce();
     expect(ownership.reconcile).toHaveBeenCalledWith(owner, true);
@@ -160,19 +160,72 @@ describe("Russian Recovery v1 panel", () => {
     ];
     await render();
     expect(container.textContent).toContain("Восстановить доступ");
-    enter("recovery-code", original);
+    await act(async () => enter("recovery-code", original));
     await click("Продолжить");
     expect(container.textContent).toContain(successor);
-    enter("recovery-confirmation", successor);
+    await act(async () => enter("recovery-confirmation", successor));
     await click("Подтвердить");
     expect(ownership.recover).toHaveBeenCalledOnce();
     expect(ownership.transition).not.toHaveBeenCalled();
     expect(identity.read).toHaveBeenCalledOnce();
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Новый код заменил старый");
+    expect(container.textContent).not.toContain(successor);
+    expect(container.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    await click("К истории");
     expect(navigation.replace).toHaveBeenCalledWith("/progress");
     expect(steps).toHaveLength(0);
     expect(localStorage.length).toBe(0);
     expect(window.location.href).not.toContain(original);
     expect(window.location.href).not.toContain(successor);
+  });
+
+  it("copying is only a step toward saving; replacement still requires the saved copy", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    steps.push(
+      { action: "status-authenticated", body: { ok: true, enabled: true } },
+      {
+        action: "replacement",
+        body: { ok: true, operationId: "op-4", code: successor },
+      },
+      {
+        action: "context-authenticated",
+        body: { ok: true, operationId: "op-4", target: owner },
+      },
+      { action: "confirm-authenticated", body: { ok: true } },
+    );
+    await render();
+    expect(container.textContent).toContain("Восстановление настроено");
+    expect(container.textContent).not.toContain("Код уже сохранён");
+    await click("Заменить код");
+    expect(container.querySelectorAll("ol li")).toHaveLength(3);
+    expect(container.textContent).toContain("Код не нужно запоминать");
+    await click("Скопировать код");
+    expect(writeText).toHaveBeenCalledWith(successor);
+    expect(container.querySelector("[role=status]")?.textContent).toContain(
+      "Теперь сохрани",
+    );
+    expect(ownership.transition).not.toHaveBeenCalled();
+    await act(async () => enter("recovery-confirmation", original));
+    await click("Подтвердить");
+    expect(container.querySelector("[role=alert]")).not.toBeNull();
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    writeText.mockRejectedValueOnce(new Error("denied"));
+    await click("Скопировать код");
+    expect(container.querySelector("[role=status]")?.textContent).toContain(
+      "Не удалось скопировать",
+    );
+    await act(async () => enter("recovery-confirmation", successor));
+    await click("Подтвердить");
+    expect(ownership.transition).toHaveBeenCalledOnce();
+    expect(navigation.replace).toHaveBeenCalledWith("/progress");
+    expect(steps).toHaveLength(0);
   });
 
   it("cancel leaves the old credential state alone and never confirms", async () => {
