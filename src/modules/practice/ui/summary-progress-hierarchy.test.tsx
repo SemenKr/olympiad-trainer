@@ -18,6 +18,7 @@ vi.mock("./server-progress-import", () => ({
 
 import {
   readServerProgress,
+  readServerRecentPracticeEpisodes,
   readServerReviewAvailability,
   readServerLearningPath,
 } from "../../../app/progress/actions";
@@ -71,9 +72,20 @@ describe("Summary and Progress hierarchy", () => {
     expect(sidebar.querySelector("a")?.getAttribute("href")).toBe("/");
   });
 
-  it.each([true, false, null])(
-    "preserves evidence and secondary destinations with Review availability %s",
-    async (available) => {
+  it.each(
+    [true, false, null].flatMap((available) =>
+      [0, 1, 3].map((episodeCount) => ({ available, episodeCount })),
+    ),
+  )(
+    "keeps independent content groups with Review $available and $episodeCount recent episodes",
+    async ({ available, episodeCount }) => {
+      vi.mocked(readServerRecentPracticeEpisodes).mockResolvedValue(
+        Array.from({ length: episodeCount }, (_, index) => ({
+          mode: "core" as const,
+          completedAt: new Date(Date.UTC(2026, 9, 9 - index)).toISOString(),
+          problems: [],
+        })),
+      );
       vi.mocked(readServerProgress).mockResolvedValue([
         {
           learnerLabel: "Навык переноса",
@@ -110,6 +122,27 @@ describe("Summary and Progress hierarchy", () => {
           '[aria-labelledby="evidence-heading"]',
         )!;
         expect(evidence.querySelectorAll("h3")).toHaveLength(3);
+        const work = evidence.parentElement!;
+        const support = work.nextElementSibling!;
+        expect(work.className).toContain("work");
+        expect(support.className).toContain("support");
+        expect(work.children).toHaveLength(2);
+        const recent = work.lastElementChild!;
+        expect(recent.querySelectorAll("ol > li")).toHaveLength(episodeCount);
+        expect(recent.textContent?.includes("Недавняя работа")).toBe(
+          episodeCount > 0,
+        );
+        expect(
+          Array.from(support.children, (child) => child.className),
+        ).toEqual([
+          expect.stringContaining("next"),
+          expect.stringContaining("path"),
+          expect.stringContaining("journey"),
+          expect.stringContaining("destinations"),
+        ]);
+        expect(work.querySelector("a, button, [tabindex]")).toBeNull();
+        expect(support.querySelector("[tabindex]")).toBeNull();
+        expect(document.activeElement).toBe(container.querySelector("h1"));
         expect(evidence.textContent).toContain("Начинаю разбираться");
         expect(evidence.textContent).toContain("Получается в разных задачах");
         expect(evidence.textContent).toContain("Пока рано сказать");
@@ -134,7 +167,7 @@ describe("Summary and Progress hierarchy", () => {
           expect(review).not.toBeNull();
           expect(evidence.contains(review)).toBe(false);
           expect(
-            review!.compareDocumentPosition(evidence) &
+            evidence.compareDocumentPosition(review!) &
               Node.DOCUMENT_POSITION_FOLLOWING,
           ).toBeTruthy();
         } else {

@@ -127,68 +127,72 @@ export function ProgressOverview({
         </div>
       ) : (
         <div className={styles.content}>
-          <div className={styles.next}>
-            <ReviewEntry
-              available={load.reviewAvailable}
-              actionClassName={styles.primary}
-              className={styles["next-action"]}
-            />
+          <div className={styles.work}>
+            <section
+              className={styles.evidence}
+              aria-labelledby="evidence-heading"
+            >
+              <h2 id="evidence-heading">Что уже получается</h2>
+              {load.interpretations.map((interpretation) => (
+                <ProgressEvidenceContent
+                  interpretation={interpretation}
+                  key={interpretation.learnerLabel}
+                />
+              ))}
+            </section>
+            <div className={styles.recent}>
+              <RecentPracticeHistory episodes={load.episodes} />
+            </div>
           </div>
-          <section
-            className={styles.evidence}
-            aria-labelledby="evidence-heading"
-          >
-            <h2 id="evidence-heading">Что уже получается</h2>
-            {load.interpretations.map((interpretation) => (
-              <ProgressEvidenceContent
-                interpretation={interpretation}
-                key={interpretation.learnerLabel}
+          <div className={styles.support}>
+            <div className={styles.next}>
+              <ReviewEntry
+                available={load.reviewAvailable}
+                actionClassName={styles.primary}
+                className={styles["next-action"]}
               />
-            ))}
-          </section>
-          <div className={styles.path}>
-            {load.completedPackIds ? (
-              <ProgressLearningPath
-                completedPackIds={load.completedPackIds}
-                className={styles["path-card"]}
+            </div>
+            <div className={styles.path}>
+              {load.completedPackIds ? (
+                <ProgressLearningPath
+                  completedPackIds={load.completedPackIds}
+                  className={styles["path-card"]}
+                />
+              ) : (
+                <section className={styles.error} aria-label="Путь тренировок">
+                  <h2>Путь тренировок</h2>
+                  <p role="alert">Не удалось загрузить отметки пути.</p>
+                  <button
+                    type="button"
+                    className={styles.secondary}
+                    onClick={() => {
+                      setLoad({ status: "loading" });
+                      setRetry((value) => value + 1);
+                    }}
+                  >
+                    Повторить
+                  </button>
+                  <Link className={styles.secondary} href="/practice/choose">
+                    Выбрать тренировку
+                  </Link>
+                </section>
+              )}
+            </div>
+            <div className={styles.journey}>
+              <ProgressPracticeJourney
+                totalXp={load.journeyTotalXp}
+                className={styles["journey-card"]}
               />
-            ) : (
-              <section className={styles.error} aria-label="Путь тренировок">
-                <h2>Путь тренировок</h2>
-                <p role="alert">Не удалось загрузить отметки пути.</p>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  onClick={() => {
-                    setLoad({ status: "loading" });
-                    setRetry((value) => value + 1);
-                  }}
-                >
-                  Повторить
-                </button>
-                <Link className={styles.secondary} href="/practice/choose">
-                  Выбрать тренировку
-                </Link>
-              </section>
-            )}
-          </div>
-          <div className={styles.journey}>
-            <ProgressPracticeJourney
-              totalXp={load.journeyTotalXp}
-              className={styles["journey-card"]}
-            />
-          </div>
-          <section className={styles.destinations}>
-            <h2>Хочешь ещё?</h2>
-            <Link className={styles.secondary} href="/practice/choose">
-              Выбрать тренировку
-            </Link>
-            <Link className={styles.secondary} href="/">
-              На главную
-            </Link>
-          </section>
-          <div className={styles.recent}>
-            <RecentPracticeHistory episodes={load.episodes} />
+            </div>
+            <section className={styles.destinations}>
+              <h2>Хочешь ещё?</h2>
+              <Link className={styles.secondary} href="/practice/choose">
+                Выбрать тренировку
+              </Link>
+              <Link className={styles.secondary} href="/">
+                На главную
+              </Link>
+            </section>
           </div>
         </div>
       )}
