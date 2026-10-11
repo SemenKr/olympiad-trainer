@@ -1,0 +1,11 @@
+.recovery-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--ot-color-primary);
+
+  &:focus-visible {
+    outline: 2px solid var(--ot-color-primary);
+    outline-offset: 3px;
+  }
+}

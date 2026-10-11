@@ -192,6 +192,40 @@ describe("explicit fresh-browser initialization gate", () => {
       spy.mockRestore();
     }
   });
+  it.each(["unavailable", "missing"] as const)(
+    "offers Restore after %s identity without initializing or exposing learner content",
+    async (status) => {
+      const key = "olympiad-trainer:practice-session";
+      localStorage.setItem(key, "saved work");
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(status);
+      await render();
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      expect(container.querySelector("button")?.textContent).toBe(
+        "Попробовать ещё раз",
+      );
+      expect(container.textContent).toContain(
+        "Есть сохранённый код восстановления?",
+      );
+      const recovery =
+        container.querySelector<HTMLAnchorElement>('a[href="/restore"]')!;
+      expect(recovery.textContent).toBe("Восстановить доступ по коду");
+      recovery.focus();
+      expect(document.activeElement).toBe(recovery);
+      expect(container.textContent).not.toContain("learner content");
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(localStorage.getItem(key)).toBe("saved work");
+      const readsBeforeNavigation = vi.mocked(readAuthenticatedLearnerContext)
+        .mock.calls.length;
+      navigation.pathname = recovery.getAttribute("href")!;
+      await render();
+      expect(container.textContent).toContain("learner content");
+      expect(readAuthenticatedLearnerContext).toHaveBeenCalledTimes(
+        readsBeforeNavigation,
+      );
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(localStorage.getItem(key)).toBe("saved work");
+    },
+  );
   it("keeps Restore reachable without initializing a replacement learner", async () => {
     navigation.pathname = "/restore";
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("missing");
