@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +16,8 @@ import {
   IDENTITY_SWITCH_KEY,
   IDENTITY_LOCK,
 } from "../../modules/learner/local-ownership";
+
+import styles from "./learner-identity-gate.module.scss";
 
 export default function LearnerIdentityGate({
   children,
@@ -111,6 +114,12 @@ export default function LearnerIdentityGate({
           >
             Попробовать ещё раз
           </button>
+          <p>
+            Есть сохранённый код восстановления?{" "}
+            <Link className={styles["recovery-link"]} href="/restore">
+              Восстановить доступ по коду
+            </Link>
+          </p>
         </>
       )}
     </main>

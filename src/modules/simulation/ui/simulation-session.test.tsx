@@ -187,6 +187,33 @@ describe("student simulation flow", () => {
       "Твой ответ и ход решения",
     );
   });
+  it.each(["", "42"])(
+    "explains reasoning accessibly while still allowing draft %j to be submitted",
+    async (draft) => {
+      await mount();
+      await click("Начать");
+      const textarea = host.querySelector("textarea")!;
+      const descriptions = textarea
+        .getAttribute("aria-describedby")!
+        .split(" ");
+      expect(descriptions).toContain("simulation-reasoning-note");
+      expect(descriptions).toContain("simulation-draft-note");
+      expect(
+        host.querySelector("#simulation-reasoning-note")?.textContent,
+      ).toBe(
+        "Запиши здесь решение: объясни, как получил ответ. Одного итогового ответа недостаточно. Если решал на бумаге, перенеси основные шаги.",
+      );
+      expect(textarea.required).toBe(false);
+      expect(textarea.hasAttribute("minlength")).toBe(false);
+      if (draft) await type(draft);
+      await click("Завершить раньше");
+      await click("Да, завершить");
+      expect(server?.drafts).toEqual([draft, "", "", ""]);
+      expect(server?.finishReason).toBe("early");
+      expect(host.querySelector("textarea")).toBeNull();
+      expect(host.textContent).toContain("Автоматических оценок нет");
+    },
+  );
   it("reload/resume restores unsent drafts, selected task and elapsed time", async () => {
     server = newSimulation(id, 1000);
     storeSimulationDraft({

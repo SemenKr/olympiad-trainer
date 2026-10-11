@@ -490,9 +490,14 @@ export function SimulationSession({
                 </p>
               )}
               <label htmlFor="simulation-draft">Твой ответ и ход решения</label>
+              <p className={styles.note} id="simulation-reasoning-note">
+                Запиши здесь решение: объясни, как получил ответ. Одного
+                итогового ответа недостаточно. Если решал на бумаге, перенеси
+                основные шаги.
+              </p>
               <textarea
                 id="simulation-draft"
-                aria-describedby="simulation-draft-note"
+                aria-describedby="simulation-reasoning-note simulation-draft-note"
                 rows={10}
                 maxLength={MAX_DRAFT_LENGTH}
                 disabled={seconds === 0 || confirming}
