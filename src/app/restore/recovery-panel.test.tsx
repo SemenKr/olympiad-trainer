@@ -123,13 +123,24 @@ describe("Russian Recovery v1 panel", () => {
     expect(container.textContent).toContain(successor);
     expect(container.textContent).toContain("вне этого браузера");
     await act(async () => enter("recovery-confirmation", successor));
-    await click("Подтвердить");
+    await click("Активировать восстановление");
     expect(ownership.transition).toHaveBeenCalledOnce();
     expect(ownership.reconcile).toHaveBeenCalledWith(owner, true);
     expect(ownership.reconcile.mock.invocationCallOrder[0]).toBeLessThan(
       ownership.transition.mock.invocationCallOrder[0],
     );
     expect(ownership.recover).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      "Код восстановления теперь активен",
+    );
+    expect(container.textContent).toContain(
+      "восстановить историю в другом браузере",
+    );
+    expect(container.textContent).not.toContain(successor);
+    expect(container.querySelector("input, code")).toBeNull();
+    expect(document.activeElement).toBe(container.querySelector("h1"));
+    await click("К истории");
     expect(navigation.replace).toHaveBeenCalledWith("/progress");
     expect(steps).toHaveLength(0);
     expect(localStorage.length).toBe(0);
@@ -164,7 +175,7 @@ describe("Russian Recovery v1 panel", () => {
     await click("Продолжить");
     expect(container.textContent).toContain(successor);
     await act(async () => enter("recovery-confirmation", successor));
-    await click("Подтвердить");
+    await click("Активировать восстановление");
     expect(ownership.recover).toHaveBeenCalledOnce();
     expect(ownership.transition).not.toHaveBeenCalled();
     expect(identity.read).toHaveBeenCalledOnce();
@@ -200,33 +211,102 @@ describe("Russian Recovery v1 panel", () => {
       { action: "confirm-authenticated", body: { ok: true } },
     );
     await render();
-    expect(container.textContent).toContain("Восстановление настроено");
+    expect(container.textContent).toContain("Восстановление активно");
+    expect(container.textContent).toContain("показать его снова нельзя");
+    expect(container.textContent).toContain(
+      "Если сохранённая копия потерялась",
+    );
     expect(container.textContent).not.toContain("Код уже сохранён");
-    await click("Заменить код");
-    expect(container.querySelectorAll("ol li")).toHaveLength(3);
+    await click("Создать новый код");
+    expect(
+      Array.from(
+        container.querySelectorAll("ol li"),
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      "Скопируй код",
+      "Сохрани его вне этого браузера",
+      "Вставь сохранённую копию",
+      "Активируй восстановление",
+    ]);
+    expect(container.textContent).toContain("Код пока не активирован");
+    expect(container.textContent).toContain(
+      "После активации нового старый перестанет работать",
+    );
+    await click("Активировать восстановление");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Код не нужно запоминать");
     await click("Скопировать код");
     expect(writeText).toHaveBeenCalledWith(successor);
     expect(container.querySelector("[role=status]")?.textContent).toContain(
-      "Теперь сохрани",
+      "пока не активирован",
     );
     expect(ownership.transition).not.toHaveBeenCalled();
+    await act(async () => enter("recovery-confirmation", successor));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("Код пока не активирован");
     await act(async () => enter("recovery-confirmation", original));
-    await click("Подтвердить");
+    await click("Активировать восстановление");
     expect(container.querySelector("[role=alert]")).not.toBeNull();
     expect(document.activeElement).toBe(container.querySelector("h1"));
     expect(fetchMock).toHaveBeenCalledTimes(2);
     writeText.mockRejectedValueOnce(new Error("denied"));
     await click("Скопировать код");
-    expect(container.querySelector("[role=status]")?.textContent).toContain(
-      "Не удалось скопировать",
-    );
+    expect(container.textContent).toContain("Не удалось скопировать");
     await act(async () => enter("recovery-confirmation", successor));
-    await click("Подтвердить");
+    await click("Активировать восстановление");
     expect(ownership.transition).toHaveBeenCalledOnce();
-    expect(navigation.replace).toHaveBeenCalledWith("/progress");
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      "Код восстановления теперь активен",
+    );
+    expect(container.textContent).toContain("старый код больше не работает");
+    expect(container.textContent).not.toContain(successor);
+    expect(container.querySelector("input, code")).toBeNull();
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
     expect(steps).toHaveLength(0);
   });
+
+  it.each(["context", "confirmation", "reconciliation"])(
+    "does not announce activation when %s fails",
+    async (failure) => {
+      steps.push(
+        { action: "status-authenticated", body: { ok: true, enabled: false } },
+        {
+          action: "enrollment",
+          body: { ok: true, operationId: "op-failure", code: successor },
+        },
+        {
+          action: "context-authenticated",
+          status: failure === "context" ? 400 : 200,
+          body:
+            failure === "context"
+              ? { ok: false }
+              : { ok: true, operationId: "op-failure", target: owner },
+        },
+      );
+      if (failure !== "context")
+        steps.push({
+          action: "confirm-authenticated",
+          status: failure === "confirmation" ? 400 : 200,
+          body: { ok: failure !== "confirmation" },
+        });
+      if (failure === "reconciliation")
+        identity.read.mockResolvedValueOnce(owner).mockResolvedValueOnce(null);
+      await render();
+      await click("Сохранить доступ");
+      await act(async () => enter("recovery-confirmation", successor));
+      await click("Активировать восстановление");
+      expect(container.querySelector("[role=alert]")).not.toBeNull();
+      expect(container.textContent).not.toContain(
+        "Код восстановления теперь активен",
+      );
+      expect(navigation.replace).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(container.querySelector("h1"));
+      expect(steps).toHaveLength(0);
+    },
+  );
 
   it("cancel leaves the old credential state alone and never confirms", async () => {
     steps.push(
