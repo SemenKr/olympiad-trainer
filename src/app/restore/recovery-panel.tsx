@@ -55,7 +55,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [recovered, setRecovered] = useState(false);
+  const [activatedMode, setActivatedMode] = useState<Mode | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     if (operation || error || account !== "loading")
       headingRef.current?.focus();
-  }, [account, error, operation, recovered]);
+  }, [account, error, operation, activatedMode]);
 
   async function start(nextMode: Mode, code?: string) {
     setWorking(true);
@@ -165,8 +165,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
       setOperation(null);
       setConfirmation("");
       setRecoveryCode("");
-      if (operation.mode === "recovery") setRecovered(true);
-      else openHistory();
+      setActivatedMode(operation.mode);
     } catch {
       setError(
         operation.mode === "recovery"
@@ -187,7 +186,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
     try {
       await navigator.clipboard.writeText(operation?.code ?? "");
       setNotice(
-        "Код скопирован. Теперь сохрани его вне этого браузера и вставь сохранённую копию ниже.",
+        "Код восстановления скопирован, но пока не активирован. Сохрани его вне этого браузера, вставь сохранённую копию ниже и активируй восстановление.",
       );
     } catch {
       setNotice("Не удалось скопировать. Выдели код и перепиши его вручную.");
@@ -209,15 +208,27 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
       </section>
     );
 
-  if (recovered)
+  if (activatedMode)
     return (
       <section className={styles.panel}>
         <h1 ref={headingRef} tabIndex={-1}>
-          Доступ восстановлен
+          {activatedMode === "recovery"
+            ? "Доступ восстановлен"
+            : "Восстановление активировано"}
         </h1>
+        <p role="status">
+          Код восстановления теперь активен. С сохранённой копией можно
+          восстановить историю в другом браузере.
+        </p>
+        {activatedMode !== "enrollment" ? (
+          <p>
+            Новый код заменил старый. Оставь у себя новую сохранённую копию
+            вместо прежней — старый код больше не работает.
+          </p>
+        ) : null}
         <p>
-          Новый код заменил старый. Оставь у себя новую сохранённую копию вместо
-          прежней — старый код больше не работает.
+          Этот код восстановления больше нельзя показать. Храни сохранённую
+          копию в тайне.
         </p>
         <p>В этом браузере можно продолжать заниматься без кода.</p>
         <button className={styles.primary} onClick={openHistory} type="button">
@@ -230,37 +241,50 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
     return (
       <section className={styles.panel} aria-busy={working}>
         <h1 ref={headingRef} tabIndex={-1}>
-          {operation.mode === "recovery"
-            ? "Сохрани новый код"
-            : "Сохрани код доступа"}
+          Активируй восстановление
         </h1>
-        <p>
-          Код не нужно запоминать. Он поможет вернуть историю, если потеряется
-          доступ в браузере. После подтверждения мы не сможем показать его
-          снова.
+        <p className={styles.warning} role="status">
+          <strong>Код пока не активирован</strong>. Одного копирования
+          недостаточно: сохрани код восстановления вне этого браузера, вставь
+          сохранённую копию и нажми «Активировать восстановление».
         </p>
-        {operation.mode === "replacement" ? (
+        <p>
+          Код не нужно запоминать. После активации мы не сможем показать его
+          снова. Храни сохранённую копию в тайне.
+        </p>
+        {operation.mode !== "enrollment" ? (
           <p className={styles.warning}>
-            Старый код продолжит работать до подтверждения нового.
+            Старый код восстановления действует, пока новый не активирован.
+            После активации нового старый перестанет работать.
           </p>
         ) : null}
         {operation.mode === "recovery" ? (
           <p className={styles.warning}>
-            После подтверждения этот браузер получит доступ к найденной истории,
-            а прежний браузер потеряет доступ. Данные из браузеров не
+            После активации этот браузер получит доступ к найденной истории, а
+            прежний браузер потеряет доступ. Данные из браузеров не
             объединяются.
           </p>
         ) : null}
         <ol className={styles.steps}>
-          <li>Скопируй код кнопкой ниже.</li>
           <li>
-            Сохрани его вне этого браузера, например в заметке на другом
-            устройстве или на бумаге. Если нужно, попроси близкого взрослого
-            помочь.
+            <strong>Скопируй код</strong>
           </li>
-          <li>Открой сохранённую копию и вставь её в поле подтверждения.</li>
+          <li>
+            <strong>Сохрани его вне этого браузера</strong>
+          </li>
+          <li>
+            <strong>Вставь сохранённую копию</strong>
+          </li>
+          <li>
+            <strong>Активируй восстановление</strong>
+          </li>
         </ol>
-        <p className={styles["secret-label"]}>Твой новый код</p>
+        <p>
+          Сохрани код, например, в заметке на другом устройстве или на бумаге.
+          Если нужно, попроси близкого взрослого помочь. Затем открой
+          сохранённую копию и вставь её в поле ниже.
+        </p>
+        <p className={styles["secret-label"]}>Новый код восстановления</p>
         <code className={styles.code} aria-label="Новый код восстановления">
           {operation.code}
         </code>
@@ -287,7 +311,7 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
             value={confirmation}
           />
           <button className={styles.primary} disabled={working} type="submit">
-            {working ? "Подтверждаем…" : "Подтвердить"}
+            {working ? "Активируем…" : "Активировать восстановление"}
           </button>
         </form>
         {error ? <p role="alert">{error}</p> : null}
@@ -312,9 +336,9 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
         Доступ к истории
       </h1>
       <p>
-        Для обычных занятий в этом браузере код не нужен. Он помогает вернуть
-        историю при потере доступа, но не переносит черновики из другого
-        браузера.
+        Для обычных занятий в этом браузере код восстановления не нужен. Он
+        помогает вернуть историю при потере доступа, но не переносит черновики
+        из другого браузера.
       </p>
       {account === "loading" ? (
         <p role="status">Проверяем доступ…</p>
@@ -324,13 +348,13 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
             <div className={styles.actions}>
               <h2>
                 {account.recoveryEnabled
-                  ? "Восстановление настроено"
+                  ? "Восстановление активно"
                   : "Сохранить доступ"}
               </h2>
               <p>
                 {account.recoveryEnabled
-                  ? "Если заменишь код, старый перестанет работать после подтверждения нового."
-                  : "Код не нужно запоминать. Сохрани его вне этого браузера и вставь сохранённую копию для подтверждения."}
+                  ? "Текущий код восстановления активен, но показать его снова нельзя. Если сохранённая копия потерялась, пока этот браузер работает, создай новый код. Старый код действует до активации нового, затем перестаёт работать."
+                  : "Новый код восстановления сначала неактивен. Сохрани его вне этого браузера, вставь сохранённую копию и активируй восстановление."}
               </p>
               <button
                 className={styles.primary}
@@ -342,7 +366,9 @@ export function RecoveryPanel({ enabled }: { enabled: boolean }) {
                 }
                 type="button"
               >
-                {account.recoveryEnabled ? "Заменить код" : "Сохранить доступ"}
+                {account.recoveryEnabled
+                  ? "Создать новый код"
+                  : "Сохранить доступ"}
               </button>
             </div>
           ) : null}
