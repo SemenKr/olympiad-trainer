@@ -11,6 +11,20 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: olympiad_trainer_ci
+          POSTGRES_USER: ci_test_user
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_test_user -d olympiad_trainer_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -43,8 +57,20 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Migrate disposable test database
+        run: pnpm db:migrate
+        env:
+          DATABASE_MIGRATION_URL: postgresql://ci_test_user:ci_test_password@127.0.0.1:5432/olympiad_trainer_ci
+
       - name: Test
         run: pnpm test
+        env:
+          DATABASE_TEST_URL: postgresql://ci_test_user:ci_test_password@127.0.0.1:5432/olympiad_trainer_ci
+
+      - name: Verify PostgreSQL integration coverage
+        run: pnpm test:integration
+        env:
+          DATABASE_TEST_URL: postgresql://ci_test_user:ci_test_password@127.0.0.1:5432/olympiad_trainer_ci
 
       - name: Build
         run: pnpm build

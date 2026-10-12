@@ -96,9 +96,20 @@ To include PostgreSQL integration tests, create a **separate disposable test dat
 ```sh
 DATABASE_URL=postgresql://localhost:5432/olympiad_trainer_test DATABASE_MIGRATION_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm db:migrate
 DATABASE_TEST_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm test
+DATABASE_TEST_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm test:integration
 ```
 
-Adjust credentials for your installation. Test suites create and mutate fixtures. Current PR CI runs the standard checks without provisioning PostgreSQL, so DB integration coverage requires this separate run.
+Adjust credentials for your installation. Test suites create and mutate fixtures.
+`pnpm test:integration` selects all `src/**/*.integration.test.ts` suites and fails
+if `DATABASE_TEST_URL` is missing, no suites/tests are selected, or any selected
+test skips or fails. Normal `pnpm test` and `pnpm verify` still allow DB suites to
+skip when `DATABASE_TEST_URL` is absent.
+
+PR CI provisions a disposable PostgreSQL 18 service on localhost, applies all
+committed migrations, runs the full suite with `DATABASE_TEST_URL`, and runs the
+explicit integration check to enforce zero DB skips. The standard formatting,
+lint, stylelint, typecheck, production build and metadata checks remain enabled.
+CI uses throwaway credentials and no external/shared database or secrets.
 
 ## Explore the implementation
 
