@@ -25,8 +25,8 @@ vi.mock("../../app/progress/actions", () => ({
   importBrowserProgressEvidence: vi.fn(async () => {}),
   persistPracticeFinishEvidence: vi.fn(async () => {}),
   readServerNextUsefulProblem: vi.fn(async () => null),
-  readServerAdaptiveAvailability: vi.fn(async () => ({
-    availability: { status: "insufficient-evidence" },
+  readServerAdaptiveRecommendation: vi.fn(async () => ({
+    availability: { status: "none" },
     hasPracticeHistory: true,
   })),
 }));
@@ -430,9 +430,7 @@ describe("direct /practice restore", () => {
       reason: "existing transfer first",
     });
     await mountPractice(props);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Не удалось проверить сохранённую тренировку.",
-    );
+    expect(container.textContent).toContain("Предложение изменилось");
     expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
     vi.mocked(readServerNextUsefulProblem).mockResolvedValueOnce({
       problemId: "pages-without-digit-one",
@@ -452,6 +450,35 @@ describe("direct /practice restore", () => {
       problemIds: ["pages-without-digit-one"],
     });
   });
+
+  it.each([
+    "brothers-ages-products",
+    "parrots-guaranteed-colors",
+    "pages-without-digit-one",
+  ])(
+    "does not create a snapshot when %s becomes stale during entry",
+    async (problemId) => {
+      let resolve!: (value: null) => void;
+      vi.mocked(readServerNextUsefulProblem).mockImplementationOnce(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      );
+      const route = await TransferPracticePage({
+        searchParams: Promise.resolve({ problem: problemId }),
+      });
+      await mountPractice(
+        route.props as ComponentProps<typeof PracticeSession>,
+      );
+      expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+      await act(async () => {
+        resolve(null);
+      });
+      expect(container.textContent).toContain("Предложение изменилось");
+      expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBeNull();
+    },
+  );
   it.each([
     ["brothers-ages-products", "Возраст братьев"],
     ["parrots-guaranteed-colors", "Попугаи в зоопарке"],

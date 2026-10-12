@@ -8,7 +8,7 @@ vi.mock("./practice/actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
 vi.mock("./progress/actions", () => ({
-  readServerAdaptiveAvailability: vi.fn(),
+  readServerAdaptiveRecommendation: vi.fn(),
   readServerReviewAvailability: vi.fn(),
   readServerLearningPath: vi.fn(),
   readServerPracticeJourney: vi.fn(async () => 0),
@@ -23,7 +23,7 @@ vi.mock("../modules/practice/ui/practice-session-storage", () => ({
 }));
 
 import { HomePracticeAction } from "./home-practice-action";
-import { readServerAdaptiveAvailability } from "./progress/actions";
+import { readServerAdaptiveRecommendation } from "./progress/actions";
 import { ensureServerProgressImported } from "../modules/practice/ui/server-progress-import";
 import {
   readVerifiedLatestCompletedResults,
@@ -76,7 +76,7 @@ it("keeps Resume usable while the secondary latest Summary verification is pendi
     await act(async () => root.render(<HomePracticeAction />));
     expect(container.textContent).toContain("Продолжить тренировку");
     expect(container.querySelector('a[href="/practice"]')).not.toBeNull();
-    expect(readServerAdaptiveAvailability).not.toHaveBeenCalled();
+    expect(readServerAdaptiveRecommendation).not.toHaveBeenCalled();
     expect(ensureServerProgressImported).not.toHaveBeenCalled();
     await act(async () => resolve({ value: null, interpretation: null }));
     expect(container.textContent).toContain("Продолжить тренировку");
@@ -125,7 +125,7 @@ it("fails closed when unfinished verification fails instead of offering a new se
       "Не удалось проверить сохранённую тренировку.",
     );
     expect(container.textContent).not.toContain("Начать тренировку");
-    expect(readServerAdaptiveAvailability).not.toHaveBeenCalled();
+    expect(readServerAdaptiveRecommendation).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());
   }

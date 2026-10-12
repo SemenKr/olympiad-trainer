@@ -34,7 +34,7 @@ import {
   readPracticeJourneyTotal,
   readPracticeJourneyFinish,
   readReviewAvailability,
-  readAdaptiveAvailability,
+  readAdaptiveRecommendation,
   readNextUsefulProblem,
   startReview,
 } from "./learner-progress-persistence";
@@ -249,7 +249,7 @@ describe.skipIf(!testUrl)("PostgreSQL authenticated learner boundary", () => {
         () => readPracticeJourneyTotal(context),
         () => readPracticeJourneyFinish(context, session),
         () => readReviewAvailability(context),
-        () => readAdaptiveAvailability(context),
+        () => readAdaptiveRecommendation(context),
         () => readNextUsefulProblem(context),
         () => startReview(context),
         () => readSupportObservation(context, session),

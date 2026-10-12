@@ -20,7 +20,7 @@ import {
 } from "@/app/practice/actions";
 import {
   persistPracticeFinishEvidence,
-  readServerAdaptiveAvailability,
+  readServerAdaptiveRecommendation,
   readServerNextUsefulProblem,
   startServerReview,
 } from "../../learner/progress-client";
@@ -302,6 +302,7 @@ export async function finishPracticeSessionAndNavigate(
       return "completed";
     }
     const persist = (request: {
+      version?: 2;
       sessionId: string;
       contributions: readonly unknown[];
       adaptiveFacts?: {
@@ -325,6 +326,7 @@ export async function finishPracticeSessionAndNavigate(
               facts: request.episodeFacts,
             },
             owner,
+            request.version,
           )
         : request.adaptiveFacts
           ? persistPracticeFinishEvidence(
@@ -389,6 +391,7 @@ export function PracticeSession({
     "completed"
   > | null>(null);
   const [restoreError, setRestoreError] = useState(false);
+  const [adaptiveUnavailable, setAdaptiveUnavailable] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
   const [reviewUnavailable, setReviewUnavailable] = useState(false);
   const [restoreRetry, setRestoreRetry] = useState(0);
@@ -419,6 +422,15 @@ export function PracticeSession({
           if (snapshot && "status" in snapshot) {
             setLoaded({ session: snapshot });
             return;
+          }
+          if (!snapshot && startMode === "transfer") {
+            await ensureServerProgressImported(learnerStorage);
+            const recommendation = await readServerNextUsefulProblem();
+            if (!active) return;
+            if (recommendation?.problemId !== startTransferProblemId) {
+              if (active) setAdaptiveUnavailable(true);
+              return;
+            }
           }
           let session: ActivePracticeSessionState = snapshot
             ? ({
@@ -467,18 +479,10 @@ export function PracticeSession({
                     ? packs![startPackId][0]
                     : problems[0],
               );
-          if (!snapshot && startMode === "transfer") {
-            await ensureServerProgressImported(learnerStorage);
-            const recommendation = await readServerNextUsefulProblem();
-            if (recommendation?.problemId !== startTransferProblemId) {
-              if (active) setRestoreError(true);
-              return;
-            }
-          }
           if (!snapshot && startMode === "pack") {
             await ensureServerProgressImported(learnerStorage);
             const [availability, completed] = await Promise.all([
-              readServerAdaptiveAvailability(),
+              readServerAdaptiveRecommendation(),
               readVerifiedLatestCompletedResults(
                 verifyPersistedReasoningCheckpointObservation,
                 learnerStorage,
@@ -489,6 +493,7 @@ export function PracticeSession({
               return;
             }
           }
+          if (!active) return;
           if (
             !snapshot &&
             !(await createPracticeSessionSnapshot(
@@ -530,14 +535,33 @@ export function PracticeSession({
 
   const retryRestore = () => {
     setRestoreError(false);
+    setAdaptiveUnavailable(false);
     setRestoreRetry((value) => value + 1);
   };
 
   useEffect(() => {
     if (restoreError) restoreHeadingRef.current?.focus();
-    if (reviewUnavailable || packUnavailable)
+    if (reviewUnavailable || packUnavailable || adaptiveUnavailable)
       unavailableHeadingRef.current?.focus();
-  }, [restoreError, reviewUnavailable, packUnavailable]);
+  }, [restoreError, reviewUnavailable, packUnavailable, adaptiveUnavailable]);
+
+  if (adaptiveUnavailable)
+    return (
+      <main>
+        <h1 ref={unavailableHeadingRef} tabIndex={-1}>
+          Предложение изменилось
+        </h1>
+        <p role="status">
+          Эта задача сейчас не предлагается. Можно проверить следующее действие
+          на главной.
+        </p>
+        <button type="button" onClick={retryRestore}>
+          Проверить ещё раз
+        </button>
+        <Link href="/">На главную</Link>
+        <Link href="/practice/choose">Выбрать набор</Link>
+      </main>
+    );
 
   if (restoreError)
     return (

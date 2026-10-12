@@ -14,6 +14,20 @@ try {
   await client.query(
     "CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY)",
   );
+  const superseded = await client.query(
+    "SELECT 1 FROM schema_migrations WHERE name = '0014_adaptive_finish_problem_identity.sql'",
+  );
+  if (superseded.rowCount)
+    throw new Error(
+      "Receipt-based 0014 was already applied; a forward migration is required.",
+    );
+  const receiptColumn = await client.query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'practice_finish_receipts' AND column_name = 'adaptive_problem_id'",
+  );
+  if (receiptColumn.rowCount)
+    throw new Error(
+      "Receipt-based adaptive identity exists without the 0014 marker; inspect schema and use a forward migration.",
+    );
   for (const name of [
     "0001_learner_progress.sql",
     "0002_adaptive_transfer_status.sql",
@@ -28,6 +42,7 @@ try {
     "0011_learning_path_pack_receipts.sql",
     "0012_learner_identity_boundary.sql",
     "0013_learner_recovery_credentials.sql",
+    "0014_adaptive_target_usage.sql",
   ]) {
     const prior = await client.query(
       "SELECT 1 FROM schema_migrations WHERE name = $1",

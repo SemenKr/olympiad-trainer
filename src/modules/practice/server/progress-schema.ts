@@ -1,8 +1,8 @@
 import type { PackId } from "../application/completed-practice-episode";
+import type { AdaptiveTargetId } from "../application/adaptive-recommendation";
 import { sql } from "drizzle-orm";
 
 import {
-  boolean,
   check,
   bigint,
   index,
@@ -11,6 +11,7 @@ import {
   jsonb,
   pgTable,
   primaryKey,
+  foreignKey,
   text,
   timestamp,
   uuid,
@@ -29,20 +30,6 @@ export const learners = pgTable("learners", {
   impossibilityEvidence: jsonb("impossibility_evidence").notNull(),
   enumerationEvidence: jsonb("enumeration_evidence").notNull(),
   legacyImportHash: text("legacy_import_hash"),
-  brothersAgesAttempted: boolean("brothers_ages_attempted")
-    .notNull()
-    .default(false),
-  brothersAgesSolutionExposed: boolean("brothers_ages_solution_exposed")
-    .notNull()
-    .default(false),
-  parrotsAttempted: boolean("parrots_attempted").notNull().default(false),
-  parrotsSolutionExposed: boolean("parrots_solution_exposed")
-    .notNull()
-    .default(false),
-  pagesAttempted: boolean("pages_attempted").notNull().default(false),
-  pagesSolutionExposed: boolean("pages_solution_exposed")
-    .notNull()
-    .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -216,6 +203,43 @@ export const practiceReviewAssignments = pgTable(
     uniqueIndex("practice_review_assignments_source_idx").on(
       table.learnerId,
       table.reviewSourceSessionId,
+    ),
+  ],
+);
+
+export const practiceAdaptiveTargetUsage = pgTable(
+  "practice_adaptive_target_usage",
+  {
+    learnerId: uuid("learner_id")
+      .notNull()
+      .references(() => learners.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    problemId: text("problem_id").$type<AdaptiveTargetId>().notNull(),
+    sourceSessionId: uuid("source_session_id"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.learnerId, table.problemId] }),
+    uniqueIndex("practice_adaptive_target_usage_source_idx").on(
+      table.learnerId,
+      table.sourceSessionId,
+    ),
+    foreignKey({
+      columns: [table.learnerId, table.sourceSessionId],
+      foreignColumns: [
+        practiceFinishReceipts.learnerId,
+        practiceFinishReceipts.sessionId,
+      ],
+    })
+      .onDelete("restrict")
+      .onUpdate("restrict"),
+    check(
+      "practice_adaptive_target_usage_problem_check",
+      sql`${table.problemId} IN ('brothers-ages-products', 'parrots-guaranteed-colors', 'pages-without-digit-one')`,
     ),
   ],
 );

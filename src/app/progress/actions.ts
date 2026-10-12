@@ -8,7 +8,7 @@ import {
   readReviewAvailability,
   startReview,
   persistFinishContributions,
-  readAdaptiveAvailability,
+  readAdaptiveRecommendation,
   readLearnerProgress,
   readRecentPracticeEpisodes,
   readNextUsefulProblem,
@@ -32,25 +32,17 @@ export async function persistPracticeFinishEvidence(
   adaptiveFacts?: unknown,
   episode?: unknown,
   expected?: LocalLearnerOwner,
+  requestVersion?: 2,
 ): Promise<PracticeJourneyFinish | null> {
   const learnerId = await resolveExpectedLearnerFromCookie(expected!);
-  if (episode !== undefined)
-    return persistFinishContributions(
-      learnerId,
-      sessionId,
-      contributions,
-      adaptiveFacts,
-      episode,
-    );
-  else if (adaptiveFacts === undefined)
-    return persistFinishContributions(learnerId, sessionId, contributions);
-  else
-    return persistFinishContributions(
-      learnerId,
-      sessionId,
-      contributions,
-      adaptiveFacts,
-    );
+  return persistFinishContributions(
+    learnerId,
+    sessionId,
+    contributions,
+    adaptiveFacts,
+    episode,
+    requestVersion,
+  );
 }
 
 export async function readServerPracticeJourney(expected: LocalLearnerOwner) {
@@ -84,11 +76,11 @@ export async function readServerNextUsefulProblem(expected: LocalLearnerOwner) {
   return readNextUsefulProblem(learnerId);
 }
 
-export async function readServerAdaptiveAvailability(
+export async function readServerAdaptiveRecommendation(
   expected: LocalLearnerOwner,
 ) {
   const learnerId = await resolveExpectedLearnerFromCookie(expected);
-  return readAdaptiveAvailability(learnerId);
+  return readAdaptiveRecommendation(learnerId);
 }
 
 export async function readServerProgress(

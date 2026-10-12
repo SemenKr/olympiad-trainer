@@ -4,7 +4,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../../app/practice/actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
 vi.mock("../../../app/progress/actions", () => ({
+  readServerAdaptiveRecommendation: vi.fn(async () => ({
+    availability: { status: "none" },
+    hasPracticeHistory: true,
+  })),
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(),
   readServerPracticeJourney: vi.fn(async () => 70),

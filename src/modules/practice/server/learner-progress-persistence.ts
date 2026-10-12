@@ -2,7 +2,7 @@ import "server-only";
 
 import { isEligibleReviewSource } from "../application/review";
 import { randomUUID, createHash } from "node:crypto";
-import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   packById,
   packIdFromCompletedProblemIds,
@@ -12,9 +12,10 @@ import {
   type PackId,
 } from "../application/completed-practice-episode";
 import {
-  classifyAdaptiveAvailability,
-  type AdaptiveAvailability,
-} from "../application/adaptive-availability";
+  getAdaptiveRecommendation,
+  isAdaptiveTargetId,
+  type AdaptiveRecommendationResult,
+} from "../application/adaptive-recommendation";
 import {
   deriveEnumerationProgressInterpretation,
   emptyEnumerationProgressEvidence,
@@ -66,6 +67,7 @@ import {
   practiceFinishReceipts,
   practiceJourneyAwards,
   practiceReviewAssignments,
+  practiceAdaptiveTargetUsage,
 } from "./progress-schema";
 
 const NO_LOCAL_EVIDENCE = "no-browser-progress-evidence-v1";
@@ -168,6 +170,18 @@ export async function importLegacyProgress(
       if (raw === null || row.legacyImportHash === originalHash) return;
       throw new Error("Legacy Progress data changed after import.");
     }
+    const targets = facts(
+      buckets.guarantee,
+      buckets.impossibility,
+      buckets.enumeration,
+    )
+      .map((fact) => fact.problemId)
+      .filter(isAdaptiveTargetId);
+    for (const problemId of new Set(targets))
+      await tx
+        .insert(practiceAdaptiveTargetUsage)
+        .values({ learnerId, problemId })
+        .onConflictDoNothing();
     await tx
       .update(learners)
       .set({
@@ -354,7 +368,7 @@ function validateContribution(
       };
 }
 
-export type AdaptiveTransferFinishFacts = Readonly<{
+type LegacyAdaptiveFinishFacts = Readonly<{
   problemId:
     | "brothers-ages-products"
     | "parrots-guaranteed-colors"
@@ -363,15 +377,12 @@ export type AdaptiveTransferFinishFacts = Readonly<{
   solutionExposed: boolean;
 }>;
 
-type LegacyAdaptiveTransferFinishFacts = Omit<
-  AdaptiveTransferFinishFacts,
-  "problemId"
->;
+type LegacyBrothersFinishFacts = Omit<LegacyAdaptiveFinishFacts, "problemId">;
 
 function validAdaptiveFinishFacts(
   value: unknown,
-): value is AdaptiveTransferFinishFacts | LegacyAdaptiveTransferFinishFacts {
-  const candidate = value as AdaptiveTransferFinishFacts;
+): value is LegacyAdaptiveFinishFacts | LegacyBrothersFinishFacts {
+  const candidate = value as LegacyAdaptiveFinishFacts;
   return (
     typeof value === "object" &&
     value !== null &&
@@ -396,8 +407,14 @@ export async function persistFinishContributions(
   input: unknown,
   adaptiveFacts?: unknown,
   episode?: unknown,
+  requestVersion?: unknown,
 ): Promise<PracticeJourneyFinish | null> {
   const learnerId = context.learnerId;
+  if (requestVersion !== undefined && requestVersion !== 2)
+    throw new Error("Invalid Finish version.");
+  const modern = requestVersion === 2;
+  if (modern && (adaptiveFacts !== undefined || episode === undefined))
+    throw new Error("Invalid versioned Finish.");
   if (
     typeof sessionId !== "string" ||
     !SESSION_ID.test(sessionId) ||
@@ -408,16 +425,29 @@ export async function persistFinishContributions(
     throw new Error("Invalid Practice contribution.");
   if (adaptiveFacts !== undefined && !validAdaptiveFinishFacts(adaptiveFacts))
     throw new Error("Invalid adaptive Finish facts.");
-  const adaptiveProblemId =
+  let adaptiveProblemId =
     adaptiveFacts === undefined
       ? null
-      : "problemId" in (adaptiveFacts as AdaptiveTransferFinishFacts)
-        ? (adaptiveFacts as AdaptiveTransferFinishFacts).problemId
+      : "problemId" in (adaptiveFacts as LegacyAdaptiveFinishFacts)
+        ? (adaptiveFacts as LegacyAdaptiveFinishFacts).problemId
         : "brothers-ages-products";
+  if (modern) {
+    const candidate = episode as { mode?: unknown; facts?: unknown };
+    const checked =
+      candidate && validateCompletedEpisode(candidate.mode, candidate.facts);
+    if (!checked) throw new Error("Invalid completed Practice episode.");
+    if (candidate.mode === "transfer" || candidate.mode === "exploration") {
+      const target = checked.problems[0].problemId;
+      if (!isAdaptiveTargetId(target))
+        throw new Error("Unknown adaptive target.");
+      adaptiveProblemId = target;
+    }
+  }
   if (
+    !modern &&
     adaptiveProblemId === "pages-without-digit-one" &&
     (episode === undefined ||
-      !(adaptiveFacts as AdaptiveTransferFinishFacts).attempted)
+      !(adaptiveFacts as LegacyAdaptiveFinishFacts).attempted)
   )
     throw new Error("Enumeration Finish requires completed attempt facts.");
   const contributions = input.map(validateContribution);
@@ -427,7 +457,7 @@ export async function persistFinishContributions(
   if (new Set(values.map((value) => value.bucket)).size !== values.length)
     throw new Error("Duplicate Practice contribution.");
   if (
-    adaptiveFacts === undefined &&
+    adaptiveProblemId === null &&
     values.some(
       (value) =>
         value.value.problemId === "brothers-ages-products" ||
@@ -437,15 +467,15 @@ export async function persistFinishContributions(
   )
     throw new Error("Adaptive Finish facts are required.");
   if (
-    adaptiveFacts !== undefined &&
+    adaptiveProblemId !== null &&
     values.some((value) => value.value.problemId !== adaptiveProblemId)
   )
     throw new Error("Unexpected adaptive contribution.");
   if (
     adaptiveFacts !== undefined &&
     values.length > 0 &&
-    (!(adaptiveFacts as AdaptiveTransferFinishFacts).attempted ||
-      (adaptiveFacts as AdaptiveTransferFinishFacts).solutionExposed)
+    (!(adaptiveFacts as LegacyAdaptiveFinishFacts).attempted ||
+      (adaptiveFacts as LegacyAdaptiveFinishFacts).solutionExposed)
   )
     throw new Error("Adaptive contribution conflicts with Finish facts.");
   const ordered = ["guarantee", "impossibility", "enumeration"].flatMap(
@@ -470,7 +500,7 @@ export async function persistFinishContributions(
     if (
       !checked ||
       (candidate.mode === "transfer" || candidate.mode === "exploration") !==
-        (adaptiveFacts !== undefined) ||
+        (adaptiveProblemId !== null) ||
       ((candidate.mode === "pack" || candidate.mode === "review") &&
         ordered.length !== 0) ||
       ((candidate.mode === "transfer" || candidate.mode === "exploration") &&
@@ -480,11 +510,12 @@ export async function persistFinishContributions(
             : "transfer")) ||
       ((candidate.mode === "transfer" || candidate.mode === "exploration") &&
         (checked.problems[0].problemId !== adaptiveProblemId ||
-          (adaptiveProblemId === "pages-without-digit-one" ||
-            checked.problems[0].validSubmissionCount > 0) !==
-            (adaptiveFacts as AdaptiveTransferFinishFacts).attempted ||
-          checked.problems[0].solutionExposed !==
-            (adaptiveFacts as AdaptiveTransferFinishFacts).solutionExposed))
+          (!modern &&
+            ((adaptiveProblemId === "pages-without-digit-one" ||
+              checked.problems[0].validSubmissionCount > 0) !==
+              (adaptiveFacts as LegacyAdaptiveFinishFacts).attempted ||
+              checked.problems[0].solutionExposed !==
+                (adaptiveFacts as LegacyAdaptiveFinishFacts).solutionExposed))))
     )
       throw new Error("Invalid completed Practice episode.");
     for (const fact of checked.problems) {
@@ -519,48 +550,28 @@ export async function persistFinishContributions(
 
   const contributionHash = hash(
     JSON.stringify(
-      completedEpisode
+      modern
         ? {
+            version: 2,
             contributions: ordered,
-            ...(adaptiveFacts === undefined ? {} : { adaptiveFacts }),
-            episodeMode: completedEpisode.mode,
-            episodeFacts: completedEpisode.facts,
+            episodeMode: completedEpisode!.mode,
+            episodeFacts: completedEpisode!.facts,
           }
-        : adaptiveFacts === undefined
-          ? ordered
-          : { contributions: ordered, adaptiveFacts },
+        : completedEpisode
+          ? {
+              contributions: ordered,
+              ...(adaptiveFacts === undefined ? {} : { adaptiveFacts }),
+              episodeMode: completedEpisode.mode,
+              episodeFacts: completedEpisode.facts,
+            }
+          : adaptiveFacts === undefined
+            ? ordered
+            : { contributions: ordered, adaptiveFacts },
     ),
   );
   return withAuthenticatedLearner(context, async (tx, learner) => {
     if (!learner || learner.legacyImportHash === null)
       throw new Error("Legacy Progress import is required.");
-    const [assignment] = await tx
-      .select()
-      .from(practiceReviewAssignments)
-      .where(
-        and(
-          eq(practiceReviewAssignments.learnerId, learnerId),
-          eq(practiceReviewAssignments.sessionId, sessionId),
-        ),
-      );
-    if ((completedEpisode?.mode === "review") !== !!assignment)
-      throw new Error("Review assignment does not match Finish.");
-    if (assignment) {
-      const [source] = await tx
-        .select()
-        .from(practiceCompletedEpisodes)
-        .where(
-          and(
-            eq(practiceCompletedEpisodes.learnerId, learnerId),
-            eq(
-              practiceCompletedEpisodes.sessionId,
-              assignment.reviewSourceSessionId,
-            ),
-          ),
-        );
-      if (!source || !isEligibleReviewSource(source.mode, source.episodeFacts))
-        throw new Error("Review source is unavailable.");
-    }
     const [receipt] = await tx
       .select()
       .from(practiceFinishReceipts)
@@ -588,6 +599,33 @@ export async function persistFinishContributions(
         );
       return award ?? null;
     }
+    const [assignment] = await tx
+      .select()
+      .from(practiceReviewAssignments)
+      .where(
+        and(
+          eq(practiceReviewAssignments.learnerId, learnerId),
+          eq(practiceReviewAssignments.sessionId, sessionId),
+        ),
+      );
+    if ((completedEpisode?.mode === "review") !== !!assignment)
+      throw new Error("Review assignment does not match Finish.");
+    if (assignment) {
+      const [source] = await tx
+        .select()
+        .from(practiceCompletedEpisodes)
+        .where(
+          and(
+            eq(practiceCompletedEpisodes.learnerId, learnerId),
+            eq(
+              practiceCompletedEpisodes.sessionId,
+              assignment.reviewSourceSessionId,
+            ),
+          ),
+        );
+      if (!source || !isEligibleReviewSource(source.mode, source.episodeFacts))
+        throw new Error("Review source is unavailable.");
+    }
     let current = {
       version: 3 as const,
       ...validatedBuckets(
@@ -608,37 +646,6 @@ export async function persistFinishContributions(
         guaranteeEvidence: current.guarantee,
         impossibilityEvidence: current.impossibility,
         enumerationEvidence: current.enumeration,
-        ...(adaptiveFacts === undefined
-          ? {}
-          : adaptiveProblemId === "brothers-ages-products"
-            ? {
-                brothersAgesAttempted:
-                  learner.brothersAgesAttempted ||
-                  (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
-                brothersAgesSolutionExposed:
-                  learner.brothersAgesSolutionExposed ||
-                  (adaptiveFacts as AdaptiveTransferFinishFacts)
-                    .solutionExposed,
-              }
-            : adaptiveProblemId === "parrots-guaranteed-colors"
-              ? {
-                  parrotsAttempted:
-                    learner.parrotsAttempted ||
-                    (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
-                  parrotsSolutionExposed:
-                    learner.parrotsSolutionExposed ||
-                    (adaptiveFacts as AdaptiveTransferFinishFacts)
-                      .solutionExposed,
-                }
-              : {
-                  pagesAttempted:
-                    learner.pagesAttempted ||
-                    (adaptiveFacts as AdaptiveTransferFinishFacts).attempted,
-                  pagesSolutionExposed:
-                    learner.pagesSolutionExposed ||
-                    (adaptiveFacts as AdaptiveTransferFinishFacts)
-                      .solutionExposed,
-                }),
         updatedAt: new Date(),
       })
       .where(eq(learners.id, learnerId));
@@ -688,6 +695,15 @@ export async function persistFinishContributions(
       episodeMode: completedEpisode?.mode ?? null,
       packId: completedPackId,
     });
+    if (adaptiveProblemId)
+      await tx
+        .insert(practiceAdaptiveTargetUsage)
+        .values({
+          learnerId,
+          problemId: adaptiveProblemId,
+          sourceSessionId: sessionId,
+        })
+        .onConflictDoNothing();
     return journeyFinish;
   });
 }
@@ -827,17 +843,17 @@ export async function readNextUsefulProblem(
     | "pages-without-digit-one";
   reason: string;
 }>> {
-  const { availability } = await readAdaptiveAvailability(context);
+  const { availability } = await readAdaptiveRecommendation(context);
   return availability.status === "recommendation"
     ? { problemId: availability.problemId, reason: availability.reason }
     : null;
 }
 
-export async function readAdaptiveAvailability(
+export async function readAdaptiveRecommendation(
   context: AuthenticatedLearner,
 ): Promise<
   Readonly<{
-    availability: AdaptiveAvailability;
+    availability: AdaptiveRecommendationResult;
     hasPracticeHistory: boolean;
   }>
 > {
@@ -856,50 +872,38 @@ export async function readAdaptiveAvailability(
     );
     const hasVerifiedFacts =
       facts(guarantee, impossibility, enumeration).length > 0;
-    const hasTransferAttempt =
-      row.brothersAgesAttempted ||
-      row.brothersAgesSolutionExposed ||
-      row.parrotsAttempted ||
-      row.parrotsSolutionExposed ||
-      row.pagesAttempted ||
-      row.pagesSolutionExposed;
-    const [receipt] = await tx
-      .select({ sessionId: practiceFinishReceipts.sessionId })
+    const usage = await tx
+      .select()
+      .from(practiceAdaptiveTargetUsage)
+      .where(eq(practiceAdaptiveTargetUsage.learnerId, learnerId));
+    const closedTargets = usage.map((row) => {
+      if (!isAdaptiveTargetId(row.problemId))
+        throw new Error("Adaptive usage could not be verified.");
+      return row.problemId;
+    });
+    const receipts = await tx
+      .select({ mode: practiceFinishReceipts.episodeMode })
       .from(practiceFinishReceipts)
-      .where(eq(practiceFinishReceipts.learnerId, learnerId))
-      .limit(1);
-    const [adaptiveReceipt] = await tx
-      .select({ sessionId: practiceFinishReceipts.sessionId })
-      .from(practiceFinishReceipts)
-      .where(
-        and(
-          eq(practiceFinishReceipts.learnerId, learnerId),
-          or(
-            isNull(practiceFinishReceipts.episodeMode),
-            and(
-              ne(practiceFinishReceipts.episodeMode, "pack"),
-              ne(practiceFinishReceipts.episodeMode, "review"),
-            ),
+      .where(eq(practiceFinishReceipts.learnerId, learnerId));
+    if (
+      receipts.some(
+        (receipt) =>
+          receipt.mode !== null &&
+          !["core", "transfer", "exploration", "pack", "review"].includes(
+            receipt.mode,
           ),
-        ),
       )
-      .limit(1);
+    )
+      throw new Error("Practice receipt could not be verified.");
     const hasPracticeHistory =
-      hasVerifiedFacts || hasTransferAttempt || !!receipt;
-    const availability = classifyAdaptiveAvailability(
+      hasVerifiedFacts || usage.length > 0 || receipts.length > 0;
+    const availability = getAdaptiveRecommendation({
       guarantee,
       impossibility,
-      {
-        brothersAttempted: row.brothersAgesAttempted,
-        brothersSolutionExposed: row.brothersAgesSolutionExposed,
-        parrotsAttempted: row.parrotsAttempted,
-        parrotsSolutionExposed: row.parrotsSolutionExposed,
-        pagesAttempted: row.pagesAttempted,
-        pagesSolutionExposed: row.pagesSolutionExposed,
-      },
       enumeration,
-      !!adaptiveReceipt,
-    );
+      hasPracticeFinish: receipts.some((receipt) => receipt.mode !== "review"),
+      closedTargets,
+    });
     return {
       availability,
       hasPracticeHistory,

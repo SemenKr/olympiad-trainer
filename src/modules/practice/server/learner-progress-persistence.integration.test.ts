@@ -17,7 +17,7 @@ import {
   importLegacyProgress,
   persistFinishContributions,
   readRecentPracticeEpisodes,
-  readAdaptiveAvailability,
+  readAdaptiveRecommendation,
   readLearnerProgress,
   readNextUsefulProblem,
   readPracticeJourneyTotal,
@@ -37,6 +37,7 @@ import {
   practiceFinishReceipts,
   practiceJourneyAwards,
   practiceReviewAssignments,
+  practiceAdaptiveTargetUsage,
 } from "./progress-schema";
 import { and, eq } from "drizzle-orm";
 
@@ -309,7 +310,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     await importLegacyProgress(learnerContext(id), null);
     await persistFinishContributions(learnerContext(id), randomUUID(), []);
     const beforeProgress = await readLearnerProgress(learnerContext(id));
-    const beforeAvailability = await readAdaptiveAvailability(
+    const beforeAvailability = await readAdaptiveRecommendation(
       learnerContext(id),
     );
     const [beforeLearner] = await getProgressDb()
@@ -345,7 +346,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     expect(await readLearnerProgress(learnerContext(id))).toEqual(
       beforeProgress,
     );
-    expect(await readAdaptiveAvailability(learnerContext(id))).toEqual(
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toEqual(
       beforeAvailability,
     );
     const [afterLearner] = await getProgressDb()
@@ -356,12 +357,6 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       guaranteeEvidence: beforeLearner.guaranteeEvidence,
       impossibilityEvidence: beforeLearner.impossibilityEvidence,
       enumerationEvidence: beforeLearner.enumerationEvidence,
-      brothersAgesAttempted: beforeLearner.brothersAgesAttempted,
-      brothersAgesSolutionExposed: beforeLearner.brothersAgesSolutionExposed,
-      parrotsAttempted: beforeLearner.parrotsAttempted,
-      parrotsSolutionExposed: beforeLearner.parrotsSolutionExposed,
-      pagesAttempted: beforeLearner.pagesAttempted,
-      pagesSolutionExposed: beforeLearner.pagesSolutionExposed,
     });
     expect(
       await getProgressDb()
@@ -371,12 +366,12 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     ).toHaveLength(1);
   });
 
-  it("keeps Pack C history under one immutable receipt without capability or adaptive changes", async () => {
+  it("keeps Pack C history under one immutable receipt without capability changes, opening exploration", async () => {
     const id = await learner();
     await importLegacyProgress(learnerContext(id), null);
     const beforeProgress = await readLearnerProgress(learnerContext(id));
     const beforeAvailability = (
-      await readAdaptiveAvailability(learnerContext(id))
+      await readAdaptiveRecommendation(learnerContext(id))
     ).availability;
     const sessionId = randomUUID();
     const pack = {
@@ -408,8 +403,12 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       beforeProgress,
     );
     expect(
-      (await readAdaptiveAvailability(learnerContext(id))).availability,
-    ).toEqual(beforeAvailability);
+      (await readAdaptiveRecommendation(learnerContext(id))).availability,
+    ).toMatchObject({
+      status: "recommendation",
+      problemId: "pages-without-digit-one",
+    });
+    expect(beforeAvailability).toEqual({ status: "none" });
     expect(
       (await readRecentPracticeEpisodes(learnerContext(id)))[0],
     ).toMatchObject({
@@ -628,12 +627,12 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     ).toHaveLength(1);
     expect(await readCompletedPackIds(learnerContext(id))).toEqual(["pack-c"]);
   });
-  it("stores Pack B once in history without changing progress or adaptive availability", async () => {
+  it("stores Pack B once without changing progress, opening exploration", async () => {
     const id = await learner();
     await importLegacyProgress(learnerContext(id), null);
     const beforeProgress = await readLearnerProgress(learnerContext(id));
     const beforeAvailability = (
-      await readAdaptiveAvailability(learnerContext(id))
+      await readAdaptiveRecommendation(learnerContext(id))
     ).availability;
     const sessionId = randomUUID();
     const pack = {
@@ -665,10 +664,14 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       beforeProgress,
     );
     expect(
-      (await readAdaptiveAvailability(learnerContext(id))).availability,
-    ).toEqual(beforeAvailability);
+      (await readAdaptiveRecommendation(learnerContext(id))).availability,
+    ).toMatchObject({
+      status: "recommendation",
+      problemId: "pages-without-digit-one",
+    });
+    expect(beforeAvailability).toEqual({ status: "none" });
     expect(
-      (await readAdaptiveAvailability(learnerContext(id))).hasPracticeHistory,
+      (await readAdaptiveRecommendation(learnerContext(id))).hasPracticeHistory,
     ).toBe(true);
     expect(
       (await readRecentPracticeEpisodes(learnerContext(id)))[0],
@@ -747,11 +750,11 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
         ),
     ).toHaveLength(0);
   });
-  it("stores Pack A atomically under a receipt without capability or adaptive changes", async () => {
+  it("stores Pack A atomically without capability changes, opening exploration", async () => {
     const id = await learner();
     await importLegacyProgress(learnerContext(id), null);
     const beforeProgress = await readLearnerProgress(learnerContext(id));
-    const beforeAvailability = await readAdaptiveAvailability(
+    const beforeAvailability = await readAdaptiveRecommendation(
       learnerContext(id),
     );
     const sessionId = randomUUID();
@@ -784,10 +787,16 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       beforeProgress,
     );
     expect(
-      (await readAdaptiveAvailability(learnerContext(id))).availability,
-    ).toEqual(beforeAvailability.availability);
+      (await readAdaptiveRecommendation(learnerContext(id))).availability,
+    ).toMatchObject({
+      status: "recommendation",
+      problemId: "pages-without-digit-one",
+    });
+    expect(beforeAvailability.availability).toEqual({
+      status: "none",
+    });
     expect(
-      (await readAdaptiveAvailability(learnerContext(id))).hasPracticeHistory,
+      (await readAdaptiveRecommendation(learnerContext(id))).hasPracticeHistory,
     ).toBe(true);
     expect(
       (await readRecentPracticeEpisodes(learnerContext(id)))[0],
@@ -920,7 +929,21 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       .select()
       .from(learners)
       .where(eq(learners.id, id));
-    expect(row.pagesAttempted).toBe(true);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(
+              practiceAdaptiveTargetUsage.problemId,
+              "pages-without-digit-one",
+            ),
+          ),
+        ),
+    ).toHaveLength(1);
     expect(row.enumerationEvidence).toEqual(emptyEnumerationProgressEvidence());
     expect(
       (await readRecentPracticeEpisodes(learnerContext(id)))[0],
@@ -1119,8 +1142,36 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       .select()
       .from(learners)
       .where(eq(learners.id, id));
-    expect(row.pagesAttempted).toBe(true);
-    expect(row.pagesSolutionExposed).toBe(true);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(
+              practiceAdaptiveTargetUsage.problemId,
+              "pages-without-digit-one",
+            ),
+          ),
+        ),
+    ).toHaveLength(1);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(
+              practiceAdaptiveTargetUsage.problemId,
+              "pages-without-digit-one",
+            ),
+          ),
+        ),
+    ).toHaveLength(1);
     expect(row.enumerationEvidence).toEqual(emptyEnumerationProgressEvidence());
     expect(
       (await readLearnerProgress(learnerContext(id)))[2].progressGroup,
@@ -1492,12 +1543,12 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
   it("uses a Finish receipt for history even without checkpoint evidence", async () => {
     const id = await learner();
     await importLegacyProgress(learnerContext(id), null);
-    expect(await readAdaptiveAvailability(learnerContext(id))).toEqual({
-      availability: { status: "insufficient-evidence" },
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toEqual({
+      availability: { status: "none" },
       hasPracticeHistory: false,
     });
     await persistFinishContributions(learnerContext(id), randomUUID(), []);
-    expect(await readAdaptiveAvailability(learnerContext(id))).toMatchObject({
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toMatchObject({
       availability: {
         status: "recommendation",
         problemId: "pages-without-digit-one",
@@ -1516,7 +1567,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     expect(await readNextUsefulProblem(learnerContext(id))).toMatchObject({
       problemId: "brothers-ages-products",
     });
-    expect(await readAdaptiveAvailability(learnerContext(id))).toMatchObject({
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toMatchObject({
       availability: {
         status: "recommendation",
         problemId: "brothers-ages-products",
@@ -1530,7 +1581,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     });
     expect(await readNextUsefulProblem(learnerContext(id))).toMatchObject({
       problemId: "parrots-guaranteed-colors",
-      reason: expect.stringContaining("Раньше ты уже"),
+      reason: expect.stringContaining("без открытых перед ним подсказок"),
     });
   });
 
@@ -1542,7 +1593,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       attempted: true,
       solutionExposed: false,
     });
-    expect(await readAdaptiveAvailability(learnerContext(id))).toMatchObject({
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toMatchObject({
       availability: {
         status: "recommendation",
         problemId: "pages-without-digit-one",
@@ -1554,7 +1605,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       attempted: true,
       solutionExposed: false,
     });
-    expect(await readAdaptiveAvailability(learnerContext(id))).toMatchObject({
+    expect(await readAdaptiveRecommendation(learnerContext(id))).toMatchObject({
       availability: {
         status: "recommendation",
         problemId: "pages-without-digit-one",
@@ -1564,8 +1615,8 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
   });
 
   it.each([
-    [true, "Уже получается", "В прошлой задаче"],
-    [false, "Получается в разных задачах", "Раньше ты уже"],
+    [true, "Уже получается", "после подсказки"],
+    [false, "Получается в разных задачах", "без открытых перед ним подсказок"],
   ] as const)(
     "persists parrots transfer with %s hinted frozen sock basis",
     async (hinted, group, reasonStart) => {
@@ -1630,7 +1681,21 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
           hintLevelsExposedBeforeCheckpoint: hinted ? ["focus"] : [],
         },
       });
-      expect(row.parrotsAttempted).toBe(true);
+
+      expect(
+        await getProgressDb()
+          .select()
+          .from(practiceAdaptiveTargetUsage)
+          .where(
+            and(
+              eq(practiceAdaptiveTargetUsage.learnerId, id),
+              eq(
+                practiceAdaptiveTargetUsage.problemId,
+                "parrots-guaranteed-colors",
+              ),
+            ),
+          ),
+      ).toHaveLength(1);
       expect(
         (await readLearnerProgress(learnerContext(id)))[0].progressGroup,
       ).toBe(group);
@@ -1694,7 +1759,21 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       .select()
       .from(learners)
       .where(eq(learners.id, id));
-    expect(row.parrotsAttempted).toBe(true);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(
+              practiceAdaptiveTargetUsage.problemId,
+              "parrots-guaranteed-colors",
+            ),
+          ),
+        ),
+    ).toHaveLength(1);
     expect(row.guaranteeEvidence).toMatchObject({
       version: 1,
       nextSequence: 2,
@@ -1710,11 +1789,21 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       ...facts,
       solutionExposed: true,
     });
-    const [exposed] = await getProgressDb()
-      .select()
-      .from(learners)
-      .where(eq(learners.id, id));
-    expect(exposed.parrotsSolutionExposed).toBe(true);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(
+              practiceAdaptiveTargetUsage.problemId,
+              "parrots-guaranteed-colors",
+            ),
+          ),
+        ),
+    ).toHaveLength(1);
   });
 
   it("suppresses on later sock incorrect and restores after a new verified correct", async () => {
@@ -1934,7 +2023,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       { bucket: "impossibility", value: impossibility },
     ]);
     expect((await readNextUsefulProblem(learnerContext(id)))?.reason).toContain(
-      "Раньше ты уже",
+      "без открытых перед ним подсказок",
     );
     const sessionId = randomUUID();
     const contributions = [{ bucket: "impossibility", value: transfer }];
@@ -1958,8 +2047,19 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       .select()
       .from(learners)
       .where(eq(learners.id, id));
-    expect(row.brothersAgesAttempted).toBe(true);
-    expect(row.brothersAgesSolutionExposed).toBe(false);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(practiceAdaptiveTargetUsage.problemId, "brothers-ages-products"),
+          ),
+        ),
+    ).toHaveLength(1);
+
     expect(row.impossibilityEvidence).toMatchObject({
       version: 2,
       nextSequence: 3,
@@ -2061,7 +2161,18 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
       nextSequence: 4,
       brothers: { latestCorrectWithoutHints: { sequence: 3 } },
     });
-    expect(row.brothersAgesSolutionExposed).toBe(true);
+
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceAdaptiveTargetUsage)
+        .where(
+          and(
+            eq(practiceAdaptiveTargetUsage.learnerId, id),
+            eq(practiceAdaptiveTargetUsage.problemId, "brothers-ages-products"),
+          ),
+        ),
+    ).toHaveLength(1);
   });
   it("imports guarantee-only v1, retries the same bytes and rejects different bytes", async () => {
     const id = await learner();
@@ -2356,7 +2467,9 @@ describe.skipIf(!testUrl)(
         .set({ completedAt: new Date("2026-10-01T00:00:00Z") })
         .where(eq(practiceCompletedEpisodes.learnerId, id));
       const beforeProgress = await readLearnerProgress(learnerContext(id));
-      const beforeAdaptive = await readAdaptiveAvailability(learnerContext(id));
+      const beforeAdaptive = await readAdaptiveRecommendation(
+        learnerContext(id),
+      );
       const beforeXp = await readPracticeJourneyTotal(learnerContext(id));
       const starts = await Promise.all([
         startReview(learnerContext(id)),
@@ -2455,7 +2568,7 @@ describe.skipIf(!testUrl)(
       expect(await readLearnerProgress(learnerContext(id))).toEqual(
         beforeProgress,
       );
-      expect(await readAdaptiveAvailability(learnerContext(id))).toEqual(
+      expect(await readAdaptiveRecommendation(learnerContext(id))).toEqual(
         beforeAdaptive,
       );
       const [completed] = await getProgressDb()

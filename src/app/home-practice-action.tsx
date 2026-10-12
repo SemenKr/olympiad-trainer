@@ -1,20 +1,22 @@
 "use client";
+import { selectNextPracticeWork } from "../modules/practice/application/next-practice-work";
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "./practice/actions";
 import {
-  readServerAdaptiveAvailability,
+  readServerAdaptiveRecommendation,
   readServerPracticeJourney,
   readServerReviewAvailability,
   readServerLearningPath,
 } from "../modules/learner/progress-client";
-import type { AdaptiveAvailability } from "../modules/practice/application/adaptive-availability";
+import type { AdaptiveRecommendationResult } from "../modules/practice/application/adaptive-recommendation";
 import {
   PRACTICE_PACKS,
   packHref,
   packIdFromProblemIds,
+  packIdFromCompletedProblemIds,
   packById,
   type PackId,
 } from "../modules/practice/application/completed-practice-episode";
@@ -35,13 +37,14 @@ import { getLearningPathProjection } from "../modules/practice/application/learn
 
 import styles from "./page.module.scss";
 import { ReviewEntry } from "../modules/practice/ui/review-entry";
+import { AdaptiveRecommendationCard } from "../modules/practice/ui/adaptive-recommendation";
 
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
   completed: readonly PracticeSessionResult[] | null;
   completedSessionId?: string | null;
   completedLoadError?: boolean;
-  availability: AdaptiveAvailability;
+  availability: AdaptiveRecommendationResult;
   hasPracticeHistory: boolean;
   reviewAvailable?: boolean | null;
   completedPackIds?: readonly PackId[] | null;
@@ -66,7 +69,7 @@ export function HomePracticeAction() {
             setStored({
               unfinished: unfinished.value,
               completed: null,
-              availability: { status: "insufficient-evidence" },
+              availability: { status: "none" },
               hasPracticeHistory: false,
             });
             // A previous Summary is secondary to the recoverable current episode.
@@ -106,7 +109,7 @@ export function HomePracticeAction() {
             | "reviewAvailable"
             | "completedPackIds"
           > = {
-            availability: { status: "insufficient-evidence" },
+            availability: { status: "none" },
             hasPracticeHistory: false,
             completedPackIds: [],
           };
@@ -114,7 +117,7 @@ export function HomePracticeAction() {
             await ensureServerProgressImported();
             const [availability, reviewAvailable, completedPackIds] =
               await Promise.all([
-                readServerAdaptiveAvailability(),
+                readServerAdaptiveRecommendation(),
                 readServerReviewAvailability().catch(() => null),
                 readServerLearningPath().catch(() => null),
               ]);
@@ -218,7 +221,15 @@ export function HomePracticeContent({
       ? null
       : getLearningPathProjection(stored.completedPackIds ?? []);
   const returning = stored.completed !== null || stored.hasPracticeHistory;
-  const nextPathPack = path?.nextPackId ? packById(path.nextPackId) : null;
+  const nextWork = selectNextPracticeWork({
+    hasUnfinished: !!stored.unfinished,
+    recommendation: stored.availability,
+    returning,
+    completedPackIds:
+      stored.completedPackIds ?? (stored.completedPackIds === null ? null : []),
+  });
+  const nextPathPack =
+    nextWork.kind === "pack" ? packById(nextWork.packId) : null;
   const neutral =
     !stored.unfinished &&
     stored.availability.status !== "recommendation" &&
@@ -247,13 +258,13 @@ export function HomePracticeContent({
             href={
               stored.unfinished.mode === "pack"
                 ? packHref(
-                    packIdFromProblemIds(
-                      "status" in stored.unfinished
-                        ? stored.unfinished.completedResults.map(
+                    ("status" in stored.unfinished
+                      ? packIdFromCompletedProblemIds(
+                          stored.unfinished.completedResults.map(
                             (result) => result.problemId,
-                          )
-                        : stored.unfinished.problemIds,
-                    )!,
+                          ),
+                        )
+                      : packIdFromProblemIds(stored.unfinished.problemIds))!,
                   )
                 : stored.unfinished.mode === "review"
                   ? "/practice/review"
@@ -267,28 +278,12 @@ export function HomePracticeContent({
               : "Продолжить тренировку"}
           </Link>
         </section>
-      ) : stored.availability.status === "recommendation" ? (
-        <section aria-label="Следующая полезная задача">
-          <h2>Следующая полезная задача</h2>
-          <p>{stored.availability.reason}</p>
-          <Link
-            className={styles.primary}
-            href={
-              stored.availability.problemId === "parrots-guaranteed-colors"
-                ? "/practice/transfer?problem=parrots-guaranteed-colors"
-                : stored.availability.problemId === "pages-without-digit-one"
-                  ? "/practice/transfer?problem=pages-without-digit-one"
-                  : "/practice/transfer"
-            }
-          >
-            {stored.availability.problemId === "parrots-guaranteed-colors"
-              ? "Попугаи в зоопарке"
-              : stored.availability.problemId === "pages-without-digit-one"
-                ? "Страницы без цифры 1"
-                : "Возраст братьев"}
-          </Link>
-        </section>
-      ) : !returning ? (
+      ) : nextWork.kind === "adaptive" ? (
+        <AdaptiveRecommendationCard
+          recommendation={nextWork.recommendation}
+          actionClassName={styles.primary}
+        />
+      ) : nextWork.kind === "core" ? (
         <section>
           <p className={styles.eyebrow}>Что сейчас?</p>
           <h2>Начни с первой тренировки</h2>
@@ -300,7 +295,7 @@ export function HomePracticeContent({
             Начать тренировку
           </Link>
         </section>
-      ) : !path ? (
+      ) : nextWork.kind === "path-error" ? (
         <section aria-label="Путь тренировок">
           <p role="alert">Не удалось загрузить отметки пути.</p>
           {onPathRetry ? (

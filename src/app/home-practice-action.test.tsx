@@ -13,8 +13,8 @@ vi.mock("./progress/actions", () => ({
 }));
 
 vi.mock("./progress/actions", () => ({
-  readServerAdaptiveAvailability: vi.fn(async () => ({
-    availability: { status: "insufficient-evidence" },
+  readServerAdaptiveRecommendation: vi.fn(async () => ({
+    availability: { status: "none" },
     hasPracticeHistory: false,
   })),
 }));
@@ -93,8 +93,8 @@ const noNext = {
     },
   ] as const,
 };
-const insufficient = { status: "insufficient-evidence" as const };
-const exhausted = { status: "transfer-exhausted" as const };
+const insufficient = { status: "none" as const };
+const exhausted = { status: "none" as const };
 const fresh = {
   unfinished: null,
   completed: null,
@@ -534,7 +534,7 @@ describe("Home Review remains secondary", () => {
         stored={{
           unfinished: review,
           completed: null,
-          availability: { status: "insufficient-evidence" },
+          availability: { status: "none" },
           hasPracticeHistory: true,
           completedPackIds: [],
         }}

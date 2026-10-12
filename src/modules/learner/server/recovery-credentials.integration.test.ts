@@ -64,7 +64,17 @@ beforeAll(async () => {
       if (name === "0012_learner_identity_boundary.sql")
         await client.query(
           "INSERT INTO learners(id,anonymous_token_hash,browser_credential_expires_at,guarantee_evidence,impossibility_evidence,enumeration_evidence) VALUES ($1,$2,clock_timestamp()+interval '730 days',$3,$3,$3)",
-          [migratedLearner, "migration-token-hash", {}],
+          [
+            migratedLearner,
+            "migration-token-hash",
+            {
+              version: 1,
+              nextSequence: 1,
+              latestCorrectWithoutHints: null,
+              latestCorrectWithHints: null,
+              latestIncorrect: null,
+            },
+          ],
         );
     }
     const url = new URL(testUrl);
