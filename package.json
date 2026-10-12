@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:metadata": "node scripts/verify-metadata.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,scss}\" \"*.{json,mjs}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,scss}\" \"*.{json,mjs}\"",
