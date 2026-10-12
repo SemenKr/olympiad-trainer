@@ -80,8 +80,16 @@ pnpm lint
 pnpm stylelint
 pnpm format:check
 pnpm build
+pnpm test:metadata # production HTTP checks; run after build
 pnpm verify     # all checks above, plus git diff --check
 ```
+
+Public metadata uses `https://olympiadtrainer.vercel.app`. Home (`/`) is indexable
+and is the only sitemap URL. All Practice routes, Progress, Restore and Simulation
+declare `noindex, nofollow`; metadata contains no learner state. Crawling remains
+allowed so search engines can read these directives and load Home assets.
+The shared Russian social preview is owned by the repository at
+`src/app/opengraph-image.png` (1200 × 630), using the product's light-theme colors.
 
 To include PostgreSQL integration tests, create a **separate disposable test database**, migrate it, then pass its URL explicitly:
 

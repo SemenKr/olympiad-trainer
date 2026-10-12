@@ -48,3 +48,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Verify metadata
+        run: pnpm test:metadata
