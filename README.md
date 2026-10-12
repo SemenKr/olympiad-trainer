@@ -1,115 +1,112 @@
-# Olympiad Trainer
+# Олимпиадный тренажёр — Olympiad Trainer
 
-Olympiad Trainer helps Grade 5 students practise mathematics for school olympiads, starting with the All-Russian Olympiad for School Students (VSOSh). It brings problem selection, independent attempts, optional hints and a record of completed work into one Russian-language application.
+Веб-приложение для подготовки к олимпиадам по математике в 5 классе, начиная со ВсОШ. Ученик выбирает задачи, решает их самостоятельно, при необходимости открывает помощь и возвращается к истории своей работы. Интерфейс — на русском языке.
 
-**[Open the live production demo](https://olympiadtrainer.vercel.app)** — no registration required.
+**[Открыть демо](https://olympiadtrainer.vercel.app)** — регистрация не нужна.
 
-## Try the learner journey
+## Как выглядит приложение
 
-1. Choose a three-problem training set from Home.
-2. Attempt a problem, check an answer and retry. Open a hint or explanation when needed.
-3. Finish the session, review its summary and explore saved history in Progress.
-4. Try Simulation separately: four problems, 45 minutes, written reasoning and explanations after submission.
-
-Use a modern browser with local storage and Web Locks. Each browser profile represents one learner. Simulation currently provides one attempt per learner; finishing it is irreversible.
-
-### Screenshots and walkthrough
-
-Real captures from a local build of main (`42e1599`), using a disposable learner. Select a thumbnail for full resolution.
+Скриншоты сделаны на локальной сборке main (`42e1599`) с тестовым профилем ученика. Нажмите на изображение, чтобы открыть его в полном размере.
 
 <p>
-  <a href="docs/assets/screenshots/home-desktop.png"><img src="docs/assets/screenshots/home-desktop.png" width="390" align="top" alt="Desktop Home with the primary Practice action, set chooser and Simulation entry"></a>
-  <a href="docs/assets/screenshots/practice-desktop.png"><img src="docs/assets/screenshots/practice-desktop.png" width="390" align="top" alt="Desktop Practice with an active problem, an incorrect answer and retry feedback"></a>
+  <a href="docs/assets/screenshots/home-desktop.png"><img src="docs/assets/screenshots/home-desktop.png" width="390" align="top" alt="Главная на компьютере: начало практики, выбор набора и вход в симуляцию"></a>
+  <a href="docs/assets/screenshots/practice-desktop.png"><img src="docs/assets/screenshots/practice-desktop.png" width="390" align="top" alt="Практика на компьютере: задача, неверный ответ и предложение повторить попытку"></a>
 </p>
 
-**Home · desktop:** the first Practice action, set selection and a separate Simulation entry.
+**Главная:** основной шаг — начать практику. Рядом доступны выбор набора и отдельный режим симуляции.
 
-**Practice · desktop:** retry feedback on an active problem; hints and explanations remain closed.
+**Практика:** ответ можно проверить и исправить. На скриншоте подсказки и разбор не открыты.
 
 <p>
-  <a href="docs/assets/screenshots/progress-desktop.png"><img src="docs/assets/screenshots/progress-desktop.png" width="390" align="top" alt="Desktop Progress with saved history from a disposable three-problem session"></a>
-  <a href="docs/assets/screenshots/simulation-mobile.png"><img src="docs/assets/screenshots/simulation-mobile.png" width="195" align="top" alt="Mobile Simulation with an active timer, task navigation and a saved reasoning draft"></a>
+  <a href="docs/assets/screenshots/progress-desktop.png"><img src="docs/assets/screenshots/progress-desktop.png" width="390" align="top" alt="Прогресс на компьютере: сохранённая история тестового ученика после трёх задач"></a>
+  <a href="docs/assets/screenshots/simulation-mobile.png"><img src="docs/assets/screenshots/simulation-mobile.png" width="195" align="top" alt="Симуляция на телефоне: таймер, переходы между задачами и сохранённый черновик рассуждения"></a>
 </p>
 
-**Progress · desktop:** saved results from one disposable three-problem session, with limited skill evidence stated explicitly.
+**Прогресс:** сохранены результаты тренировки из трёх задач. Интерфейс прямо указывает, когда данных для вывода о навыке ещё недостаточно.
 
-**Simulation · mobile:** the timer, task navigation and a saved partial draft alongside the instruction to explain the solution.
+**Симуляция на телефоне:** таймер, переходы между задачами и черновик рядом с инструкцией записать ход решения.
 
-## Product capabilities
+## Что попробовать в демо
 
-- **Independent practice:** 42 sourced/adapted problems, twelve three-problem sets, numeric and multiple-selection answers, progressive hints and explicit explanation reveal.
-- **Continuity:** resume unfinished Practice in the same browser; PostgreSQL-backed history and optional recovery codes for restoring access in another browser.
-- **Next steps:** an editorial path through sets, selected follow-up problems and a separate review attempt. XP and badges describe participation.
-- **Timed simulation:** editable reasoning drafts, autosave, server-owned timing and immutable submitted work; no automatic scoring.
-- **Responsive interface:** CSS Modules and shared tokens, light/dark themes, keyboard focus handling and reduced-motion support.
+1. Начните тренировку из трёх задач с главной страницы.
+2. Решите задачу, проверьте ответ и при необходимости попробуйте ещё раз. Подсказки и разбор открываются по вашему запросу.
+3. Завершите тренировку, посмотрите итоги и сохранённую историю в разделе «Мой прогресс».
+4. Отдельно попробуйте симуляцию: четыре задачи, 45 минут и письменные рассуждения. Разборы доступны после завершения.
 
-## Engineering decisions
+Нужен современный браузер с local storage и Web Locks. Каждый профиль браузера соответствует одному ученику. Сейчас симуляция допускает одну попытку на ученика; отменить её завершение нельзя.
 
-1. **Keep assistance behind the server boundary.** Client problem data excludes expected answers and explanation text. Server actions validate submissions and authorize hint/reference access, including restrictions during Simulation.
-2. **Make Finish safe to retry.** The browser retains an immutable pending request; PostgreSQL transactions and receipts prevent duplicate history/evidence writes after a lost response. Local completion follows server acknowledgement.
-3. **Recover identity without collecting contact details.** A random HttpOnly browser credential identifies the learner. Recovery codes are stored only as hashes; activating a replacement invalidates the old code, and recovery revokes the previous browser credential. Owner/generation checks and Web Locks protect local work during transitions.
-4. **Separate observations from conclusions.** History, selected reasoning observations, recommendations and participation rewards have distinct rules. A completed set or XP level does not establish mastery.
+## Возможности
 
-## Architecture and stack
+- **Самостоятельная практика:** 42 задачи на основе источников и их адаптаций, 12 наборов по три задачи. Числовые ответы и выбор нескольких вариантов, поэтапные подсказки и отдельное открытие разбора.
+- **Продолжение работы:** незавершённая практика доступна в том же браузере. История хранится в PostgreSQL; при желании можно настроить код восстановления для доступа из другого браузера.
+- **Следующие шаги:** авторский маршрут по наборам, подобранные дополнительные задачи и отдельная повторная попытка. XP и медали отмечают участие.
+- **Симуляция с таймером:** редактируемые черновики рассуждений, автосохранение и время, которое контролирует сервер. После отправки работа неизменяема; автоматического выставления баллов нет.
+- **Адаптивный интерфейс:** CSS Modules и общие токены, светлая и тёмная темы, управление фокусом с клавиатуры и поддержка reduced motion.
 
-A modular monolith built with **Next.js App Router, React, strict TypeScript, PostgreSQL, Drizzle ORM and Sass/CSS Modules**, deployed on **Vercel**. Tests use **Vitest and jsdom**.
+## Ключевые инженерные решения
 
-- [`src/app/`](src/app/) owns routes, server actions and HTTP boundaries.
-- [`src/modules/practice/`](src/modules/practice/), [`simulation/`](src/modules/simulation/) and [`knowledge-support/`](src/modules/knowledge-support/) contain domain rules, application behavior, server persistence and UI.
-- [`src/modules/learner/`](src/modules/learner/) coordinates identity and browser-local ownership; [`db/migrations/`](db/migrations/) defines database changes.
+1. **Ответы и помощь остаются на сервере.** В данных задачи, переданных клиенту, нет ожидаемого ответа и текста разбора. Server actions проверяют отправленные ответы и право на открытие подсказок и справочных материалов, в том числе с учётом ограничений симуляции.
+2. **Повторное завершение тренировки не дублирует историю.** Если ответ сервера потерялся, браузер повторяет сохранённый неизменяемый запрос. Транзакции PostgreSQL и записи о принятых запросах защищают историю и данные для выводов о навыках от повторной записи. Браузер считает тренировку завершённой только после подтверждения сервера.
+3. **Восстановление доступа не требует контактных данных.** Ученика определяет случайный ключ в HttpOnly cookie. Коды восстановления хранятся только в виде хешей. Активация нового кода отменяет старый, а восстановление доступа отзывает прежний браузерный ключ. Web Locks и проверки владельца и поколения локального состояния защищают работу при смене доступа.
+4. **Наблюдения отделены от выводов.** История, результаты отдельных проверок рассуждения, рекомендации и награды за участие имеют разные правила. Завершённый набор или уровень XP сами по себе не подтверждают освоение навыка.
 
-The main data path is **UI → validated server action → application/domain rules → PostgreSQL → derived UI view**. Practice drafts and the latest Summary remain browser-local; durable history lives on the server. Recovery restores server access, not unsent work from another device.
+## Архитектура и стек
 
-## Learner validation and reliability
+Модульный монолит: **Next.js App Router, React, TypeScript в строгом режиме, PostgreSQL, Drizzle ORM и Sass/CSS Modules**. Приложение развёрнуто на **Vercel**, тесты используют **Vitest и jsdom**.
 
-[The learner study](docs/02-research/learner-validation-v0.md) evaluates usability and comprehension. Pilot observations exposed confusion between copying a recovery code and activating it; [the resulting UX](docs/04-architecture/learner-identity-recovery-v1.md#credential-lifecycle-foundation-ot-learner-recovery-credentials-01) makes saving, re-entry and activation explicit. Follow-up comprehension testing remains necessary. Learning effectiveness and mastery are not established.
+- [`src/app/`](src/app/) — маршруты, server actions и HTTP-границы.
+- [`src/modules/practice/`](src/modules/practice/), [`simulation/`](src/modules/simulation/) и [`knowledge-support/`](src/modules/knowledge-support/) — предметные правила, сценарии работы, серверное сохранение и UI.
+- [`src/modules/learner/`](src/modules/learner/) — идентификация ученика и принадлежность локальных данных; [`db/migrations/`](db/migrations/) — изменения БД.
 
-The [production release record](docs/05-development/recovery-production-runbook.md#current-production-release-record) documents controlled Recovery checks, including lost-cookie restoration and old-browser revocation. Failure-path tests cover retries, conflicts and deadline enforcement. This evidence does not establish an uptime guarantee or continuous monitoring.
+Основной поток: **UI → server action с проверкой входных данных → правила приложения и предметной области → PostgreSQL → представление результата в UI**.
 
-## Local quick start
+Черновики практики и последние итоги остаются в браузере, сохранённая история — на сервере. Recovery восстанавливает доступ к серверной истории, но не переносит неотправленную работу с другого устройства.
 
-Prerequisites: **Node.js 24**, **pnpm 12.5.1**, and an empty local PostgreSQL database. From the repository root:
+## Проверка с учениками и надёжность
+
+[Исследование с учениками](docs/02-research/learner-validation-v0.md) проверяет удобство и понимание интерфейса. Во время пилота участники путали копирование кода восстановления с его активацией. [Обновлённый сценарий](docs/04-architecture/learner-identity-recovery-v1.md#credential-lifecycle-foundation-ot-learner-recovery-credentials-01) разделяет сохранение, повторный ввод и активацию кода. Понимание нового сценария ещё нужно проверить повторно. Эффективность обучения и освоение навыков не установлены.
+
+[Запись о выпуске в production](docs/05-development/recovery-production-runbook.md#current-production-release-record) описывает контролируемые проверки Recovery: восстановление после потери cookie и отзыв доступа старого браузера. Тесты нештатных ситуаций покрывают повторные запросы, конфликты и соблюдение предельного времени выполнения. Эти проверки не означают гарантии доступности или постоянного мониторинга.
+
+## Локальный запуск
+
+Понадобятся **Node.js 24**, **pnpm 12.5.1** и пустая локальная БД PostgreSQL. В корне репозитория:
 
 ```sh
 pnpm install --frozen-lockfile
 ```
 
-Create `.env.local` with your local database credentials:
+Создайте `.env.local` с данными подключения к локальной БД:
 
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/olympiad_trainer
 ```
 
-Then apply the committed migrations and start the app:
+Примените миграции из репозитория и запустите приложение:
 
 ```sh
 pnpm db:migrate
 pnpm dev
 ```
 
-Open [localhost:3000](http://localhost:3000). Set `DATABASE_MIGRATION_URL` as well if your provider requires a direct connection for migrations. Recovery is disabled locally by default; its optional secrets, gate and trusted-request configuration are described in the [Recovery runbook](docs/05-development/recovery-production-runbook.md).
+Откройте [localhost:3000](http://localhost:3000). Если провайдеру нужно прямое подключение для миграций, дополнительно задайте `DATABASE_MIGRATION_URL`. Локально Recovery по умолчанию отключён. Необязательные секреты, условия включения и настройки доверенных запросов описаны в [руководстве по Recovery](docs/05-development/recovery-production-runbook.md).
 
-## Verification
+## Проверки и CI
 
 ```sh
-pnpm test       # unit/component tests; DB suites skip without DATABASE_TEST_URL
+pnpm test         # модульные и компонентные тесты; без DATABASE_TEST_URL тесты БД пропускаются
 pnpm typecheck
 pnpm lint
 pnpm stylelint
 pnpm format:check
 pnpm build
-pnpm test:metadata # production HTTP checks; run after build
-pnpm verify     # all checks above, plus git diff --check
+pnpm test:metadata # HTTP-проверки production-сборки; запускать после build
+pnpm verify       # все проверки выше и git diff --check
 ```
 
-Public metadata uses `https://olympiadtrainer.vercel.app`. Home (`/`) is indexable
-and is the only sitemap URL. All Practice routes, Progress, Restore and Simulation
-declare `noindex, nofollow`; metadata contains no learner state. Crawling remains
-allowed so search engines can read these directives and load Home assets.
-The shared Russian social preview is owned by the repository at
-`src/app/opengraph-image.png` (1200 × 630), using the product's light-theme colors.
+Публичные метаданные используют `https://olympiadtrainer.vercel.app`. Главная (`/`) индексируется и остаётся единственным URL в sitemap. Все маршруты практики, прогресс, восстановление доступа и симуляция имеют `noindex, nofollow`; данных ученика в метаданных нет. Обход страниц разрешён, чтобы поисковики могли прочитать эти директивы и загрузить ресурсы главной. Общая русскоязычная обложка для ссылок хранится в `src/app/opengraph-image.png` (1200 × 630) и использует цвета светлой темы продукта.
 
-To include PostgreSQL integration tests, create a **separate disposable test database**, migrate it, then pass its URL explicitly:
+Для интеграционных тестов PostgreSQL создайте **отдельную одноразовую тестовую БД**, примените миграции и явно передайте её URL:
 
 ```sh
 DATABASE_URL=postgresql://localhost:5432/olympiad_trainer_test DATABASE_MIGRATION_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm db:migrate
@@ -117,22 +114,14 @@ DATABASE_TEST_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm test
 DATABASE_TEST_URL=postgresql://localhost:5432/olympiad_trainer_test pnpm test:integration
 ```
 
-Adjust credentials for your installation. Test suites create and mutate fixtures.
-`pnpm test:integration` selects all `src/**/*.integration.test.ts` suites and fails
-if `DATABASE_TEST_URL` is missing, no suites/tests are selected, or any selected
-test skips or fails. Normal `pnpm test` and `pnpm verify` still allow DB suites to
-skip when `DATABASE_TEST_URL` is absent.
+Укажите данные подключения для своей установки. Тесты создают и изменяют тестовые данные. Команда `pnpm test:integration` выбирает все файлы `src/**/*.integration.test.ts` и завершается с ошибкой, если нет `DATABASE_TEST_URL`, не выбраны наборы или тесты, либо хотя бы один выбранный тест пропущен или упал. Обычные `pnpm test` и `pnpm verify` по-прежнему допускают пропуск тестов БД без `DATABASE_TEST_URL`.
 
-PR CI provisions a disposable PostgreSQL 18 service on localhost, applies all
-committed migrations, runs the full suite with `DATABASE_TEST_URL`, and runs the
-explicit integration check to enforce zero DB skips. The standard formatting,
-lint, stylelint, typecheck, production build and metadata checks remain enabled.
-CI uses throwaway credentials and no external/shared database or secrets.
+CI для PR поднимает одноразовый PostgreSQL 18 на localhost, применяет все миграции из репозитория и запускает полный набор тестов с `DATABASE_TEST_URL`. Отдельная интеграционная проверка не допускает пропусков тестов БД. Проверки форматирования, lint, stylelint, typecheck, production-сборки и метаданных также остаются в CI. Используются временные учётные данные без внешней или общей БД и без секретов.
 
-## Explore the implementation
+## Подробнее об устройстве проекта
 
-- [Documentation index](docs/README.md) and [product goals](docs/00-project/project-vision.md).
-- [Persistence and retry semantics](docs/04-architecture/server-backed-learner-persistence.md).
-- [Identity, recovery and local ownership](docs/04-architecture/learner-identity-recovery-v1.md).
-- [Simulation timing, submissions and protected assistance](docs/04-architecture/olympiad-simulation-v0.md).
-- [Content provenance](docs/04-architecture/problem-content.md) and [responsive Practice design](docs/03-ux/practice-shell-media-v1.md).
+- [Навигация по документации](docs/README.md) и [цели продукта](docs/00-project/project-vision.md).
+- [Сохранение данных и повторные запросы](docs/04-architecture/server-backed-learner-persistence.md).
+- [Идентификация ученика, восстановление доступа и локальные данные](docs/04-architecture/learner-identity-recovery-v1.md).
+- [Время, отправка работ и ограничения помощи в симуляции](docs/04-architecture/olympiad-simulation-v0.md).
+- [Источники задач](docs/04-architecture/problem-content.md) и [адаптивный интерфейс практики](docs/03-ux/practice-shell-media-v1.md).
