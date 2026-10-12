@@ -19,6 +19,7 @@ const checks = [
     args: ["format:check"],
   },
   { label: "pnpm build", command: "pnpm", args: ["build"] },
+  { label: "pnpm test:metadata", command: "pnpm", args: ["test:metadata"] },
   { label: "git diff --check", command: "git", args: ["diff", "--check"] },
 ];
 

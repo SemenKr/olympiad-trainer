@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import { recoveryEnabled } from "../../modules/learner/server/recovery-security";
 import { HomeNavigation } from "../home-navigation";
 import { RecoveryPanel } from "./recovery-panel";
 import styles from "./page.module.scss";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Восстановление доступа",
+  robots: { index: false, follow: false },
+};
 
 export default function RestorePage() {
   return (
