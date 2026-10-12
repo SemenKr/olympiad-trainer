@@ -15,7 +15,25 @@ Use a modern browser with local storage and Web Locks. Each browser profile repr
 
 ### Screenshots and walkthrough
 
-The live demo is the current visual walkthrough. Real desktop/mobile screenshots are a follow-up: Home and set selection → Practice with optional help → Summary/Progress → Simulation. No screenshot assets are committed yet.
+Real captures from a local build of main (`42e1599`), using a disposable learner. Select a thumbnail for full resolution.
+
+<p>
+  <a href="docs/assets/screenshots/home-desktop.png"><img src="docs/assets/screenshots/home-desktop.png" width="390" align="top" alt="Desktop Home with the primary Practice action, set chooser and Simulation entry"></a>
+  <a href="docs/assets/screenshots/practice-desktop.png"><img src="docs/assets/screenshots/practice-desktop.png" width="390" align="top" alt="Desktop Practice with an active problem, an incorrect answer and retry feedback"></a>
+</p>
+
+**Home · desktop:** the first Practice action, set selection and a separate Simulation entry.
+
+**Practice · desktop:** retry feedback on an active problem; hints and explanations remain closed.
+
+<p>
+  <a href="docs/assets/screenshots/progress-desktop.png"><img src="docs/assets/screenshots/progress-desktop.png" width="390" align="top" alt="Desktop Progress with saved history from a disposable three-problem session"></a>
+  <a href="docs/assets/screenshots/simulation-mobile.png"><img src="docs/assets/screenshots/simulation-mobile.png" width="195" align="top" alt="Mobile Simulation with an active timer, task navigation and a saved reasoning draft"></a>
+</p>
+
+**Progress · desktop:** saved results from one disposable three-problem session, with limited skill evidence stated explicitly.
+
+**Simulation · mobile:** the timer, task navigation and a saved partial draft alongside the instruction to explain the solution.
 
 ## Product capabilities
 
