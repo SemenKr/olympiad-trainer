@@ -62,6 +62,8 @@ Legacy import atomically inserts sessionless closure for validated target checkp
 
 **Production release gate:** drain/block old application reads/writes before backfill and flag removal, then activate the new application. The migration advisory lock coordinates migration runners only. Old/new servers cannot coexist against the contracted schema, and rolling application code back alone is unsafe. Preserve browser work through reload; new servers must accept historical pending requests. Production mutation/cutover is outside this implementation task.
 
+The environment-bound Preview database guard and attended production sequence are specified in the [Adaptive v1 production release procedure](../05-development/adaptive-v1-production-release.md). A Preview build without its isolated database fails before deployment.
+
 Implementation ownership:
 
 - `domain/adaptive-recommendation.ts`: registry, pure input/output and categorical selection.

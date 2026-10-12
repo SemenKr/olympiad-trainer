@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import pg from "pg";
+import { migrationTarget } from "./migration-target.mjs";
 
-const connectionString =
-  process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
-if (!connectionString)
-  throw new Error("DATABASE_MIGRATION_URL or DATABASE_URL is required.");
+const { connectionString } = migrationTarget(process.env, {
+  requireReleaseGate: true,
+});
 const client = new pg.Client({ connectionString });
 await client.connect();
 try {

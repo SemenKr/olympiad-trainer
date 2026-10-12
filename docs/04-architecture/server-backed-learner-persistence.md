@@ -16,7 +16,7 @@ The existing browser-local Practice episode determines whether a checkpoint is e
 
 ## Setup and deployment
 
-Use a managed PostgreSQL database for each local, preview and production environment. Set server-only `DATABASE_URL` to its runtime pooled connection string. Set `DATABASE_MIGRATION_URL` to a direct connection string when the provider requires one for DDL. Run `pnpm db:migrate` explicitly once during environment setup or deployment before serving this version; migrations never run per request. The committed SQL is in `db/migrations/`. Do not expose either URL through `NEXT_PUBLIC_` variables. Local integration tests use a separate `DATABASE_TEST_URL` database.
+Use a managed PostgreSQL database for each local, preview and production environment. Local and Production use server-only `DATABASE_URL`; Preview requires `PREVIEW_DATABASE_URL` at a distinct endpoint and the non-secret `PRODUCTION_DATABASE_HOST` comparison anchor; its runtime does not need `DATABASE_URL`. A Preview build or runtime connection fails if the dedicated value is missing or shares the endpoint. Local migrations default to loopback only. Preview migrations require `MIGRATION_TARGET=preview` and direct `PREVIEW_DATABASE_MIGRATION_URL`; production migrations require `MIGRATION_TARGET=production`, direct `DATABASE_MIGRATION_URL`, exact target identity and the release evidence IDs described in the [Adaptive v1 production release procedure](../05-development/adaptive-v1-production-release.md). Migrations never run per request. The committed SQL is in `db/migrations/`. Keep URLs server-only, never `NEXT_PUBLIC_`. Local integration tests use separate `DATABASE_TEST_URL`.
 
 ## Learning Path v1
 

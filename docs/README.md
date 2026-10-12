@@ -10,6 +10,8 @@ Learning Path v1: [архитектурный контракт](04-architecture/
 
 Adaptive Practice v1: [принятый контракт следующей полезной задачи](04-architecture/adaptive-practice-v1.md) — три существующих носителя, объяснимый детерминированный выбор, фактические Finish-маркеры и совместимость со старой историей. Заменяет правила выбора adaptive v0; результат не является оценкой знаний.
 
+Adaptive v1 release: [процедура изоляции Preview и production cutover](05-development/adaptive-v1-production-release.md).
+
 Olympiad Foundations: [исследовательский прототип v0.1](02-research/olympiad-foundations-prototype-v0.1.md) и [карточки примеров](02-research/olympiad-foundations-learner-cards-v0.1.md). Кандидат для проверки понятности подхода; не принятая учебная программа или production-функция.
 
 Следующее наблюдение за новичком: [полевой лист LV-03](02-research/learner-validation-lv03-field-sheet.md) для печати и краткой записи по действующим протоколам.
