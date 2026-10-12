@@ -164,8 +164,8 @@
   opacity: 1;
 }
 
-.upcoming {
-  opacity: 0.68;
+.badges li.upcoming {
+  color: var(--ot-color-text-primary);
 }
 
 @media (forced-colors: active) {
