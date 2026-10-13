@@ -54,14 +54,13 @@ describe("migration target boundary", () => {
       PRODUCTION_DATABASE_NAME: "neondb",
     };
     expect(() => migrationTarget(env, { requireReleaseGate: true })).toThrow(
-      "evidence IDs",
+      "Recovery-point evidence ID",
     );
     expect(
       migrationTarget(
         {
           ...env,
           RELEASE_RECOVERY_POINT_ID: "snapshot-1",
-          RELEASE_WRITER_DENY_ID: "rule-1",
         },
         { requireReleaseGate: true },
       ).target,
@@ -72,6 +71,40 @@ describe("migration target boundary", () => {
         PRODUCTION_DATABASE_HOST: "other.example.net",
       }),
     ).toThrow("does not match");
+  });
+
+  it("keeps production contract gated by retirement, recovery and writer-deny evidence", () => {
+    const env = {
+      MIGRATION_TARGET: "production",
+      MIGRATION_PHASE: "contract",
+      DATABASE_MIGRATION_URL: production,
+      PRODUCTION_DATABASE_HOST: "prod.example.net",
+      PRODUCTION_DATABASE_NAME: "neondb",
+      RELEASE_RECOVERY_POINT_ID: "snapshot-1",
+    };
+    const gate = (input) =>
+      migrationTarget(input, { requireReleaseGate: true });
+    expect(() => gate(env)).toThrow("retirement confirmation");
+    const retired = { ...env, RELEASE_OLD_WRITERS_RETIRED: "confirmed" };
+    expect(() => gate(retired)).toThrow("writer-deny evidence");
+    expect(() => gate({ ...retired, RELEASE_WRITER_DENY_ID: " " })).toThrow(
+      "writer-deny evidence",
+    );
+    const ready = { ...retired, RELEASE_WRITER_DENY_ID: "verified-fence-1" };
+    expect(gate(ready).target).toBe("production");
+    expect(() => gate({ ...ready, RELEASE_RECOVERY_POINT_ID: " " })).toThrow(
+      "Recovery-point evidence",
+    );
+    expect(() => gate({ ...ready, MIGRATION_PHASE: "other" })).toThrow(
+      "MIGRATION_PHASE",
+    );
+    expect(() =>
+      gate({
+        ...ready,
+        DATABASE_MIGRATION_URL:
+          "postgresql://owner:secret@prod-pooler.example.net/neondb",
+      }),
+    ).toThrow("direct connection");
   });
 
   it("rejects driver query parameters that can override the migration endpoint", () => {

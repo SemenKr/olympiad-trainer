@@ -25,6 +25,15 @@ function databaseAddress(value, name) {
 }
 
 export function migrationTarget(env, { requireReleaseGate = false } = {}) {
+  if (requireReleaseGate) {
+    const phase = env.MIGRATION_PHASE ?? "expand";
+    if (phase !== "expand" && phase !== "contract")
+      throw new Error("MIGRATION_PHASE must be expand or contract.");
+    if (phase === "contract" && env.RELEASE_OLD_WRITERS_RETIRED !== "confirmed")
+      throw new Error(
+        "Contract requires explicit old-writer retirement confirmation.",
+      );
+  }
   const target = env.MIGRATION_TARGET ?? "local";
   if (target === "local") {
     const connectionString = env.DATABASE_MIGRATION_URL ?? env.DATABASE_URL;
@@ -69,13 +78,14 @@ export function migrationTarget(env, { requireReleaseGate = false } = {}) {
       );
     if (address.pooled)
       throw new Error("Production migrations require a direct connection.");
+    if (requireReleaseGate && !env.RELEASE_RECOVERY_POINT_ID?.trim())
+      throw new Error("Recovery-point evidence ID is required.");
     if (
       requireReleaseGate &&
-      (!env.RELEASE_RECOVERY_POINT_ID || !env.RELEASE_WRITER_DENY_ID)
+      env.MIGRATION_PHASE === "contract" &&
+      !env.RELEASE_WRITER_DENY_ID?.trim()
     )
-      throw new Error(
-        "Recovery-point and writer-deny evidence IDs are required.",
-      );
+      throw new Error("Contract requires writer-deny evidence ID.");
     return { target, connectionString };
   }
   throw new Error("MIGRATION_TARGET must be local, preview or production.");
