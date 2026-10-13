@@ -32,9 +32,9 @@ A row records known prior target use or Finish, not necessarily an attempt, comp
 
 Migration `0014_adaptive_target_usage.sql` unions only provable legacy facts: either old target-specific flag; validated, canonically assessed target checkpoints of either outcome; and structurally validated adaptive completed episodes joined to receipts by **both learner and session**. Receipt mode must match or be legacy null. Episode validation includes exact keys/version, one registered target, correct mode, count/outcome consistency, hint prefixes, skip/solution constraints and checkpoint identity/shape. Malformed, contradictory, unmatched or already-pruned episodes supply no candidate. Invalid live evidence aborts migration rather than being silently discarded.
 
-Backfill groups learner/target candidates, choosing the earliest supporting receipt by created_at/session_id when one exists; otherwise source_session_id stays null. All migration rows use the transaction timestamp. Bidirectional coverage assertions run before dropping all six old learner flags. Their only required runtime effects—closure and returning-user detection—are preserved by the ledger; the obsolete attempted/exposure marker distinction is intentionally not archived. Existing evidence, receipts, hashes and completed history are unchanged. The migration's SQL validators freeze the supported evidence and canonical checkpoint contracts; integration fixtures protect their equivalence. No application/client code imports migration SQL.
+Backfill groups learner/target candidates, choosing the earliest supporting receipt by created_at/session_id when one exists; otherwise source_session_id stays null. All migration rows use the transaction timestamp. Bidirectional coverage assertions precede any flag removal. Their only required runtime effects—closure and returning-user detection—are preserved by the ledger; the obsolete attempted/exposure marker distinction is intentionally not archived. Existing evidence, receipts, hashes and completed history are unchanged. The migration's SQL validators freeze the supported evidence and canonical checkpoint contracts; integration fixtures protect their equivalence. No application/client code imports migration SQL.
 
-Creation, backfill, coverage assertions, flag removal and runner bookkeeping share one connection and transaction. The runner rejects any database that already recorded the superseded receipt-based 0014; that environment needs a separate forward migration. No applied migration may be rewritten. The draft replacement was verified unapplied on configured connections during the architecture preflight; release must recheck its actual target.
+The original 0014 remains immutable where applied. For production at 0013, additive 0015 repeats its factual backfill while retaining the six flags, and 0016 installs temporary old-writer capture triggers. The runner executes both on one connection and transaction under learner/episode write locks; its bookkeeping commits with them. An existing 0014 environment receives only 0016. Later, separately gated 0017 removes capture triggers and flags after old-writer retirement. A protocol-compatible v1 rollback build keeps v2 Finish decoding and ledger writes while suppressing adaptive entry. No applied migration is rewritten.
 
 A null-mode receipt alone never identifies a target. Unresolved history does not block all recommendations and has no per-target unresolved state. A previously seen target without surviving identifying facts may be offered again; the UI never says it was never seen. Identical Finish retries do not annotate missing usage rows or recreate pruned history.
 
@@ -62,7 +62,7 @@ Legacy import atomically inserts sessionless closure for validated target checkp
 
 **Production release gate:** drain/block old application reads/writes before backfill and flag removal, then activate the new application. The migration advisory lock coordinates migration runners only. Old/new servers cannot coexist against the contracted schema, and rolling application code back alone is unsafe. Preserve browser work through reload; new servers must accept historical pending requests. Production mutation/cutover is outside this implementation task.
 
-The environment-bound Preview database guard and attended production sequence are specified in the [Adaptive v1 production release procedure](../05-development/adaptive-v1-production-release.md). A Preview build without its isolated database fails before deployment.
+The environment-bound Preview database guard and attended production sequence are specified in the [Adaptive v1 expand release procedure](../05-development/adaptive-v1-expand-release.md). A Preview build without its isolated database fails before deployment.
 
 Implementation ownership:
 
@@ -70,7 +70,7 @@ Implementation ownership:
 - `application/adaptive-recommendation.ts`: evidence adapter and learner-safe projection/presentation.
 - `application/next-practice-work.ts`: shared Home/Progress precedence.
 - `server/learner-progress-persistence.ts`, `progress-schema.ts`: validated learner-scoped reads, atomic import/Finish writes and receipt-first replay.
-- `db/migrations/0014_adaptive_target_usage.sql`, `scripts/migrate-db.mjs`: schema, frozen factual backfill and runner guard.
+- `db/migrations/0014_adaptive_target_usage.sql` (existing contracted history), `0015`–`0017` and `scripts/migrate-db.mjs`: additive backfill, temporary capture, later contract and runner guards.
 - `ui/practice-session-storage.ts`: versioned new requests, unchanged historical decoders/payloads.
 - `ui/adaptive-recommendation.tsx`, `ui/progress-next-useful-work.tsx`, Home/Progress: common action and explanation.
 - `ui/practice-session.tsx`: existing-snapshot precedence, pre-creation revalidation and canceled/stale-entry handling.

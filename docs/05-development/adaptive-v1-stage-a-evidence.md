@@ -1,6 +1,6 @@
 # Adaptive v1 — Stage A release evidence
 
-Prepared 2026-10-12 UTC on `feature/ot-adaptive-v1` at `a2acc2fd6901655f39281b2515eb725f1c8b6add`, PR #98. Scope: release documentation, read-only production inventory, and isolated synthetic Neon rehearsal. No production infrastructure, credentials, compute, traffic or database state changed; no Git publication. Follow the [release procedure](adaptive-v1-production-release.md) for separately approved Stage B.
+Prepared 2026-10-12 UTC on `feature/ot-adaptive-v1` at `a2acc2fd6901655f39281b2515eb725f1c8b6add`, PR #98. Scope: release documentation, read-only production inventory, and isolated synthetic Neon rehearsal. No production infrastructure, credentials, compute, traffic or database state changed; no Git publication. Follow the [current release procedure](adaptive-v1-expand-release.md) for separately approved Stage B.
 
 ## Evidence reused
 

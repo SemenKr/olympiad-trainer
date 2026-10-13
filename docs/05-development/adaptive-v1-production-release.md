@@ -1,5 +1,7 @@
 # Adaptive v1 — production release procedure
 
+> Historical Stage A credential-fencing proposal. **Superseded for PR #98 by the [expand–migrate–contract release procedure](adaptive-v1-expand-release.md).** Do not execute the 0014 cutover, `--skip-domain` staging, or original-baseline rollback steps below. Retained as release decision history.
+
 PR #98 / `0014_adaptive_target_usage.sql`. This is an attended, explicitly approved Stage B release, never an automatic CI migration. Stage A authorizes preparation only. Record project/branch/deployment/commit IDs, timestamps and check results in a private release packet; never record passwords, connection strings, bypass links, cookies, learner IDs or payloads. Preserve learners' local snapshots and pending Finish requests.
 
 [Stage A evidence and remaining gates](adaptive-v1-stage-a-evidence.md) distinguish demonstrated capabilities from production actions still awaiting approval.

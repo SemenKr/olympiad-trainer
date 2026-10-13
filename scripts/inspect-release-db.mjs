@@ -2,8 +2,10 @@ import pg from "pg";
 import { migrationTarget } from "./migration-target.mjs";
 
 const expected = process.argv[2];
-if (expected !== "before" && expected !== "after")
-  throw new Error("Usage: node scripts/inspect-release-db.mjs before|after");
+if (!["before", "expanded", "contracted", "final"].includes(expected))
+  throw new Error(
+    "Usage: node scripts/inspect-release-db.mjs before|expanded|contracted|final",
+  );
 
 const { target, connectionString } = migrationTarget(process.env);
 const client = new pg.Client({ connectionString });
@@ -43,14 +45,35 @@ try {
     "0012_learner_identity_boundary.sql",
     "0013_learner_recovery_credentials.sql",
   ];
-  const validMigrations =
-    migrations.length === base.length + (expected === "after" ? 1 : 0) &&
-    base.every((name, index) => migrations[index] === name) &&
-    (expected === "before" ||
-      migrations.at(-1) === "0014_adaptive_target_usage.sql");
+  const suffixes = {
+    before: [[]],
+    expanded: [
+      ["0015_adaptive_compat_expand.sql", "0016_adaptive_compat_capture.sql"],
+    ],
+    contracted: [
+      ["0014_adaptive_target_usage.sql", "0016_adaptive_compat_capture.sql"],
+    ],
+    final: [
+      [
+        "0015_adaptive_compat_expand.sql",
+        "0016_adaptive_compat_capture.sql",
+        "0017_adaptive_compat_contract.sql",
+      ],
+      [
+        "0014_adaptive_target_usage.sql",
+        "0016_adaptive_compat_capture.sql",
+        "0017_adaptive_compat_contract.sql",
+      ],
+    ],
+  };
+  const validMigrations = suffixes[expected].some(
+    (suffix) =>
+      migrations.length === base.length + suffix.length &&
+      [...base, ...suffix].every((name, index) => migrations[index] === name),
+  );
   const validShape =
-    shape.old_flags === (expected === "before" ? 6 : 0) &&
-    shape.ledger_exists === (expected === "after") &&
+    shape.old_flags === (["contracted", "final"].includes(expected) ? 0 : 6) &&
+    shape.ledger_exists === (expected !== "before") &&
     !shape.old_receipt_column;
   const result = {
     target,

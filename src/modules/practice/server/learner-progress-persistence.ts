@@ -897,13 +897,20 @@ export async function readAdaptiveRecommendation(
       throw new Error("Practice receipt could not be verified.");
     const hasPracticeHistory =
       hasVerifiedFacts || usage.length > 0 || receipts.length > 0;
-    const availability = getAdaptiveRecommendation({
-      guarantee,
-      impossibility,
-      enumeration,
-      hasPracticeFinish: receipts.some((receipt) => receipt.mode !== "review"),
-      closedTargets,
-    });
+    // A rollback deployment keeps the v2 Finish and durable ledger protocol,
+    // while pausing new adaptive entry until the forward build is restored.
+    const availability: AdaptiveRecommendationResult =
+      process.env.ADAPTIVE_RELEASE_MODE === "rollback"
+        ? { status: "none" }
+        : getAdaptiveRecommendation({
+            guarantee,
+            impossibility,
+            enumeration,
+            hasPracticeFinish: receipts.some(
+              (receipt) => receipt.mode !== "review",
+            ),
+            closedTargets,
+          });
     return {
       availability,
       hasPracticeHistory,

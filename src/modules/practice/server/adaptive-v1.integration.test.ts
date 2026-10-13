@@ -488,6 +488,22 @@ describe.skipIf(!testUrl)("Adaptive v1 PostgreSQL", () => {
       "status",
     ]);
   });
+  it("protocol-compatible rollback pauses adaptive entry without losing Practice history", async () => {
+    const context = await learner();
+    await persistFinishContributions(context, randomUUID(), sources);
+    expect(
+      (await readAdaptiveRecommendation(context)).availability.status,
+    ).toBe("recommendation");
+    vi.stubEnv("ADAPTIVE_RELEASE_MODE", "rollback");
+    try {
+      expect(await readAdaptiveRecommendation(context)).toEqual({
+        availability: { status: "none" },
+        hasPracticeHistory: true,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it("Pack Finish opens exploration without producing capability evidence; Review receipt does not", async () => {
     const context = await learner();
     const before = await readLearnerProgress(context);
