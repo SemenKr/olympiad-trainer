@@ -7,6 +7,9 @@ const { connectionString } = migrationTarget(process.env, {
   requireReleaseGate: true,
 });
 const client = new pg.Client({ connectionString });
+const plan = JSON.parse(
+  await readFile(resolve("db/migration-plan.json"), "utf8"),
+);
 await client.connect();
 try {
   await client.query("BEGIN");
@@ -28,21 +31,7 @@ try {
     throw new Error(
       "Receipt-based adaptive identity exists without the 0014 marker; inspect schema and use a forward migration.",
     );
-  for (const name of [
-    "0001_learner_progress.sql",
-    "0002_adaptive_transfer_status.sql",
-    "0003_parrots_transfer_status.sql",
-    "0004_practice_completed_episodes.sql",
-    "0005_enumeration_exploration.sql",
-    "0006_content_scale_pack_a.sql",
-    "0007_knowledge_support.sql",
-    "0008_practice_journey.sql",
-    "0009_practice_review.sql",
-    "0010_simulation.sql",
-    "0011_learning_path_pack_receipts.sql",
-    "0012_learner_identity_boundary.sql",
-    "0013_learner_recovery_credentials.sql",
-  ]) {
+  for (const name of plan.base) {
     const prior = await client.query(
       "SELECT 1 FROM schema_migrations WHERE name = $1",
       [name],
@@ -62,7 +51,9 @@ try {
       ])
     ).rowCount > 0;
   const contracted = await applied("0014_adaptive_target_usage.sql");
-  const expanded = await applied("0015_adaptive_compat_expand.sql");
+  const legacyExpanded = await applied("0015_adaptive_compat_expand.sql");
+  const correctedExpanded = await applied(plan.expansion[0]);
+  const expanded = legacyExpanded || correctedExpanded;
   const captured = await applied("0016_adaptive_compat_capture.sql");
   const fullyContracted = await applied("0017_adaptive_compat_contract.sql");
   const shape = (
@@ -74,18 +65,20 @@ try {
            'parrots_attempted','parrots_solution_exposed','pages_attempted',
            'pages_solution_exposed')) AS flags`)
   ).rows[0];
-  if (contracted && expanded)
+  if ((contracted && expanded) || (legacyExpanded && correctedExpanded))
     throw new Error("Both adaptive schema histories are marked applied.");
   if (contracted && (!shape.ledger || shape.flags !== 0))
     throw new Error("Applied 0014 does not have its contracted schema.");
   if (expanded && (!shape.ledger || shape.flags !== (fullyContracted ? 0 : 6)))
-    throw new Error("Applied 0015 does not have its expected schema.");
+    throw new Error(
+      "Applied additive expansion does not have its expected schema.",
+    );
   if (fullyContracted && !captured)
     throw new Error("Contract marker exists without capture migration.");
   if (!contracted && !expanded) {
     if (shape.ledger || shape.flags !== 6)
       throw new Error("0013 schema is not eligible for additive expansion.");
-    const name = "0015_adaptive_compat_expand.sql";
+    const name = plan.expansion[0];
     await client.query(await readFile(resolve("db/migrations", name), "utf8"));
     await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
       name,
@@ -93,6 +86,14 @@ try {
   }
   if (!captured) {
     const name = "0016_adaptive_compat_capture.sql";
+    await client.query(await readFile(resolve("db/migrations", name), "utf8"));
+    await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
+      name,
+    ]);
+  }
+  // Applied migrations stay immutable; repair only the still-installed bridge.
+  if (!fullyContracted && !(await applied(plan.expansion[2]))) {
+    const name = plan.expansion[2];
     await client.query(await readFile(resolve("db/migrations", name), "utf8"));
     await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
       name,

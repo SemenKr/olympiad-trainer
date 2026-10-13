@@ -3,7 +3,9 @@ import {
   createTestLearner,
 } from "../../../test/learner-fixture";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import pg from "pg";
+import { migrateTestSchema } from "../../../test/migrate-test-schema";
 
 vi.mock("server-only", () => ({}));
 
@@ -43,8 +45,32 @@ import { and, eq } from "drizzle-orm";
 
 const testUrl = process.env.DATABASE_TEST_URL;
 
-beforeAll(() => {
-  if (testUrl) process.env.DATABASE_URL = testUrl;
+const suiteSchema = `progress_${randomUUID().replaceAll("-", "")}`;
+beforeAll(async () => {
+  if (!testUrl) return;
+  const client = new pg.Client({ connectionString: testUrl });
+  await client.connect();
+  try {
+    await client.query(`CREATE SCHEMA "${suiteSchema}"`);
+    await client.query(`SET search_path TO "${suiteSchema}"`);
+    // Progress must still reject corrupted persisted evidence after the bridge retires.
+    await migrateTestSchema(client, { contract: true });
+    const url = new URL(testUrl);
+    url.searchParams.set("options", `-c search_path=${suiteSchema}`);
+    process.env.DATABASE_URL = url.toString();
+  } finally {
+    await client.end();
+  }
+});
+afterAll(async () => {
+  if (!testUrl) return;
+  const client = new pg.Client({ connectionString: testUrl });
+  await client.connect();
+  try {
+    await client.query(`DROP SCHEMA IF EXISTS "${suiteSchema}" CASCADE`);
+  } finally {
+    await client.end();
+  }
 });
 
 const guarantee: GuaranteeEvidenceContribution = {

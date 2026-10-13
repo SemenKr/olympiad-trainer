@@ -2,8 +2,14 @@ import { readFile, readdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { describe, expect, it } from "vitest";
-import { emptyGuaranteeProgressEvidence } from "../application/guarantee-progress-evidence";
-import { emptyImpossibilityProgressEvidence } from "../application/impossibility-progress-evidence";
+import {
+  validateGuaranteeProgressEvidence,
+  emptyGuaranteeProgressEvidence,
+} from "../application/guarantee-progress-evidence";
+import {
+  validateImpossibilityProgressEvidence,
+  emptyImpossibilityProgressEvidence,
+} from "../application/impossibility-progress-evidence";
 import { emptyEnumerationProgressEvidence } from "../application/enumeration-progress-evidence";
 
 const url = process.env.DATABASE_TEST_URL;
@@ -22,9 +28,78 @@ const episode = {
   ],
 };
 
+function hintedBasis(bucket: "guarantee" | "impossibility") {
+  const guarantee = bucket === "guarantee";
+  const source = guarantee ? "guaranteed-sock-pair" : "table-impossible-sums";
+  const target = guarantee
+    ? "parrots-guaranteed-colors"
+    : "brothers-ages-products";
+  const sourceCheckpoint = guarantee
+    ? `${source}-guarantee-argument`
+    : `${source}-impossibility-argument`;
+  const targetCheckpoint = guarantee
+    ? `${target}-guarantee-argument`
+    : `${target}-youngest-lower-bound`;
+  const fact = (
+    problemId: string,
+    checkpointId: string,
+    sequence: number,
+    hints: string[],
+  ) => ({
+    sequence,
+    problemId,
+    observation: {
+      checkpointId,
+      selectedOptionId: "A",
+      outcome: "correct",
+      validSubmissionCountAtSubmit: 1,
+    },
+    hintLevelsExposedBeforeCheckpoint: hints,
+    solutionExposedBeforeCheckpoint: false,
+  });
+  const sourceFact = fact(source, sourceCheckpoint, 1, ["focus"]);
+  const slots = {
+    latestCorrectWithoutHints: null,
+    latestCorrectWithHints: null,
+    latestIncorrect: null,
+  };
+  const basisKey = guarantee
+    ? "sockBasisForParrotsWithoutHints"
+    : "tableBasisForBrothersWithoutHints";
+  const evidence = {
+    version: 2,
+    nextSequence: 3,
+    [guarantee ? "sock" : "table"]: {
+      ...slots,
+      latestCorrectWithHints: sourceFact,
+    },
+    [guarantee ? "parrots" : "brothers"]: {
+      ...slots,
+      latestCorrectWithoutHints: fact(target, targetCheckpoint, 2, []),
+    },
+    [basisKey]: {
+      sequence: 1,
+      observation: sourceFact.observation,
+      hintLevelsExposedBeforeCheckpoint: ["focus"],
+    },
+  };
+  expect(
+    guarantee
+      ? validateGuaranteeProgressEvidence(evidence)
+      : validateImpossibilityProgressEvidence(evidence),
+  ).toEqual(evidence);
+  return {
+    evidence,
+    target,
+    basisKey,
+    column: guarantee ? "guarantee_evidence" : "impossibility_evidence",
+  };
+}
+
 async function fixture(
-  history: "expanded" | "contracted",
+  history: "expanded" | "legacy-expanded" | "contracted",
   run: (client: pg.Client) => Promise<void>,
+  beforeExpansion?: (client: pg.Client) => Promise<void>,
 ) {
   const client = new pg.Client({ connectionString: url });
   const schema = `adaptive_compat_${randomUUID().replaceAll("-", "")}`;
@@ -37,14 +112,21 @@ async function fixture(
       .filter((name) => name.endsWith(".sql") && name < "0014_")
       .sort())
       await client.query(await readFile(`db/migrations/${name}`, "utf8"));
+    await beforeExpansion?.(client);
     await client.query(
       await readFile(
-        `db/migrations/${history === "expanded" ? "0015_adaptive_compat_expand.sql" : "0014_adaptive_target_usage.sql"}`,
+        `db/migrations/${history === "expanded" ? "0018_adaptive_compat_expand_basis.sql" : history === "legacy-expanded" ? "0015_adaptive_compat_expand.sql" : "0014_adaptive_target_usage.sql"}`,
         "utf8",
       ),
     );
     await client.query(
       await readFile("db/migrations/0016_adaptive_compat_capture.sql", "utf8"),
+    );
+    await client.query(
+      await readFile(
+        "db/migrations/0019_adaptive_compat_capture_basis.sql",
+        "utf8",
+      ),
     );
     await run(client);
   } finally {
@@ -77,6 +159,92 @@ async function learner(client: pg.Client) {
 }
 
 describe.skipIf(!url)("adaptive compatibility migrations", () => {
+  it.each(["guarantee", "impossibility"] as const)(
+    "backfills and preserves a valid hinted %s basis from 0013",
+    async (bucket) => {
+      const { evidence, target, column } = hintedBasis(bucket);
+      let id: string;
+      await fixture(
+        "expanded",
+        async (client) => {
+          expect(
+            (
+              await client.query(
+                `SELECT ${column} AS evidence FROM learners WHERE id=$1`,
+                [id],
+              )
+            ).rows[0].evidence,
+          ).toEqual(evidence);
+          expect(
+            (
+              await client.query(
+                "SELECT problem_id FROM practice_adaptive_target_usage WHERE learner_id=$1",
+                [id],
+              )
+            ).rows,
+          ).toEqual([{ problem_id: target }]);
+        },
+        async (client) => {
+          id = await learner(client);
+          await client.query(`UPDATE learners SET ${column}=$1 WHERE id=$2`, [
+            evidence,
+            id,
+          ]);
+        },
+      );
+    },
+  );
+
+  it.each(["expanded", "legacy-expanded", "contracted"] as const)(
+    "%s history repairs hinted bases while retaining canonical rejection",
+    async (history) =>
+      fixture(history, async (client) => {
+        for (const bucket of ["guarantee", "impossibility"] as const) {
+          const { evidence, target, basisKey, column } = hintedBasis(bucket);
+          expect(
+            (
+              await client.query(
+                "SELECT ot_compat_validate_evidence($1,$2) AS targets",
+                [evidence, bucket],
+              )
+            ).rows[0].targets,
+          ).toEqual([target]);
+          const id = await learner(client);
+          await client.query(`UPDATE learners SET ${column}=$1 WHERE id=$2`, [
+            evidence,
+            id,
+          ]);
+          const corrupt = JSON.parse(JSON.stringify(evidence));
+          corrupt[basisKey].observation.selectedOptionId = "B";
+          await client.query("SAVEPOINT corrupt_basis");
+          await expect(
+            client.query("SELECT ot_compat_validate_evidence($1,$2)", [
+              corrupt,
+              bucket,
+            ]),
+          ).rejects.toThrow("Invalid legacy basis ordering");
+          await client.query("ROLLBACK TO SAVEPOINT corrupt_basis");
+          if (history !== "contracted") {
+            await client.query("SAVEPOINT corrupt_write");
+            await expect(
+              client.query(`UPDATE learners SET ${column}=$1 WHERE id=$2`, [
+                corrupt,
+                id,
+              ]),
+            ).rejects.toThrow("Invalid legacy basis ordering");
+            await client.query("ROLLBACK TO SAVEPOINT corrupt_write");
+          }
+          expect(
+            (
+              await client.query(
+                `SELECT ${column} AS evidence FROM learners WHERE id=$1`,
+                [id],
+              )
+            ).rows[0].evidence,
+          ).toEqual(evidence);
+        }
+      }),
+  );
   it("keeps markers and atomically captures old marker updates", async () =>
     fixture("expanded", async (client) => {
       const id = await learner(client);

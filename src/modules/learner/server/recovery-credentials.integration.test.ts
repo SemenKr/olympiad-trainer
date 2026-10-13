@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
+import { migrateTestSchema } from "../../../test/migrate-test-schema";
 import pg from "pg";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -56,27 +56,25 @@ beforeAll(async () => {
   try {
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
-    const files = (await readdir("db/migrations"))
-      .filter((name) => name.endsWith(".sql"))
-      .sort();
-    for (const name of files) {
-      await client.query(await readFile(`db/migrations/${name}`, "utf8"));
-      if (name === "0012_learner_identity_boundary.sql")
-        await client.query(
-          "INSERT INTO learners(id,anonymous_token_hash,browser_credential_expires_at,guarantee_evidence,impossibility_evidence,enumeration_evidence) VALUES ($1,$2,clock_timestamp()+interval '730 days',$3,$3,$3)",
-          [
-            migratedLearner,
-            "migration-token-hash",
-            {
-              version: 1,
-              nextSequence: 1,
-              latestCorrectWithoutHints: null,
-              latestCorrectWithHints: null,
-              latestIncorrect: null,
-            },
-          ],
-        );
-    }
+    await migrateTestSchema(client, {
+      afterMigration: async (name) => {
+        if (name === "0012_learner_identity_boundary.sql")
+          await client.query(
+            "INSERT INTO learners(id,anonymous_token_hash,browser_credential_expires_at,guarantee_evidence,impossibility_evidence,enumeration_evidence) VALUES ($1,$2,clock_timestamp()+interval '730 days',$3,$3,$3)",
+            [
+              migratedLearner,
+              "migration-token-hash",
+              {
+                version: 1,
+                nextSequence: 1,
+                latestCorrectWithoutHints: null,
+                latestCorrectWithHints: null,
+                latestIncorrect: null,
+              },
+            ],
+          );
+      },
+    });
     const url = new URL(testUrl);
     url.searchParams.set("options", `-c search_path=${schema}`);
     isolatedUrl = url.toString();

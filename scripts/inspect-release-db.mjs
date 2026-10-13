@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import pg from "pg";
 import { migrationTarget } from "./migration-target.mjs";
 
@@ -30,46 +32,50 @@ try {
       (SELECT count(*) FROM practice_finish_receipts) AS receipt_count,
       (SELECT count(*) FROM practice_completed_episodes) AS episode_count`)
   ).rows[0];
-  const base = [
-    "0001_learner_progress.sql",
-    "0002_adaptive_transfer_status.sql",
-    "0003_parrots_transfer_status.sql",
-    "0004_practice_completed_episodes.sql",
-    "0005_enumeration_exploration.sql",
-    "0006_content_scale_pack_a.sql",
-    "0007_knowledge_support.sql",
-    "0008_practice_journey.sql",
-    "0009_practice_review.sql",
-    "0010_simulation.sql",
-    "0011_learning_path_pack_receipts.sql",
-    "0012_learner_identity_boundary.sql",
-    "0013_learner_recovery_credentials.sql",
+  const plan = JSON.parse(
+    await readFile(resolve("db/migration-plan.json"), "utf8"),
+  );
+  const base = plan.base;
+  const repairedExpansion = [
+    [
+      "0015_adaptive_compat_expand.sql",
+      "0016_adaptive_compat_capture.sql",
+      "0019_adaptive_compat_capture_basis.sql",
+    ],
+    plan.expansion,
+  ];
+  const repairedContracted = [
+    "0014_adaptive_target_usage.sql",
+    "0016_adaptive_compat_capture.sql",
+    "0019_adaptive_compat_capture_basis.sql",
   ];
   const suffixes = {
     before: [[]],
-    expanded: [
-      ["0015_adaptive_compat_expand.sql", "0016_adaptive_compat_capture.sql"],
-    ],
-    contracted: [
-      ["0014_adaptive_target_usage.sql", "0016_adaptive_compat_capture.sql"],
-    ],
+    expanded: repairedExpansion,
+    contracted: [repairedContracted],
     final: [
       [
         "0015_adaptive_compat_expand.sql",
         "0016_adaptive_compat_capture.sql",
-        "0017_adaptive_compat_contract.sql",
+        plan.contract,
       ],
       [
         "0014_adaptive_target_usage.sql",
         "0016_adaptive_compat_capture.sql",
-        "0017_adaptive_compat_contract.sql",
+        plan.contract,
       ],
+      ...[...repairedExpansion, repairedContracted].map((history) => [
+        ...history,
+        plan.contract,
+      ]),
     ],
   };
   const validMigrations = suffixes[expected].some(
     (suffix) =>
       migrations.length === base.length + suffix.length &&
-      [...base, ...suffix].every((name, index) => migrations[index] === name),
+      [...base, ...suffix]
+        .sort()
+        .every((name, index) => migrations[index] === name),
   );
   const validShape =
     shape.old_flags === (["contracted", "final"].includes(expected) ? 0 : 6) &&

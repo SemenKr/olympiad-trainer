@@ -1,5 +1,5 @@
+import { migrateTestSchema } from "../../../test/migrate-test-schema";
 import { randomBytes, randomUUID } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
 import { eq, sql } from "drizzle-orm";
 import {
@@ -81,10 +81,7 @@ beforeAll(async () => {
   try {
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
-    for (const name of (await readdir("db/migrations"))
-      .filter((name) => name.endsWith(".sql"))
-      .sort())
-      await client.query(await readFile(`db/migrations/${name}`, "utf8"));
+    await migrateTestSchema(client);
     const url = new URL(testUrl);
     url.searchParams.set("options", `-c search_path=${schema}`);
     process.env.DATABASE_URL = url.toString();

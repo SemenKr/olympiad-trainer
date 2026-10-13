@@ -1,5 +1,5 @@
+import { migrateTestSchema } from "../../../test/migrate-test-schema";
 import { randomUUID } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
 import {
   afterAll,
@@ -48,14 +48,7 @@ beforeAll(async () => {
   try {
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
-    for (const name of (await readdir("db/migrations"))
-      .filter(
-        (name) =>
-          name.endsWith(".sql") &&
-          name !== "0013_learner_recovery_credentials.sql",
-      )
-      .sort())
-      await client.query(await readFile(`db/migrations/${name}`, "utf8"));
+    await migrateTestSchema(client, { skipRecovery: true });
     const url = new URL(testUrl);
     url.searchParams.set("options", `-c search_path=${schema}`);
     process.env.DATABASE_URL = url.toString();
