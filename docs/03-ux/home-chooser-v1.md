@@ -24,4 +24,12 @@ Existing data loading and route guards are reused. The next-action region announ
 
 ## Learning Path v1 supersession
 
-[Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice now adds the adopted editorial sequence before the unchanged free-choice registry list; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.
+[Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice uses one freely selectable catalog in the adopted editorial sequence, with a compact Path summary above it; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.
+
+## Stable chooser catalog — observed UX correction
+
+The former chooser rendered 12 guided cards asynchronously above 12 static free-choice cards. This duplicated every Pack, mixed card visuals and displaced the catalog after loading. The adopted correction replaces those two lists with one 12-Pack catalog, present on the initial render in editorial order A → J → H → L → D → G → E → I → C → B → F → K. Each card reuses the existing chooser visuals, registry name/count/route and distinct “Начать набор «{name}»” accessible link name, with its static Path position and orientation copy. Loading never changes card order or replaces a card/link.
+
+A compact “Путь тренировок” summary shows the count of recorded Pack Finishes and the earliest unrecorded Pack as “Следующий ориентир”, with “Продолжить путь”. All-recorded learners see factual repeat/free-choice wording. Loading and errors never imply zero completions. Retry, next-step and all-recorded states use the same reserved count, description and action slots; text may grow for accessibility rather than clip. All twelve catalog links remain available during every summary state. The single catalog keeps the chooser’s existing one-column layout below 1024px and three columns from 1024px, visible focus and practical targets.
+
+This evidence-driven correction supersedes the duplicate-list chooser described in Learning Path v1 and the earlier registry-order-only chooser above. It does not claim new Figma approval. Path order/completion meaning, existing unfinished-session context/entry gate, Practice persistence, Finish and Recovery remain unchanged.

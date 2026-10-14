@@ -1,93 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { readServerLearningPath } from "../../learner/progress-client";
-import {
-  getLearningPathProjection,
-  type LearningPathEntry,
-} from "../application/learning-path";
+import { getLearningPathProjection } from "../application/learning-path";
 import {
   packHref,
   type PackId,
 } from "../application/completed-practice-episode";
 import { ensureServerProgressImported } from "./server-progress-import";
 import styles from "./learning-path.module.scss";
-
-function PathEntryCard({ entry }: { entry: LearningPathEntry }) {
-  return (
-    <li
-      className={styles.entry}
-      data-state={
-        entry.completed ? "recorded" : entry.suggested ? "suggested" : "open"
-      }
-    >
-      <div className={styles["entry-heading"]}>
-        <span className={styles.step}>Шаг {entry.position}</span>
-        <span className={styles.status}>
-          {entry.completed
-            ? "Есть завершённая тренировка"
-            : entry.suggested
-              ? "Следующий ориентир"
-              : "Можно выбрать"}
-        </span>
-      </div>
-      <h3>{entry.name}</h3>
-      <p>{entry.description}</p>
-      <Link
-        className={entry.suggested ? styles.primary : styles.secondary}
-        href={packHref(entry.packId)}
-        aria-label={`${entry.completed ? "Пройти ещё раз" : "Выбрать"} набор «${entry.name}»`}
-      >
-        {entry.completed
-          ? "Пройти ещё раз"
-          : entry.suggested
-            ? "Продолжить путь"
-            : "Выбрать этот набор"}
-      </Link>
-    </li>
-  );
-}
-
-export function LearningPathGuide({
-  completedPackIds,
-}: {
-  completedPackIds: readonly PackId[];
-}) {
-  const projection = getLearningPathProjection(completedPackIds);
-  return (
-    <section className={styles.guide} aria-labelledby="learning-path-title">
-      <header>
-        <p className={styles.eyebrow}>ПУТЬ ТРЕНИРОВОК</p>
-        <h2 id="learning-path-title">Куда идти дальше</h2>
-        <p>
-          Это удобный маршрут по наборам, а не шкала сложности и не оценка
-          знаний. Любой набор можно выбрать в любом порядке.
-        </p>
-        <p className={styles.count}>
-          Сохранённые завершения: {projection.completedCount} из{" "}
-          {projection.totalCount}
-        </p>
-      </header>
-      <p>
-        Отметки показывают сохранённые завершения. Старые тренировки могли не
-        получить такую отметку. Уровни пути и XP учитываются отдельно.
-      </p>
-      {projection.allRecorded ? (
-        <p className={styles.complete}>
-          Во всех наборах пути есть сохранённая завершённая тренировка. Можно
-          вернуться к любому набору и пройти его ещё раз.
-        </p>
-      ) : null}
-      <ol className={styles.entries}>
-        {projection.entries.map((entry) => (
-          <PathEntryCard entry={entry} key={entry.packId} />
-        ))}
-      </ol>
-    </section>
-  );
-}
 
 export function LearningPathGuideLoader() {
   const [value, setValue] = useState<
@@ -96,42 +19,92 @@ export function LearningPathGuideLoader() {
     | { status: "ready"; completedPackIds: readonly PackId[] }
   >({ status: "loading" });
   const [retry, setRetry] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const retryButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let active = true;
     void ensureServerProgressImported()
       .then(() => readServerLearningPath())
-      .then(
-        (completedPackIds) =>
-          active && setValue({ status: "ready", completedPackIds }),
-      )
+      .then((completedPackIds) => {
+        if (!active) return;
+        if (retry > 0 && document.activeElement === retryButtonRef.current)
+          headingRef.current?.focus();
+        setValue({ status: "ready", completedPackIds });
+      })
       .catch(() => active && setValue({ status: "error" }));
     return () => {
       active = false;
     };
   }, [retry]);
 
-  if (value.status === "loading")
-    return <p role="status">Загружаем путь тренировок…</p>;
-  if (value.status === "error")
-    return (
-      <div className={styles.error}>
-        <p role="alert">
-          Не удалось загрузить отметки пути. Все наборы ниже всё равно доступны.
+  const projection =
+    value.status === "ready"
+      ? getLearningPathProjection(value.completedPackIds)
+      : null;
+  const next = projection?.entries.find((entry) => entry.suggested);
+
+  return (
+    <section
+      className={`${styles.compact} ${styles["chooser-summary"]}`}
+      aria-labelledby="learning-path-title"
+    >
+      <h2 id="learning-path-title" ref={headingRef} tabIndex={-1}>
+        Путь тренировок
+      </h2>
+      <p>
+        Отметки — завершённые тренировки, а не решённые задачи. Старые
+        тренировки могли не получить отметку; XP и уровни пути учитываются
+        отдельно.
+      </p>
+      <div className={styles["summary-state"]}>
+        <p className={styles["summary-count"]} role="status">
+          {projection
+            ? `Сохранённые завершения: ${projection.completedCount} из ${projection.totalCount}`
+            : value.status === "loading"
+              ? "Загружаем отметки пути…"
+              : "Отметки пути недоступны"}
         </p>
-        <button
-          className={styles.secondary}
-          onClick={() => {
-            setValue({ status: "loading" });
-            setRetry((current) => current + 1);
-          }}
-          type="button"
+        <p
+          className={styles["summary-next"]}
+          role={value.status === "error" ? "alert" : undefined}
         >
-          Повторить
-        </button>
+          {value.status === "error"
+            ? "Не удалось загрузить отметки пути. Все наборы ниже всё равно доступны."
+            : next
+              ? `Следующий ориентир: ${next.name}`
+              : projection
+                ? "Во всех наборах есть сохранённое завершение. Можно выбрать любой набор снова."
+                : "Все наборы ниже доступны — можно выбрать любой."}
+        </p>
+        <div className={styles["summary-action"]}>
+          {value.status === "error" ||
+          (value.status === "loading" && retry > 0) ? (
+            <button
+              className={styles.secondary}
+              ref={retryButtonRef}
+              disabled={value.status === "loading"}
+              onClick={() => {
+                setValue({ status: "loading" });
+                setRetry((current) => current + 1);
+              }}
+              type="button"
+            >
+              {value.status === "loading" ? "Загружаем…" : "Повторить"}
+            </button>
+          ) : next ? (
+            <Link
+              className={styles.primary}
+              href={packHref(next.packId)}
+              aria-label={`Выбрать набор «${next.name}»`}
+            >
+              Продолжить путь
+            </Link>
+          ) : null}
+        </div>
       </div>
-    );
-  return <LearningPathGuide completedPackIds={value.completedPackIds} />;
+    </section>
+  );
 }
 
 export function ProgressLearningPath({
