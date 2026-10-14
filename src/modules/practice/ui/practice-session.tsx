@@ -3,6 +3,7 @@
 import {
   captureLearnerStorage,
   currentLocalLearnerOwner,
+  LOCAL_IDENTITY_EVENT,
 } from "../../learner/local-ownership";
 
 import Link from "next/link";
@@ -78,6 +79,7 @@ import {
   createPracticeSessionSnapshot,
   isCurrentPracticeFinish,
   readVerifiedPracticeSessionSnapshot,
+  type UnfinishedPracticeSessionSnapshot,
   readVerifiedLatestCompletedResults,
   restoreAnswerState,
   saveNoNextPracticeSessionSnapshot,
@@ -113,8 +115,11 @@ import {
 } from "./fixed-practice-session-state";
 import {
   packIdFromProblemIds,
+  packById,
   type PackId,
 } from "../application/completed-practice-episode";
+import { getUnfinishedPracticeLabel } from "./unfinished-practice-label";
+import navigationStyles from "../../../app/page.module.scss";
 import { ensureServerProgressImported } from "./server-progress-import";
 
 type PracticeSessionProps = Readonly<{
@@ -390,6 +395,9 @@ export function PracticeSession({
     PracticeFinishOutcome,
     "completed"
   > | null>(null);
+  const [packConflict, setPackConflict] =
+    useState<UnfinishedPracticeSessionSnapshot | null>(null);
+  const conflictHeadingRef = useRef<HTMLHeadingElement>(null);
   const [restoreError, setRestoreError] = useState(false);
   const [adaptiveUnavailable, setAdaptiveUnavailable] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
@@ -413,12 +421,29 @@ export function PracticeSession({
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
+      setPackConflict(null);
       void readVerifiedPracticeSessionSnapshot(
         verifyPersistedReasoningCheckpointObservation,
         learnerStorage,
       )
         .then(async ({ value: snapshot, interpretation }) => {
           if (!active) return;
+          if (snapshot && startMode === "pack") {
+            const savedPackId =
+              snapshot.mode === "pack"
+                ? packIdFromProblemIds(
+                    "status" in snapshot
+                      ? snapshot.completedResults.map(
+                          (result) => result.problemId,
+                        )
+                      : snapshot.problemIds,
+                  )
+                : null;
+            if (savedPackId !== startPackId) {
+              setPackConflict(snapshot);
+              return;
+            }
+          }
           if (snapshot && "status" in snapshot) {
             setLoaded({ session: snapshot });
             return;
@@ -533,6 +558,23 @@ export function PracticeSession({
     startTransferProblemId,
   ]);
 
+  useEffect(() => {
+    if (!packConflict) return;
+    conflictHeadingRef.current?.focus();
+    const recheck = () => {
+      setPackConflict(null);
+      setRestoreRetry((value) => value + 1);
+    };
+    window.addEventListener("storage", recheck);
+    window.addEventListener("focus", recheck);
+    window.addEventListener(LOCAL_IDENTITY_EVENT, recheck);
+    return () => {
+      window.removeEventListener("storage", recheck);
+      window.removeEventListener("focus", recheck);
+      window.removeEventListener(LOCAL_IDENTITY_EVENT, recheck);
+    };
+  }, [packConflict]);
+
   const retryRestore = () => {
     setRestoreError(false);
     setAdaptiveUnavailable(false);
@@ -544,6 +586,30 @@ export function PracticeSession({
     if (reviewUnavailable || packUnavailable || adaptiveUnavailable)
       unavailableHeadingRef.current?.focus();
   }, [restoreError, reviewUnavailable, packUnavailable, adaptiveUnavailable]);
+
+  if (packConflict)
+    return (
+      <main className={navigationStyles.chooser}>
+        <h1 ref={conflictHeadingRef} tabIndex={-1}>
+          Сначала закончим текущую тренировку
+        </h1>
+        <p>Текущая тренировка: {getUnfinishedPracticeLabel(packConflict)}.</p>
+        <p>Выбранный набор: {packById(startPackId)!.name}.</p>
+        <p>
+          Чтобы начать выбранный набор, открой текущую тренировку и нажми
+          «Завершить тренировку». Затем можно выбрать другой набор.
+        </p>
+        <Link className={navigationStyles.primary} href="/practice">
+          Открыть текущую тренировку
+        </Link>
+        <Link className={navigationStyles.secondary} href="/practice/choose">
+          Вернуться к наборам
+        </Link>
+        <Link className={navigationStyles["text-link"]} href="/">
+          На главную
+        </Link>
+      </main>
+    );
 
   if (adaptiveUnavailable)
     return (
@@ -1803,7 +1869,7 @@ function PracticeProblemEpisode({
           onClick={handlePause}
           type="button"
         >
-          ← На главную
+          Сохранить и выйти
         </button>
       }
       finishAction={

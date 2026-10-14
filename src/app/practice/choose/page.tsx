@@ -7,6 +7,7 @@ import {
 import { HomeNavigation } from "../../home-navigation";
 import { LearningPathGuideLoader } from "../../../modules/practice/ui/learning-path";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
+import { UnfinishedPracticeContext } from "./unfinished-practice-context";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
@@ -21,13 +22,17 @@ export default function ChoosePracticePage() {
           не означает порядок сложности или уровень знаний.
         </p>
       </header>
+      <UnfinishedPracticeContext />
       <LearningPathGuideLoader />
       <section
         className={styles["free-choice"]}
         aria-labelledby="all-packs-title"
       >
         <h2 id="all-packs-title">Все наборы</h2>
-        <p>Свободный выбор остаётся доступен в любой момент.</p>
+        <p>
+          Можно выбрать любой набор. Если тренировка уже начата, сначала заверши
+          её.
+        </p>
       </section>
       <ul aria-label="Все наборы задач" className={styles["pack-grid"]}>
         {PRACTICE_PACKS.map((pack) => (

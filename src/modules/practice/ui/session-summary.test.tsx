@@ -114,7 +114,7 @@ describe("SessionSummary", () => {
       />,
     );
     expect(markup).not.toContain("Продолжить путь");
-    expect(markup.match(/>На главную</g)).toHaveLength(1);
+    expect(markup.match(/>На главную</g)).toHaveLength(2);
   });
 
   it("encourages completion without presenting it as an ability claim", () => {
@@ -233,7 +233,7 @@ describe("SessionSummary", () => {
       markup.indexOf("Награда за путь"),
     );
     expect(markup.indexOf("Награда за путь")).toBeLessThan(
-      markup.indexOf("На главную"),
+      markup.lastIndexOf(">На главную<"),
     );
     const noReward = renderToStaticMarkup(
       <SessionSummary

@@ -5,6 +5,9 @@ import {
   PRACTICE_PACKS,
   packHref,
 } from "../../../modules/practice/application/completed-practice-episode";
+vi.mock("../actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
 vi.mock("../../progress/actions", () => ({
   readServerLearningPath: vi.fn(async () => []),
 }));
@@ -26,8 +29,9 @@ describe("Choose Practice", () => {
       );
       expect(markup).toContain(`aria-label="Начать набор «${pack.name}»"`);
     }
-    expect(markup).toContain("Свободный выбор остаётся доступен");
+    expect(markup).toContain("Если тренировка уже начата, сначала заверши её");
     expect(markup).toContain('href="/"');
+    expect(markup).toContain(">На главную</a>");
     expect(markup).not.toContain("/simulation");
     expect(markup).not.toContain("/practice/transfer");
   });

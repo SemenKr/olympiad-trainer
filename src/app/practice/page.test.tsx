@@ -1,4 +1,7 @@
-import { installTestLocalOwner } from "../../modules/learner/local-ownership.test-helper";
+import {
+  rawTestLearnerStorage,
+  installTestLocalOwner,
+} from "../../modules/learner/local-ownership.test-helper";
 import { JSDOM } from "jsdom";
 import { act } from "react";
 import type { Root } from "react-dom/client";
@@ -6,6 +9,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const navigate = vi.hoisted(() => vi.fn());
+vi.mock("./actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("./knowledge-support-actions", () => ({
   readKnowledgeSupport: vi.fn(async () => null),
@@ -13,7 +20,7 @@ vi.mock("./knowledge-support-actions", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: navigate }),
 }));
 vi.mock("@/app/practice/actions", () => ({
   revealPracticeHint: vi.fn(),
@@ -46,6 +53,7 @@ import {
   startPractice,
 } from "../../modules/practice/application/practice-state";
 import {
+  completeServerBackedPracticeSession,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
   PRACTICE_SESSION_STORAGE_KEY,
   validatePracticeSessionSnapshot,
@@ -54,6 +62,11 @@ import {
   getActivePracticeProblem,
   PracticeSession,
 } from "../../modules/practice/ui/practice-session";
+import { UnfinishedPracticeContext } from "./choose/unfinished-practice-context";
+import {
+  LOCAL_OWNER_KEY,
+  LOCAL_IDENTITY_EVENT,
+} from "../../modules/learner/local-ownership";
 import PracticePage from "./page";
 import TransferPracticePage from "./transfer/page";
 import PackPracticePage from "./pack/page";
@@ -66,6 +79,7 @@ let root: Root;
 let dom: JSDOM;
 
 beforeEach(async () => {
+  navigate.mockClear();
   dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "http://localhost",
   });
@@ -181,7 +195,22 @@ describe("direct /practice restore", () => {
         JSON.stringify(snapshot),
       );
       await mountPractice(props);
-      expect(container.querySelector("h1")?.textContent).toBe(first.title);
+      expect(container.querySelector("h1")?.textContent).toBe(
+        "Сначала закончим текущую тренировку",
+      );
+      expect(container.textContent).toContain(storedPack.name);
+      expect(container.textContent).toContain(requestedPack.name);
+      expect(document.activeElement).toBe(container.querySelector("h1"));
+      expect(
+        [...container.querySelectorAll("a")].map((link) => [
+          link.textContent,
+          link.getAttribute("href"),
+        ]),
+      ).toEqual([
+        ["Открыть текущую тренировку", "/practice"],
+        ["Вернуться к наборам", "/practice/choose"],
+        ["На главную", "/"],
+      ]);
       expect(
         JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
       ).toEqual(snapshot);
@@ -290,7 +319,7 @@ describe("direct /practice restore", () => {
     ]);
   });
 
-  it("restores stored Pack B even when the route requests Pack A", async () => {
+  it("explains the conflict when Pack A is requested during Pack B", async () => {
     const snapshot = {
       sessionId,
       mode: "pack",
@@ -317,7 +346,9 @@ describe("direct /practice restore", () => {
     );
     const route = await PackPracticePage({ searchParams: Promise.resolve({}) });
     await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
-    expect(container.querySelector("h1")?.textContent).toBe("Рыцари и лжецы");
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Сначала закончим текущую тренировку",
+    );
     expect(
       JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
     ).toEqual(snapshot);
@@ -363,7 +394,7 @@ describe("direct /practice restore", () => {
     ]);
   });
 
-  it("restores stored Pack C even when the route requests Pack B", async () => {
+  it("explains the conflict when Pack B is requested during Pack C", async () => {
     const snapshot = {
       sessionId,
       mode: "pack",
@@ -393,7 +424,7 @@ describe("direct /practice restore", () => {
     });
     await mountPractice(route.props as ComponentProps<typeof PracticeSession>);
     expect(container.querySelector("h1")?.textContent).toBe(
-      "Три загадочных числа",
+      "Сначала закончим текущую тренировку",
     );
     expect(
       JSON.parse(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)!),
@@ -651,5 +682,247 @@ describe("direct /practice restore", () => {
     );
     await mountPractice();
     expect(container.querySelector("h1")?.textContent).toBe("Носки в пакете");
+  });
+});
+
+describe("Practice selection safety", () => {
+  async function requestPack(index = 1) {
+    const route = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: PRACTICE_PACKS[index].id }),
+    });
+    return route.props as ComponentProps<typeof PracticeSession>;
+  }
+
+  function savePack(index = 0) {
+    const pack = PRACTICE_PACKS[index];
+    const props = pageProblems();
+    const first = props.packs![pack.id][0];
+    const raw = JSON.stringify({
+      sessionId,
+      mode: "pack",
+      problemIds: pack.problemIds,
+      activeProblemIndex: 0,
+      completedResults: [],
+      activePractice: startPractice(),
+      ...(first.response.kind === "multiple-choice-set"
+        ? { selectedOptionIds: [] }
+        : { rawAnswer: "17" }),
+    });
+    localStorage.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+    return raw;
+  }
+
+  it.each(PRACTICE_PACKS.map((_, index) => index))(
+    "resumes matching pack %s with its saved draft",
+    async (index) => {
+      const before = savePack(index);
+      const props = await requestPack(index);
+      await mountPractice(props);
+      expect(container.querySelector("h1")?.textContent).toBe(
+        props.packs![PRACTICE_PACKS[index].id][0].title,
+      );
+      expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+      expect(container.textContent).toContain("Сохранить и выйти");
+    },
+  );
+
+  it.each([true, false])(
+    "save and exit navigates only after successful save (%s)",
+    async (succeeds) => {
+      const before = savePack(1);
+      await mountPractice(await requestPack());
+      if (!succeeds)
+        Object.defineProperty(dom.window.navigator.locks, "request", {
+          value: undefined,
+        });
+      await act(async () => {
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Сохранить и выйти")!
+          .click();
+      });
+      expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+      if (succeeds) expect(navigate).toHaveBeenCalledWith("/");
+      else {
+        expect(navigate).not.toHaveBeenCalled();
+        expect(container.textContent).toContain(
+          "Не удалось сохранить тренировку",
+        );
+      }
+    },
+  );
+
+  it("gates a selected pack against an unfinished adaptive task", async () => {
+    const before = savedTransfer("parrots-guaranteed-colors");
+    await mountPractice(await requestPack());
+    expect(container.textContent).toContain(
+      "Сначала закончим текущую тренировку",
+    );
+    expect(container.textContent).toContain("Попугаи в зоопарке");
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+  });
+
+  it.each([
+    "olympiad-trainer:practice-server-finish-request",
+    "olympiad-trainer:practice-progress-finish-pending",
+  ])("keeps unresolved %s bytes and prevents replacement", async (key) => {
+    const before = savePack();
+    localStorage.setItem(key, "unresolved");
+    await mountPractice(await requestPack());
+    expect(container.textContent).toContain(
+      key.endsWith("server-finish-request")
+        ? "Сначала закончим текущую тренировку"
+        : "Не удалось проверить сохранённую тренировку",
+    );
+    expect(navigate).not.toHaveBeenCalled();
+    expect(localStorage.getItem(key)).toBe("unresolved");
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+  });
+
+  it.each([0, 1])(
+    "handles no-next Pack A when pack %s is requested",
+    async (requestedIndex) => {
+      const pack = PRACTICE_PACKS[0];
+      const props = pageProblems();
+      const snapshot = {
+        sessionId,
+        mode: "pack",
+        status: "no-next",
+        completedResults: props.packs![pack.id].map((problem) => ({
+          problemId: problem.problemId,
+          problemTitle: problem.title,
+          summary: getPracticeSummary(finishPractice(startPractice())),
+          taskOutcome: "skipped",
+        })),
+      };
+      expect(validatePracticeSessionSnapshot(snapshot)).not.toBeNull();
+      const before = JSON.stringify(snapshot);
+      localStorage.setItem(PRACTICE_SESSION_STORAGE_KEY, before);
+      await mountPractice(await requestPack(requestedIndex));
+      expect(container.textContent).toContain(
+        requestedIndex === 0
+          ? "Сейчас больше нет задач в этой тренировке"
+          : "Сначала закончим текущую тренировку",
+      );
+      expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+    },
+  );
+
+  it("preserves a real pending Finish request through the gate and current-session entry", async () => {
+    const snapshot = {
+      sessionId,
+      mode: "pack" as const,
+      status: "no-next" as const,
+      completedResults: pageProblems().packs![PRACTICE_PACKS[0].id].map(
+        (problem) => ({
+          problemId: problem.problemId,
+          problemTitle: problem.title,
+          summary: getPracticeSummary(finishPractice(startPractice())),
+          taskOutcome: "skipped" as const,
+        }),
+      ),
+    };
+    const before = JSON.stringify(snapshot);
+    localStorage.setItem(PRACTICE_SESSION_STORAGE_KEY, before);
+    expect(
+      await completeServerBackedPracticeSession(
+        snapshot,
+        null,
+        snapshot.completedResults,
+        localStorage,
+        async () => {
+          throw new Error("lost response");
+        },
+      ),
+    ).toBe("outcome-unknown");
+    const key = "olympiad-trainer:practice-server-finish-request";
+    const pending = localStorage.getItem(key);
+    expect(pending).not.toBeNull();
+    await mountPractice(await requestPack());
+    expect(container.textContent).toContain(
+      "Сначала закончим текущую тренировку",
+    );
+    expect(localStorage.getItem(key)).toBe(pending);
+    await mountPractice();
+    expect(container.textContent).toContain(
+      "Сейчас больше нет задач в этой тренировке",
+    );
+    expect(localStorage.getItem(key)).toBe(pending);
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+  });
+
+  it("rechecks a gate after another tab changes the session", async () => {
+    savePack();
+    await mountPractice(await requestPack());
+    const newer = savePack(1);
+    await act(async () =>
+      window.dispatchEvent(new dom.window.Event("storage")),
+    );
+    expect(container.textContent).not.toContain(
+      "Сначала закончим текущую тренировку",
+    );
+    expect(container.querySelector("h1")?.textContent).toBe(
+      pageProblems().packs![PRACTICE_PACKS[1].id][0].title,
+    );
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(newer);
+  });
+
+  it("fails closed on an ownership change while the gate is open", async () => {
+    savePack();
+    await mountPractice(await requestPack());
+    const raw = rawTestLearnerStorage(localStorage);
+    const before = [...Array(raw.length)]
+      .map((_, index) => raw.key(index)!)
+      .filter((key) => key !== LOCAL_OWNER_KEY)
+      .map((key) => [key, raw.getItem(key)]);
+    raw.setItem(LOCAL_OWNER_KEY, "unresolved ownership");
+    await act(async () =>
+      window.dispatchEvent(new dom.window.Event(LOCAL_IDENTITY_EVENT)),
+    );
+    expect(container.textContent).toContain(
+      "Не удалось проверить сохранённую тренировку",
+    );
+    for (const [key, value] of before) expect(raw.getItem(key!)).toBe(value);
+  });
+
+  it("preserves work when Web Locks verification is unavailable", async () => {
+    const before = savePack();
+    Object.defineProperty(dom.window.navigator.locks, "request", {
+      value: undefined,
+      configurable: true,
+    });
+    await mountPractice(await requestPack());
+    expect(container.textContent).toContain(
+      "Не удалось проверить сохранённую тренировку",
+    );
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+  });
+
+  it("shows chooser context and refreshes after a cross-tab change", async () => {
+    const before = savePack();
+    await act(async () => root.render(<UnfinishedPracticeContext />));
+    expect(container.textContent).toContain(PRACTICE_PACKS[0].name);
+    expect(container.querySelector("a")?.getAttribute("href")).toBe(
+      "/practice",
+    );
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
+    localStorage.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+    await act(async () =>
+      window.dispatchEvent(new dom.window.Event("storage")),
+    );
+    expect(container.textContent).toBe("");
+  });
+
+  it("shows chooser verification errors with retry rather than claiming no unfinished work", async () => {
+    const before = savePack();
+    const key = "olympiad-trainer:practice-progress-finish-pending";
+    localStorage.setItem(key, "unresolved");
+    await act(async () => root.render(<UnfinishedPracticeContext />));
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Не удалось проверить",
+    );
+    localStorage.removeItem(key);
+    await act(async () => container.querySelector("button")!.click());
+    expect(container.textContent).toContain(PRACTICE_PACKS[0].name);
+    expect(localStorage.getItem(PRACTICE_SESSION_STORAGE_KEY)).toBe(before);
   });
 });
