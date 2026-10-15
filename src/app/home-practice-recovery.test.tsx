@@ -2,6 +2,7 @@ import { installImmediatePracticeSessionLock } from "../modules/practice/ui/prac
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./practice/actions", () => ({
@@ -58,6 +59,82 @@ afterEach(() => {
 });
 
 beforeEach(installImmediatePracticeSessionLock);
+
+it("reserves the initial action card with announced, non-interactive loading content", () => {
+  const container = document.createElement("div");
+  container.innerHTML = renderToStaticMarkup(<HomePracticeAction />);
+  const action = container.querySelector('[class*="next-action"]')!;
+  expect(action.querySelector('[role="status"]')?.textContent).toContain(
+    "Проверяем, есть ли незаконченная тренировка",
+  );
+  expect(action.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  expect(action.querySelector("a, button, [tabindex]")).toBeNull();
+});
+
+it("replaces loading content with verified Resume without changing the surrounding action card", async () => {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof readVerifiedPracticeSessionSnapshot>>,
+  ) => void;
+  vi.mocked(readVerifiedPracticeSessionSnapshot).mockImplementationOnce(
+    () => new Promise((done) => (resolve = done)),
+  );
+  vi.mocked(readVerifiedLatestCompletedResults).mockResolvedValue({
+    value: null,
+    interpretation: null,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<HomePracticeAction />));
+    const action = container.querySelector('[class*="next-action"]')!;
+    expect(action.querySelector('[role="status"]')).not.toBeNull();
+    expect(action.querySelector("a, button")).toBeNull();
+    await act(async () => resolve({ value: unfinished, interpretation: null }));
+    const loadedAction = container.querySelector('[class*="next-action"]')!;
+    expect(loadedAction.className).toBe(action.className);
+    expect(loadedAction.querySelector('[role="status"]')).toBeNull();
+    expect(
+      loadedAction.querySelector('a[href="/practice"]')?.textContent,
+    ).toContain("Продолжить тренировку");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it("restores the same loading footprint during a failed verification retry", async () => {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof readVerifiedPracticeSessionSnapshot>>,
+  ) => void;
+  vi.mocked(readVerifiedPracticeSessionSnapshot)
+    .mockRejectedValueOnce(Error("unavailable"))
+    .mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+  vi.mocked(readVerifiedLatestCompletedResults).mockResolvedValue({
+    value: null,
+    interpretation: null,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<HomePracticeAction />));
+    const action = container.querySelector('[class*="next-action"]')!;
+    expect(action.querySelector('[role="alert"]')?.textContent).toContain(
+      "Не удалось проверить сохранённую тренировку",
+    );
+    await act(async () =>
+      action.querySelector<HTMLButtonElement>("button")!.click(),
+    );
+    const retryAction = container.querySelector('[class*="next-action"]')!;
+    expect(retryAction.className).toBe(action.className);
+    expect(retryAction.querySelector('[role="status"]')).not.toBeNull();
+    expect(retryAction.querySelector("a, button")).toBeNull();
+    await act(async () => resolve({ value: unfinished, interpretation: null }));
+    expect(container.textContent).toContain("Продолжить тренировку");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
 
 it("keeps Resume usable while the secondary latest Summary verification is pending", async () => {
   let resolve!: (

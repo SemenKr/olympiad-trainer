@@ -198,9 +198,15 @@ export function HomePracticeAction() {
     />
   ) : (
     <HomePracticeLayout>
-      <p aria-live="polite" role="status">
-        Проверяем, есть ли незаконченная тренировка…
-      </p>
+      <div className={styles["next-action-loading"]} role="status">
+        <p>Проверяем, есть ли незаконченная тренировка…</p>
+        <div className={styles["next-action-skeleton"]} aria-hidden="true">
+          <span className={styles["skeleton-heading"]} />
+          <span className={styles["skeleton-line"]} />
+          <span className={styles["skeleton-line-short"]} />
+          <span className={styles["skeleton-action"]} />
+        </div>
+      </div>
     </HomePracticeLayout>
   );
 }

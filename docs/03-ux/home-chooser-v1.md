@@ -22,6 +22,8 @@ Simulation retains its separate secondary entry and unchanged `/simulation` rout
 
 Existing data loading and route guards are reused. The next-action region announces state changes; secondary loading/availability failures do not replace the primary action. No fabricated learner statistics or new content assets are added.
 
+The Home next-action card reserves a responsive loading footprint for its heading, explanation and action. While session and progress checks run, it shows a status message and non-interactive, decorative lines. The skeleton adds no focusable controls; loaded and error states retain their existing action precedence and focus handling. Real text may grow beyond the reserved space rather than clip.
+
 ## Learning Path v1 supersession
 
 [Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice uses one freely selectable catalog in the adopted editorial sequence, with a compact Path summary above it; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.
