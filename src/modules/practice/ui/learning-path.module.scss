@@ -73,7 +73,16 @@
 }
 
 .summary-count {
-  min-block-size: 2lh;
+  display: flex;
+  min-block-size: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ot-space-12);
+
+  > button {
+    width: auto;
+    flex-shrink: 0;
+  }
 }
 
 .summary-next {
@@ -95,10 +104,6 @@
 }
 
 @media (width >= 768px) {
-  .summary-count {
-    min-block-size: 1lh;
-  }
-
   .summary-next {
     min-block-size: 2lh;
   }

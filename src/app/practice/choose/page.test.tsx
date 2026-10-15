@@ -11,8 +11,11 @@ import {
   type PackId,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
-vi.mock("./unfinished-practice-context", () => ({
-  UnfinishedPracticeContext: () => null,
+vi.mock("../actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
+vi.mock("../../../modules/practice/ui/practice-session-storage", () => ({
+  readVerifiedPracticeSessionSnapshot: vi.fn(async () => ({ value: null })),
 }));
 vi.mock("../../../modules/practice/ui/server-progress-import", () => ({
   ensureServerProgressImported: vi.fn(async () => {}),
@@ -20,11 +23,16 @@ vi.mock("../../../modules/practice/ui/server-progress-import", () => ({
 vi.mock("../../progress/actions", () => ({ readServerLearningPath: vi.fn() }));
 
 import { readServerLearningPath } from "../../progress/actions";
+import { readVerifiedPracticeSessionSnapshot } from "../../../modules/practice/ui/practice-session-storage";
 import ChoosePracticePage from "./page";
 
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await installImmediatePracticeSessionLock();
+  vi.mocked(readVerifiedPracticeSessionSnapshot).mockResolvedValue({
+    value: null,
+    interpretation: null,
+  });
 });
 
 afterEach(() => {

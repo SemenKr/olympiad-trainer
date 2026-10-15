@@ -909,7 +909,8 @@ describe("Practice selection safety", () => {
     await act(async () =>
       window.dispatchEvent(new dom.window.Event("storage")),
     );
-    expect(container.textContent).toBe("");
+    expect(container.querySelector('a[href="/practice"]')).toBeNull();
+    expect(container.textContent).toContain("Путь тренировок");
   });
 
   it("shows chooser verification errors with retry rather than claiming no unfinished work", async () => {
