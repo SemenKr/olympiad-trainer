@@ -28,7 +28,7 @@ Home precedence: unfinished Practice (Resume/recovery/explicit Finish) → exist
 
 Summary only offers a Path continuation for Pack mode with known durable completion. Core, transfer, exploration and Review summaries retain Home as their primary destination. A Path read failure falls back to Home without manufacturing completion or a next step.
 
-Progress displays evidence, Path and Journey separately. Existing capability interpretations, adaptive priorities, Review, XP earning and Simulation contracts remain unchanged. Pack participation creates no capability or adaptive contribution. Browser-attested Practice facts remain browser-attested; this feature does not establish server-authoritative mathematical assessment.
+Progress displays evidence, Path and Journey separately. Capability interpretations, Review, XP earning and Simulation contracts remain unchanged. Pack participation creates no capability facts or target-specific adaptive contribution. [Adaptive Practice v1](adaptive-practice-v1.md) separately adopts hinted-transfer priority and allows a durable Pack Finish to satisfy the participation-history prerequisite for enumeration exploration. It does not alter Path completion or order. Browser-attested Practice facts remain browser-attested; these features do not establish server-authoritative mathematical assessment.
 
 ## Migration and verification
 

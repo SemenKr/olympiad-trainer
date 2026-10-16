@@ -4,7 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/app/practice/actions", () => ({
   verifyPersistedGuaranteeEvidenceFacts: vi.fn(),
 }));
+vi.mock("../../../app/practice/actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
 vi.mock("../../../app/progress/actions", () => ({
+  readServerAdaptiveRecommendation: vi.fn(async () => ({
+    availability: { status: "none" },
+    hasPracticeHistory: true,
+  })),
   importBrowserProgressEvidence: vi.fn(async () => {}),
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(async () => []),

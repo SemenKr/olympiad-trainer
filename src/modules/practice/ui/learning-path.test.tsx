@@ -1,5 +1,5 @@
-import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 // @vitest-environment jsdom
+import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
@@ -10,78 +10,61 @@ vi.mock("./server-progress-import", () => ({
   ensureServerProgressImported: vi.fn(async () => {}),
 }));
 import { readServerLearningPath } from "../../../app/progress/actions";
+import {
+  PRACTICE_PACKS,
+  packHref,
+} from "../application/completed-practice-episode";
 import { LearningPathGuideLoader } from "./learning-path";
+
+beforeEach(async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  await installImmediatePracticeSessionLock();
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.resetAllMocks();
   document.body.replaceChildren();
 });
-beforeEach(installImmediatePracticeSessionLock);
 
-describe("Learning Path guide", () => {
-  it("keeps every Pack selectable, with distinct accessible names and the next suggested entry", async () => {
-    vi.mocked(readServerLearningPath).mockResolvedValue(["pack-a"]);
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    try {
-      await act(async () => root.render(<LearningPathGuideLoader />));
-      const entries = [...container.querySelectorAll("ol > li")];
-      expect(entries).toHaveLength(12);
-      expect(entries[0].textContent).toContain("Есть завершённая тренировка");
-      expect(entries[1].textContent).toContain("Следующий ориентир");
-      expect(entries[1].querySelector("a")?.getAttribute("href")).toBe(
-        "/practice/pack?pack=pack-j",
-      );
-      expect(entries.every((entry) => entry.querySelector("a[href]"))).toBe(
-        true,
-      );
-      expect(
-        new Set(
-          entries.map((entry) =>
-            entry.querySelector("a")?.getAttribute("aria-label"),
-          ),
-        ).size,
-      ).toBe(12);
-      expect(container.textContent).toContain(
-        "Старые тренировки могли не получить такую отметку",
-      );
-    } finally {
-      await act(async () => root.unmount());
-    }
-  });
-  it("shows loading, preserves a retryable failure, then loads real records", async () => {
-    let rejectRead!: (reason: Error) => void;
-    vi.mocked(readServerLearningPath).mockImplementationOnce(
-      () =>
-        new Promise((_, reject) => {
-          rejectRead = reject;
-        }),
-    );
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    try {
-      await act(async () => root.render(<LearningPathGuideLoader />));
-      expect(container.querySelector('[role="status"]')?.textContent).toContain(
-        "Загружаем",
-      );
-      await act(async () => rejectRead(new Error("offline")));
-      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-        "Все наборы ниже всё равно доступны",
-      );
-      expect(container.querySelector("ol")).toBeNull();
-      vi.mocked(readServerLearningPath).mockResolvedValue(["pack-a", "pack-j"]);
-      await act(async () => container.querySelector("button")!.click());
-      expect(container.textContent).toContain(
-        "Сохранённые завершения: 2 из 12",
-      );
-      expect(
-        container
-          .querySelector('[data-state="suggested"] a')
-          ?.getAttribute("href"),
-      ).toBe("/practice/pack?pack=pack-h");
-    } finally {
-      await act(async () => root.unmount());
-    }
-  });
+describe("Compact Learning Path summary", () => {
+  it.each([
+    {
+      completed: ["pack-j", "pack-a", "pack-a"] as const,
+      count: 2,
+      next: "pack-h" as const,
+    },
+    { completed: [] as const, count: 0, next: "pack-a" as const },
+    { completed: PRACTICE_PACKS.map((pack) => pack.id), count: 12, next: null },
+  ])(
+    "keeps factual completion count and editorial next step ($count records)",
+    async ({ completed, count, next }) => {
+      vi.mocked(readServerLearningPath).mockResolvedValue(completed);
+      const container = document.createElement("div");
+      const root = createRoot(container);
+      try {
+        await act(async () => root.render(<LearningPathGuideLoader />));
+        expect(container.textContent).toContain(
+          `Сохранённые завершения: ${count} из 12`,
+        );
+        expect(container.querySelectorAll("article, ol, ul")).toHaveLength(0);
+        expect(container.textContent).toContain(
+          "Старые тренировки могли не получить отметку",
+        );
+        expect(container.textContent).toContain("а не решённые задачи");
+        if (next)
+          expect(container.querySelector("a")?.getAttribute("href")).toBe(
+            packHref(next),
+          );
+        else {
+          expect(container.querySelector("a")).toBeNull();
+          expect(container.textContent).toContain(
+            "Можно выбрать любой набор снова",
+          );
+        }
+      } finally {
+        await act(async () => root.unmount());
+      }
+    },
+  );
 });

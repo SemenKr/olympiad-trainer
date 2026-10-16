@@ -15,7 +15,7 @@ import {
 import {
   importLegacyProgress,
   readLearnerProgress,
-  readAdaptiveAvailability,
+  readAdaptiveRecommendation,
 } from "../../practice/server/learner-progress-persistence";
 import { knowledgeSupportAttempts as attempts } from "./schema";
 import { persistSupportStep, readSupportObservation } from "./persistence";
@@ -33,7 +33,7 @@ describe.skipIf(!testUrl)("PostgreSQL Knowledge Support", () => {
     const sessionId = randomUUID();
     await importLegacyProgress(learnerContext(learnerId), null);
     const beforeProgress = await readLearnerProgress(learnerContext(learnerId));
-    const beforeAdaptive = await readAdaptiveAvailability(
+    const beforeAdaptive = await readAdaptiveRecommendation(
       learnerContext(learnerId),
     );
     const [beforeLearner] = await getProgressDb()
@@ -143,9 +143,9 @@ describe.skipIf(!testUrl)("PostgreSQL Knowledge Support", () => {
       expect(await readLearnerProgress(learnerContext(learnerId))).toEqual(
         beforeProgress,
       );
-      expect(await readAdaptiveAvailability(learnerContext(learnerId))).toEqual(
-        beforeAdaptive,
-      );
+      expect(
+        await readAdaptiveRecommendation(learnerContext(learnerId)),
+      ).toEqual(beforeAdaptive);
       expect(
         await getProgressDb()
           .select()

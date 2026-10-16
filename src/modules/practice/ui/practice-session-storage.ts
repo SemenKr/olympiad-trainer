@@ -1713,6 +1713,7 @@ type PendingPracticeProgressFinish = Readonly<{
 }>;
 
 export type ServerPracticeFinishPayload = Readonly<{
+  version?: 2;
   sessionId: string;
   contributions: readonly PracticeProgressContribution[];
   episodeMode?: CompletedPracticeEpisodeMode;
@@ -1748,6 +1749,8 @@ function readServerPracticeFinishRequest(
       "progressBefore",
       "completedAfter",
     ];
+    if (record(value) && Object.hasOwn(value, "version"))
+      requestKeys.push("version");
     if (record(value) && Object.hasOwn(value, "adaptiveFacts"))
       requestKeys.push("adaptiveFacts");
     if (record(value) && Object.hasOwn(value, "episodeMode"))
@@ -1755,6 +1758,10 @@ function readServerPracticeFinishRequest(
     if (
       !record(value) ||
       !exactKeys(value, requestKeys) ||
+      (Object.hasOwn(value, "version") &&
+        (value.version !== 2 ||
+          Object.hasOwn(value, "adaptiveFacts") ||
+          !Object.hasOwn(value, "episodeMode"))) ||
       !validSessionId(value.sessionId) ||
       typeof value.unfinishedBefore !== "string" ||
       !(
@@ -1820,7 +1827,8 @@ function readServerPracticeFinishRequest(
       expected !== value.unfinishedBefore ||
       contributions.length > 2 ||
       JSON.stringify(value.contributions) !== JSON.stringify(contributions) ||
-      (JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts) &&
+      (!Object.hasOwn(value, "version") &&
+        JSON.stringify(value.adaptiveFacts) !== JSON.stringify(adaptiveFacts) &&
         JSON.stringify(value.adaptiveFacts) !==
           JSON.stringify(legacyBrothersFacts)) ||
       (Object.hasOwn(value, "episodeMode") &&
@@ -2297,7 +2305,6 @@ export async function completeServerBackedPracticeSession(
         const contributions = results
           .map(getPracticeProgressContribution)
           .filter((entry) => entry !== null);
-        const adaptiveFacts = adaptiveFinishFacts(session, results);
         const episodeMode = "mode" in session ? session.mode : "core";
         const episodeFacts = completedEpisodeFacts(results);
         if (
@@ -2316,7 +2323,7 @@ export async function completeServerBackedPracticeSession(
         request = {
           sessionId: session.sessionId,
           contributions,
-          ...(adaptiveFacts ? { adaptiveFacts } : {}),
+          version: 2,
           episodeMode,
           episodeFacts,
           unfinishedBefore,
@@ -2364,6 +2371,7 @@ export async function completeServerBackedPracticeSession(
 
       outcome = "outcome-unknown";
       await serverPersist({
+        ...(request.version === 2 ? { version: 2 as const } : {}),
         sessionId: request.sessionId,
         contributions: request.contributions,
         ...(request.adaptiveFacts

@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 import {
-  PRACTICE_PACKS,
+  packById,
   packHref,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { HomeNavigation } from "../../home-navigation";
-import { LearningPathGuideLoader } from "../../../modules/practice/ui/learning-path";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
+import { UnfinishedPracticeContext } from "./unfinished-practice-context";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
@@ -21,43 +21,45 @@ export default function ChoosePracticePage() {
           не означает порядок сложности или уровень знаний.
         </p>
       </header>
-      <LearningPathGuideLoader />
+      <UnfinishedPracticeContext />
       <section
         className={styles["free-choice"]}
         aria-labelledby="all-packs-title"
       >
         <h2 id="all-packs-title">Все наборы</h2>
-        <p>Свободный выбор остаётся доступен в любой момент.</p>
+        <p>
+          Можно выбрать любой набор. Если тренировка уже начата, сначала заверши
+          её.
+        </p>
       </section>
-      <ul aria-label="Все наборы задач" className={styles["pack-grid"]}>
-        {PRACTICE_PACKS.map((pack) => (
-          <li key={pack.id}>
-            <article
-              aria-labelledby={`${pack.id}-title`}
-              className={styles["pack-card"]}
-            >
-              <p className={styles.eyebrow}>
-                НАБОР {pack.id.replace("pack-", "").toUpperCase()}
-              </p>
-              <h2 id={`${pack.id}-title`}>{pack.name}</h2>
-              <p>
-                {
-                  LEARNING_PATH_V1.find((entry) => entry.packId === pack.id)
-                    ?.description
-                }
-              </p>
-              <p>{pack.problemIds.length} задачи</p>
-              <Link
-                className={styles.secondary}
-                href={packHref(pack.id)}
-                aria-label={`Начать набор «${pack.name}»`}
+      <ol aria-label="Все наборы задач" className={styles["pack-grid"]}>
+        {LEARNING_PATH_V1.map((entry, index) => {
+          const pack = packById(entry.packId)!;
+          return (
+            <li key={pack.id}>
+              <article
+                aria-labelledby={`${pack.id}-title`}
+                className={styles["pack-card"]}
               >
-                Начать набор
-              </Link>
-            </article>
-          </li>
-        ))}
-      </ul>
+                <p className={styles.eyebrow}>
+                  ШАГ {index + 1} · НАБОР{" "}
+                  {pack.id.replace("pack-", "").toUpperCase()}
+                </p>
+                <h2 id={`${pack.id}-title`}>{pack.name}</h2>
+                <p>{entry.description}</p>
+                <p>{pack.problemIds.length} задачи</p>
+                <Link
+                  className={styles.secondary}
+                  href={packHref(pack.id)}
+                  aria-label={`Начать набор «${pack.name}»`}
+                >
+                  Начать набор
+                </Link>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
       <Link className={styles["text-link"]} href="/">
         ← На главную
       </Link>

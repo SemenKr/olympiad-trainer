@@ -14,7 +14,7 @@ vi.mock("../../../app/practice/knowledge-support-actions", () => ({
 }));
 vi.mock("../../../app/progress/actions", () => ({
   persistPracticeFinishEvidence: vi.fn(),
-  readServerAdaptiveAvailability: vi.fn(),
+  readServerAdaptiveRecommendation: vi.fn(),
   readServerNextUsefulProblem: vi.fn(),
 }));
 vi.mock("@/app/practice/actions", () => ({

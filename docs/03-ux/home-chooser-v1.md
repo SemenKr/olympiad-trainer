@@ -22,6 +22,24 @@ Simulation retains its separate secondary entry and unchanged `/simulation` rout
 
 Existing data loading and route guards are reused. The next-action region announces state changes; secondary loading/availability failures do not replace the primary action. No fabricated learner statistics or new content assets are added.
 
+The Home next-action card reserves a responsive loading footprint for its heading, explanation and action. While session and progress checks run, it shows a status message and non-interactive, decorative lines. The skeleton adds no focusable controls; loaded and error states retain their existing action precedence and focus handling. Real text may grow beyond the reserved space rather than clip.
+
 ## Learning Path v1 supersession
 
-[Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice now adds the adopted editorial sequence before the unchanged free-choice registry list; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.
+[Learning Path v1](learning-path-v1.md) supersedes the returning neutral fallback above: unfinished → adaptive recommendation → fresh core Practice → guided Pack. All-recorded learners receive a free-choice action. Choose Practice uses one freely selectable catalog in the adopted editorial sequence, with a compact Path summary above it; J/K/L learner names omit technical prefixes. Existing Pack entry/recovery guards remain authoritative.
+
+## Stable chooser catalog — observed UX correction
+
+The former chooser rendered 12 guided cards asynchronously above 12 static free-choice cards. This duplicated every Pack, mixed card visuals and displaced the catalog after loading. The adopted correction replaces those two lists with one 12-Pack catalog, present on the initial render in editorial order A → J → H → L → D → G → E → I → C → B → F → K. Each card reuses the existing chooser visuals, registry name/count/route and distinct “Начать набор «{name}»” accessible link name, with its static Path position and orientation copy. Loading never changes card order or replaces a card/link.
+
+A compact “Путь тренировок” summary shows the count of recorded Pack Finishes and the earliest unrecorded Pack as “Следующий ориентир”, with “Продолжить путь”. All-recorded learners see factual repeat/free-choice wording. Loading and errors never imply zero completions. Retry, next-step and all-recorded states use the same reserved count, description and action slots; text may grow for accessibility rather than clip. All twelve catalog links remain available during every summary state. The single catalog keeps the chooser’s existing one-column layout below 1024px and three columns from 1024px, visible focus and practical targets.
+
+This evidence-driven correction supersedes the duplicate-list chooser described in Learning Path v1 and the earlier registry-order-only chooser above. It does not claim new Figma approval. Path order/completion meaning, existing unfinished-session context/entry gate, Practice persistence, Finish and Recovery remain unchanged.
+
+### Shared chooser status
+
+Unfinished-session verification and Path reads share the compact summary above the catalog. The count slot retains factual Path loading, completion and error states independently. The next-step slot announces session verification, offers Resume for verified unfinished work (including adaptive and Review), and directs no-next work back to Practice for explicit Finish. Only a verified absence of unfinished work permits the Path next-step action. Verification failure offers Retry and never means no unfinished work.
+
+No separate unfinished card is inserted or removed. The same count, description and action slots cover loading, errors and Retry; a Path failure alongside verified unfinished work retains Resume and a separate Path Retry. Refresh after storage, focus or learner ownership changes invalidates prior responses. Catalog links remain present and existing entry gates preserve drafts and pending Finish. Text can grow beyond the compact reserved lines without clipping.
+
+The integrated browser regression (`scripts/verify-chooser-layout.mjs`) mounts the real chooser and app SCSS with deferred client reads, tests both resolution orders at 320/768/1440px, and measures catalog displacement, overflow, control size and retained catalog nodes. It loads and verifies the Onest faces/variable from local Next build output (`.next/static`, or `APP_FONT_BUILD_DIR`) before measuring. The runner uses existing Playwright/esbuild installations (optionally supplied via `PLAYWRIGHT_MODULE`/`ESBUILD_MODULE`), includes long Russian fixture labels, errors/Retry and refresh events, and does not exercise live server or persistence behavior.

@@ -8,8 +8,8 @@ export function HomeNavigation({
 }: Readonly<{ current: string; recoveryAvailable?: boolean }>) {
   return (
     <nav aria-label="Навигация" className={styles.navigation}>
-      <Link href="/" aria-label="Olympiad Trainer — на главную">
-        Olympiad Trainer
+      <Link href="/" aria-label="На главную — Olympiad Trainer">
+        На главную
       </Link>
       <span aria-current="page">{current}</span>
       {recoveryAvailable ? (

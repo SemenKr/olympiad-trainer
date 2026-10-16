@@ -106,6 +106,7 @@ describe.skipIf(!testUrl)(
             request.contributions,
             request.adaptiveFacts,
             { mode: request.episodeMode, facts: request.episodeFacts },
+            request.version,
           );
           if (failure === "lost-response" && first) {
             first = false;
