@@ -8,6 +8,7 @@ export const IDENTITY_LOCK = "olympiad-trainer:identity-initialization";
 export const PRACTICE_LOCK = "olympiad-trainer:practice-session-mutation";
 export const SIMULATION_LOCK = "olympiad-trainer:simulation-editor";
 export const LOCAL_OWNER_KEY = "olympiad-trainer:local-owner-v1";
+export const START_FRESH_KEY = "olympiad-trainer:start-fresh-v1";
 export const IDENTITY_SWITCH_KEY = "olympiad-trainer:identity-switch-v1";
 export const LEARNER_LOCAL_KEYS = [
   "olympiad-trainer:practice-session",
@@ -85,6 +86,7 @@ export function suspendLocalLearner(notify = false) {
 export function currentLocalLearnerOwner(): LocalLearnerOwner {
   if (!active) fail();
   if (
+    active.store.getItem(START_FRESH_KEY) !== null ||
     active.store.getItem(IDENTITY_SWITCH_KEY) !== null ||
     active.store.getItem(LOCAL_OWNER_KEY) !== active.bindingRaw
   )
@@ -481,6 +483,40 @@ export async function transitionRecoveredLocalIdentity(
     suspendLocalLearner(true);
     const authenticated = await acknowledge();
     completeRecoveredSwitch(store, marker, authenticated, binding);
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
+  });
+}
+
+// A durable, explicitly confirmed intent survives a cookie response arriving
+// before the local binding. Old origin-wide bytes are never imported here.
+export async function startFreshLocalIdentity(
+  acknowledge: () => Promise<LocalLearnerOwner>,
+  store: Storage = window.localStorage,
+) {
+  return withIdentityBarrier(async () => {
+    const binding = readBinding(store);
+    confirmedWrite(store, START_FRESH_KEY, "confirmed-v1");
+    suspendLocalLearner();
+    const target = await acknowledge();
+    if (!isLocalLearnerOwner(target)) fail();
+    completeRecoveredSwitch(
+      store,
+      {
+        operationId: crypto.randomUUID(),
+        source: binding?.owner ?? null,
+        target,
+      },
+      target,
+      binding,
+    );
+    store.removeItem(IDENTITY_SWITCH_KEY);
+    if (store.getItem(IDENTITY_SWITCH_KEY) !== null) fail();
+    store.removeItem(START_FRESH_KEY);
+    if (store.getItem(START_FRESH_KEY) !== null) {
+      suspendLocalLearner();
+      fail();
+    }
     if (typeof window !== "undefined")
       window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
   });

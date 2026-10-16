@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   settings: undefined as Record<string, unknown> | undefined,
   row: null as null | Record<string, unknown>,
   inserts: 0,
+  databaseFailure: false,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({
@@ -18,7 +19,12 @@ vi.mock("next/headers", () => ({
     },
   }),
 }));
-vi.mock("./progress-db", () => ({ getProgressDb: () => db }));
+vi.mock("./progress-db", () => ({
+  getProgressDb: () => {
+    if (state.databaseFailure) throw new Error("Database offline");
+    return db;
+  },
+}));
 const queries = {
   select: () => ({
     from: () => ({
@@ -40,12 +46,20 @@ const queries = {
     }),
   }),
   insert: () => ({
-    values: async (row: Record<string, unknown>) => {
+    values: (row: Record<string, unknown>) => {
       state.inserts++;
       state.row = {
         id: "existing-learner",
         credentialGeneration: BigInt(0),
         ...row,
+      };
+      return {
+        returning: async () => [
+          {
+            learnerId: state.row!.id,
+            generation: state.row!.credentialGeneration,
+          },
+        ],
       };
     },
   }),
@@ -58,12 +72,14 @@ const db = {
 };
 import {
   initializeAnonymousLearner,
+  startFreshAnonymousLearner,
   resolveLearnerFromCookie,
   resolveExpectedLearnerFromCookie,
 } from "./learner-identity";
 
 beforeEach(() => {
   state.cookie = undefined;
+  state.databaseFailure = false;
   state.row = null;
   state.inserts = 0;
   state.settings = undefined;
@@ -154,4 +170,53 @@ describe("explicit anonymous identity boundary", () => {
     );
     expect(state.inserts).toBe(1);
   });
+});
+
+describe("confirmed start fresh", () => {
+  it.each([false, undefined, "true", {}, 1])(
+    "rejects non-confirmation %s without mutation",
+    async (confirmation) => {
+      state.cookie = "invalid";
+      await expect(startFreshAnonymousLearner(confirmation)).rejects.toThrow(
+        "confirmation",
+      );
+      expect(state.cookie).toBe("invalid");
+      expect(state.inserts).toBe(0);
+    },
+  );
+  it.each([undefined, "malformed", "A".repeat(43)])(
+    "creates only after deliberate consent for missing/invalid %s",
+    async (credential) => {
+      state.cookie = credential;
+      const owner = await startFreshAnonymousLearner(true);
+      expect(owner).toEqual({ learnerId: "existing-learner", generation: "0" });
+      expect(state.cookie).not.toBe(credential);
+      expect(state.inserts).toBe(1);
+      const token = state.cookie;
+      expect(await startFreshAnonymousLearner(true)).toEqual(owner);
+      expect(state.cookie).toBe(token);
+      expect(state.inserts).toBe(1);
+    },
+  );
+  it("preserves a valid profile even if another tab restored it before confirmation", async () => {
+    await initializeAnonymousLearner();
+    const before = { ...state.row };
+    const token = state.cookie;
+    await startFreshAnonymousLearner(true);
+    expect(state.row).toEqual(before);
+    expect(state.cookie).toBe(token);
+    expect(state.inserts).toBe(1);
+  });
+  it.each([undefined, "invalid", "A".repeat(43)])(
+    "database outage cannot replace %s",
+    async (credential) => {
+      state.cookie = credential;
+      state.databaseFailure = true;
+      await expect(startFreshAnonymousLearner(true)).rejects.toThrow(
+        "Database offline",
+      );
+      expect(state.cookie).toBe(credential);
+      expect(state.inserts).toBe(0);
+    },
+  );
 });

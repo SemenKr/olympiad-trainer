@@ -6,6 +6,8 @@ import {
 import { createShortNumericAnswerState } from "../practice/ui/short-numeric-answer-state";
 import {
   captureLearnerStorage,
+  startFreshLocalIdentity,
+  START_FRESH_KEY,
   currentLocalLearnerOwner,
   hasLocalLearnerBytes,
   reconcileAuthenticatedLocalOwner,
@@ -508,5 +510,147 @@ describe("authenticated local ownership", () => {
     expect(store.getItem(LEARNER_LOCAL_KEYS[0])).toBe("ambiguous");
     expect(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))).toBeNull();
     expect(hasLocalLearnerBytes(store)).toBe(true);
+  });
+});
+
+describe("deliberate fresh local identity", () => {
+  it.each([false, true])(
+    "quarantines legacy and prior namespaced Practice/Progress/Finish/Simulation work (bound=%s)",
+    async (bound) => {
+      let lease: Storage | null = null;
+      if (bound) {
+        await reconcileAuthenticatedLocalOwner(a, true, store);
+        lease = captureLearnerStorage();
+        for (const key of LEARNER_LOCAL_KEYS) lease.setItem(key, `old:${key}`);
+      }
+      for (const key of LEARNER_LOCAL_KEYS) store.setItem(key, `legacy:${key}`);
+      const before = LEARNER_LOCAL_KEYS.map((key) => [
+        store.getItem(key),
+        store.getItem(ownerStorageKey(a, key)),
+      ]);
+      await startFreshLocalIdentity(async () => b, store);
+      expect(currentLocalLearnerOwner()).toEqual(b);
+      for (const [i, key] of LEARNER_LOCAL_KEYS.entries()) {
+        expect(captureLearnerStorage().getItem(key)).toBeNull();
+        expect([
+          store.getItem(key),
+          store.getItem(ownerStorageKey(a, key)),
+        ]).toEqual(before[i]);
+      }
+      if (lease)
+        expect(() =>
+          lease!.setItem(LEARNER_LOCAL_KEYS[0], "stale write"),
+        ).toThrow();
+      captureLearnerStorage().setItem(
+        LEARNER_LOCAL_KEYS[0],
+        "new Practice work",
+      );
+      expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBe(
+        "new Practice work",
+      );
+    },
+  );
+  it.each([IDENTITY_LOCK, PRACTICE_LOCK, SIMULATION_LOCK])(
+    "held %s blocks server replacement and local changes",
+    async (lock) => {
+      await reconcileAuthenticatedLocalOwner(a, true, store);
+      held.add(lock);
+      const acknowledge = vi.fn(async () => b);
+      await expect(
+        startFreshLocalIdentity(acknowledge, store),
+      ).rejects.toThrow();
+      expect(acknowledge).not.toHaveBeenCalled();
+      expect(store.getItem(START_FRESH_KEY)).toBeNull();
+      expect(currentLocalLearnerOwner()).toEqual(a);
+    },
+  );
+  it("requires durable intent before server replacement and preserves bytes on write failure", async () => {
+    const acknowledge = vi.fn(async () => b);
+    store.setItem(LEARNER_LOCAL_KEYS[0], "old bytes");
+    store.setItem = () => {
+      throw new Error("storage offline");
+    };
+    await expect(startFreshLocalIdentity(acknowledge, store)).rejects.toThrow(
+      "storage offline",
+    );
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(store.getItem(LEARNER_LOCAL_KEYS[0])).toBe("old bytes");
+  });
+  it("retains intent after response loss and resumes binding without importing old work", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    captureLearnerStorage().setItem(LEARNER_LOCAL_KEYS[0], "old Practice");
+    await expect(
+      startFreshLocalIdentity(async () => {
+        throw new Error("response lost");
+      }, store),
+    ).rejects.toThrow();
+    expect(store.getItem(START_FRESH_KEY)).toBe("confirmed-v1");
+    expect(() => captureLearnerStorage()).toThrow();
+    await startFreshLocalIdentity(async () => b, store);
+    expect(store.getItem(START_FRESH_KEY)).toBeNull();
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+  });
+  it("resumes safely after the server succeeds but the new binding cannot be saved", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    captureLearnerStorage().setItem(
+      LEARNER_LOCAL_KEYS[0],
+      "old unfinished Practice",
+    );
+    const setItem = store.setItem;
+    let rejectBinding = true;
+    store.setItem = (key, value) => {
+      if (key === LOCAL_OWNER_KEY && rejectBinding) throw new Error("quota");
+      setItem(key, value);
+    };
+    const acknowledge = vi.fn(async () => b);
+    await expect(startFreshLocalIdentity(acknowledge, store)).rejects.toThrow(
+      "quota",
+    );
+    expect(acknowledge).toHaveBeenCalledOnce();
+    expect(store.getItem(START_FRESH_KEY)).toBe("confirmed-v1");
+    expect(() => captureLearnerStorage()).toThrow();
+    rejectBinding = false;
+    await startFreshLocalIdentity(async () => b, store);
+    expect(currentLocalLearnerOwner()).toEqual(b);
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+    expect(
+      JSON.parse(store.getItem(ownerStorageKey(a, LEARNER_LOCAL_KEYS[0]))!)
+        .payload,
+    ).toBe("old unfinished Practice");
+  });
+  it("invalidates another tab's captured lease immediately when fresh intent appears", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    const lease = captureLearnerStorage();
+    store.setItem(START_FRESH_KEY, "confirmed-v1");
+    expect(() =>
+      lease.setItem(LEARNER_LOCAL_KEYS[0], "stale Practice"),
+    ).toThrow();
+    expect(() => lease.getItem(LEARNER_LOCAL_KEYS[2])).toThrow();
+  });
+  it("can explicitly abandon an unresolved recovery marker without importing its source", async () => {
+    await reconcileAuthenticatedLocalOwner(a, true, store);
+    captureLearnerStorage().setItem(LEARNER_LOCAL_KEYS[0], "old Practice");
+    store.setItem(
+      IDENTITY_SWITCH_KEY,
+      JSON.stringify({
+        source: a,
+        target: { ...a, generation: "1" },
+        operationId: "interrupted",
+      }),
+    );
+    await startFreshLocalIdentity(async () => b, store);
+    expect(store.getItem(IDENTITY_SWITCH_KEY)).toBeNull();
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
+  });
+  it("retains a concurrently recovered valid profile's own work", async () => {
+    await reconcileAuthenticatedLocalOwner(b, true, store);
+    captureLearnerStorage().setItem(
+      LEARNER_LOCAL_KEYS[0],
+      "recovered own work",
+    );
+    await startFreshLocalIdentity(async () => b, store);
+    expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBe(
+      "recovered own work",
+    );
   });
 });

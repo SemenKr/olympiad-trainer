@@ -9,3 +9,22 @@
     outline-offset: 3px;
   }
 }
+
+.gate {
+  width: min(100%, 42rem);
+  margin-inline: auto;
+  padding: 24px 16px;
+  overflow-wrap: anywhere;
+
+  button {
+    min-height: 44px;
+    margin: 4px 8px 4px 0;
+    padding: 8px 12px;
+    white-space: normal;
+
+    &:focus-visible {
+      outline: 2px solid var(--ot-color-primary);
+      outline-offset: 3px;
+    }
+  }
+}
