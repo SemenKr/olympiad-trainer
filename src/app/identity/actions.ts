@@ -5,6 +5,7 @@ import {
   LEARNER_COOKIE_NAME,
   initializeAnonymousLearner,
   resolveLearnerFromCookie,
+  startFreshAnonymousLearner,
 } from "../../modules/practice/server/learner-identity";
 import { LearnerIdentityUnavailable } from "../../modules/practice/server/learner-auth";
 import type { LocalLearnerOwner } from "../../modules/learner/local-owner-context";
@@ -28,7 +29,7 @@ export async function initializeFreshAnonymousLearner(): Promise<void> {
 }
 
 export async function readAuthenticatedLearnerContext(): Promise<
-  LocalLearnerOwner | "missing" | "unavailable"
+  LocalLearnerOwner | "missing" | "invalid" | "unavailable"
 > {
   if ((await cookies()).get(LEARNER_COOKIE_NAME) === undefined)
     return "missing";
@@ -39,7 +40,13 @@ export async function readAuthenticatedLearnerContext(): Promise<
       generation: context.generation.toString(),
     };
   } catch (error) {
-    if (error instanceof LearnerIdentityUnavailable) return "unavailable";
-    throw error;
+    if (error instanceof LearnerIdentityUnavailable) return "invalid";
+    return "unavailable";
   }
+}
+
+export async function confirmStartFreshLearner(
+  confirmed: boolean,
+): Promise<LocalLearnerOwner> {
+  return startFreshAnonymousLearner(confirmed);
 }

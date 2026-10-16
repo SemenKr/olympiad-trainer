@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./actions", () => ({
   readAuthenticatedLearnerContext: vi.fn(),
   initializeFreshAnonymousLearner: vi.fn(),
+  confirmStartFreshLearner: vi.fn(),
 }));
 const navigation = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({
@@ -12,6 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 import {
   readAuthenticatedLearnerContext,
+  confirmStartFreshLearner,
   initializeFreshAnonymousLearner,
 } from "./actions";
 import LearnerIdentityGate from "./learner-identity-gate";
@@ -101,9 +103,7 @@ describe("explicit fresh-browser initialization gate", () => {
     async () => {
       const key = "olympiad-trainer:practice-server-finish-request";
       localStorage.setItem(key, "legacy pending request");
-      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(
-        "unavailable",
-      );
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
       await render();
       expect(container.textContent).not.toContain("learner content");
       expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
@@ -233,5 +233,125 @@ describe("explicit fresh-browser initialization gate", () => {
     expect(container.textContent).toContain("learner content");
     expect(readAuthenticatedLearnerContext).not.toHaveBeenCalled();
     expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+  });
+});
+
+function button(label: string) {
+  const found = [...container.querySelectorAll("button")].find(
+    (node) => node.textContent === label,
+  );
+  expect(found).toBeDefined();
+  return found!;
+}
+const freshOwner = {
+  ...owner,
+  learnerId: "00000000-0000-4000-8000-000000000002",
+};
+describe("Start fresh UX", () => {
+  it.each(["/practice", "/progress"])(
+    "confirms cookie loss without a code and restores %s with isolated local state",
+    async (path) => {
+      navigation.pathname = path;
+      localStorage.setItem(
+        "olympiad-trainer:practice-session",
+        "old unfinished work",
+      );
+      localStorage.setItem(
+        "olympiad-trainer:progress-evidence-v0",
+        "old evidence",
+      );
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("missing");
+      vi.mocked(confirmStartFreshLearner).mockImplementation(async () => {
+        vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(
+          freshOwner,
+        );
+        return freshOwner;
+      });
+      await render();
+      await act(async () => button("Начать заново").click());
+      expect(container.textContent).toContain(
+        "Прежняя история и незавершённая работа не перенесутся",
+      );
+      expect(document.activeElement?.id).toBe("start-fresh-heading");
+      expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+      await act(async () => button("Отмена").click());
+      expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+      expect(
+        localStorage.getItem("olympiad-trainer:start-fresh-v1"),
+      ).toBeNull();
+      await act(async () => button("Начать заново").click());
+      await act(async () => button("Подтверждаю: начать заново").click());
+      expect(confirmStartFreshLearner).toHaveBeenCalledExactlyOnceWith(true);
+      expect(container.textContent).toContain("learner content");
+      expect(
+        captureLearnerStorage().getItem("olympiad-trainer:practice-session"),
+      ).toBeNull();
+      expect(
+        captureLearnerStorage().getItem(
+          "olympiad-trainer:progress-evidence-v0",
+        ),
+      ).toBeNull();
+      expect(localStorage.getItem("olympiad-trainer:practice-session")).toBe(
+        "old unfinished work",
+      );
+      expect(container.querySelector('a[href="/restore"]')).toBeNull();
+    },
+  );
+  it("offers Start fresh for a stale cookie after database replacement", async () => {
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
+    await render();
+    expect(button("Начать заново")).toBeDefined();
+    expect(container.querySelector('a[href="/restore"]')).not.toBeNull();
+    expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+  });
+  it.each(["database", "network", "storage", "locks"])(
+    "never offers reset for %s failure",
+    async (failure) => {
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(
+        "unavailable",
+      );
+      if (failure === "network")
+        vi.mocked(readAuthenticatedLearnerContext).mockRejectedValue(
+          new Error("network"),
+        );
+      if (failure === "locks")
+        Object.defineProperty(navigator, "locks", {
+          configurable: true,
+          value: undefined,
+        });
+      const spy =
+        failure === "storage"
+          ? vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+              throw new Error("storage");
+            })
+          : null;
+      if (failure === "storage")
+        vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
+      try {
+        await render();
+        expect(container.textContent).not.toContain("Начать заново");
+        expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+      } finally {
+        spy?.mockRestore();
+      }
+    },
+  );
+  it("retries after a lost response by authenticated read without creating another profile", async () => {
+    localStorage.setItem("olympiad-trainer:practice-session", "old work");
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
+    vi.mocked(confirmStartFreshLearner).mockImplementation(async () => {
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(freshOwner);
+      throw new Error("response lost");
+    });
+    await render();
+    await act(async () => button("Начать заново").click());
+    await act(async () => button("Подтверждаю: начать заново").click());
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    await act(async () => button("Попробовать ещё раз").click());
+    expect(container.textContent).toContain("learner content");
+    expect(confirmStartFreshLearner).toHaveBeenCalledOnce();
+    expect(
+      captureLearnerStorage().getItem("olympiad-trainer:practice-session"),
+    ).toBeNull();
   });
 });

@@ -19,6 +19,7 @@ import { getProgressDb } from "./progress-db";
 import { learners, practiceFinishReceipts } from "./progress-schema";
 import {
   initializeAnonymousLearner,
+  startFreshAnonymousLearner,
   resolveLearnerFromCookie,
 } from "./learner-identity";
 import {
@@ -108,6 +109,72 @@ async function rotate(context: AuthenticatedLearner, token = false) {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL authenticated learner boundary", () => {
+  it("Start fresh after cookie loss preserves inaccessible history and isolates Practice/Progress", async () => {
+    const previous = await fresh();
+    const expected = {
+      learnerId: previous.learnerId,
+      generation: previous.generation.toString(),
+    };
+    await importLegacyProgress(previous, null);
+    const session = randomUUID();
+    await persistFinishContributions(previous, session, []);
+    const history = await getProgressDb()
+      .select()
+      .from(practiceFinishReceipts)
+      .where(eq(practiceFinishReceipts.learnerId, previous.learnerId));
+    const oldLearner = await getProgressDb()
+      .select()
+      .from(learners)
+      .where(eq(learners.id, previous.learnerId));
+    cookie.value = undefined;
+    const target = await startFreshAnonymousLearner(true);
+    expect(target.learnerId).not.toBe(previous.learnerId);
+    const context = await resolveLearnerFromCookie();
+    expect(await readRecentPracticeEpisodes(context)).toEqual([]);
+    expect(await readPracticeJourneyTotal(context)).toBe(0);
+    await expect(importBrowserProgressEvidence(null, expected)).rejects.toThrow(
+      "identity is unavailable",
+    );
+    await expect(
+      persistPracticeFinishEvidence(
+        session,
+        [],
+        undefined,
+        undefined,
+        expected,
+      ),
+    ).rejects.toThrow("identity is unavailable");
+    expect(
+      await getProgressDb()
+        .select()
+        .from(learners)
+        .where(eq(learners.id, previous.learnerId)),
+    ).toEqual(oldLearner);
+    expect(
+      await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(eq(practiceFinishReceipts.learnerId, previous.learnerId)),
+    ).toEqual(history);
+    const count = await countLearners();
+    expect(await startFreshAnonymousLearner(true)).toEqual(target);
+    expect(await countLearners()).toBe(count);
+  });
+  it("a stale cookie after database replacement needs explicit Start fresh", async () => {
+    const old = await fresh();
+    const token = cookie.value;
+    await getProgressDb()
+      .delete(learners)
+      .where(eq(learners.id, old.learnerId));
+    await expect(initializeAnonymousLearner()).rejects.toThrow(
+      "identity is unavailable",
+    );
+    expect(cookie.value).toBe(token);
+    const target = await startFreshAnonymousLearner(true);
+    expect(target.learnerId).not.toBe(old.learnerId);
+    expect(cookie.value).not.toBe(token);
+    expect((await resolveLearnerFromCookie()).learnerId).toBe(target.learnerId);
+  });
   it("rejects browser-local writes captured under another owner or older generation before any new receipt/attempt", async () => {
     const first = await fresh();
     const expected = {

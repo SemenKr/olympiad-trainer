@@ -59,8 +59,13 @@ export async function initializeAnonymousLearner(): Promise<void> {
     await resolveLearnerFromCookie();
     return;
   }
+  await createAnonymousLearner();
+}
+
+async function createAnonymousLearner(): Promise<LocalLearnerOwner> {
+  const jar = await cookies();
   const token = randomBytes(32).toString("base64url");
-  await getProgressDb()
+  const [created] = await getProgressDb()
     .insert(learners)
     .values({
       anonymousTokenHash: createHash("sha256").update(token).digest("hex"),
@@ -70,6 +75,10 @@ export async function initializeAnonymousLearner(): Promise<void> {
       guaranteeEvidence: emptyGuaranteeProgressEvidence(),
       impossibilityEvidence: emptyImpossibilityProgressEvidence(),
       enumerationEvidence: emptyEnumerationProgressEvidence(),
+    })
+    .returning({
+      learnerId: learners.id,
+      generation: learners.credentialGeneration,
     });
   jar.set(LEARNER_COOKIE_NAME, token, {
     httpOnly: true,
@@ -78,4 +87,27 @@ export async function initializeAnonymousLearner(): Promise<void> {
     path: "/",
     maxAge: LIFETIME_SECONDS,
   });
+  return {
+    learnerId: created.learnerId,
+    generation: created.generation.toString(),
+  };
+}
+
+// Deliberate abandonment is not recovery: no existing learner is modified.
+// A valid credential (including a successful retry) is always preserved.
+export async function startFreshAnonymousLearner(
+  confirmed: unknown,
+): Promise<LocalLearnerOwner> {
+  if (confirmed !== true) throw new Error("Explicit confirmation required.");
+  try {
+    const authenticated = await resolveLearnerFromCookie();
+    return {
+      learnerId: authenticated.learnerId,
+      generation: authenticated.generation.toString(),
+    };
+  } catch (error) {
+    // Operational/database failures must never authorize credential replacement.
+    if (!(error instanceof LearnerIdentityUnavailable)) throw error;
+  }
+  return createAnonymousLearner();
 }

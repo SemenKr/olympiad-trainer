@@ -230,3 +230,14 @@ Home provides the immediate action, Progress provides qualitative history, and P
 Validation: project vision and both accepted UX flow documents were inspected; required first-visit, returning-learner, navigation, empty-state, continuity, edge-case, alternative, and explicit-answer coverage is present. This is the only intended document change. Run `git diff --check` before acceptance.
 
 **READY** — reviewable UX-domain proposal, not an implementation authorization.
+
+
+## Identity Start Fresh v1 — adopted 2026-10-16
+
+This bounded addition follows the product-owner decision to allow deliberate abandonment after browser identity loss without a recovery code. It does not add first-visit onboarding.
+
+When browser access is missing with saved work, or the credential is invalid, Home, Practice and Progress show an identity gate. The learner can retry, **Восстановить доступ по коду**, or **Начать заново**. No recovery code is required to start a new anonymous profile. Choosing Start fresh first opens an inline confirmation with a focused heading; cancellation returns to the error screen without changing cookies or local work. A second, explicit **Подтверждаю: начать заново** action performs the change.
+
+The confirmation explains: previous history and unfinished work will not transfer; previous server history is not deleted; access to it needs the saved code or the original browser profile. Without either, Start fresh cannot recover that history. The old local Practice, Finish, Progress and Simulation work is quarantined, not offered as unfinished work for the new learner. Practice opens a new session and Progress starts with the new profile's empty history. The existing code-recovery route remains available.
+
+Server/network/storage or Web Locks failures show a calm retry message, with no Start fresh action based on that failure. Other tabs with a live Practice mutation or Simulation editor must release their lock before confirmation can proceed. Pending confirmation shows the existing loading state and prevents duplicate submission. Interrupted success resumes through authenticated checking and local isolation; it must not silently create another profile. Returning tabs discard old in-memory learner state before using the new profile.
