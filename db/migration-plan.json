@@ -1,0 +1,23 @@
+{
+  "base": [
+    "0001_learner_progress.sql",
+    "0002_adaptive_transfer_status.sql",
+    "0003_parrots_transfer_status.sql",
+    "0004_practice_completed_episodes.sql",
+    "0005_enumeration_exploration.sql",
+    "0006_content_scale_pack_a.sql",
+    "0007_knowledge_support.sql",
+    "0008_practice_journey.sql",
+    "0009_practice_review.sql",
+    "0010_simulation.sql",
+    "0011_learning_path_pack_receipts.sql",
+    "0012_learner_identity_boundary.sql",
+    "0013_learner_recovery_credentials.sql"
+  ],
+  "expansion": [
+    "0018_adaptive_compat_expand_basis.sql",
+    "0016_adaptive_compat_capture.sql",
+    "0019_adaptive_compat_capture_basis.sql"
+  ],
+  "contract": "0017_adaptive_compat_contract.sql"
+}

@@ -160,6 +160,7 @@ describe("server-owned Review boundary", () => {
     async (kind) => {
       state.rows = [
         [learner],
+        [],
         kind === "missing" ? [] : [assignment],
         kind === "foreign"
           ? []
@@ -191,7 +192,7 @@ describe("server-owned Review boundary", () => {
   it.each([undefined, { mode: "core", facts: sourceFacts }])(
     "rejects omitted or forged core mode for a reserved session",
     async (value) => {
-      state.rows = [[learner], [assignment]];
+      state.rows = [[learner], [], [assignment]];
       await expect(
         persistFinishContributions(
           learnerContext(learnerId),
@@ -243,6 +244,7 @@ describe("server-owned Review boundary", () => {
   it("persists explicit server provenance and engagement award without evidence changes", async () => {
     state.rows = [
       [learner],
+      [],
       [assignment],
       [{ mode: "core", episodeFacts: sourceFacts }],
       [],

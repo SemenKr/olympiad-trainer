@@ -8,8 +8,8 @@ export const readServerLearningPath = () =>
   readForCurrentOwner(actions.readServerLearningPath);
 export const readServerNextUsefulProblem = () =>
   readForCurrentOwner(actions.readServerNextUsefulProblem);
-export const readServerAdaptiveAvailability = () =>
-  readForCurrentOwner(actions.readServerAdaptiveAvailability);
+export const readServerAdaptiveRecommendation = () =>
+  readForCurrentOwner(actions.readServerAdaptiveRecommendation);
 export const readServerProgress = () =>
   readForCurrentOwner(actions.readServerProgress);
 export const readServerRecentPracticeEpisodes = () =>

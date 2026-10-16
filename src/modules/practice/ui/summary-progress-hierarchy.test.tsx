@@ -5,7 +5,14 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../../app/practice/actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
 vi.mock("../../../app/progress/actions", () => ({
+  readServerAdaptiveRecommendation: vi.fn(async () => ({
+    availability: { status: "none" },
+    hasPracticeHistory: true,
+  })),
   readServerProgress: vi.fn(),
   readServerRecentPracticeEpisodes: vi.fn(async () => []),
   readServerPracticeJourney: vi.fn(async () => 70),
@@ -175,7 +182,7 @@ describe("Summary and Progress hierarchy", () => {
         }
         if (available === null)
           expect(
-            container.querySelector('[role="alert"]')?.textContent,
+            review?.querySelector('[role="alert"]')?.textContent,
           ).toContain("Не удалось проверить");
       } finally {
         await act(async () => root.unmount());

@@ -279,6 +279,7 @@ describe("guarantee Progress evidence", () => {
         },
 
         TEST_LOCAL_OWNER,
+        2,
       );
       expect(
         storage.getItem("olympiad-trainer:practice-server-finish-request"),
@@ -1621,8 +1622,9 @@ describe("guarantee Progress evidence", () => {
 });
 
 function withoutOwner(call: readonly unknown[]) {
-  expect(call.at(-1)).toEqual(TEST_LOCAL_OWNER);
-  const payload = call.slice(0, -1);
+  const modern = call.at(-1) === 2;
+  expect(call.at(modern ? -2 : -1)).toEqual(TEST_LOCAL_OWNER);
+  const payload = call.slice(0, modern ? -2 : -1);
   while (payload.at(-1) === undefined) payload.pop();
   return payload;
 }

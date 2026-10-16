@@ -45,6 +45,91 @@ const observation = {
 };
 
 describe("one adaptive transfer episode", () => {
+  it.each([
+    "brothers-ages-products",
+    "parrots-guaranteed-colors",
+    "pages-without-digit-one",
+  ] as const)(
+    "keeps historical pending bytes and payload semantics for %s",
+    async (problemId) => {
+      const store = storage();
+      const session = startAdaptivePracticeSession(problemId);
+      const answer = {
+        rawAnswer: "",
+        status: "typing" as const,
+        practice: startPractice(),
+      };
+      expect(await createPracticeSessionSnapshot(session, answer, store)).toBe(
+        true,
+      );
+      const result = {
+        problemId,
+        problemTitle:
+          problemId === "brothers-ages-products"
+            ? "Возраст братьев"
+            : problemId === "parrots-guaranteed-colors"
+              ? "Попугаи в зоопарке"
+              : "Страницы без цифры 1",
+        summary: {
+          outcome: "no-valid-submissions" as const,
+          validSubmissionCount: 0,
+          hintExposures: [],
+          solutionExposure: null,
+        },
+      };
+      const key = "olympiad-trainer:practice-server-finish-request";
+      await completeServerBackedPracticeSession(
+        session,
+        answer,
+        [result],
+        store,
+        async () => {
+          throw new Error("offline");
+        },
+      );
+      const historical = JSON.parse(store.getItem(key)!);
+      delete historical.version;
+      historical.adaptiveFacts =
+        problemId === "brothers-ages-products"
+          ? { attempted: false, solutionExposed: false }
+          : {
+              problemId,
+              attempted: problemId === "pages-without-digit-one",
+              solutionExposed: false,
+            };
+      const originalBytes = JSON.stringify(historical);
+      store.setItem(key, originalBytes);
+      const requests: ServerPracticeFinishPayload[] = [];
+      expect(
+        await completeServerBackedPracticeSession(
+          session,
+          answer,
+          [result],
+          store,
+          async (request) => {
+            requests.push(request);
+            throw new Error("response lost");
+          },
+        ),
+      ).toBe("outcome-unknown");
+      expect(store.getItem(key)).toBe(originalBytes);
+      expect(requests[0]).not.toHaveProperty("version");
+      expect(requests[0].adaptiveFacts).toEqual(historical.adaptiveFacts);
+      expect(
+        await completeServerBackedPracticeSession(
+          session,
+          answer,
+          [result],
+          store,
+          async (request) => {
+            requests.push(request);
+          },
+        ),
+      ).toBe("completed");
+      expect(requests[1]).toEqual(requests[0]);
+      expect(store.getItem(key)).toBeNull();
+    },
+  );
   it("preserves pages exploration identity through pause, lost Finish response, and retry", async () => {
     const store = storage();
     const session = startAdaptivePracticeSession("pages-without-digit-one");
@@ -105,11 +190,7 @@ describe("one adaptive transfer episode", () => {
       ),
     ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
-      adaptiveFacts: {
-        problemId: "pages-without-digit-one",
-        attempted: true,
-        solutionExposed: false,
-      },
+      version: 2,
       episodeMode: "exploration",
       episodeFacts: { problems: [{ problemId: "pages-without-digit-one" }] },
       contributions: [
@@ -204,11 +285,7 @@ describe("one adaptive transfer episode", () => {
       ),
     ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
-      adaptiveFacts: {
-        problemId: "parrots-guaranteed-colors",
-        attempted: true,
-        solutionExposed: false,
-      },
+      version: 2,
       contributions: [
         {
           bucket: "guarantee",
@@ -286,7 +363,7 @@ describe("one adaptive transfer episode", () => {
     ).toBe("outcome-unknown");
     expect(requests[0]).toMatchObject({
       sessionId: session.sessionId,
-      adaptiveFacts: { attempted: true, solutionExposed: false },
+      version: 2,
     });
     expect(requests[0].contributions).toHaveLength(1);
     expect(requests[0].contributions[0]).toMatchObject({
@@ -362,7 +439,7 @@ describe("one adaptive transfer episode", () => {
       ),
     ).toBe("completed");
     expect(requests[0]).toMatchObject({
-      adaptiveFacts: { attempted: true, solutionExposed: false },
+      version: 2,
       contributions: [],
     });
     expect(await readPracticeSessionSnapshot(store)).toBeNull();

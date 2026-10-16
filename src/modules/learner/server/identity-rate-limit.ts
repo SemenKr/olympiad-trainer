@@ -4,6 +4,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import { sql } from "drizzle-orm";
 import { Pool } from "pg";
 import { getProgressDb } from "../../practice/server/progress-db";
+import { runtimeDatabaseUrl } from "../../practice/server/database-environment.mjs";
 import { operationalHash } from "./recovery-secrets";
 
 export class CredentialRateLimited extends Error {
@@ -68,8 +69,7 @@ let scheduledCleanupPool: Pool | null = null;
 
 function getScheduledCleanupPool() {
   if (scheduledCleanupPool) return scheduledCleanupPool;
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL is required.");
+  const connectionString = runtimeDatabaseUrl(process.env);
   scheduledCleanupPool = new Pool({
     connectionString,
     max: 1,

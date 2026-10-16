@@ -11,7 +11,7 @@ The editorial sequence is A → J → H → L → D → G → E → I → C → 
 ## Surfaces and wording
 
 - **Home:** one primary action following the adopted precedence. A returning learner sees `Продолжить путь` and the earliest Pack without a marker. If all are recorded, offer `Выбрать тренировку`. Review and other destinations stay secondary.
-- **Choose Practice:** guided ordered cards followed by the complete registry-order free-choice list. Each card shows position, real name, short content orientation and `Есть завершённая тренировка`, `Следующий ориентир` or `Можно выбрать`. No locks. J/K/L titles omit technical prefixes.
+- **Choose Practice:** one catalog present from the initial render in editorial order, with position, real name and short content orientation. All Packs remain freely selectable. A compact summary above it shows recorded completion count and the earliest unrecorded Pack; it never adds another Pack catalog. J/K/L titles omit technical prefixes. See the [observed chooser correction](home-chooser-v1.md#stable-chooser-catalog--observed-ux-correction).
 - **Summary:** task facts precede Journey rewards and next actions. Only Pack mode with a durable marker offers the next Path entry; other modes and unknown markers retain Home. Navigation does not change outcomes. All-recorded Pack Summary offers free choice.
 - **Progress:** capability evidence remains in its own section. Path shows distinct Packs with recorded Finish and the optional next entry; Journey keeps XP/levels/badges in its own card. Path markers and Journey levels mean different things.
 
@@ -19,11 +19,11 @@ Copy explicitly explains that old trainings may lack markers. `Сохранён�
 
 ## States and accessibility
 
-The guide announces loading and read errors, offers Retry, and never replaces failure with zero markers. The static free-choice list remains available during guide loading/failure. Home preserves Resume, adaptive and fresh core actions when Path alone fails; returning guided states offer Retry/free choice. Progress preserves verified evidence/Journey and gives Path its own Retry/free-choice surface; Summary degrades to Home if optional Path information fails.
+The guide announces loading and read errors, offers Retry, and never replaces failure with zero markers. The single static catalog remains available during summary loading/failure; reserved count, description and action slots keep the summary footprint stable. Home preserves Resume, adaptive and fresh core actions when Path alone fails; returning guided states offer Retry/free choice. Progress preserves verified evidence/Journey and gives Path its own Retry/free-choice surface; Summary degrades to Home if optional Path information fails.
 
-Cards use a semantic ordered list; state is expressed in text as well as styling. Pack links have distinct accessible names. Controls have at least 44px targets, visible keyboard focus and forced-color borders. No reward animation is added.
+The chooser catalog uses a semantic ordered list; state is expressed in text as well as styling. Pack links have distinct accessible names. Controls have at least 44px targets, visible keyboard focus and forced-color borders. No reward animation is added.
 
-Chooser is one column below 768px, two at 768px and three at 1200px. Progress preserves evidence-first mobile DOM order followed by Path, Journey, destinations and history; desktop places separate Path/Journey cards beside evidence. Existing shells and tokens are reused. Free-choice anchors remain present regardless of unfinished Practice, and existing Pack entry guards preserve the draft.
+Chooser retains its existing single column below 1024px and three columns from 1024px. Progress preserves evidence-first mobile DOM order followed by Path, Journey, destinations and history; desktop places separate Path/Journey cards beside evidence. Existing shells and tokens are reused. Free-choice anchors remain present regardless of unfinished Practice, and existing Pack entry guards preserve the draft.
 
 This extension reuses the adopted UX v1 visual system referenced by Home/Chooser and Summary/Progress documents. It does not claim a new Figma approval or exact new Figma frames.
 

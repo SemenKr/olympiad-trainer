@@ -230,3 +230,11 @@ Home provides the immediate action, Progress provides qualitative history, and P
 Validation: project vision and both accepted UX flow documents were inspected; required first-visit, returning-learner, navigation, empty-state, continuity, edge-case, alternative, and explicit-answer coverage is present. This is the only intended document change. Run `git diff --check` before acceptance.
 
 **READY** — reviewable UX-domain proposal, not an implementation authorization.
+
+## Practice pack selection with unfinished work
+
+Selecting a different Pack does not silently restore another task. After the existing verified snapshot read, Practice shows “Сначала закончим текущую тренировку”, identifies the current session/Pack and requested Pack, and offers “Открыть текущую тренировку”, “Вернуться к наборам”, and “На главную”. The first action opens `/practice`, which verifies current work again. Matching Packs resume normally, including the no-next state. Choosing a Pack during unfinished core, adaptive or Review work uses the same gate.
+
+The chooser shows verified unfinished-session context and explains that the current training must be finished before starting another Pack. Read failures offer retry; they never claim there is no unfinished work. Chooser context and an open gate refresh on storage, focus and local identity events. Existing pending Finish recovery remains authoritative. No session is deleted/replaced, no Finish is automatic, and no requested destination is persisted through Finish/Recovery. After explicit Finish, the learner sees the existing Summary and can choose again.
+
+Shared navigation visibly says “На главную”. Active Practice uses “Сохранить и выйти” for its existing pause action, returning Home only after saving successfully and retaining all existing pending/failure guards. These labels clarify navigation without changing learning, ownership, Web Locks, receipt or Recovery rules.

@@ -55,6 +55,9 @@ describe("Progress server actions", () => {
       "cookie-owned-learner",
       expect.any(String),
       expect.any(Array),
+      undefined,
+      undefined,
+      undefined,
     );
     expect(readLearnerProgress).toHaveBeenCalledWith("cookie-owned-learner");
     expect(readRecentPracticeEpisodes).toHaveBeenCalledWith(

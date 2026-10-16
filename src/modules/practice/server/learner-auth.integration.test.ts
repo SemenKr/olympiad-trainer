@@ -1,3 +1,4 @@
+import { migrateTestSchema } from "../../../test/migrate-test-schema";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
@@ -34,7 +35,7 @@ import {
   readPracticeJourneyTotal,
   readPracticeJourneyFinish,
   readReviewAvailability,
-  readAdaptiveAvailability,
+  readAdaptiveRecommendation,
   readNextUsefulProblem,
   startReview,
 } from "./learner-progress-persistence";
@@ -63,10 +64,7 @@ beforeAll(async () => {
   try {
     await client.query(`CREATE SCHEMA "${suiteSchema}"`);
     await client.query(`SET search_path TO "${suiteSchema}"`);
-    for (const name of (await readdir("db/migrations"))
-      .filter((name) => name.endsWith(".sql"))
-      .sort())
-      await client.query(await readFile(`db/migrations/${name}`, "utf8"));
+    await migrateTestSchema(client);
     const url = new URL(testUrl);
     url.searchParams.set("options", `-c search_path=${suiteSchema}`);
     isolatedUrl = url.toString();
@@ -249,7 +247,7 @@ describe.skipIf(!testUrl)("PostgreSQL authenticated learner boundary", () => {
         () => readPracticeJourneyTotal(context),
         () => readPracticeJourneyFinish(context, session),
         () => readReviewAvailability(context),
-        () => readAdaptiveAvailability(context),
+        () => readAdaptiveRecommendation(context),
         () => readNextUsefulProblem(context),
         () => startReview(context),
         () => readSupportObservation(context, session),

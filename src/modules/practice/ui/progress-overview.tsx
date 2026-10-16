@@ -20,6 +20,7 @@ import styles from "./progress-overview.module.scss";
 import { ProgressPracticeJourney } from "./practice-journey";
 import { ProgressLearningPath } from "./learning-path";
 import { ReviewEntry } from "./review-entry";
+import { ProgressNextUsefulWork } from "./progress-next-useful-work";
 
 type ProgressLoad =
   | { status: "loading" }
@@ -146,9 +147,18 @@ export function ProgressOverview({
           </div>
           <div className={styles.support}>
             <div className={styles.next}>
+              <ProgressNextUsefulWork
+                completedPackIds={load.completedPackIds}
+                onPathRetry={() => {
+                  setLoad({ status: "loading" });
+                  setRetry((value) => value + 1);
+                }}
+                actionClassName={styles.primary}
+                className={styles["next-action"]}
+              />
               <ReviewEntry
                 available={load.reviewAvailable}
-                actionClassName={styles.primary}
+                actionClassName={styles.secondary}
                 className={styles["next-action"]}
               />
             </div>

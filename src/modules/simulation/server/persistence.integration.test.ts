@@ -47,6 +47,7 @@ describe.skipIf(!testUrl)(
         "0011_learning_path_pack_receipts.sql",
         "0012_learner_identity_boundary.sql",
         "0013_learner_recovery_credentials.sql",
+        "0014_adaptive_target_usage.sql",
       ];
       for (const name of names)
         await client.query(await readFile(`db/migrations/${name}`, "utf8"));
