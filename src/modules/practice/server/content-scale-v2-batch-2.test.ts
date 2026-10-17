@@ -454,16 +454,16 @@ const batch = [
 ] as const;
 
 describe("Content Scale v2 — Batch 2", () => {
-  it("resolves 42 distinct production Grade-5 problems with twelve ordinary Packs", () => {
+  it("resolves all distinct production Grade-5 problems with ordinary Packs", () => {
     const ids = [
       ...CORE_EPISODE_PROBLEM_IDS,
       ...TRANSFER_EPISODE_PROBLEM_IDS,
       EXPLORATION_EPISODE_PROBLEM_ID,
       ...PRACTICE_PACKS.flatMap((pack) => pack.problemIds),
     ];
-    expect(PRACTICE_PACKS).toHaveLength(12);
-    expect(ids).toHaveLength(42);
-    expect(new Set(ids).size).toBe(42);
+    expect(PRACTICE_PACKS).toHaveLength(15);
+    expect(ids).toHaveLength(51);
+    expect(new Set(ids).size).toBe(51);
     for (const id of ids) {
       expect(getProblemDefinition(id)).toMatchObject({
         id,

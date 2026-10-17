@@ -41,6 +41,9 @@ describe("completed Practice episode facts", () => {
       "pack-j",
       "pack-k",
       "pack-l",
+      "pack-m",
+      "pack-n",
+      "pack-o",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -149,6 +152,33 @@ describe("completed Practice episode facts", () => {
           "five-fridays-calendar",
           "circular-table-seat-count",
           "balanced-six-groups",
+        ],
+      },
+      {
+        id: "pack-m",
+        name: "Условия и выводы",
+        problemIds: [
+          "false-box-labels",
+          "pirate-coin-redistribution",
+          "bicycle-lock-code",
+        ],
+      },
+      {
+        id: "pack-n",
+        name: "Позиции и подсчёт",
+        problemIds: [
+          "crow-wire-positions",
+          "maximum-grid-neighbor-sum",
+          "rectangle-knight-count",
+        ],
+      },
+      {
+        id: "pack-o",
+        name: "Числа и закономерности",
+        problemIds: [
+          "winter-day-number",
+          "six-position-colorings",
+          "five-lamp-pattern",
         ],
       },
     ]);

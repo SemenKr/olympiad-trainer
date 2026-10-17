@@ -125,7 +125,8 @@ export function validatePracticeContent(
         ["school", "invitational"].includes(v.stage) &&
         Number.isInteger(v.problemNumber) &&
         v.problemNumber > 0 &&
-        (v.variant === undefined || v.variant === 1),
+        (v.variant === undefined ||
+          (Number.isInteger(v.variant) && v.variant > 0)),
       `${label}: provenance metadata`,
     );
     for (const [reference, source] of [

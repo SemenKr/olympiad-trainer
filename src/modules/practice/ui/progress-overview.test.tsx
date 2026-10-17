@@ -113,7 +113,7 @@ describe("Progress overview", () => {
       <ProgressLearningPath completedPackIds={["pack-a", "pack-j"]} />,
     );
     expect(markup).toContain("Путь тренировок");
-    expect(markup).toContain("2 из 12 наборов");
+    expect(markup).toContain("2 из 15 наборов");
     expect(markup).toContain("Следующий ориентир:");
     expect(markup).toContain("Пропорции и баланс");
     expect(markup).toContain("Продолжить путь");

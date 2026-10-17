@@ -61,6 +61,19 @@ export const LEARNING_PATH_V1 = [
     packId: "pack-k",
     description: "Собираем несколько условий в одно доказательное рассуждение.",
   },
+  {
+    packId: "pack-m",
+    description:
+      "Проверяем ложные условия и восстанавливаем скрытые количества.",
+  },
+  {
+    packId: "pack-n",
+    description: "Считаем позиции и исследуем соседство на сетке.",
+  },
+  {
+    packId: "pack-o",
+    description: "Считаем дни и замечаем повторяющиеся закономерности.",
+  },
 ] as const satisfies readonly Readonly<{
   packId: PackId;
   description: string;

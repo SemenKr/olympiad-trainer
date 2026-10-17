@@ -35,7 +35,7 @@ type ProblemProvenance = Readonly<{
   sourceArchive: "vos.olimpiada.ru";
   grade: 5;
   problemNumber: number;
-  variant?: 1;
+  variant?: number;
   originalSource: SourceReference;
   officialSolution: SourceReference;
 }>;
@@ -2678,6 +2678,524 @@ const balancedSixGroupsProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const winterDayNumberProblem = {
+  id: "winter-day-number",
+  grade: 5,
+  subject: "mathematics",
+  title: "День зимы",
+  statement:
+    "Первый день зимы — 1 декабря. На какое число февраля приходится 77-й день зимы?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 1,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "15",
+  },
+  hints: [
+    {
+      id: "winter-day-number-focus-inclusive-count",
+      level: "focus",
+      text: "Считай 1 декабря первым днём, а не нулевым.",
+    },
+    {
+      id: "winter-day-number-strategy-month-lengths",
+      level: "strategy",
+      text: "Сначала посчитай, сколько дней зимы прошло к началу февраля.",
+    },
+    {
+      id: "winter-day-number-next-step-subtract",
+      level: "next-step",
+      text: "В декабре 31 день и в январе 31. Вычти их из 77 — получишь число февраля.",
+    },
+  ],
+  solution: {
+    id: "winter-day-number-full-solution",
+    kind: "training-adaptation",
+    text: "В декабре 31 день, а в январе ещё 31, значит, к началу февраля прошло 62 дня зимы. До 77-го дня остаётся 77 − 62 = 15 дней. Поэтому 77-й день зимы — 15 февраля. Ответ: 15.",
+  },
+} as const satisfies ProblemDefinition;
+
+const falseBoxLabelsProblem = {
+  id: "false-box-labels",
+  grade: 5,
+  subject: "mathematics",
+  title: "Все надписи неверны",
+  statement:
+    "Золотой ключик, перстень, алмаз и жемчужину разложили по двум шкатулкам. На шкатулке 1 написано: «Здесь нет алмаза» и «Перстень здесь». На шкатулке 2 написано: «Золотой ключик в соседней шкатулке» и «В этой шкатулке ровно два предмета». Все четыре надписи неверны. Сколько предметов лежит в шкатулке 2?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 2,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "3",
+  },
+  hints: [
+    {
+      id: "false-box-labels-focus-match-labels",
+      level: "focus",
+      text: "Проверяй каждую надпись именно у той шкатулки, на которой она стоит.",
+    },
+    {
+      id: "false-box-labels-strategy-first-box",
+      level: "strategy",
+      text: "Если первые две надписи неверны, где должен лежать алмаз и где не может лежать перстень?",
+    },
+    {
+      id: "false-box-labels-next-step-second-box",
+      level: "next-step",
+      text: "Неверная надпись о ключике помещает его в шкатулку 2. Там уже перстень и ключик; что означает ложь о ровно двух предметах?",
+    },
+  ],
+  solution: {
+    id: "false-box-labels-full-solution",
+    kind: "training-adaptation",
+    text: "Первая надпись неверна, поэтому алмаз лежит в шкатулке 1. Вторая тоже неверна, значит, перстень лежит в шкатулке 2. Надпись на шкатулке 2 о ключике неверна: ключик не в соседней шкатулке 1, а в шкатулке 2. Там уже два предмета — перстень и ключик. Но надпись «ровно два предмета» ложна, поэтому жемчужина тоже должна лежать во второй шкатулке. Всего во второй шкатулке три предмета. Ответ: 3.",
+  },
+} as const satisfies ProblemDefinition;
+
+const pirateCoinRedistributionProblem = {
+  id: "pirate-coin-redistribution",
+  grade: 5,
+  subject: "mathematics",
+  title: "Монеты для пиратов",
+  statement:
+    "Четыре пирата — Хитрый, Тёртый, Вёрткий и Хваткий — получили по сундуку с золотыми монетами. У Тёртого на 140 монет больше, чем у Хитрого, а у Хваткого на 28 больше, чем у Вёрткого. У Вёрткого ровно четверть всех монет. Чтобы уравнять сундуки, Тёртый выложил 140 монет, а Хваткий — 28; эти 168 монет нужно распределить между пиратами. Сколько монет из них следует дать Хитрому?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf",
+      page: 9,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf",
+      page: 13,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "84",
+  },
+  hints: [
+    {
+      id: "pirate-coin-redistribution-focus-relative-amounts",
+      level: "focus",
+      text: "Сравни, сколько у каждого было до того, как две кучки монет вынули.",
+    },
+    {
+      id: "pirate-coin-redistribution-strategy-quarter",
+      level: "strategy",
+      text: "Назови количество монет у Хитрого x. Вырази через x количество у Вёрткого, которому досталась четверть общего числа.",
+    },
+    {
+      id: "pirate-coin-redistribution-next-step-equalize",
+      level: "next-step",
+      text: "После того как Тёртый и Хваткий вынули свои монеты, у Хитрого и Тёртого осталось поровну. Сколько каждому из них нужно добавить, чтобы сравняться с Вёртким?",
+    },
+  ],
+  solution: {
+    id: "pirate-coin-redistribution-full-solution",
+    kind: "training-adaptation",
+    text: "Пусть у Хитрого было x монет, а у Вёрткого — y. Тогда у Тёртого x + 140, а у Хваткого y + 28. Всего у пиратов 2x + 2y + 168 монет. У Вёрткого четверть всех монет, поэтому общее количество равно 4y. Получаем 2x + 2y + 168 = 4y, откуда 2y = 2x + 168 и y = x + 84. После того как Тёртый вынул 140 монет, у него осталось x; после того как Хваткий вынул 28, у него осталось y = x + 84. У Хитрого осталось x, у Вёрткого — x + 84. Значит, из вынутых 168 монет нужно дать Хитрому 84, Тёртому 84, а Вёрткому и Хваткому — по 0. Все четверо получат по x + 84 монеты. Ответ: 84.",
+  },
+} as const satisfies ProblemDefinition;
+
+const crowWirePositionsProblem = {
+  id: "crow-wire-positions",
+  grade: 5,
+  subject: "mathematics",
+  title: "Вороны на проводе",
+  statement:
+    "На проводе в 10 пронумерованных местах сидят вороны через равные промежутки. Клара сидит на месте 4. Для Усти расстояние от неё до Варвары в 4 раза больше, чем расстояние от неё до Клары. Для Сары расстояние до Варвары в 5 раз больше, чем расстояние до Клары. Какой номер места у Варвары?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2025/26",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 8,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf",
+      page: 11,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf",
+      page: 15,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "10",
+  },
+  hints: [
+    {
+      id: "crow-wire-positions-focus-distance-maximum",
+      level: "focus",
+      text: "На проводе всего 10 мест, поэтому расстояние между двумя воронами не больше 9 промежутков.",
+    },
+    {
+      id: "crow-wire-positions-strategy-limit-crow",
+      level: "strategy",
+      text: "Для Усти расстояние до Варвары в четыре раза больше расстояния до Клары. Насколько далеко от Клары может сидеть Устя?",
+    },
+    {
+      id: "crow-wire-positions-next-step-check-cases",
+      level: "next-step",
+      text: "Проверь, может ли расстояние от Усти до Клары быть 1 или 2 промежутка. Затем используй условие Сары, чтобы выбрать положение Варвары.",
+    },
+  ],
+  solution: {
+    id: "crow-wire-positions-full-solution",
+    kind: "training-adaptation",
+    text: "Расстояние от Усти до Клары не может быть больше 2 промежутков: иначе расстояние от Усти до Варвары, в четыре раза большее, превысило бы 9. Если Устя отстоит от Клары на 1 промежуток, то возможные места Варвары — 7, 1 или 9; ни одно из них не позволяет Саре одновременно быть на месте 3 или 5 и находиться в пять раз дальше от Варвары, чем от Клары. Значит, расстояние Усти до Клары равно 2. Устя не может сидеть на месте 6, потому что оттуда до Варвары потребовалось бы 8 промежутков, а такого места нет. Поэтому Устя на месте 2, Варвара на месте 10. Для Сары расстояние до Клары не больше 1, значит, она на месте 3 или 5. На месте 3 она не выполняет условие расстояний, а место 5 подходит. Варвара сидит на месте 10. Ответ: 10.",
+  },
+} as const satisfies ProblemDefinition;
+
+const maximumGridNeighborSumProblem = {
+  id: "maximum-grid-neighbor-sum",
+  grade: 5,
+  subject: "mathematics",
+  title: "Сумма чисел у соседей",
+  statement:
+    "В таблице 2 × 3 фишка проходит все клетки по одному разу, каждый раз переходя в соседнюю по стороне клетку. Клетки нумеруют от 1 до 6 в порядке посещения. Для каждой клетки складывают номера всех соседних по стороне клеток, а затем складывают шесть полученных сумм. Какое наибольшее значение может получиться?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf",
+      page: 2,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf",
+      page: 8,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "51",
+  },
+  hints: [
+    {
+      id: "maximum-grid-neighbor-sum-focus-cell-degrees",
+      level: "focus",
+      text: "При сложении всех шести сумм число каждой клетки учитывается по одному разу за каждую соседнюю клетку.",
+    },
+    {
+      id: "maximum-grid-neighbor-sum-strategy-center-cells",
+      level: "strategy",
+      text: "У четырёх угловых клеток по два соседа, у двух клеток среднего столбца — по три. Общая сумма равна 42 плюс числа в этих двух средних клетках.",
+    },
+    {
+      id: "maximum-grid-neighbor-sum-next-step-bound",
+      level: "next-step",
+      text: "Постарайся сделать числа среднего столбца как можно больше. Почему там не могут одновременно стоять 5 и 6 или 4 и 6?",
+    },
+  ],
+  solution: {
+    id: "maximum-grid-neighbor-sum-full-solution",
+    kind: "training-adaptation",
+    text: "У каждой угловой клетки по 2 соседа, у двух клеток среднего столбца — по 3. Поэтому сумма всех сумм соседей равна 2 · (1 + 2 + 3 + 4 + 5 + 6) плюс числа в среднем столбце: 42 + c + d. Эти два числа не могут дать 10 или больше: тогда это были бы 4 и 6 или 5 и 6. Первые три посещённые клетки оказались бы в двух крайних столбцах. Но крайние столбцы не соединены между собой без клеток среднего столбца: нельзя пройти три клетки крайних столбцов подряд. Значит, c + d ≤ 9. Эта граница достигается на пути: верхняя левая, нижняя левая, нижняя средняя, нижняя правая, верхняя правая, верхняя средняя клетка. В среднем столбце стоят числа 3 и 6. Наибольшая сумма равна 42 + 9 = 51. Ответ: 51.",
+  },
+} as const satisfies ProblemDefinition;
+
+const sixPositionColoringsProblem = {
+  id: "six-position-colorings",
+  grade: 5,
+  subject: "mathematics",
+  title: "Шесть цветных мест",
+  statement:
+    "Есть шесть разных мест, пронумерованных от 1 до 6. Нужно покрасить ровно одно место в зелёный цвет, ровно одно — в красный, а остальные — в синий. Перестановка цветов между местами создаёт другой вариант. Сколькими способами можно это сделать?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2023/24",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 2,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/tasks-math-5-prigl-msk-23-24.pdf",
+      page: 3,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2023-24/prigl/math/sol-math-5-prigl-msk-23-24.pdf",
+      page: 3,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "30",
+  },
+  hints: [
+    {
+      id: "six-position-colorings-focus-special-colors",
+      level: "focus",
+      text: "Начни с цветов, которые встречаются ровно один раз: зелёного и красного.",
+    },
+    {
+      id: "six-position-colorings-strategy-ordered-choices",
+      level: "strategy",
+      text: "Выбери место для зелёного. Затем выбери другое место для красного.",
+    },
+    {
+      id: "six-position-colorings-next-step-multiply",
+      level: "next-step",
+      text: "Для зелёного есть 6 мест, а после его выбора для красного остаётся 5. Все остальные места будут синими.",
+    },
+  ],
+  solution: {
+    id: "six-position-colorings-full-solution",
+    kind: "training-adaptation",
+    text: "Для зелёного можно выбрать любое из 6 мест. После этого красный можно поставить на любое из оставшихся 5 мест. Остальные четыре места окрашиваются в синий. Так получаем 6 · 5 = 30 вариантов. Перестановки считаются разными, потому что места различны. Ответ: 30.",
+  },
+} as const satisfies ProblemDefinition;
+
+const rectangleKnightCountProblem = {
+  id: "rectangle-knight-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Рыцари в прямоугольнике",
+  statement:
+    "Петя выстроил своих рыцарей прямоугольником из рядов и колонн. Когда ушли первые два ряда, осталось 24 рыцаря. Затем из оставшейся части ушли первые две колонны, после чего осталось 18 рыцарей. Сколько рыцарей было сначала?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2022/23",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    variant: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 8,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/school/math/taskssol-math-4-11-msk-sch-22-23.pdf",
+      page: 60,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "40",
+  },
+  hints: [
+    {
+      id: "rectangle-knight-count-focus-rows-columns",
+      level: "focus",
+      text: "Обозначь через r число рядов, а через c — число колонн в исходном прямоугольнике.",
+    },
+    {
+      id: "rectangle-knight-count-strategy-remaining-rectangle",
+      level: "strategy",
+      text: "После ухода первых двух рядов сколько рядов и колонн осталось? Запиши их произведение как 24, затем используй второй подсчёт.",
+    },
+    {
+      id: "rectangle-knight-count-next-step-subtract-products",
+      level: "next-step",
+      text: "Получаются равенства (r − 2)c = 24 и (r − 2)(c − 2) = 18. Вычти их, чтобы найти r, а затем найди c.",
+    },
+  ],
+  solution: {
+    id: "rectangle-knight-count-full-solution",
+    kind: "training-adaptation",
+    text: "Пусть в исходном прямоугольнике r рядов и c колонн. После ухода двух рядов остаётся (r − 2)c = 24 рыцаря. После ухода ещё и двух колонн из этого прямоугольника остаётся (r − 2)(c − 2) = 18 рыцарей. Вычитаем второе равенство из первого: 2(r − 2) = 6, значит, r = 5. Тогда 3(c − 2) = 18, поэтому c = 8. Сначала было 5 · 8 = 40 рыцарей. Ответ: 40.",
+  },
+} as const satisfies ProblemDefinition;
+
+const bicycleLockCodeProblem = {
+  id: "bicycle-lock-code",
+  grade: 5,
+  subject: "mathematics",
+  title: "Код велосипедного замка",
+  statement:
+    "Код велосипедного замка состоит из трёх разных цифр. Коля попробовал коды 829, 835, 948 и 762, но замок не открылся. В попытке 829 ровно одна цифра входит в код и стоит на своём месте. В попытке 835 ровно одна цифра входит в код, но стоит не на своём месте. В попытке 948 ровно две цифры входят в код, и обе стоят не на своих местах. Ни одна цифра из 762 в код не входит. Какой код загадал замок?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2024/25",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/tasks-math-5-sch-msk-24-25.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/school/math/sol-math-5-sch-msk-24-25.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "459",
+  },
+  hints: [
+    {
+      id: "bicycle-lock-code-focus-excluded-digits",
+      level: "focus",
+      text: "Начни с попытки, где все цифры отсутствуют. Затем внимательно сравни первые две попытки.",
+    },
+    {
+      id: "bicycle-lock-code-strategy-place-nine",
+      level: "strategy",
+      text: "Цифра 8 стоит на первом месте в попытках 829 и 835. Может ли она входить в код, если в одной попытке цифра должна стоять верно, а в другой — неверно?",
+    },
+    {
+      id: "bicycle-lock-code-next-step-use-two-misplaced",
+      level: "next-step",
+      text: "Когда найдёшь цифру на третьем месте, используй попытку 948: две её цифры есть в коде, но обе расположены не там.",
+    },
+  ],
+  solution: {
+    id: "bicycle-lock-code-full-solution",
+    kind: "training-adaptation",
+    text: "Цифры 7, 6 и 2 отсутствуют. Цифра 8 не может быть в коде: в попытке 829 она стояла бы на правильном месте, а в попытке 835 — тоже на первом месте, хотя там единственная верная цифра должна стоять не на своём месте. Поэтому в попытке 829 верна цифра 9 на третьем месте. В попытке 948 две верные цифры стоят не на своих местах. Это 9 и 4, так как 8 отсутствует; значит, 4 не может стоять на втором месте. Первое место занимает 4. В попытке 835 остаётся единственная подходящая цифра 5: цифра 3 не подходит, потому что она стояла бы на втором месте, как и в попытке. Значит, 5 стоит на втором месте. Код — 459. Ответ: 459.",
+  },
+} as const satisfies ProblemDefinition;
+
+const fiveLampPatternProblem = {
+  id: "five-lamp-pattern",
+  grade: 5,
+  subject: "mathematics",
+  title: "Цвета гирлянды",
+  statement:
+    "В гирлянде 100 лампочек. Первая и третья лампочки жёлтые. В любых пяти лампочках, стоящих подряд, ровно две жёлтые и три синие. Выбери все верные утверждения о цвете лампочек на местах 97–100.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2021/22",
+    stage: "invitational",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    variant: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/tasks-math-5-prigl-msk-22-23.pdf",
+      page: 14,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2022-23/prigl/math/sol-math-5-prigl-msk-22-23.pdf",
+      page: 14,
+    },
+  },
+  assessment: {
+    kind: "multiple-choice-set",
+    instruction: "Выбери все верные утверждения.",
+    options: [
+      { id: "lamp-97-blue", label: "Лампочка 97 — синяя" },
+      { id: "lamp-97-yellow", label: "Лампочка 97 — жёлтая" },
+      { id: "lamp-98-blue", label: "Лампочка 98 — синяя" },
+      { id: "lamp-98-yellow", label: "Лампочка 98 — жёлтая" },
+      { id: "lamp-99-blue", label: "Лампочка 99 — синяя" },
+      { id: "lamp-99-yellow", label: "Лампочка 99 — жёлтая" },
+      { id: "lamp-100-blue", label: "Лампочка 100 — синяя" },
+      { id: "lamp-100-yellow", label: "Лампочка 100 — жёлтая" },
+    ],
+    expectedOptionIds: [
+      "lamp-97-blue",
+      "lamp-98-yellow",
+      "lamp-99-blue",
+      "lamp-100-blue",
+    ],
+  },
+  hints: [
+    {
+      id: "five-lamp-pattern-focus-overlapping-windows",
+      level: "focus",
+      text: "Сравни две соседние группы по пять лампочек: с 1-й по 5-ю и со 2-й по 6-ю.",
+    },
+    {
+      id: "five-lamp-pattern-strategy-cancel-shared",
+      level: "strategy",
+      text: "В обеих группах четыре лампочки общие и всего по две жёлтые. Что можно заключить о цвете лампочек на краях этих групп?",
+    },
+    {
+      id: "five-lamp-pattern-next-step-period-five",
+      level: "next-step",
+      text: "Цвет повторяется через пять мест. Сначала запиши цвета лампочек 1–5, а затем повтори их для 96–100.",
+    },
+  ],
+  solution: {
+    id: "five-lamp-pattern-full-solution",
+    kind: "training-adaptation",
+    text: "В группах 1–5 и 2–6 ровно по две жёлтые лампочки. У них общие лампочки 2–5, поэтому лампочки 1 и 6 должны быть одного цвета. Так же каждая лампочка совпадает по цвету с лампочкой через пять мест: цвета повторяются каждые пять позиций. Первые пять цветов — жёлтый, синий, жёлтый, синий, синий: вторая и четвёртая позиции синие, иначе среди первых пяти было бы больше двух жёлтых. Поэтому на местах 96–100 снова жёлтый, синий, жёлтый, синий, синий. Верны утверждения: 97 — синяя, 98 — жёлтая, 99 — синяя, 100 — синяя.",
+  },
+} as const satisfies ProblemDefinition;
+
 // Keep raw entries visible to validation before constructing the lookup.
 export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   coincidingSeatsProblem,
@@ -2722,6 +3240,15 @@ export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   fiveFridaysCalendarProblem,
   circularTableSeatCountProblem,
   balancedSixGroupsProblem,
+  winterDayNumberProblem,
+  falseBoxLabelsProblem,
+  pirateCoinRedistributionProblem,
+  crowWirePositionsProblem,
+  maximumGridNeighborSumProblem,
+  sixPositionColoringsProblem,
+  rectangleKnightCountProblem,
+  bicycleLockCodeProblem,
+  fiveLampPatternProblem,
 ];
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> =

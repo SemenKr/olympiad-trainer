@@ -603,6 +603,132 @@
       "solutionId": "balanced-six-groups-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "winter-day-number",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "winter-day-number-focus-inclusive-count",
+        "winter-day-number-strategy-month-lengths",
+        "winter-day-number-next-step-subtract"
+      ],
+      "solutionId": "winter-day-number-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "false-box-labels",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "false-box-labels-focus-match-labels",
+        "false-box-labels-strategy-first-box",
+        "false-box-labels-next-step-second-box"
+      ],
+      "solutionId": "false-box-labels-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "pirate-coin-redistribution",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "pirate-coin-redistribution-focus-relative-amounts",
+        "pirate-coin-redistribution-strategy-quarter",
+        "pirate-coin-redistribution-next-step-equalize"
+      ],
+      "solutionId": "pirate-coin-redistribution-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "crow-wire-positions",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "crow-wire-positions-focus-distance-maximum",
+        "crow-wire-positions-strategy-limit-crow",
+        "crow-wire-positions-next-step-check-cases"
+      ],
+      "solutionId": "crow-wire-positions-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "maximum-grid-neighbor-sum",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "maximum-grid-neighbor-sum-focus-cell-degrees",
+        "maximum-grid-neighbor-sum-strategy-center-cells",
+        "maximum-grid-neighbor-sum-next-step-bound"
+      ],
+      "solutionId": "maximum-grid-neighbor-sum-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "six-position-colorings",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "six-position-colorings-focus-special-colors",
+        "six-position-colorings-strategy-ordered-choices",
+        "six-position-colorings-next-step-multiply"
+      ],
+      "solutionId": "six-position-colorings-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "rectangle-knight-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "rectangle-knight-count-focus-rows-columns",
+        "rectangle-knight-count-strategy-remaining-rectangle",
+        "rectangle-knight-count-next-step-subtract-products"
+      ],
+      "solutionId": "rectangle-knight-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "bicycle-lock-code",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "bicycle-lock-code-focus-excluded-digits",
+        "bicycle-lock-code-strategy-place-nine",
+        "bicycle-lock-code-next-step-use-two-misplaced"
+      ],
+      "solutionId": "bicycle-lock-code-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "five-lamp-pattern",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "lamp-97-blue",
+        "lamp-97-yellow",
+        "lamp-98-blue",
+        "lamp-98-yellow",
+        "lamp-99-blue",
+        "lamp-99-yellow",
+        "lamp-100-blue",
+        "lamp-100-yellow"
+      ],
+      "hintIds": [
+        "five-lamp-pattern-focus-overlapping-windows",
+        "five-lamp-pattern-strategy-cancel-shared",
+        "five-lamp-pattern-next-step-period-five"
+      ],
+      "solutionId": "five-lamp-pattern-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -700,6 +826,30 @@
         "five-fridays-calendar",
         "circular-table-seat-count",
         "balanced-six-groups"
+      ]
+    },
+    {
+      "id": "pack-m",
+      "problemIds": [
+        "false-box-labels",
+        "pirate-coin-redistribution",
+        "bicycle-lock-code"
+      ]
+    },
+    {
+      "id": "pack-n",
+      "problemIds": [
+        "crow-wire-positions",
+        "maximum-grid-neighbor-sum",
+        "rectangle-knight-count"
+      ]
+    },
+    {
+      "id": "pack-o",
+      "problemIds": [
+        "winter-day-number",
+        "six-position-colorings",
+        "five-lamp-pattern"
       ]
     }
   ]

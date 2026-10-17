@@ -31,6 +31,7 @@ import {
 import { getProgressDb } from "./progress-db";
 import {
   PRACTICE_PACKS,
+  packProblemIds,
   validateCompletedEpisode,
 } from "../application/completed-practice-episode";
 import {
@@ -203,6 +204,56 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it.each(["pack-m", "pack-n", "pack-o"] as const)(
+    "persists and reads %s completion receipts through retries and history pruning",
+    async (packId) => {
+      const id = await learner();
+      const context = learnerContext(id);
+      await importLegacyProgress(context, null);
+      const beforeProgress = await readLearnerProgress(context);
+      const sessionId = randomUUID();
+      const episode = {
+        mode: "pack" as const,
+        facts: {
+          version: 1 as const,
+          problems: packProblemIds(packId).map(noAnswer),
+        },
+      };
+      const persist = () =>
+        persistFinishContributions(
+          context,
+          sessionId,
+          [],
+          undefined,
+          episode,
+          2,
+        );
+      await persist();
+      await persist();
+      const receipts = await getProgressDb()
+        .select()
+        .from(practiceFinishReceipts)
+        .where(eq(practiceFinishReceipts.learnerId, id));
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        sessionId,
+        packId,
+        episodeMode: "pack",
+      });
+      expect(await readCompletedPackIds(context)).toEqual([packId]);
+      expect(await readRecentPracticeEpisodes(context)).toHaveLength(1);
+      expect(await readLearnerProgress(context)).toEqual(beforeProgress);
+      expect(await readPracticeJourneyTotal(context)).toBe(0);
+
+      await getProgressDb()
+        .delete(practiceCompletedEpisodes)
+        .where(eq(practiceCompletedEpisodes.learnerId, id));
+      await persist();
+      expect(await readRecentPracticeEpisodes(context)).toEqual([]);
+      expect(await readCompletedPackIds(context)).toEqual([packId]);
+    },
+  );
+
   it.each([1, 2])(
     "persists an early core and every Pack Finish with %i opened tasks, retrying without invented facts",
     async (length) => {
