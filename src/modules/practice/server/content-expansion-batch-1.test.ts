@@ -61,7 +61,7 @@ describe("Content Expansion Batch 1", () => {
   it("adds nine distinct sourced problems in three ordered ordinary Packs", () => {
     expect(cases).toHaveLength(9);
     expect(new Set(cases.map(({ id }) => id)).size).toBe(9);
-    expect(PRACTICE_PACKS.slice(12)).toEqual([
+    expect(PRACTICE_PACKS.slice(12, 15)).toEqual([
       {
         id: "pack-m",
         name: "Условия и выводы",
@@ -138,7 +138,7 @@ describe("Content Expansion Batch 1", () => {
 
   it("resolves each new Pack from the learner-safe catalog projection", () => {
     const packs = getLearnerSafePackProblems();
-    for (const pack of PRACTICE_PACKS.slice(12)) {
+    for (const pack of PRACTICE_PACKS.slice(12, 15)) {
       expect(packs[pack.id]).toEqual(
         pack.problemIds.map(getLearnerSafePracticeProblem),
       );

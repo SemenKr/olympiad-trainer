@@ -729,6 +729,123 @@
       "solutionId": "five-lamp-pattern-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "cut-paper-triangle-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "cut-paper-triangle-count-focus",
+        "cut-paper-triangle-count-strategy",
+        "cut-paper-triangle-count-next-step"
+      ],
+      "solutionId": "cut-paper-triangle-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "reversed-number-tens-digit",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "reversed-number-tens-digit-focus",
+        "reversed-number-tens-digit-strategy",
+        "reversed-number-tens-digit-next-step"
+      ],
+      "solutionId": "reversed-number-tens-digit-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "colored-clay-piece-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "colored-clay-piece-count-focus",
+        "colored-clay-piece-count-strategy",
+        "colored-clay-piece-count-next-step"
+      ],
+      "solutionId": "colored-clay-piece-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "square-border-tile-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "square-border-tile-count-focus",
+        "square-border-tile-count-strategy",
+        "square-border-tile-count-next-step"
+      ],
+      "solutionId": "square-border-tile-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "constant-scale-error",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "constant-scale-error-focus",
+        "constant-scale-error-strategy",
+        "constant-scale-error-next-step"
+      ],
+      "solutionId": "constant-scale-error-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "rabbit-middle-cage",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "rabbit-middle-cage-focus",
+        "rabbit-middle-cage-strategy",
+        "rabbit-middle-cage-next-step"
+      ],
+      "solutionId": "rabbit-middle-cage-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "alternating-queue-swaps",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "alternating-queue-swaps-focus",
+        "alternating-queue-swaps-strategy",
+        "alternating-queue-swaps-next-step"
+      ],
+      "solutionId": "alternating-queue-swaps-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "corridor-single-layer",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "corridor-single-layer-focus",
+        "corridor-single-layer-strategy",
+        "corridor-single-layer-next-step"
+      ],
+      "solutionId": "corridor-single-layer-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "diamond-emerald-balance",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "diamond-emerald-balance-focus",
+        "diamond-emerald-balance-strategy",
+        "diamond-emerald-balance-next-step"
+      ],
+      "solutionId": "diamond-emerald-balance-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -850,6 +967,30 @@
         "winter-day-number",
         "six-position-colorings",
         "five-lamp-pattern"
+      ]
+    },
+    {
+      "id": "pack-p",
+      "problemIds": [
+        "cut-paper-triangle-count",
+        "colored-clay-piece-count",
+        "square-border-tile-count"
+      ]
+    },
+    {
+      "id": "pack-q",
+      "problemIds": [
+        "diamond-emerald-balance",
+        "constant-scale-error",
+        "rabbit-middle-cage"
+      ]
+    },
+    {
+      "id": "pack-r",
+      "problemIds": [
+        "reversed-number-tens-digit",
+        "corridor-single-layer",
+        "alternating-queue-swaps"
       ]
     }
   ]

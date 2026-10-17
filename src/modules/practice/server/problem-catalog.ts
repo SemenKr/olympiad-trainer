@@ -29,7 +29,14 @@ type ProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
   academicYear:
-    "2025/26" | "2024/25" | "2023/24" | "2022/23" | "2021/22" | "2020/21";
+    | "2025/26"
+    | "2024/25"
+    | "2023/24"
+    | "2022/23"
+    | "2021/22"
+    | "2020/21"
+    | "2019/20"
+    | "2018/19";
   stage: "invitational" | "school";
   region: "Moscow";
   sourceArchive: "vos.olimpiada.ru";
@@ -3196,6 +3203,501 @@ const fiveLampPatternProblem = {
   },
 } as const satisfies ProblemDefinition;
 
+const cutPaperTriangleCountProblem = {
+  id: "cut-paper-triangle-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Треугольники из бумаги",
+  statement:
+    "Лист разделили на 3 ряда по 7 одинаковых квадратов и разрезали по границам квадратов. Четыре квадрата из углов листа оставили целыми. Каждый из остальных разрезали по двум диагоналям. Сколько отдельных треугольных кусочков получилось?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 1,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "68",
+  },
+  hints: [
+    {
+      id: "cut-paper-triangle-count-focus",
+      level: "focus",
+      text: "Отдели угловые квадраты от остальных: с ними поступили по-разному.",
+    },
+    {
+      id: "cut-paper-triangle-count-strategy",
+      level: "strategy",
+      text: "Посчитай, сколько квадратов разрезали. Сколько частей дают две диагонали одного квадрата?",
+    },
+    {
+      id: "cut-paper-triangle-count-next-step",
+      level: "next-step",
+      text: "Из числа всех квадратов вычти четыре, затем умножь результат на число треугольников из одного квадрата.",
+    },
+  ],
+  solution: {
+    id: "cut-paper-triangle-count-full-solution",
+    kind: "training-adaptation",
+    text: "Всего квадратов 3 · 7 = 21. Четыре угловых остались квадратами, поэтому треугольников они не дают. Разрезали 21 − 4 = 17 квадратов. Две диагонали делят каждый на четыре треугольных кусочка. Получилось 17 · 4 = 68 треугольников. Ответ: 68.",
+  },
+} as const satisfies ProblemDefinition;
+
+const reversedNumberTensDigitProblem = {
+  id: "reversed-number-tens-digit",
+  grade: 5,
+  subject: "mathematics",
+  title: "Десятки в разности",
+  statement:
+    "Записали трёхзначное число из трёх разных цифр, среди которых нет нуля. Затем записали его цифры в обратном порядке. Из большего из этих двух чисел вычли меньшее. Какую цифру получат в разряде десятков разности?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 2,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "9",
+  },
+  hints: [
+    {
+      id: "reversed-number-tens-digit-focus",
+      level: "focus",
+      text: "Сравни цифры десятков у исходного числа и у перевёрнутого.",
+    },
+    {
+      id: "reversed-number-tens-digit-strategy",
+      level: "strategy",
+      text: "Запиши вычитание столбиком. У большего числа цифра сотен больше, а цифра единиц меньше. Придётся ли занять десяток?",
+    },
+    {
+      id: "reversed-number-tens-digit-next-step",
+      level: "next-step",
+      text: "После займа цифра десятков уменьшается на один. Для вычитания той же цифры десятков придётся занять ещё и сотню. Какая цифра останется в десятках?",
+    },
+  ],
+  solution: {
+    id: "reversed-number-tens-digit-full-solution",
+    kind: "training-adaptation",
+    text: "У двух чисел одна и та же цифра десятков. У большего числа цифра сотен больше, зато цифра единиц меньше, чем у меньшего. При вычитании единиц нужно занять десяток. В разряде десятков после этого не хватает единицы, чтобы вычесть исходную цифру десятков. Занимаем сотню: в десятках остаётся исходная цифра плюс 9. Вычитая исходную цифру, получаем 9. Если исходная цифра десятков была 1, после первого займа она станет 0, но рассуждение остаётся тем же. Ответ: 9.",
+  },
+} as const satisfies ProblemDefinition;
+
+const coloredClayPieceCountProblem = {
+  id: "colored-clay-piece-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Два разрезания",
+  statement:
+    "Есть 4 красных, 3 синих и 5 жёлтых кусков пластилина. Сначала каждый кусок не красного цвета разделили на две части. Затем среди получившихся кусков каждый кусок не жёлтого цвета тоже разделили на две части. Куски не соединяли и цвета не смешивали. Сколько кусков стало?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 3,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "30",
+  },
+  hints: [
+    {
+      id: "colored-clay-piece-count-focus",
+      level: "focus",
+      text: "Рассмотри каждый цвет отдельно и проследи, сколько раз его куски делили.",
+    },
+    {
+      id: "colored-clay-piece-count-strategy",
+      level: "strategy",
+      text: "Красные куски делят только во второй раз, жёлтые — только в первый. Синие попадают под оба действия.",
+    },
+    {
+      id: "colored-clay-piece-count-next-step",
+      level: "next-step",
+      text: "После первого действия синих кусков стало вдвое больше. Во второй раз делят уже каждый из этих новых кусков. Сложи итоговые количества трёх цветов.",
+    },
+  ],
+  solution: {
+    id: "colored-clay-piece-count-full-solution",
+    kind: "training-adaptation",
+    text: "Красные куски пропустили первое действие и разделили во втором: стало 4 · 2 = 8. Синие делили дважды: сначала стало 3 · 2 = 6, затем 6 · 2 = 12. Жёлтые делили только в первый раз: стало 5 · 2 = 10. Итого 8 + 12 + 10 = 30 кусков. Ответ: 30.",
+  },
+} as const satisfies ProblemDefinition;
+
+const squareBorderTileCountProblem = {
+  id: "square-border-tile-count",
+  grade: 5,
+  subject: "mathematics",
+  title: "Плитки у края",
+  statement:
+    "Квадратную площадку покрыли одинаковыми квадратными плитками, уложенными ровными рядами и столбцами без зазоров. Ровно 20 плиток касаются внешней границы площадки. Угловую плитку считают один раз. Сколько плиток на всей площадке?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 4,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "36",
+  },
+  hints: [
+    {
+      id: "square-border-tile-count-focus",
+      level: "focus",
+      text: "Угловые плитки относятся сразу к двум сторонам. Как это влияет на подсчёт по сторонам?",
+    },
+    {
+      id: "square-border-tile-count-strategy",
+      level: "strategy",
+      text: "Если сложить число плиток вдоль каждой из четырёх сторон, каждая угловая будет посчитана дважды.",
+    },
+    {
+      id: "square-border-tile-count-next-step",
+      level: "next-step",
+      text: "Прибавь к 20 четыре повторных счёта углов и раздели на четыре. Так получишь число плиток в одном ряду.",
+    },
+  ],
+  solution: {
+    id: "square-border-tile-count-full-solution",
+    kind: "training-adaptation",
+    text: "Вдоль каждой стороны одинаковое число плиток. При сложении четырёх сторон угловые плитки считаются дважды, остальные граничные — один раз. Поэтому сумма четырёх сторон равна 20 + 4 = 24. Вдоль стороны 24 : 4 = 6 плиток. Всего 6 · 6 = 36. Ответ: 36.",
+  },
+} as const satisfies ProblemDefinition;
+
+const constantScaleErrorProblem = {
+  id: "constant-scale-error",
+  grade: 5,
+  subject: "mathematics",
+  title: "Ошибка весов",
+  statement:
+    "Весы при каждом взвешивании прибавляют или убавляют одну и ту же величину: ошибка постоянна и направлена в одну сторону. Отдельно человек получил показание 19 единиц массы, его конь — 101, а вместе они получили 114. Какова настоящая масса человека в этих единицах?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 5,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "13",
+  },
+  hints: [
+    {
+      id: "constant-scale-error-focus",
+      level: "focus",
+      text: "Сравни сумму двух отдельных показаний с показанием при совместном взвешивании.",
+    },
+    {
+      id: "constant-scale-error-strategy",
+      level: "strategy",
+      text: "В двух отдельных показаниях ошибка учтена дважды, а в совместном — только один раз.",
+    },
+    {
+      id: "constant-scale-error-next-step",
+      level: "next-step",
+      text: "Вычти 114 из суммы 19 и 101. Это одна лишняя ошибка. Определи её направление и исправь показание для человека.",
+    },
+  ],
+  solution: {
+    id: "constant-scale-error-full-solution",
+    kind: "training-adaptation",
+    text: "Настоящая общая масса в обоих способах одинакова. В сумме отдельных показаний ошибка учитывается два раза, а в совместном — один. Разница 19 + 101 − 114 = 6 означает, что весы прибавляют 6 единиц. Настоящая масса человека 19 − 6 = 13. Проверка: конь весит 101 − 6 = 95; вместе 13 + 95 = 108, а весы показывают 108 + 6 = 114. Ответ: 13.",
+  },
+} as const satisfies ProblemDefinition;
+
+const rabbitMiddleCageProblem = {
+  id: "rabbit-middle-cage",
+  grade: 5,
+  subject: "mathematics",
+  title: "Кролики по соседству",
+  statement:
+    "В ряд поставили пять клеток, и в каждой есть хотя бы один кролик. Соседи кролика — все другие кролики из его клетки и из клеток непосредственно слева и справа, если такие клетки есть. Сам себе кролик не сосед. У каждого кролика ровно 3 или ровно 7 соседей. Сколько кроликов в третьей клетке?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 6,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "4",
+  },
+  hints: [
+    {
+      id: "rabbit-middle-cage-focus",
+      level: "focus",
+      text: "Сравни соседей кролика из первой клетки и кролика из второй.",
+    },
+    {
+      id: "rabbit-middle-cage-strategy",
+      level: "strategy",
+      text: "Для первой клетки учитываются первая и вторая клетки. Для второй добавляется ещё третья. При обоих подсчётах самого кролика исключают.",
+    },
+    {
+      id: "rabbit-middle-cage-next-step",
+      level: "next-step",
+      text: "Во второй клетке соседей строго больше: третья не пустая. Значит, из чисел 3 и 7 можно выбрать только одну пару в нужном порядке.",
+    },
+  ],
+  solution: {
+    id: "rabbit-middle-cage-full-solution",
+    kind: "training-adaptation",
+    text: "У кролика из первой клетки число соседей равно числу кроликов в первых двух клетках минус один. У кролика из второй — числу кроликов в первых трёх клетках минус один. Разница равна числу кроликов в третьей клетке и положительна. Поэтому у первого кролика 3 соседа, у второго 7, а в третьей клетке 7 − 3 = 4 кролика. Такая расстановка возможна: по клеткам 2, 2, 4, 2, 2 кролика. Тогда числа соседей по клеткам равны 3, 7, 7, 7, 3. Ответ: 4.",
+  },
+} as const satisfies ProblemDefinition;
+
+const alternatingQueueSwapsProblem = {
+  id: "alternating-queue-swaps",
+  grade: 5,
+  subject: "mathematics",
+  title: "Обмены в очереди",
+  statement:
+    "В очереди 16 школьников: мальчик, девочка, мальчик, девочка и так далее. За один обмен могут поменяться местами только два стоящих непосредственно рядом школьника, если мальчик стоит перед девочкой. После обмена девочка оказывается перед ним. Так продолжали, пока все девочки не встали перед всеми мальчиками. Сколько обменов сделали?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2019/20",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 7,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "36",
+  },
+  hints: [
+    {
+      id: "alternating-queue-swaps-focus",
+      level: "focus",
+      text: "Проследи за одной девочкой: сколько мальчиков ей нужно обойти?",
+    },
+    {
+      id: "alternating-queue-swaps-strategy",
+      level: "strategy",
+      text: "Первой девочке нужно обойти одного мальчика, второй — двух. Обмены с другими девочками запрещены, поэтому их порядок сохраняется.",
+    },
+    {
+      id: "alternating-queue-swaps-next-step",
+      level: "next-step",
+      text: "Всего девочек восемь. Сложи количества мальчиков перед каждой из них в самом начале.",
+    },
+  ],
+  solution: {
+    id: "alternating-queue-swaps-full-solution",
+    kind: "training-adaptation",
+    text: "В очереди восемь девочек. Перед первой стоит один мальчик, перед второй — два, и так далее: перед восьмой восемь. Чтобы все девочки оказались впереди, каждая должна поменяться местами с каждым мальчиком, который первоначально был перед ней. Один разрешённый обмен меняет порядок ровно одной такой пары; обратно мальчик пройти не может. Поэтому число обменов не зависит от их порядка и равно 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 = 36. Ответ: 36.",
+  },
+} as const satisfies ProblemDefinition;
+
+const corridorSingleLayerProblem = {
+  id: "corridor-single-layer",
+  grade: 5,
+  subject: "mathematics",
+  title: "Один слой краски",
+  statement:
+    "В коридоре длиной 15 м два маляра двигались от одного и того же начала к концу. Первый непрерывно покрасил 9 м, начав в 2 м от начала. Второй непрерывно покрасил 10 м и закончил в 1 м от конца. Каждый на своём участке нанёс один слой. Какова общая длина участков, на которых ровно один слой краски? Ответ дай в метрах.",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2018/19",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 2,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2018-19/school/math/tasks-math-5-sch-18-9.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2018-19/school/math/ans-math-5-sch-18-9.pdf",
+      page: 1,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "5",
+  },
+  hints: [
+    {
+      id: "corridor-single-layer-focus",
+      level: "focus",
+      text: "Отметь начало коридора числом 0, а конец числом 15. Где заканчивается участок первого маляра?",
+    },
+    {
+      id: "corridor-single-layer-strategy",
+      level: "strategy",
+      text: "Второй закончил на отметке 14. Отступи от неё назад на длину его участка и найди начало.",
+    },
+    {
+      id: "corridor-single-layer-next-step",
+      level: "next-step",
+      text: "Первый покрасил от 2 до 11, второй — от 4 до 14. Найди части, которые не входят сразу в оба участка.",
+    },
+  ],
+  solution: {
+    id: "corridor-single-layer-full-solution",
+    kind: "training-adaptation",
+    text: "Первый участок идёт от отметки 2 до отметки 2 + 9 = 11. Второй заканчивается на 15 − 1 = 14 и начинается на 14 − 10 = 4. Между 4 и 11 два слоя. Один слой есть от 2 до 4 и от 11 до 14: это 2 и 3 метра. Их общая длина 2 + 3 = 5 м. Непокрашенные участки не учитываем. Ответ: 5.",
+  },
+} as const satisfies ProblemDefinition;
+
+const diamondEmeraldBalanceProblem = {
+  id: "diamond-emerald-balance",
+  grade: 5,
+  subject: "mathematics",
+  title: "Камни на весах",
+  statement:
+    "На одной чаше уравновешенных весов лежат 9 одинаковых алмазов и один изумруд. На другой — 4 одинаковых изумруда. Все камни имеют положительную массу, все изумруды одинаковы по массе. Сколько таких алмазов уравновесят один изумруд?",
+  provenance: {
+    olympiad: "Всероссийская олимпиада школьников",
+    subject: "mathematics",
+    academicYear: "2018/19",
+    stage: "school",
+    region: "Moscow",
+    sourceArchive: "vos.olimpiada.ru",
+    grade: 5,
+    problemNumber: 4,
+    originalSource: {
+      reference: "I",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2018-19/school/math/tasks-math-5-sch-18-9.pdf",
+      page: 1,
+    },
+    officialSolution: {
+      reference: "IS",
+      url: "https://vos.olimpiada.ru/upload/files/Arhive_tasks/2018-19/school/math/ans-math-5-sch-18-9.pdf",
+      page: 2,
+    },
+  },
+  assessment: {
+    kind: "nonnegative-integer",
+    expectedAnswer: "3",
+  },
+  hints: [
+    {
+      id: "diamond-emerald-balance-focus",
+      level: "focus",
+      text: "Можно ли снять с обеих чаш одинаковый камень, сохранив равновесие?",
+    },
+    {
+      id: "diamond-emerald-balance-strategy",
+      level: "strategy",
+      text: "Сними по одному изумруду с каждой чаши. Сколько камней останется с каждой стороны?",
+    },
+    {
+      id: "diamond-emerald-balance-next-step",
+      level: "next-step",
+      text: "Оставшиеся алмазы раздели на три равные группы — по одной на каждый оставшийся изумруд.",
+    },
+  ],
+  solution: {
+    id: "diamond-emerald-balance-full-solution",
+    kind: "training-adaptation",
+    text: "Снимем по одному изумруду с каждой чаши. Равновесие сохранится: теперь 9 алмазов уравновешивают 3 изумруда. Все алмазы одинаковы, как и все изумруды. Разделим обе массы на три: 9 : 3 = 3 алмаза уравновесят один изумруд. Ответ: 3.",
+  },
+} as const satisfies ProblemDefinition;
+
 // Keep raw entries visible to validation before constructing the lookup.
 export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   coincidingSeatsProblem,
@@ -3249,6 +3751,15 @@ export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   rectangleKnightCountProblem,
   bicycleLockCodeProblem,
   fiveLampPatternProblem,
+  cutPaperTriangleCountProblem,
+  reversedNumberTensDigitProblem,
+  coloredClayPieceCountProblem,
+  squareBorderTileCountProblem,
+  constantScaleErrorProblem,
+  rabbitMiddleCageProblem,
+  alternatingQueueSwapsProblem,
+  corridorSingleLayerProblem,
+  diamondEmeraldBalanceProblem,
 ];
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> =

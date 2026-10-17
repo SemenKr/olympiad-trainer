@@ -204,7 +204,14 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
-  it.each(["pack-m", "pack-n", "pack-o"] as const)(
+  it.each([
+    "pack-m",
+    "pack-n",
+    "pack-o",
+    "pack-p",
+    "pack-q",
+    "pack-r",
+  ] as const)(
     "persists and reads %s completion receipts through retries and history pruning",
     async (packId) => {
       const id = await learner();

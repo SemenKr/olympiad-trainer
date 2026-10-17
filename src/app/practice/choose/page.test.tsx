@@ -43,7 +43,7 @@ afterEach(() => {
 
 function catalog(container: HTMLElement) {
   const cards = [...container.querySelectorAll("article")];
-  expect(cards).toHaveLength(15);
+  expect(cards).toHaveLength(18);
   expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual(
     LEARNING_PATH_V1.map(({ packId }) => `${packId}-title`),
   );
@@ -69,7 +69,7 @@ function deferred<T>() {
 }
 
 describe("Choose Practice stable catalog", () => {
-  it("renders all fifteen Packs in editorial order before any reads resolve", () => {
+  it("renders all eighteen Packs in editorial order before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
     catalog(container);
@@ -103,7 +103,7 @@ describe("Choose Practice stable catalog", () => {
       ).toBe(summary);
       expect([...summary.querySelectorAll("p, div")]).toEqual(slots);
       expect(document.activeElement).toBe(link);
-      expect(summary.textContent).toContain("Сохранённые завершения: 1 из 15");
+      expect(summary.textContent).toContain("Сохранённые завершения: 1 из 18");
       expect(summary.querySelector("a")?.getAttribute("href")).toBe(
         packHref("pack-j"),
       );
@@ -135,7 +135,7 @@ describe("Choose Practice stable catalog", () => {
       expect(summary.querySelector('[role="alert"]')?.textContent).toContain(
         "Все наборы ниже всё равно доступны",
       );
-      expect(summary.textContent).not.toContain("0 из 15");
+      expect(summary.textContent).not.toContain("0 из 18");
       const retryButton = container.querySelector("button")!;
       retryButton.focus();
       await act(async () => retryButton.click());
@@ -145,12 +145,12 @@ describe("Choose Practice stable catalog", () => {
       expect(summary.textContent).toContain("Загружаем отметки пути");
       await act(async () => retry.resolve(["pack-a", "pack-j"]));
       expect(catalog(container)).toEqual(before);
-      expect(summary.textContent).toContain("Сохранённые завершения: 2 из 15");
+      expect(summary.textContent).toContain("Сохранённые завершения: 2 из 18");
       expect(summary.querySelector("a")?.getAttribute("href")).toBe(
         packHref("pack-h"),
       );
       expect(document.activeElement).toBe(summary.querySelector("h2"));
-      expect(container.querySelectorAll("article")).toHaveLength(15);
+      expect(container.querySelectorAll("article")).toHaveLength(18);
     } finally {
       await act(async () => root.unmount());
     }
