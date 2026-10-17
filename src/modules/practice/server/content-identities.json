@@ -1,0 +1,706 @@
+{
+  "problems": [
+    {
+      "id": "coinciding-seats",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "coinciding-seats-focus-simultaneous-rules",
+        "coinciding-seats-strategy-repeat-interval",
+        "coinciding-seats-next-step-list-common-seats"
+      ],
+      "solutionId": "coinciding-seats-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "guaranteed-sock-pair",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "guaranteed-sock-pair-focus-guarantee",
+        "guaranteed-sock-pair-strategy-worst-case",
+        "guaranteed-sock-pair-next-step-bound-without-pair"
+      ],
+      "solutionId": "guaranteed-sock-pair-full-solution",
+      "checkpointId": "guaranteed-sock-pair-guarantee-argument",
+      "checkpointOptionIds": ["A", "B", "C"]
+    },
+    {
+      "id": "table-impossible-sums",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["sum-20", "sum-21", "sum-23", "sum-25", "sum-26"],
+      "hintIds": [
+        "table-impossible-sums-focus-constraints",
+        "table-impossible-sums-strategy-minimum",
+        "table-impossible-sums-next-step-fives"
+      ],
+      "solutionId": "table-impossible-sums-full-solution",
+      "checkpointId": "table-impossible-sums-impossibility-argument",
+      "checkpointOptionIds": ["A", "B", "C"]
+    },
+    {
+      "id": "brothers-ages-products",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "brothers-ages-products-focus-distinct-products",
+        "brothers-ages-products-strategy-youngest",
+        "brothers-ages-products-next-step-bound"
+      ],
+      "solutionId": "brothers-ages-products-full-solution",
+      "checkpointId": "brothers-ages-products-youngest-lower-bound",
+      "checkpointOptionIds": ["A", "B", "C"]
+    },
+    {
+      "id": "parrots-guaranteed-colors",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "parrots-guaranteed-colors-focus-worst-group",
+        "parrots-guaranteed-colors-strategy-complements",
+        "parrots-guaranteed-colors-next-step-overlap"
+      ],
+      "solutionId": "parrots-guaranteed-colors-full-solution",
+      "checkpointId": "parrots-guaranteed-colors-guarantee-argument",
+      "checkpointOptionIds": ["A", "B", "C"]
+    },
+    {
+      "id": "pages-without-digit-one",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "pages-without-digit-one-focus-count",
+        "pages-without-digit-one-strategy-blocks",
+        "pages-without-digit-one-next-step-count"
+      ],
+      "solutionId": "pages-without-digit-one-full-solution",
+      "checkpointId": "pages-without-digit-one-complete-enumeration",
+      "checkpointOptionIds": ["A", "B", "C"]
+    },
+    {
+      "id": "granddaughters-first",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["anya", "bella", "valya", "galya", "dasha"],
+      "hintIds": [
+        "granddaughters-first-focus",
+        "granddaughters-first-strategy",
+        "granddaughters-first-next-step"
+      ],
+      "solutionId": "granddaughters-first-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cutout-area-ratio",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "cutout-area-ratio-focus",
+        "cutout-area-ratio-strategy",
+        "cutout-area-ratio-next-step"
+      ],
+      "solutionId": "cutout-area-ratio-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "domino-placements",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "domino-placements-focus",
+        "domino-placements-strategy",
+        "domino-placements-next-step"
+      ],
+      "solutionId": "domino-placements-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "truck-car-same-arrival",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "truck-car-same-arrival-focus",
+        "truck-car-same-arrival-strategy",
+        "truck-car-same-arrival-next-step"
+      ],
+      "solutionId": "truck-car-same-arrival-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "knights-all-or-none",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "count-0",
+        "count-1",
+        "count-2",
+        "count-3",
+        "count-4",
+        "count-5"
+      ],
+      "hintIds": [
+        "knights-all-or-none-focus",
+        "knights-all-or-none-strategy",
+        "knights-all-or-none-next-step"
+      ],
+      "solutionId": "knights-all-or-none-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "boastful-fisherman-streak",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "boastful-fisherman-streak-focus",
+        "boastful-fisherman-streak-strategy",
+        "boastful-fisherman-streak-next-step"
+      ],
+      "solutionId": "boastful-fisherman-streak-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "largest-valid-eight-digit",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "largest-valid-eight-digit-focus",
+        "largest-valid-eight-digit-strategy",
+        "largest-valid-eight-digit-next-step"
+      ],
+      "solutionId": "largest-valid-eight-digit-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "three-numbers-digit-sums",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "three-numbers-digit-sums-focus",
+        "three-numbers-digit-sums-strategy",
+        "three-numbers-digit-sums-next-step"
+      ],
+      "solutionId": "three-numbers-digit-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "mountain-plain-flights",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "mountain-plain-flights-focus",
+        "mountain-plain-flights-strategy",
+        "mountain-plain-flights-next-step"
+      ],
+      "solutionId": "mountain-plain-flights-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "exact-coin-payments",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "exact-coin-payments-focus",
+        "exact-coin-payments-strategy",
+        "exact-coin-payments-next-step"
+      ],
+      "solutionId": "exact-coin-payments-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "odd-neighbor-sugar-cubes",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "odd-neighbor-sugar-cubes-focus",
+        "odd-neighbor-sugar-cubes-strategy",
+        "odd-neighbor-sugar-cubes-next-step"
+      ],
+      "solutionId": "odd-neighbor-sugar-cubes-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "last-student-friends",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "last-student-friends-focus",
+        "last-student-friends-strategy",
+        "last-student-friends-next-step"
+      ],
+      "solutionId": "last-student-friends-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "lineup-six-hooligans",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "lineup-six-hooligans-focus",
+        "lineup-six-hooligans-strategy",
+        "lineup-six-hooligans-next-step"
+      ],
+      "solutionId": "lineup-six-hooligans-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "two-true-journalists",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "goals-10",
+        "goals-11",
+        "goals-12",
+        "goals-13",
+        "goals-14",
+        "goals-15",
+        "goals-16",
+        "goals-17",
+        "goals-18"
+      ],
+      "hintIds": [
+        "two-true-journalists-focus",
+        "two-true-journalists-strategy",
+        "two-true-journalists-next-step"
+      ],
+      "solutionId": "two-true-journalists-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "neighbor-comparison-codes",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "code-0112102011",
+        "code-1021021020",
+        "code-1101111111",
+        "code-1201201020"
+      ],
+      "hintIds": [
+        "neighbor-comparison-codes-focus",
+        "neighbor-comparison-codes-strategy",
+        "neighbor-comparison-codes-next-step"
+      ],
+      "solutionId": "neighbor-comparison-codes-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "five-piles-stones",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "five-piles-stones-focus",
+        "five-piles-stones-strategy",
+        "five-piles-stones-next-step"
+      ],
+      "solutionId": "five-piles-stones-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "untouched-matchstick-figures",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "untouched-matchstick-figures-focus",
+        "untouched-matchstick-figures-strategy",
+        "untouched-matchstick-figures-next-step"
+      ],
+      "solutionId": "untouched-matchstick-figures-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "mountain-numbers-over-77777",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "mountain-numbers-over-77777-focus",
+        "mountain-numbers-over-77777-strategy",
+        "mountain-numbers-over-77777-next-step"
+      ],
+      "solutionId": "mountain-numbers-over-77777-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "nonadjacent-row-seating",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "nonadjacent-row-seating-focus",
+        "nonadjacent-row-seating-strategy",
+        "nonadjacent-row-seating-next-step"
+      ],
+      "solutionId": "nonadjacent-row-seating-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "eighteen-piece-pie-cuts",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "eighteen-piece-pie-cuts-focus",
+        "eighteen-piece-pie-cuts-strategy",
+        "eighteen-piece-pie-cuts-next-step"
+      ],
+      "solutionId": "eighteen-piece-pie-cuts-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "multiples-prefix-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "multiples-prefix-count-focus",
+        "multiples-prefix-count-strategy",
+        "multiples-prefix-count-next-step"
+      ],
+      "solutionId": "multiples-prefix-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "rabbit-carrot-shortfall",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "rabbit-carrot-shortfall-focus",
+        "rabbit-carrot-shortfall-strategy",
+        "rabbit-carrot-shortfall-next-step"
+      ],
+      "solutionId": "rabbit-carrot-shortfall-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "grade-average-fives",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "grade-average-fives-focus",
+        "grade-average-fives-strategy",
+        "grade-average-fives-next-step"
+      ],
+      "solutionId": "grade-average-fives-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "magic-forest-coin-difference",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "magic-forest-coin-difference-focus",
+        "magic-forest-coin-difference-strategy",
+        "magic-forest-coin-difference-next-step"
+      ],
+      "solutionId": "magic-forest-coin-difference-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "four-houses-distance-cases",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "distance-600",
+        "distance-900",
+        "distance-1200",
+        "distance-1800",
+        "distance-2400"
+      ],
+      "hintIds": [
+        "four-houses-distance-cases-focus",
+        "four-houses-distance-cases-strategy",
+        "four-houses-distance-cases-next-step"
+      ],
+      "solutionId": "four-houses-distance-cases-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "ivanov-older-brother-count",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "children-4",
+        "children-6",
+        "children-8",
+        "children-10",
+        "children-12",
+        "children-14"
+      ],
+      "hintIds": [
+        "ivanov-older-brother-count-focus",
+        "ivanov-older-brother-count-strategy",
+        "ivanov-older-brother-count-next-step"
+      ],
+      "solutionId": "ivanov-older-brother-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cube-red-face-sums",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "cube-red-face-sums-focus",
+        "cube-red-face-sums-strategy",
+        "cube-red-face-sums-next-step"
+      ],
+      "solutionId": "cube-red-face-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "chocolate-promotion-price",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "chocolate-promotion-price-focus",
+        "chocolate-promotion-price-strategy",
+        "chocolate-promotion-price-next-step"
+      ],
+      "solutionId": "chocolate-promotion-price-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "school-lesson-teacher-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "school-lesson-teacher-count-focus",
+        "school-lesson-teacher-count-strategy",
+        "school-lesson-teacher-count-next-step"
+      ],
+      "solutionId": "school-lesson-teacher-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "soldier-figures-guarantee",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "soldier-figures-guarantee-focus",
+        "soldier-figures-guarantee-strategy",
+        "soldier-figures-guarantee-next-step"
+      ],
+      "solutionId": "soldier-figures-guarantee-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "apple-harvest-assignments",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "alena-19",
+        "borya-11",
+        "vera-11",
+        "polina-24",
+        "alena-24",
+        "vera-17"
+      ],
+      "hintIds": [
+        "apple-harvest-assignments-focus",
+        "apple-harvest-assignments-strategy",
+        "apple-harvest-assignments-next-step"
+      ],
+      "solutionId": "apple-harvest-assignments-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "liar-council-maximum",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "liar-council-maximum-focus",
+        "liar-council-maximum-strategy",
+        "liar-council-maximum-next-step"
+      ],
+      "solutionId": "liar-council-maximum-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "central-coin-column",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "central-coin-column-focus",
+        "central-coin-column-strategy",
+        "central-coin-column-next-step"
+      ],
+      "solutionId": "central-coin-column-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "five-fridays-calendar",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "hintIds": [
+        "five-fridays-calendar-focus",
+        "five-fridays-calendar-strategy",
+        "five-fridays-calendar-next-step"
+      ],
+      "solutionId": "five-fridays-calendar-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "circular-table-seat-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "circular-table-seat-count-focus",
+        "circular-table-seat-count-strategy",
+        "circular-table-seat-count-next-step"
+      ],
+      "solutionId": "circular-table-seat-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "balanced-six-groups",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "total-74",
+        "total-76",
+        "total-77",
+        "total-78",
+        "total-79",
+        "total-80",
+        "total-82"
+      ],
+      "hintIds": [
+        "balanced-six-groups-focus",
+        "balanced-six-groups-strategy",
+        "balanced-six-groups-next-step"
+      ],
+      "solutionId": "balanced-six-groups-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    }
+  ],
+  "packs": [
+    {
+      "id": "pack-a",
+      "problemIds": [
+        "granddaughters-first",
+        "cutout-area-ratio",
+        "domino-placements"
+      ]
+    },
+    {
+      "id": "pack-b",
+      "problemIds": [
+        "truck-car-same-arrival",
+        "knights-all-or-none",
+        "boastful-fisherman-streak"
+      ]
+    },
+    {
+      "id": "pack-c",
+      "problemIds": [
+        "largest-valid-eight-digit",
+        "three-numbers-digit-sums",
+        "mountain-plain-flights"
+      ]
+    },
+    {
+      "id": "pack-d",
+      "problemIds": [
+        "exact-coin-payments",
+        "odd-neighbor-sugar-cubes",
+        "last-student-friends"
+      ]
+    },
+    {
+      "id": "pack-e",
+      "problemIds": [
+        "lineup-six-hooligans",
+        "two-true-journalists",
+        "neighbor-comparison-codes"
+      ]
+    },
+    {
+      "id": "pack-f",
+      "problemIds": [
+        "five-piles-stones",
+        "untouched-matchstick-figures",
+        "mountain-numbers-over-77777"
+      ]
+    },
+    {
+      "id": "pack-g",
+      "problemIds": [
+        "nonadjacent-row-seating",
+        "eighteen-piece-pie-cuts",
+        "multiples-prefix-count"
+      ]
+    },
+    {
+      "id": "pack-h",
+      "problemIds": [
+        "rabbit-carrot-shortfall",
+        "grade-average-fives",
+        "magic-forest-coin-difference"
+      ]
+    },
+    {
+      "id": "pack-i",
+      "problemIds": [
+        "four-houses-distance-cases",
+        "ivanov-older-brother-count",
+        "cube-red-face-sums"
+      ]
+    },
+    {
+      "id": "pack-j",
+      "problemIds": [
+        "chocolate-promotion-price",
+        "school-lesson-teacher-count",
+        "soldier-figures-guarantee"
+      ]
+    },
+    {
+      "id": "pack-k",
+      "problemIds": [
+        "apple-harvest-assignments",
+        "liar-council-maximum",
+        "central-coin-column"
+      ]
+    },
+    {
+      "id": "pack-l",
+      "problemIds": [
+        "five-fridays-calendar",
+        "circular-table-seat-count",
+        "balanced-six-groups"
+      ]
+    }
+  ]
+}

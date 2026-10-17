@@ -54,6 +54,9 @@ jobs:
       - name: Lint styles
         run: pnpm stylelint
 
+      - name: Validate authored content
+        run: pnpm content:validate
+
       - name: Typecheck
         run: pnpm typecheck
 

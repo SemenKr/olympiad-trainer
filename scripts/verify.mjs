@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const isWindows = process.platform === "win32";
 const checks = [
+  {
+    label: "pnpm content:validate",
+    command: "pnpm",
+    args: ["content:validate"],
+  },
   { label: "pnpm test", command: "pnpm", args: ["test"] },
   {
     label: "pnpm typecheck",
