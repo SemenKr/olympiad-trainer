@@ -461,9 +461,9 @@ describe("Content Scale v2 — Batch 2", () => {
       EXPLORATION_EPISODE_PROBLEM_ID,
       ...PRACTICE_PACKS.flatMap((pack) => pack.problemIds),
     ];
-    expect(PRACTICE_PACKS).toHaveLength(15);
-    expect(ids).toHaveLength(51);
-    expect(new Set(ids).size).toBe(51);
+    expect(PRACTICE_PACKS).toHaveLength(18);
+    expect(ids).toHaveLength(60);
+    expect(new Set(ids).size).toBe(60);
     for (const id of ids) {
       expect(getProblemDefinition(id)).toMatchObject({
         id,

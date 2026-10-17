@@ -638,6 +638,96 @@ const packProblemMetadata = {
       "lamp-100-yellow",
     ],
   },
+  "cut-paper-triangle-count": {
+    id: "cut-paper-triangle-count",
+    title: "Треугольники из бумаги",
+    hints: [
+      "cut-paper-triangle-count-focus",
+      "cut-paper-triangle-count-strategy",
+      "cut-paper-triangle-count-next-step",
+    ],
+    solution: "cut-paper-triangle-count-full-solution",
+  },
+  "reversed-number-tens-digit": {
+    id: "reversed-number-tens-digit",
+    title: "Десятки в разности",
+    hints: [
+      "reversed-number-tens-digit-focus",
+      "reversed-number-tens-digit-strategy",
+      "reversed-number-tens-digit-next-step",
+    ],
+    solution: "reversed-number-tens-digit-full-solution",
+  },
+  "colored-clay-piece-count": {
+    id: "colored-clay-piece-count",
+    title: "Два разрезания",
+    hints: [
+      "colored-clay-piece-count-focus",
+      "colored-clay-piece-count-strategy",
+      "colored-clay-piece-count-next-step",
+    ],
+    solution: "colored-clay-piece-count-full-solution",
+  },
+  "square-border-tile-count": {
+    id: "square-border-tile-count",
+    title: "Плитки у края",
+    hints: [
+      "square-border-tile-count-focus",
+      "square-border-tile-count-strategy",
+      "square-border-tile-count-next-step",
+    ],
+    solution: "square-border-tile-count-full-solution",
+  },
+  "constant-scale-error": {
+    id: "constant-scale-error",
+    title: "Ошибка весов",
+    hints: [
+      "constant-scale-error-focus",
+      "constant-scale-error-strategy",
+      "constant-scale-error-next-step",
+    ],
+    solution: "constant-scale-error-full-solution",
+  },
+  "rabbit-middle-cage": {
+    id: "rabbit-middle-cage",
+    title: "Кролики по соседству",
+    hints: [
+      "rabbit-middle-cage-focus",
+      "rabbit-middle-cage-strategy",
+      "rabbit-middle-cage-next-step",
+    ],
+    solution: "rabbit-middle-cage-full-solution",
+  },
+  "alternating-queue-swaps": {
+    id: "alternating-queue-swaps",
+    title: "Обмены в очереди",
+    hints: [
+      "alternating-queue-swaps-focus",
+      "alternating-queue-swaps-strategy",
+      "alternating-queue-swaps-next-step",
+    ],
+    solution: "alternating-queue-swaps-full-solution",
+  },
+  "corridor-single-layer": {
+    id: "corridor-single-layer",
+    title: "Один слой краски",
+    hints: [
+      "corridor-single-layer-focus",
+      "corridor-single-layer-strategy",
+      "corridor-single-layer-next-step",
+    ],
+    solution: "corridor-single-layer-full-solution",
+  },
+  "diamond-emerald-balance": {
+    id: "diamond-emerald-balance",
+    title: "Камни на весах",
+    hints: [
+      "diamond-emerald-balance-focus",
+      "diamond-emerald-balance-strategy",
+      "diamond-emerald-balance-next-step",
+    ],
+    solution: "diamond-emerald-balance-full-solution",
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {

@@ -13,7 +13,8 @@
     "0011_learning_path_pack_receipts.sql",
     "0012_learner_identity_boundary.sql",
     "0013_learner_recovery_credentials.sql",
-    "0020_content_expansion_pack_receipts.sql"
+    "0020_content_expansion_pack_receipts.sql",
+    "0021_content_expansion_batch_2_pack_receipts.sql"
   ],
   "expansion": [
     "0018_adaptive_compat_expand_basis.sql",

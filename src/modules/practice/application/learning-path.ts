@@ -74,6 +74,18 @@ export const LEARNING_PATH_V1 = [
     packId: "pack-o",
     description: "Считаем дни и замечаем повторяющиеся закономерности.",
   },
+  {
+    packId: "pack-p",
+    description: "Считаем кусочки после разрезаний и плитки у края.",
+  },
+  {
+    packId: "pack-q",
+    description: "Сравниваем массы, показания весов и число соседей.",
+  },
+  {
+    packId: "pack-r",
+    description: "Исследуем цифры, пересечения участков и обмены в очереди.",
+  },
 ] as const satisfies readonly Readonly<{
   packId: PackId;
   description: string;

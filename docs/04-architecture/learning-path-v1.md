@@ -4,7 +4,7 @@ Status: Adopted contract; merged into `main` in PR #72 (`979887b`). Deployment s
 
 ## Meaning and editorial sequence
 
-Learning Path is optional navigation through existing ordinary three-problem Packs. The adopted editorial order is **A → J → H → L → D → G → E → I → C → B → F → K → M → N → O**; Content Expansion Batch 1 appends M–O after the original sequence. It is not a curriculum, prerequisite graph, difficulty progression or mastery model. All Packs remain selectable and repeatable. Descriptions are our orientation copy, not official VSOSh metadata.
+Learning Path is optional navigation through existing ordinary three-problem Packs. The adopted editorial order is **A → J → H → L → D → G → E → I → C → B → F → K → M → N → O → P → Q → R**; Content Expansion Batch 1 appends M–O after the original sequence; Content Expansion Batch 2 appends P–R. It is not a curriculum, prerequisite graph, difficulty progression or mastery model. All Packs remain selectable and repeatable. Descriptions are our orientation copy, not official VSOSh metadata.
 
 `LEARNING_PATH_V1` references stable Pack IDs; names and exact task tuples come from `PRACTICE_PACKS`. J/K/L display names are `Считаем и сравниваем`, `Выводы и доказательства`, `Порядок и варианты`, without technical prefixes. Existing Pack IDs, routes and tuples remain unchanged.
 
@@ -14,7 +14,7 @@ The deterministic projection chooses the earliest entry without a recorded compl
 
 A completion marker means only a **successfully persisted Pack Finish**, including early Finish, skipped tasks, incorrect-only work or solution exposure. It does not mean all tasks were solved, independently solved, or a topic mastered.
 
-Migration `0011_learning_path_pack_receipts.sql` adds nullable `pack_id` to `practice_finish_receipts`. The server derives it from a validated nonempty ordered prefix of the registered tuple (one to three opened tasks) after validating the completed episode, only for `mode: pack`. Clients cannot submit a Pack identity or learner ID. Migration 0011 initially constrains non-null IDs to Packs A–L; forward migration `0020_content_expansion_pack_receipts.sql` extends that constraint to A–O. The requirement for non-null `episode_mode = pack` and all existing receipts remain unchanged; other and legacy modes keep null.
+Migration `0011_learning_path_pack_receipts.sql` adds nullable `pack_id` to `practice_finish_receipts`. The server derives it from a validated nonempty ordered prefix of the registered tuple (one to three opened tasks) after validating the completed episode, only for `mode: pack`. Clients cannot submit a Pack identity or learner ID. Migration 0011 initially constrains non-null IDs to Packs A–L; forward migration `0020_content_expansion_pack_receipts.sql` extends that constraint to A–O; `0021_content_expansion_batch_2_pack_receipts.sql` subsequently extends it to A–R without editing either prior migration. The requirement for non-null `episode_mode = pack` and all existing receipts remain unchanged; other and legacy modes keep null.
 
 The marker is inserted in the existing learner-row-locked Finish transaction alongside history, evidence, XP and the receipt. No partial marker survives rollback. The immutable contribution hash and retry request stay unchanged. Identical retries return the stored result; changed payloads conflict. Retry never annotates a pre-v1 receipt or recreates pruned history.
 

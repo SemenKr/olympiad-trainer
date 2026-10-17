@@ -21,10 +21,10 @@ const validate = (
 
 describe("repository content pipeline", () => {
   it("validates all authored problems and Packs against the identity baseline", () => {
-    expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(51);
-    expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(15);
-    expect(baseline.problems).toHaveLength(51);
-    expect(baseline.packs).toHaveLength(15);
+    expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(60);
+    expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(18);
+    expect(baseline.problems).toHaveLength(60);
+    expect(baseline.packs).toHaveLength(18);
     expect(validate()).toEqual([]);
   });
   it("detects duplicate IDs before lookup construction", () => {

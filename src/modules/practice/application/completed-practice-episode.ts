@@ -148,6 +148,33 @@ export const PRACTICE_PACKS = [
       "five-lamp-pattern",
     ],
   },
+  {
+    id: "pack-p",
+    name: "Считаем части",
+    problemIds: [
+      "cut-paper-triangle-count",
+      "colored-clay-piece-count",
+      "square-border-tile-count",
+    ],
+  },
+  {
+    id: "pack-q",
+    name: "Сравниваем условия",
+    problemIds: [
+      "diamond-emerald-balance",
+      "constant-scale-error",
+      "rabbit-middle-cage",
+    ],
+  },
+  {
+    id: "pack-r",
+    name: "Порядок и изменения",
+    problemIds: [
+      "reversed-number-tens-digit",
+      "corridor-single-layer",
+      "alternating-queue-swaps",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;
