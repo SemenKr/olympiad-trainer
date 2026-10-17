@@ -37,3 +37,5 @@ No server-side Practice-session persistence is introduced to enforce hint or sol
 ## Learning Path navigation
 
 [Learning Path v1](learning-path-v1.md) adds an optional editorial sequence referencing existing Pack IDs, with no difficulty or prerequisite metadata. J/K/L display names omit technical prefixes. Pack tuples, protected content and evidence policies are unchanged.
+
+Repository authoring and structural/identity checks: [Content Pipeline v1](../05-development/content-pipeline-v1.md). Human verification remains required for mathematical correctness and usage rights.

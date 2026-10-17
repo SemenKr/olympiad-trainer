@@ -17,3 +17,5 @@ Olympiad Foundations: [исследовательский прототип v0.1]
 Следующее наблюдение за новичком: [полевой лист LV-03](02-research/learner-validation-lv03-field-sheet.md) для печати и краткой записи по действующим протоколам.
 
 Learner Identity & Recovery v1: [принятый архитектурный и продуктовый контракт](04-architecture/learner-identity-recovery-v1.md) и [production runbook](05-development/recovery-production-runbook.md). Recovery v1 выпущен в controlled canonical-host production; конфигурация и результаты релиза: [production runbook](05-development/recovery-production-runbook.md#current-production-release-record).
+
+Content authoring: [Content Pipeline v1](05-development/content-pipeline-v1.md).

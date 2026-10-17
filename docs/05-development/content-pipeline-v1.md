@@ -1,0 +1,24 @@
+# Content Pipeline v1
+
+The server catalog currently contains 42 Grade 5 mathematics problems; the learner-safe registry contains 12 ordinary Practice Packs. Repository TypeScript remains the authoring format. No content is imported or published by validation.
+
+## Authoring
+
+1. Inspect `src/modules/practice/server/problem-catalog.ts` and the relevant research/source audit before editing. Use a feature branch. Keep factual provenance, adapted learner content, interpretation and training hints distinct.
+2. For maintenance, edit an existing definition in place. Preserve its problem ID, response kind, option IDs/order, ordered hint IDs, solution ID and optional checkpoint ID. Saved learner episodes and reveal requests depend on these identities. Wording and answer corrections still require human mathematical review.
+3. For an explicitly approved addition, follow an existing `ProblemDefinition` and register it once in `PRACTICE_PROBLEM_DEFINITIONS`. Choose new stable lowercase kebab-case IDs. Supply a nonempty statement, supported assessment, three progressive hints (focus, strategy, next-step), training solution and factual original/official-solution PDF references with positive page and task numbers. Numeric answers are canonical nonnegative integer strings; set answers contain distinct known option IDs. Do not infer difficulty from official numbering.
+4. When approved scope includes a new Pack, add its learner-safe name and exactly three distinct existing problem IDs to `PRACTICE_PACKS` in `application/completed-practice-episode.ts`. Order is part of identity. Do not change an existing tuple: Resume and History rely on it.
+5. Run `pnpm content:validate`, then relevant tests and `pnpm verify`. CI also runs the dedicated validation command. Errors identify the problem/Pack and failed contract. Typecheck complements validation for authored TypeScript; this workflow is not an untrusted JSON importer.
+6. Obtain independent code review and explicit human verification of mathematical correctness, source correspondence, adaptation accuracy and source/usage rights before publishing content. Automated checks do not establish these facts or fetch/verify source availability.
+
+## Example using approved content
+
+Use `coincidingSeatsProblem` as the numeric authoring example: stable ID `coinciding-seats`, Grade 5 mathematics, expected answer `"17"`, three ordered hint definitions and solution ID `coinciding-seats-full-solution`. Its statement adapts the source to 102 seats; provenance retains the official task references. The architecture document explains this distinction. For a set-answer example inspect `granddaughtersFirstProblem`, with expected IDs drawn from its visible option set. Pack A already demonstrates registration of three approved existing problems. These are inspection examples, not instructions to duplicate or publish a new problem.
+
+## Identity protection and limits
+
+`server/content-identities.json` records the existing 42 problem identities and 12 ordered Pack tuples. Validation compares each baseline entry against the complete raw registration list before lookup can conceal duplicate IDs. It rejects missing or changed identities, duplicate IDs/tuples, broken Pack or expected-option references, invalid answer contracts, hint order, empty support content and malformed provenance. Tests also resolve every hint and solution through the existing protected reveal functions and verify learner projections.
+
+The baseline is a review guard, not tamper-proof storage. Do not regenerate it to silence errors. Add reviewed new entries manually when adopting content; retain all prior entries. An intentional identity migration requires a separately approved compatibility plan for saved state, History and adaptive references. Editing the baseline and content together can bypass the guard and must receive explicit review. Validation permits additions without redefining the original inventory; inventory-count tests document this initial baseline and should be deliberately updated only when adopting new baseline entries.
+
+Answers, unopened hints and full solutions stay server-only. The validator imports the catalog type only; the executable validation test mocks `server-only` solely within Vitest. Runtime projections, adaptive selection, Resume, Finish, History and Progress behavior are unchanged. Existing feature tests remain the regression evidence for those flows; no browser or database migration is introduced.
