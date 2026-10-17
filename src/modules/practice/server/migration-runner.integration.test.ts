@@ -44,7 +44,9 @@ async function fixture(
     await client.query("CREATE TABLE schema_migrations(name text PRIMARY KEY)");
     const plan = JSON.parse(await readFile("db/migration-plan.json", "utf8"));
     for (const name of [
-      ...plan.base,
+      ...plan.base.filter(
+        (name: string) => name !== "0020_content_expansion_pack_receipts.sql",
+      ),
       ...(history === "0014" ? ["0014_adaptive_target_usage.sql"] : []),
     ]) {
       await client.query(await readFile(`db/migrations/${name}`, "utf8"));
@@ -151,6 +153,91 @@ async function waitForLock(client: pg.Client, app: string) {
 
 describe.skipIf(!url)("atomic migration runner safety", () => {
   for (const history of ["0013", "0014"] as const) {
+    it(
+      `${history}: extends Pack receipts to M–O without changing A–L receipts or validation semantics`,
+      async () =>
+        fixture(
+          history,
+          async ({ client, connectionString, learnerId, app }) => {
+            const oldPackIds = [
+              "pack-a",
+              "pack-b",
+              "pack-c",
+              "pack-d",
+              "pack-e",
+              "pack-f",
+              "pack-g",
+              "pack-h",
+              "pack-i",
+              "pack-j",
+              "pack-k",
+              "pack-l",
+            ];
+            const newPackIds = ["pack-m", "pack-n", "pack-o"];
+            const insertReceipt = (
+              packId: string | null,
+              mode: string | null,
+            ) =>
+              client.query(
+                "INSERT INTO practice_finish_receipts(learner_id,session_id,contribution_hash,episode_mode,pack_id) VALUES($1,$2,$3,$4,$5)",
+                [learnerId, randomUUID(), "0".repeat(64), mode, packId],
+              );
+            const receipts = async () =>
+              (
+                await client.query(
+                  "SELECT * FROM practice_finish_receipts WHERE learner_id=$1 ORDER BY session_id",
+                  [learnerId],
+                )
+              ).rows;
+            for (const packId of oldPackIds)
+              await insertReceipt(packId, "pack");
+            await insertReceipt(null, null);
+            const before = await receipts();
+            for (const packId of newPackIds)
+              await expect(insertReceipt(packId, "pack")).rejects.toMatchObject(
+                {
+                  code: "23514",
+                  constraint: "practice_finish_receipts_pack_id_check",
+                },
+              );
+
+            expect(await migrate(connectionString, app)).toMatchObject({
+              code: 0,
+            });
+            expect(await receipts()).toEqual(before);
+            expect((await shape(client)).markers).toContainEqual({
+              name: "0020_content_expansion_pack_receipts.sql",
+            });
+            for (const packId of newPackIds)
+              await insertReceipt(packId, "pack");
+            expect(
+              (await receipts())
+                .map((row) => row.pack_id)
+                .filter((id) => id !== null)
+                .sort(),
+            ).toEqual([...oldPackIds, ...newPackIds]);
+            await expect(insertReceipt("pack-p", "pack")).rejects.toMatchObject(
+              {
+                code: "23514",
+                constraint: "practice_finish_receipts_pack_id_check",
+              },
+            );
+            await expect(insertReceipt("pack-m", "core")).rejects.toMatchObject(
+              {
+                code: "23514",
+                constraint: "practice_finish_receipts_pack_id_mode_check",
+              },
+            );
+            const after = await receipts();
+            expect(await migrate(connectionString, app)).toMatchObject({
+              code: 0,
+            });
+            expect(await receipts()).toEqual(after);
+          },
+        ),
+      15000,
+    );
+
     it.each(["advisory", "table"] as const)(
       `${history}: bounds %s lock waits despite permissive session defaults`,
       async (lock) =>
@@ -272,7 +359,7 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
                   capture: history === "0013" ? 2 : 1,
                 },
               ]);
-              expect(after.markers).toHaveLength(16);
+              expect(after.markers).toHaveLength(17);
               expect(await migrate(connectionString, app)).toMatchObject({
                 code: 0,
               });

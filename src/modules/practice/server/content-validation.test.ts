@@ -21,10 +21,10 @@ const validate = (
 
 describe("repository content pipeline", () => {
   it("validates all authored problems and Packs against the identity baseline", () => {
-    expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(42);
-    expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(12);
-    expect(baseline.problems).toHaveLength(42);
-    expect(baseline.packs).toHaveLength(12);
+    expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(51);
+    expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(15);
+    expect(baseline.problems).toHaveLength(51);
+    expect(baseline.packs).toHaveLength(15);
     expect(validate()).toEqual([]);
   });
   it("detects duplicate IDs before lookup construction", () => {
@@ -67,6 +67,25 @@ describe("repository content pipeline", () => {
       "IS source",
     ])
       expect(errors.some((e) => e.includes(fragment))).toBe(true);
+  });
+  it("accepts and validates positive source variant numbers", () => {
+    const problem = PRACTICE_PROBLEM_DEFINITIONS.find(
+      (item) => item.id === "rectangle-knight-count",
+    );
+    expect(problem?.provenance.variant).toBe(3);
+    expect(validate()).toEqual([]);
+    const changed = {
+      ...problem!,
+      provenance: { ...problem!.provenance, variant: 0 },
+    };
+    const errors = validate(
+      PRACTICE_PROBLEM_DEFINITIONS.map((item) =>
+        item.id === changed.id ? changed : item,
+      ),
+    );
+    expect(errors).toContain(
+      "problem rectangle-knight-count: provenance metadata",
+    );
   });
   it("rejects unknown, duplicate and empty expected options", () => {
     const source = PRACTICE_PROBLEM_DEFINITIONS.find(

@@ -21,6 +21,9 @@ describe("Learning Path v1", () => {
       "pack-b",
       "pack-f",
       "pack-k",
+      "pack-m",
+      "pack-n",
+      "pack-o",
     ]);
     expect(new Set(LEARNING_PATH_V1.map(({ packId }) => packId)).size).toBe(
       PRACTICE_PACKS.length,
@@ -51,7 +54,7 @@ describe("Learning Path v1", () => {
     const projection = getLearningPathProjection(
       LEARNING_PATH_V1.map(({ packId }) => packId),
     );
-    expect(projection.completedCount).toBe(12);
+    expect(projection.completedCount).toBe(15);
     expect(projection.nextPackId).toBeNull();
     expect(projection.allRecorded).toBe(true);
     expect(projection.entries.every((entry) => entry.completed)).toBe(true);

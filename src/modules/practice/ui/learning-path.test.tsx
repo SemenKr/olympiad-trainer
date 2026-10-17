@@ -35,7 +35,7 @@ describe("Compact Learning Path summary", () => {
       next: "pack-h" as const,
     },
     { completed: [] as const, count: 0, next: "pack-a" as const },
-    { completed: PRACTICE_PACKS.map((pack) => pack.id), count: 12, next: null },
+    { completed: PRACTICE_PACKS.map((pack) => pack.id), count: 15, next: null },
   ])(
     "keeps factual completion count and editorial next step ($count records)",
     async ({ completed, count, next }) => {
@@ -45,7 +45,7 @@ describe("Compact Learning Path summary", () => {
       try {
         await act(async () => root.render(<LearningPathGuideLoader />));
         expect(container.textContent).toContain(
-          `Сохранённые завершения: ${count} из 12`,
+          `Сохранённые завершения: ${count} из 15`,
         );
         expect(container.querySelectorAll("article, ol, ul")).toHaveLength(0);
         expect(container.textContent).toContain(

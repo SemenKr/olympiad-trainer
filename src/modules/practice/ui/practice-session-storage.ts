@@ -538,6 +538,106 @@ const packProblemMetadata = {
       "total-82",
     ],
   },
+  "false-box-labels": {
+    id: "false-box-labels",
+    title: "Все надписи неверны",
+    hints: [
+      "false-box-labels-focus-match-labels",
+      "false-box-labels-strategy-first-box",
+      "false-box-labels-next-step-second-box",
+    ],
+    solution: "false-box-labels-full-solution",
+  },
+  "pirate-coin-redistribution": {
+    id: "pirate-coin-redistribution",
+    title: "Монеты для пиратов",
+    hints: [
+      "pirate-coin-redistribution-focus-relative-amounts",
+      "pirate-coin-redistribution-strategy-quarter",
+      "pirate-coin-redistribution-next-step-equalize",
+    ],
+    solution: "pirate-coin-redistribution-full-solution",
+  },
+  "bicycle-lock-code": {
+    id: "bicycle-lock-code",
+    title: "Код велосипедного замка",
+    hints: [
+      "bicycle-lock-code-focus-excluded-digits",
+      "bicycle-lock-code-strategy-place-nine",
+      "bicycle-lock-code-next-step-use-two-misplaced",
+    ],
+    solution: "bicycle-lock-code-full-solution",
+  },
+  "crow-wire-positions": {
+    id: "crow-wire-positions",
+    title: "Вороны на проводе",
+    hints: [
+      "crow-wire-positions-focus-distance-maximum",
+      "crow-wire-positions-strategy-limit-crow",
+      "crow-wire-positions-next-step-check-cases",
+    ],
+    solution: "crow-wire-positions-full-solution",
+  },
+  "maximum-grid-neighbor-sum": {
+    id: "maximum-grid-neighbor-sum",
+    title: "Сумма чисел у соседей",
+    hints: [
+      "maximum-grid-neighbor-sum-focus-cell-degrees",
+      "maximum-grid-neighbor-sum-strategy-center-cells",
+      "maximum-grid-neighbor-sum-next-step-bound",
+    ],
+    solution: "maximum-grid-neighbor-sum-full-solution",
+  },
+  "rectangle-knight-count": {
+    id: "rectangle-knight-count",
+    title: "Рыцари в прямоугольнике",
+    hints: [
+      "rectangle-knight-count-focus-rows-columns",
+      "rectangle-knight-count-strategy-remaining-rectangle",
+      "rectangle-knight-count-next-step-subtract-products",
+    ],
+    solution: "rectangle-knight-count-full-solution",
+  },
+  "winter-day-number": {
+    id: "winter-day-number",
+    title: "День зимы",
+    hints: [
+      "winter-day-number-focus-inclusive-count",
+      "winter-day-number-strategy-month-lengths",
+      "winter-day-number-next-step-subtract",
+    ],
+    solution: "winter-day-number-full-solution",
+  },
+  "six-position-colorings": {
+    id: "six-position-colorings",
+    title: "Шесть цветных мест",
+    hints: [
+      "six-position-colorings-focus-special-colors",
+      "six-position-colorings-strategy-ordered-choices",
+      "six-position-colorings-next-step-multiply",
+    ],
+    solution: "six-position-colorings-full-solution",
+  },
+  "five-lamp-pattern": {
+    id: "five-lamp-pattern",
+    title: "Цвета гирлянды",
+    hints: [
+      "five-lamp-pattern-focus-overlapping-windows",
+      "five-lamp-pattern-strategy-cancel-shared",
+      "five-lamp-pattern-next-step-period-five",
+    ],
+    solution: "five-lamp-pattern-full-solution",
+    optionIds: [
+      "lamp-97-blue",
+      "lamp-97-yellow",
+      "lamp-98-blue",
+      "lamp-98-yellow",
+      "lamp-99-blue",
+      "lamp-99-yellow",
+      "lamp-100-blue",
+      "lamp-100-yellow",
+    ],
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {
