@@ -1,0 +1,24 @@
+.footer {
+  width: min(100%, 1232px);
+  margin-inline: auto;
+  padding: var(--ot-space-8) var(--ot-space-16) var(--ot-space-24);
+  text-align: center;
+
+  a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding-block: var(--ot-space-8);
+    color: var(--ot-color-text-primary);
+    font-size: var(--ot-font-size-caption);
+    line-height: var(--ot-line-height-caption);
+    overflow-wrap: anywhere;
+    text-underline-offset: 3px;
+
+    &:focus-visible {
+      border-radius: var(--ot-radius-10);
+      outline: 2px solid var(--ot-color-primary);
+      outline-offset: 3px;
+    }
+  }
+}

@@ -17,6 +17,8 @@ Use `coincidingSeatsProblem` as the numeric authoring example: stable ID `coinci
 
 ## Identity protection and limits
 
+Public attribution and the minimal per-source human rights review process are documented in [Content Sources & Attribution v1](content-sources-attribution-v1.md). Attribution does not satisfy the publication rights gate; unresolved usage remains unresolved.
+
 `server/content-identities.json` records the original 42 problem identities and 12 ordered Pack tuples, plus the eighteen adopted Content Expansion problem identities and six additional ordered Pack tuples. Validation compares each baseline entry against the complete raw registration list before lookup can conceal duplicate IDs. It rejects missing or changed identities, duplicate IDs/tuples, broken Pack or expected-option references, invalid answer contracts, hint order, empty support content and malformed provenance. Tests also resolve every hint and solution through the existing protected reveal functions and verify learner projections.
 
 The baseline is a review guard, not tamper-proof storage. Do not regenerate it to silence errors. Add reviewed new entries manually when adopting content; retain all prior entries. An intentional identity migration requires a separately approved compatibility plan for saved state, History and adaptive references. Editing the baseline and content together can bypass the guard and must receive explicit review. Validation permits additions without redefining the original inventory; inventory-count tests document this initial baseline and should be deliberately updated only when adopting new baseline entries.

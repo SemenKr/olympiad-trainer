@@ -1,0 +1,62 @@
+import { JSDOM } from "jsdom";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+import SourcesPage from "./page";
+import SiteFooter from "../site-footer";
+import { getPublicProblemSources } from "../../modules/practice/server/public-problem-sources";
+
+describe("Sources page", () => {
+  it("renders semantic headings, labelled sections and complete source links without JavaScript", () => {
+    const { document } = new JSDOM(renderToStaticMarkup(<SourcesPage />))
+      .window;
+    expect(document.querySelectorAll("main")).toHaveLength(1);
+    expect(document.querySelectorAll("h1")).toHaveLength(1);
+    expect(document.querySelector("nav")?.getAttribute("aria-label")).toBe(
+      "Навигация",
+    );
+    for (const section of document.querySelectorAll("section")) {
+      const label = section.getAttribute("aria-labelledby")!;
+      expect(section.querySelector(`h2#${label}`)?.textContent).toBeTruthy();
+    }
+    const rows = [...document.querySelectorAll("li")];
+    expect(rows).toHaveLength(60);
+    for (const [index, row] of rows.entries()) {
+      const source = getPublicProblemSources()[index];
+      expect(row.querySelector("h3")?.textContent).toBe(source.title);
+      expect(
+        [...row.querySelectorAll("dt")].map((node) => node.textContent),
+      ).toEqual(["Учебный год", "Этап", "Регион", "Номер в источнике"]);
+      const values = [...row.querySelectorAll("dd")].map(
+        (node) => node.textContent,
+      );
+      expect(values).toEqual([
+        source.academicYear,
+        source.stage === "school" ? "Школьный" : "Пригласительный",
+        "Москва",
+        `№ ${source.problemNumber}${source.variant === undefined ? "" : `, вариант ${source.variant}`}`,
+      ]);
+      const link = row.querySelector("a")!;
+      expect(link.getAttribute("href")).toBe(
+        `${source.originalSource.url}#page=${source.originalSource.page}`,
+      );
+      expect(link.textContent).toContain(source.title);
+      expect(link.textContent).toContain("PDF");
+      expect(link.hasAttribute("target")).toBe(false);
+    }
+    expect(document.body.textContent).toContain(
+      "проверка прав остаётся открытой",
+    );
+  });
+
+  it("keeps the footer destination keyboard focusable", () => {
+    const { document } = new JSDOM(renderToStaticMarkup(<SiteFooter />)).window;
+    const link = document.querySelector<HTMLAnchorElement>("footer a")!;
+    expect(link.textContent).toBe("Источники и авторские права");
+    expect(link.getAttribute("href")).toBe("/sources");
+    expect(link.tabIndex).toBe(0);
+    link.focus();
+    expect(document.activeElement).toBe(link);
+  });
+});

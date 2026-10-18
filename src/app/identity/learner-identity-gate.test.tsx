@@ -65,6 +65,54 @@ async function render() {
   );
 }
 describe("explicit fresh-browser initialization gate", () => {
+  it.each(["missing", "invalid", "unavailable"] as const)(
+    "opens Sources with %s identity and retained local work without identity calls",
+    async (status) => {
+      navigation.pathname = "/sources";
+      localStorage.setItem("olympiad-trainer:practice-session", "saved work");
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(status);
+      Object.defineProperty(navigator, "locks", {
+        configurable: true,
+        value: undefined,
+      });
+      await render();
+      expect(container.textContent).toContain("learner content");
+      expect(readAuthenticatedLearnerContext).not.toHaveBeenCalled();
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+      expect(localStorage.getItem("olympiad-trainer:practice-session")).toBe(
+        "saved work",
+      );
+    },
+  );
+  it.each(["/practice", "/progress", "/simulation", "/sources/private"])(
+    "still guards %s after leaving public Sources",
+    async (path) => {
+      navigation.pathname = "/sources";
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
+      await render();
+      navigation.pathname = path;
+      await render();
+      expect(readAuthenticatedLearnerContext).toHaveBeenCalled();
+      expect(container.textContent).not.toContain("learner content");
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+    },
+  );
+  it("opens Sources from a failed learner guard without recovery or storage mutation", async () => {
+    localStorage.setItem("olympiad-trainer:practice-session", "saved work");
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("invalid");
+    await render();
+    const reads = vi.mocked(readAuthenticatedLearnerContext).mock.calls.length;
+    navigation.pathname = "/sources";
+    await render();
+    expect(container.textContent).toContain("learner content");
+    expect(readAuthenticatedLearnerContext).toHaveBeenCalledTimes(reads);
+    expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+    expect(localStorage.getItem("olympiad-trainer:practice-session")).toBe(
+      "saved work",
+    );
+  });
   it("fresh initialization followed by immediate navigation keeps Practice's captured storage writable", async () => {
     vi.mocked(readAuthenticatedLearnerContext)
       .mockResolvedValueOnce("missing")

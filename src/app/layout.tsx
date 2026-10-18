@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Onest } from "next/font/google";
 import "./globals.scss";
 import LearnerIdentityGate from "./identity/learner-identity-gate";
+import SiteFooter from "./site-footer";
 import {
   productionOrigin,
   productName,
@@ -46,6 +47,7 @@ export default function RootLayout({
     <html className={onest.variable} lang="ru">
       <body>
         <LearnerIdentityGate>{children}</LearnerIdentityGate>
+        <SiteFooter />
       </body>
     </html>
   );
