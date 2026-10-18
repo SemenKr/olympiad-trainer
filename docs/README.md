@@ -19,3 +19,5 @@ Olympiad Foundations: [исследовательский прототип v0.1]
 Learner Identity & Recovery v1: [принятый архитектурный и продуктовый контракт](04-architecture/learner-identity-recovery-v1.md) и [production runbook](05-development/recovery-production-runbook.md). Recovery v1 выпущен в controlled canonical-host production; конфигурация и результаты релиза: [production runbook](05-development/recovery-production-runbook.md#current-production-release-record).
 
 Content authoring: [Content Pipeline v1](05-development/content-pipeline-v1.md).
+
+Grade 5 curriculum research v1 (proposal, not adopted): [all-60 coverage matrix](02-research/grade5-curriculum-coverage-v1.md), [gap analysis and official evidence](02-research/grade5-curriculum-gap-analysis-v1.md), [prioritized roadmap and release gates](00-project/grade5-curriculum-roadmap-v1.md).
