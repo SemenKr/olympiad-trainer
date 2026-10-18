@@ -56,9 +56,9 @@ export default function LearnerIdentityGate({
     }
   }
   useEffect(() => {
-    // Restore must remain reachable before anonymous initialization. In
-    // particular, a lost-cookie browser cannot be assigned a new learner here.
-    if (pathname === "/restore") return;
+    // Public attribution and Restore must not initialize a learner, including
+    // when a browser has lost its cookie but still contains saved work.
+    if (pathname === "/restore" || pathname === "/sources") return;
     let active = true;
     let identityLost = false;
     async function prepare() {
@@ -154,7 +154,11 @@ export default function LearnerIdentityGate({
       window.removeEventListener(LOCAL_IDENTITY_EVENT, invalidate);
     };
   }, []);
-  if (pathname === "/restore" || (state === "ready" && readyPath === pathname))
+  if (
+    pathname === "/restore" ||
+    pathname === "/sources" ||
+    (state === "ready" && readyPath === pathname)
+  )
     return children;
   return (
     <main className={styles.gate}>

@@ -1,0 +1,28 @@
+# Content Sources & Attribution v1
+
+## Public attribution boundary
+
+`/sources` explains the independent educational status of the project, adaptations and unresolved rights status. It renders all registered problems from the existing server catalog through `getPublicProblemSources`, an explicit allowlist of titles, factual year/stage/region/task number/variant and original PDF URL/page. It creates no second content inventory. Task and Pack identities, statements and learning semantics are unchanged.
+
+The catalog and projection retain `server-only`. No statements, answer keys, hint text/IDs, full solutions, official-solution references, reasoning checkpoints or internal pedagogical data are returned by this projection. Original PDFs remain external links; some originals include answers/solutions, so the page warns learners before the list. Existing protected in-app reveal behavior is unchanged.
+
+The global footer stays outside the learner identity gate, including error states and mobile. Only the exact `/sources` path joins `/restore` as an exemption: no learner initialization, identity read or recovery is required. Navigating to training still invokes the existing guard. The page uses the adopted UI tokens, centered 680px reading column, semantic sections and a wrapping source list with 44px link targets, visible focus and no fixed footer.
+
+## Minimal per-source rights review
+
+Before publishing or extending use of a source, a human reviewer must:
+
+1. Identify the exact original document URL, year, stage, region, grade, task number/variant and PDF page from catalog provenance. Check the original and official solution, adaptation correspondence and mathematics separately; structural tests cannot establish them.
+2. Locate the applicable rightsholder and the actual terms or permission. Record the evidence URL/document or permission reference, relevant clause/scope, access date and reviewer. Public availability, an attribution footer or an AI review is not permission. Verify whether terms cover this document, third-party authors, adaptation, reproduction and the planned distribution.
+3. Record the intended use (including wording/number/format changes and any reproduced media), applicable attribution requirements and a human decision: **permitted on evidenced basis**, **unresolved**, or **not permitted**. State the evidence and limitations; do not invent a license. A shared document-level decision may cover several problems only when its scope explicitly covers them; reference catalog IDs instead of copying an inventory.
+4. Save the decision beside the relevant source/batch dossier in `docs/02-research/`, referencing canonical catalog IDs and evidence. Reopen review when terms, adaptation or distribution changes. Unresolved/not-permitted use blocks new publication or expanded use; replacing/removing existing tasks requires a separately authorized change that preserves saved-identity compatibility.
+
+Minimal review record: source document + catalog IDs; reviewer/date; intended use/adaptations; rightsholder and terms/permission evidence; applicability/limitations; required credit; decision and unresolved action/owner. Missing evidence means **unresolved**, not approved by default. This procedure does not assert a legal conclusion.
+
+## Current open rights gate (2026-10-18)
+
+No affirmative reuse/adaptation basis is established by this change for any current source. All 60 problems therefore retain **unresolved** rights status; this is a gate statement, not another inventory. Existing batch dossiers remain evidence for source correspondence and their separate human release gates.
+
+Checked public pages: [archive legal information](https://vos.olimpiada.ru/official), [Olimpiada.ru About/footer](https://olimpiada.ru/about), and [user agreement](https://olimpiada.ru/license), especially sections 7–8. The archive page identifies organizing responsibilities; it does not establish an adaptation permission. The portal footer asks for an active link, while the agreement addresses protected material. Applicability of that agreement to third-party task PDFs on `vos.olimpiada.ru`, rightsholder identity and permission for the actual adaptations remain unresolved. The active archive credit on `/sources` does not resolve these questions.
+
+Next human action: review each distinct source document under the process above and record an evidenced decision in the relevant dossier before content publication/expanded use. This task authorizes a Draft PR only; it authorizes no merge, deployment, content release or rights approval.
