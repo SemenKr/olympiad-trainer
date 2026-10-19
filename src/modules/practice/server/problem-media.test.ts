@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import type { LearnerSafeProblemMedia } from "../application/problem-media";
-import { getLearnerSafeProblemMedia } from "./problem-media";
+import {
+  getLearnerSafeProblemMedia,
+  type ProblemMediaDefinition,
+} from "./problem-media";
 
 const media: LearnerSafeProblemMedia = {
   kind: "diagram",
@@ -21,6 +24,41 @@ const provenance = {
 };
 
 describe("authored problem media boundary", () => {
+  const original = {
+    kind: "original" as const,
+    authorship: "Original test fixture",
+    rightsNote: "Test only; no publication clearance",
+    dossierPath: "docs/02-research/visual-reasoning-v1.md",
+  };
+  it("supports original statement figures without a fabricated source URL", () => {
+    expect(
+      getLearnerSafeProblemMedia({ presentation: media, provenance: original }),
+    ).toEqual(media);
+  });
+  it.each([
+    { kind: "unknown" },
+    { authorship: "" },
+    { rightsNote: " " },
+    { dossierPath: "../private.md" },
+    { sourceUrl: "https://example.com" },
+    { page: 1 },
+    { crop: "anything" },
+  ])("rejects invalid/mixed original media %j", (changes) => {
+    expect(() =>
+      getLearnerSafeProblemMedia({
+        presentation: media,
+        provenance: { ...original, ...changes },
+      } as unknown as ProblemMediaDefinition),
+    ).toThrow();
+  });
+  it("rejects an original PDF excerpt", () => {
+    expect(() =>
+      getLearnerSafeProblemMedia({
+        presentation: { ...media, kind: "pdf-excerpt" },
+        provenance: original,
+      }),
+    ).toThrow();
+  });
   it("projects statement media without provenance or accidental protected content", () => {
     const result = getLearnerSafeProblemMedia({
       presentation: { ...media, solution: "protected" } as typeof media,

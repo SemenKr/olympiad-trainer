@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { PRACTICE_PACKS } from "./completed-practice-episode";
 import {
   LEARNING_PATH_V1,
   getLearningPathProjection,
@@ -7,7 +6,7 @@ import {
 } from "./learning-path";
 
 describe("Learning Path v1", () => {
-  it("covers every current Pack exactly once in the adopted editorial order", () => {
+  it("preserves the eighteen adopted entries and leaves optional Pack S outside the path", () => {
     expect(LEARNING_PATH_V1.map(({ packId }) => packId)).toEqual([
       "pack-a",
       "pack-j",
@@ -28,10 +27,26 @@ describe("Learning Path v1", () => {
       "pack-q",
       "pack-r",
     ]);
-    expect(new Set(LEARNING_PATH_V1.map(({ packId }) => packId)).size).toBe(
-      PRACTICE_PACKS.length,
-    );
-    expect(LEARNING_PATH_V1).toHaveLength(PRACTICE_PACKS.length);
+    expect(new Set(LEARNING_PATH_V1.map(({ packId }) => packId)).size).toBe(18);
+    expect(LEARNING_PATH_V1).toHaveLength(18);
+    expect(isLearningPathPackId("pack-s")).toBe(false);
+    expect(getLearningPathProjection(["pack-s"])).toMatchObject({
+      completedCount: 0,
+      totalCount: 18,
+      nextPackId: "pack-a",
+      allRecorded: false,
+    });
+    expect(
+      getLearningPathProjection([
+        ...LEARNING_PATH_V1.map(({ packId }) => packId),
+        "pack-s",
+      ]),
+    ).toMatchObject({
+      completedCount: 18,
+      totalCount: 18,
+      nextPackId: null,
+      allRecorded: true,
+    });
   });
 
   it("suggests the earliest entry without a recorded Pack Finish", () => {

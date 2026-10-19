@@ -105,6 +105,8 @@ describe("practice problem catalog", () => {
         officialSolution: { reference: "IS", page: solutionPage },
       });
       expect(definition.provenance).not.toHaveProperty("variant");
+      if (definition.provenance.kind === "original")
+        throw new Error("expected sourced fixture");
       expect(definition.assessment).toEqual({
         kind: "nonnegative-integer",
         expectedAnswer: answer,
@@ -190,6 +192,8 @@ describe("practice problem catalog", () => {
         officialSolution: { reference: "IS", page: item.solutionPage },
       });
       expect(definition.provenance).not.toHaveProperty("variant");
+      if (definition.provenance.kind === "original")
+        throw new Error("expected sourced fixture");
       expect(definition.provenance.originalSource.url).toContain(item.folder);
       expect(definition.provenance.officialSolution.url).toContain(
         item.solutionFile,
@@ -390,6 +394,8 @@ describe("practice problem catalog", () => {
       problemNumber: 1,
     });
     expect(problem.provenance).not.toHaveProperty("variant");
+    if (problem.provenance.kind === "original")
+      throw new Error("expected sourced fixture");
     expect(problem.provenance.originalSource.url).toContain(
       "tasks-math-5-sch-msk-24-25.pdf",
     );

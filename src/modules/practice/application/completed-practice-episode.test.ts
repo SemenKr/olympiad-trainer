@@ -47,6 +47,7 @@ describe("completed Practice episode facts", () => {
       "pack-p",
       "pack-q",
       "pack-r",
+      "pack-s",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -209,6 +210,15 @@ describe("completed Practice episode facts", () => {
           "reversed-number-tens-digit",
           "corridor-single-layer",
           "alternating-queue-swaps",
+        ],
+      },
+      {
+        id: "pack-s",
+        name: "Рисунки и рассуждения",
+        problemIds: [
+          "original-two-frames",
+          "original-notched-sheet",
+          "original-path-via-k",
         ],
       },
     ]);

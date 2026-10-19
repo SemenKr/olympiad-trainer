@@ -23,8 +23,8 @@ describe("repository content pipeline", () => {
   it("validates all authored problems and Packs against the identity baseline", () => {
     expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(60);
     expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(18);
-    expect(baseline.problems).toHaveLength(60);
-    expect(baseline.packs).toHaveLength(18);
+    expect(baseline.problems).toHaveLength(63);
+    expect(baseline.packs).toHaveLength(19);
     expect(validate()).toEqual([]);
   });
   it("detects duplicate IDs before lookup construction", () => {
@@ -73,6 +73,8 @@ describe("repository content pipeline", () => {
       (item) => item.id === "rectangle-knight-count",
     );
     expect(problem?.provenance.variant).toBe(3);
+    if (!problem || problem.provenance.kind === "original")
+      throw new Error("missing sourced fixture");
     expect(validate()).toEqual([]);
     const changed = {
       ...problem!,
