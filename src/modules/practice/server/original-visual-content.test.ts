@@ -96,6 +96,54 @@ describe("original visual Pack S", () => {
     },
   );
 
+  it.each(cases)(
+    "records the bounded owner decision for %s text and media",
+    (id) => {
+      const problem = getProblemDefinition(id);
+      for (const provenance of [
+        problem.provenance,
+        problem.media!.provenance,
+      ]) {
+        if (provenance.kind !== "original")
+          throw new Error("missing original provenance");
+        expect(provenance.authorship).toBe(
+          "Оригинальные материалы проекта Olympiad Trainer, подготовленные с помощью Codex.",
+        );
+        expect(provenance.rightsNote).toContain("2026-10-19");
+        expect(provenance.rightsNote).toContain(
+          "трёх задач Pack S, SVG, подсказок и объяснений",
+        );
+        expect(provenance.rightsNote).toContain(
+          "в Olympiad Trainer и его GitHub-репозитории",
+        );
+        expect(provenance.rightsNote).toContain(
+          "публичное указание помощи Codex одобрено",
+        );
+        expect(provenance.rightsNote).toContain(
+          "Владельцу не известно о скопированных",
+        );
+        expect(provenance.rightsNote).toContain(
+          "Независимая проверка оригинальности и открытая лицензия не заявлены",
+        );
+        expect(provenance.rightsNote).toContain(
+          "проверка математики и пригодности для 5 класса остаётся открытой",
+        );
+        expect(provenance.rightsNote).toContain(
+          "не распространяется на 60 задач на основе ВсОШ",
+        );
+        expect(provenance.rightsNote).not.toContain("публикация не разрешена");
+      }
+      if (
+        problem.provenance.kind === "original" &&
+        problem.media!.provenance.kind === "original"
+      ) {
+        expect(problem.media!.provenance.rightsNote).toBe(
+          problem.provenance.rightsNote,
+        );
+      }
+    },
+  );
+
   it("independently enumerates cells/routes and measures the actual reviewed SVG polygon", () => {
     expect(
       execFileSync(

@@ -1,6 +1,6 @@
 # Content Pipeline v1
 
-The local server catalog contains 63 Grade 5 mathematics problems (60 sourced adaptations and three original visual problems); the learner-safe registry contains 19 ordinary Practice Packs, A–S. Pack S is technically integrated but pending human mathematics, age-suitability and authorship/distribution approval before release. Repository TypeScript remains the authoring format. No content is imported or published by validation.
+The local server catalog contains 63 Grade 5 mathematics problems (60 sourced adaptations and three original visual problems); the learner-safe registry contains 19 ordinary Practice Packs, A–S. Pack S is technically integrated but pending human mathematics and age-suitability approval before release. Its owner distribution/credit approval of 2026-10-19 is recorded with exact scope and limitations in the [Visual Reasoning dossier](../02-research/visual-reasoning-v1.md#owner-distribution-and-credit-decision--2026-10-19); rights for the 60 sourced adaptations remain unresolved. Repository TypeScript remains the authoring format. No content is imported or published by validation.
 
 ## Authoring
 

@@ -1,6 +1,6 @@
 # Visual prototype — verification record
 
-Research task `VISUAL-REASONING-V1`, 18 October 2026; baseline `5463382`. This records local artifact checks, not content approval or runtime acceptance. [Content dossier](../visual-reasoning-v1.md); [implementation proposal](../../04-architecture/original-content-visual-slice-v1.md).
+Historical research evidence (superseded gate status below): research task `VISUAL-REASONING-V1`, 18 October 2026; baseline `5463382`. This records local artifact checks, not content approval or runtime acceptance. [Content dossier](../visual-reasoning-v1.md); [implementation proposal](../../04-architecture/original-content-visual-slice-v1.md).
 
 ## Author evidence
 
@@ -25,3 +25,7 @@ Completed by the separate `visual_review` agent using `tools/codex/skills/review
 Non-blocking research gaps: educator approval, owner adoption and authorship/distribution clearance are open; actual mobile Practice rendering, assistive technology, new/old Pack flows and database migration tests remain implementation gates. PASS does not approve implementation, child use, publication or Git actions.
 
 Readiness: **READY as a research/design handoff; NEEDS DECISION before dependent implementation.** Exact next scope is the single three-problem slice in the linked proposal. No automatic correction cycle was needed (0/2 used). Root appended only this review record after the reviewed content was frozen; problem text, figures, proposal, verifier and index were not changed after review.
+
+## Gate status update — 2026-10-19
+
+The [owner decision](../visual-reasoning-v1.md#owner-distribution-and-credit-decision--2026-10-19) supersedes the pending owner adoption/distribution/credit statements above; the [implementation record](../../05-development/visual-reasoning-v1-implementation.md) records later technical checks. Owner permission is limited to the three Pack S items and their stated distribution. Human mathematics, educator sign-off and learner/assistive-technology validation remain open; all 60 VSOSh-derived items retain unresolved rights status. The historical research PASS is not a content approval or a new test run.

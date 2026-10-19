@@ -10,7 +10,7 @@ The global footer stays outside the learner identity gate, including error state
 
 ## Minimal per-source rights review
 
-Local Pack S integration extends the explicit public projection with an `original` branch exposing only problem ID, title and project authorship credit. Original entries render without year/stage/region/task/PDF placeholders; the 60 sourced entries keep their facts and links. Private dossier paths, rights notes and protected content remain excluded. The page states that original mathematics, age suitability and authorship/distribution review are still open. This is technical integration, not rights clearance; owner approval of the credit and intended distribution is required before release. See the [implementation record](visual-reasoning-v1-implementation.md).
+Local Pack S integration extends the explicit public projection with an `original` branch exposing only problem ID, title and project authorship credit. Original entries render without year/stage/region/task/PDF placeholders; the 60 sourced entries keep their facts and links. Private dossier paths, rights notes and protected content remain excluded. The page records the 2026-10-19 owner approval for the three Pack S problems, SVG diagrams, hints and explanations in Olympiad Trainer and its GitHub repository, including public Codex credit. The owner knows of no copied third-party protected material. The [dossier decision](../02-research/visual-reasoning-v1.md#owner-distribution-and-credit-decision--2026-10-19) records exact IDs/revision and limitations: no open license, independent originality verification or human mathematics/educator approval is implied. Mathematics and age suitability remain open. See the [implementation record](visual-reasoning-v1-implementation.md).
 
 Before publishing or extending use of a source, a human reviewer must:
 
@@ -21,10 +21,10 @@ Before publishing or extending use of a source, a human reviewer must:
 
 Minimal review record: source document + catalog IDs; reviewer/date; intended use/adaptations; rightsholder and terms/permission evidence; applicability/limitations; required credit; decision and unresolved action/owner. Missing evidence means **unresolved**, not approved by default. This procedure does not assert a legal conclusion.
 
-## Current open rights gate (2026-10-18)
+## Current open sourced-content rights gate (2026-10-19)
 
-No affirmative reuse/adaptation basis is established by this change for any current source. All 60 problems therefore retain **unresolved** rights status; this is a gate statement, not another inventory. Existing batch dossiers remain evidence for source correspondence and their separate human release gates.
+No affirmative reuse/adaptation basis is established by this change for any current source. All 60 VSOSh-derived problems therefore retain **unresolved** rights status; this is a gate statement, not another inventory. Existing batch dossiers remain evidence for source correspondence and their separate human release gates.
 
 Checked public pages: [archive legal information](https://vos.olimpiada.ru/official), [Olimpiada.ru About/footer](https://olimpiada.ru/about), and [user agreement](https://olimpiada.ru/license), especially sections 7–8. The archive page identifies organizing responsibilities; it does not establish an adaptation permission. The portal footer asks for an active link, while the agreement addresses protected material. Applicability of that agreement to third-party task PDFs on `vos.olimpiada.ru`, rightsholder identity and permission for the actual adaptations remain unresolved. The active archive credit on `/sources` does not resolve these questions.
 
-Next human action: review each distinct source document under the process above and record an evidenced decision in the relevant dossier before content publication/expanded use. This task authorizes a Draft PR only; it authorizes no merge, deployment, content release or rights approval.
+Next human action: review each distinct source document under the process above and record an evidenced decision in the relevant dossier before content publication/expanded use. The Pack S owner decision does not clear this sourced-content gate. This local recording task authorizes no commit, push, PR status change, merge or deployment.

@@ -1,6 +1,6 @@
 # Visual Reasoning v1 — local Pack S implementation
 
-User-authorized technical implementation on `feature/visual-reasoning-v1`, base `5463382`. No commit, push, PR, merge, remote/database deployment or Production change is authorized or performed. The [approved technical direction](../04-architecture/original-content-visual-slice-v1.md) and [reviewed problem dossier](../02-research/visual-reasoning-v1.md) define the scope.
+Original local implementation scope (18–19 October 2026): user-authorized technical implementation on `feature/visual-reasoning-v1`, base `5463382`. No commit, push, PR, merge, remote/database deployment or Production change is authorized or performed. The [approved technical direction](../04-architecture/original-content-visual-slice-v1.md) and [reviewed problem dossier](../02-research/visual-reasoning-v1.md) define the scope.
 
 ## Result and compatibility
 
@@ -57,10 +57,16 @@ Status: **PASS for local implementation; release gates remain open**. No Git pub
 
 - Named human mathematics reviewer approves the exact statements, diagrams, answers, complete arguments, edge cases and alternative valid approaches.
 - Grade 5 educator confirms prerequisites, Russian language and age suitability; technical accessibility checks do not substitute for learner observation.
-- Owner confirms authorship credit, rights basis and intended distribution for both text and SVGs. Codex assistance is disclosed; no clearance or license is invented.
+- **Owner distribution/credit gate cleared within scope, 2026-10-19:** permission covers the three exact Pack S IDs, text, SVGs, hints and explanations in Olympiad Trainer and its GitHub repository, with public Codex credit approved. See the [dossier decision and educator checklist](../02-research/visual-reasoning-v1.md#owner-distribution-and-credit-decision--2026-10-19). No open license or independent originality finding is asserted; all 60 VSOSh-derived problems retain unresolved rights status.
 - Separate authorization for Git publication and deployment; migration 0022 must precede exposure of Pack S on any deployed database. No historic receipt deletion/down-migration is proposed.
 
-These gates remain open even if all automated checks and independent technical review pass.
+The remaining gates stay open even if all automated checks and independent technical review pass. The dated owner decision is permission for the stated content distribution, not authorization to perform Git publication or deployment in this task.
+
+## Owner decision follow-up — 2026-10-19
+
+Recorded the explicit owner decision against PR #105 head `eab8c6fdaf0af297d6685932040a666415f3f6cf` in the existing dossier, with exact IDs, scope, limitations and a pending Grade 5 educator checklist. Updated documentation, the six original problem/media rights notes and `/sources` wording, plus focused regressions. The earlier independent review applies to its recorded implementation fingerprint, not this follow-up diff. No mathematics, SVGs, IDs, Pack definitions, migrations or learning behavior changed.
+
+Follow-up verification used installed tool entrypoints directly under Node **22.21.1**: four focused suites (**44/44 tests passed**), TypeScript (`--noEmit`), ESLint on the four affected TypeScript/TSX files, Prettier on those files, the dossier geometry/static-asset verifier and `git diff --check`. A baseline comparison confirms catalog differences are exactly six rights-note replacements, candidate mathematics is unchanged, and SVGs/identities/Packs/migrations are untouched. `pnpm` could not start because its configured 12.5.1 native executable is a placeholder (`ENOEXEC`); the project requires Node 24. No dependency/toolchain changes, full `pnpm verify`, production build, database migration, browser or learner session were performed for this wording-only follow-up. Human and deployment gates above remain open.
 
 ## Exact task file inventory
 
