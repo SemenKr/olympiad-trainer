@@ -10,6 +10,8 @@ The global footer stays outside the learner identity gate, including error state
 
 ## Minimal per-source rights review
 
+Local Pack S integration extends the explicit public projection with an `original` branch exposing only problem ID, title and project authorship credit. Original entries render without year/stage/region/task/PDF placeholders; the 60 sourced entries keep their facts and links. Private dossier paths, rights notes and protected content remain excluded. The page states that original mathematics, age suitability and authorship/distribution review are still open. This is technical integration, not rights clearance; owner approval of the credit and intended distribution is required before release. See the [implementation record](visual-reasoning-v1-implementation.md).
+
 Before publishing or extending use of a source, a human reviewer must:
 
 1. Identify the exact original document URL, year, stage, region, grade, task number/variant and PDF page from catalog provenance. Check the original and official solution, adaptation correspondence and mathematics separately; structural tests cannot establish them.

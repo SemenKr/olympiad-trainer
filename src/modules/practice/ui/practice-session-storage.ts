@@ -728,6 +728,36 @@ const packProblemMetadata = {
     ],
     solution: "diamond-emerald-balance-full-solution",
   },
+  "original-two-frames": {
+    id: "original-two-frames",
+    title: "Две рамки",
+    hints: [
+      "original-two-frames-hint-focus",
+      "original-two-frames-hint-strategy",
+      "original-two-frames-hint-next-step",
+    ],
+    solution: "original-two-frames-full-solution",
+  },
+  "original-notched-sheet": {
+    id: "original-notched-sheet",
+    title: "Лист с двумя вырезами",
+    hints: [
+      "original-notched-sheet-hint-focus",
+      "original-notched-sheet-hint-strategy",
+      "original-notched-sheet-hint-next-step",
+    ],
+    solution: "original-notched-sheet-full-solution",
+  },
+  "original-path-via-k": {
+    id: "original-path-via-k",
+    title: "Дорожки через К",
+    hints: [
+      "original-path-via-k-hint-focus",
+      "original-path-via-k-hint-strategy",
+      "original-path-via-k-hint-next-step",
+    ],
+    solution: "original-path-via-k-full-solution",
+  },
 } as const;
 
 function storedPackProblems(problemIds: readonly string[]) {

@@ -1,10 +1,12 @@
-// @vitest-environment jsdom
+import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProblemMedia } from "./problem-media";
 import type { LearnerSafeProblemMedia } from "../application/problem-media";
+vi.mock("server-only", () => ({}));
+import { getLearnerSafePracticeProblem } from "../server/problem-catalog";
 
 const media: LearnerSafeProblemMedia = {
   kind: "diagram",
@@ -18,7 +20,13 @@ const media: LearnerSafeProblemMedia = {
 };
 let container: HTMLDivElement;
 let root: Root;
+let dom: JSDOM;
 beforeEach(() => {
+  dom = new JSDOM("<!doctype html><html><body></body></html>");
+  vi.stubGlobal("window", dom.window);
+  vi.stubGlobal("document", dom.window.document);
+  vi.stubGlobal("Event", dom.window.Event);
+  vi.stubGlobal("HTMLImageElement", dom.window.HTMLImageElement);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
@@ -27,11 +35,45 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  dom.window.close();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe("ProblemMedia", () => {
+  it.each([
+    "original-two-frames",
+    "original-notched-sheet",
+    "original-path-via-k",
+  ])(
+    "keeps %s conditions accessible and the dialog named through image failure",
+    async (id) => {
+      const problem = getLearnerSafePracticeProblem(id);
+      const authored = problem.media!;
+      await act(async () =>
+        root.render(
+          <>
+            <p>{problem.statement}</p>
+            <ProblemMedia media={authored} />
+          </>,
+        ),
+      );
+      const img = container.querySelector("img")!;
+      expect(img.alt).toBe(authored.alt);
+      expect(img.width).toBe(authored.width);
+      expect(img.height).toBe(authored.height);
+      expect(container.querySelector("p")?.textContent).toContain(authored.alt);
+      const dialog = container.querySelector("dialog")!;
+      expect(
+        document.getElementById(dialog.getAttribute("aria-labelledby")!)
+          ?.textContent,
+      ).toBe(authored.title);
+      await act(async () => img.dispatchEvent(new Event("error")));
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      expect(container.querySelector("p")?.textContent).toContain(authored.alt);
+      expect(container.querySelector("button")?.disabled).toBe(true);
+    },
+  );
   it("enables enlargement when the image completed before hydration", async () => {
     vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(
       true,

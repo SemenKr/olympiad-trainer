@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="440" viewBox="0 0 560 440" role="img" aria-labelledby="title desc" lang="ru">
+  <title id="title">Сетка дорожек с закрытым участком</title>
+  <desc id="desc">Четыре шага по горизонтали, три по вертикали. Н внизу слева, Ф вверху справа. К на два шага правее и один выше Н. От К вправо дорожка закрыта, показаны разрыв и крест. Разрешены только шаги вправо и вверх.</desc>
+  <rect width="560" height="440" fill="white"/>
+  <g fill="none" stroke="#596273" stroke-width="3">
+    <path d="M100 80H420 M100 160H420 M100 240H260 M340 240H420 M100 320H420 M100 80V320 M180 80V320 M260 80V320 M340 80V320 M420 80V320"/>
+  </g>
+  <path d="M288 228L312 252 M288 252L312 228" stroke="#172033" stroke-width="4"/>
+  <g fill="#172033">
+    <circle cx="100" cy="80" r="4"/><circle cx="180" cy="80" r="4"/><circle cx="260" cy="80" r="4"/><circle cx="340" cy="80" r="4"/><circle cx="420" cy="80" r="6"/>
+    <circle cx="100" cy="160" r="4"/><circle cx="180" cy="160" r="4"/><circle cx="260" cy="160" r="4"/><circle cx="340" cy="160" r="4"/><circle cx="420" cy="160" r="4"/>
+    <circle cx="100" cy="240" r="4"/><circle cx="180" cy="240" r="4"/><circle cx="260" cy="240" r="6"/><circle cx="340" cy="240" r="4"/><circle cx="420" cy="240" r="4"/>
+    <circle cx="100" cy="320" r="6"/><circle cx="180" cy="320" r="4"/><circle cx="260" cy="320" r="4"/><circle cx="340" cy="320" r="4"/><circle cx="420" cy="320" r="4"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#172033">
+    <text x="69" y="349">Н</text><text x="431" y="73">Ф</text><text x="232" y="227">К</text>
+  </g>
+  <g fill="none" stroke="#172033" stroke-width="3"><path d="M115 390H165L156 381 M165 390L156 399 M240 404V368L231 377 M240 368L249 377"/></g>
+  <g font-family="Arial, sans-serif" font-size="21" fill="#172033"><text x="62" y="376">Можно:</text><text x="285" y="396">только вправо и вверх</text></g>
+</svg>

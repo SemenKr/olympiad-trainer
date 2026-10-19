@@ -8,14 +8,31 @@ import { getPublicProblemSources } from "./public-problem-sources";
 describe("public source attribution boundary", () => {
   it("projects every registered problem exactly once, using factual provenance", () => {
     const sources = getPublicProblemSources();
-    expect(sources).toHaveLength(60);
+    expect(sources).toHaveLength(63);
     expect(sources.map((source) => source.problemId)).toEqual(
       PRACTICE_PROBLEM_DEFINITIONS.map((problem) => problem.id),
     );
-    expect(new Set(sources.map((source) => source.problemId)).size).toBe(60);
+    expect(new Set(sources.map((source) => source.problemId)).size).toBe(63);
+    expect(sources.filter((source) => source.kind === "sourced")).toHaveLength(
+      60,
+    );
     for (const [index, source] of sources.entries()) {
       const problem = PRACTICE_PROBLEM_DEFINITIONS[index];
+      if (source.kind === "original") {
+        if (problem.provenance.kind !== "original")
+          throw new Error("incorrect source kind");
+        expect(source).toEqual({
+          kind: "original",
+          problemId: problem.id,
+          title: problem.title,
+          authorship: problem.provenance.authorship,
+        });
+        continue;
+      }
+      if (problem.provenance.kind === "original")
+        throw new Error("incorrect source kind");
       expect(source).toEqual({
+        kind: "sourced",
         problemId: problem.id,
         title: problem.title,
         academicYear: problem.provenance.academicYear,
@@ -42,7 +59,7 @@ describe("public source attribution boundary", () => {
   it("excludes content, assessment, support, official solutions and domain data", () => {
     const serialized = JSON.stringify(getPublicProblemSources());
     expect(serialized).not.toMatch(
-      /statement|assessment|expectedAnswer|expectedOptionIds|hints|solution|reasoningCheckpoint|correctOptionId|capability|difficulty|mastery/,
+      /statement|assessment|expectedAnswer|expectedOptionIds|hints|solution|reasoningCheckpoint|correctOptionId|capability|difficulty|mastery|dossierPath|rightsNote/,
     );
     for (const problem of PRACTICE_PROBLEM_DEFINITIONS) {
       for (const protectedText of [

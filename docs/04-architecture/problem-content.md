@@ -8,6 +8,8 @@ A small in-memory server catalog resolves definitions by stable product ID. Unkn
 
 ## Ordinary Practice Packs
 
+The [original visual content contract](original-content-visual-slice-v1.md) is adopted for local Pack S implementation. Explicit original provenance carries project authorship, a truthful rights note and a private research-dossier path, with no VSOSh metadata; legacy/explicit VSOSh definitions retain their existing source fields and checks. Original explanations use a server-only `original-explanation` tag. Both tags project through the same protected solution-reveal boundary. Human mathematics, age suitability and authorship/distribution remain release gates for the three original items.
+
 Ordinary Packs are repository-authored, learner-chosen sets of exactly three problems. A learner-safe static registry owns each Pack ID, display name, and exact ordered problem-ID tuple. Pack routes, Home choices, and session restore derive their identity from that registry. Browser snapshots persist the ordered problem IDs, not a Pack ID; validation accepts only a complete, exact registered tuple. Durable History continues to record these episodes with `mode: pack` and the existing safe episode facts.
 
 The server catalog remains the source for problem statements, protected answers, hints, solutions, and provenance. Browser snapshot validation keeps only the small learner-safe metadata it needs, keyed by problem ID. Pack completion contributes no capability evidence or adaptive facts. This does not introduce a CMS, curriculum model, or recommender.

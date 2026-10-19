@@ -43,10 +43,11 @@ afterEach(() => {
 
 function catalog(container: HTMLElement) {
   const cards = [...container.querySelectorAll("article")];
-  expect(cards).toHaveLength(18);
-  expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual(
-    LEARNING_PATH_V1.map(({ packId }) => `${packId}-title`),
-  );
+  expect(cards).toHaveLength(19);
+  expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual([
+    ...LEARNING_PATH_V1.map(({ packId }) => `${packId}-title`),
+    "pack-s-title",
+  ]);
   for (const [index, entry] of LEARNING_PATH_V1.entries()) {
     const pack = packById(entry.packId)!;
     const link = cards[index].querySelector("a")!;
@@ -55,6 +56,14 @@ function catalog(container: HTMLElement) {
     expect(cards[index].textContent).toContain(entry.description);
     expect(link.hasAttribute("aria-disabled")).toBe(false);
   }
+  expect(cards[18].textContent).toContain("ДОПОЛНИТЕЛЬНЫЙ НАБОР S");
+  expect(cards[18].textContent).not.toContain("ШАГ 19");
+  expect(cards[18].querySelector("a")?.getAttribute("href")).toBe(
+    "/practice/pack?pack=pack-s",
+  );
+  expect(cards[18].querySelector("a")?.getAttribute("aria-label")).toBe(
+    "Начать набор «Рисунки и рассуждения»",
+  );
   return cards;
 }
 
@@ -69,7 +78,7 @@ function deferred<T>() {
 }
 
 describe("Choose Practice stable catalog", () => {
-  it("renders all eighteen Packs in editorial order before any reads resolve", () => {
+  it("renders eighteen editorial Packs and optional Pack S before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
     catalog(container);
@@ -150,7 +159,7 @@ describe("Choose Practice stable catalog", () => {
         packHref("pack-h"),
       );
       expect(document.activeElement).toBe(summary.querySelector("h2"));
-      expect(container.querySelectorAll("article")).toHaveLength(18);
+      expect(container.querySelectorAll("article")).toHaveLength(19);
     } finally {
       await act(async () => root.unmount());
     }

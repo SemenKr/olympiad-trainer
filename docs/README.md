@@ -23,3 +23,5 @@ Content authoring: [Content Pipeline v1](05-development/content-pipeline-v1.md).
 Public attribution and rights gates: [Content Sources & Attribution v1](05-development/content-sources-attribution-v1.md).
 
 Grade 5 curriculum research v1 (proposal, not adopted): [all-60 coverage matrix](02-research/grade5-curriculum-coverage-v1.md), [gap analysis and official evidence](02-research/grade5-curriculum-gap-analysis-v1.md), [prioritized roadmap and release gates](00-project/grade5-curriculum-roadmap-v1.md).
+
+Visual Reasoning v1 (local Pack S integration; human release gates open): [three problems, SVG prototypes and learner criteria](02-research/visual-reasoning-v1.md), [adopted technical direction](04-architecture/original-content-visual-slice-v1.md), [implementation evidence and release gates](05-development/visual-reasoning-v1-implementation.md).

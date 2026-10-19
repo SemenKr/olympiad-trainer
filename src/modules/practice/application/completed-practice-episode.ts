@@ -175,6 +175,15 @@ export const PRACTICE_PACKS = [
       "alternating-queue-swaps",
     ],
   },
+  {
+    id: "pack-s",
+    name: "Рисунки и рассуждения",
+    problemIds: [
+      "original-two-frames",
+      "original-notched-sheet",
+      "original-path-via-k",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;
