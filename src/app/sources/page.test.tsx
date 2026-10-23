@@ -21,10 +21,16 @@ describe("Sources page", () => {
       expect(section.querySelector(`h2#${label}`)?.textContent).toBeTruthy();
     }
     const rows = [...document.querySelectorAll("li")];
-    expect(rows).toHaveLength(60);
+    expect(rows).toHaveLength(63);
     for (const [index, row] of rows.entries()) {
       const source = getPublicProblemSources()[index];
       expect(row.querySelector("h3")?.textContent).toBe(source.title);
+      if (source.kind === "original") {
+        expect(row.textContent).toContain("Оригинальная задача проекта");
+        expect(row.textContent).toContain(source.authorship);
+        expect(row.querySelector("dl, a")).toBeNull();
+        continue;
+      }
       expect(
         [...row.querySelectorAll("dt")].map((node) => node.textContent),
       ).toEqual(["Учебный год", "Этап", "Регион", "Номер в источнике"]);
@@ -47,6 +53,38 @@ describe("Sources page", () => {
     }
     expect(document.body.textContent).toContain(
       "проверка прав остаётся открытой",
+    );
+  });
+
+  it("distinguishes owner permission for Pack S from open human and VSOSh rights gates", () => {
+    const { document } = new JSDOM(renderToStaticMarkup(<SourcesPage />))
+      .window;
+    const paragraphs = [
+      ...document.querySelectorAll('section[aria-labelledby="rights"] p'),
+    ].map((paragraph) => paragraph.textContent!.replace(/\s+/g, " ").trim());
+    expect(paragraphs).toHaveLength(3);
+    expect(paragraphs[0]).toContain("Для всех 60 задач на основе ВсОШ");
+    expect(paragraphs[0]).toContain("проверка прав остаётся открытой");
+    expect(paragraphs[1]).toContain("19 октября 2026 года");
+    expect(paragraphs[1]).toContain("трёх оригинальных задач Pack S");
+    expect(paragraphs[1]).toContain("SVG-схем, подсказок и объяснений");
+    expect(paragraphs[1]).toContain(
+      "в Olympiad Trainer и его GitHub-репозитории",
+    );
+    expect(paragraphs[1]).toContain("Публичное указание помощи Codex одобрено");
+    expect(paragraphs[1]).toContain("Владельцу не известно о скопированных");
+    expect(paragraphs[2]).toContain(
+      "не означает независимой проверки оригинальности",
+    );
+    expect(paragraphs[2]).toContain("или предоставления открытой лицензии");
+    expect(paragraphs[2]).toContain(
+      "пригодности для 5 класса остаётся открытой",
+    );
+    expect(paragraphs[2]).toContain(
+      "не распространяется на 60 задач на основе ВсОШ",
+    );
+    expect(document.body.textContent).not.toContain(
+      "Разрешение на публикацию этих материалов пока не получено",
     );
   });
 

@@ -1,8 +1,4 @@
-import {
-  PRACTICE_PACKS,
-  packById,
-  type PackId,
-} from "./completed-practice-episode";
+import { packById, type PackId } from "./completed-practice-episode";
 
 export const LEARNING_PATH_V1 = [
   {
@@ -131,7 +127,7 @@ export function getLearningPathProjection(
   return {
     entries,
     completedCount,
-    totalCount: PRACTICE_PACKS.length,
+    totalCount: entries.length,
     nextPackId: next?.packId ?? null,
     allRecorded: next === undefined,
   };

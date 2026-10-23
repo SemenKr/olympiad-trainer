@@ -1,4 +1,7 @@
 import type { ProblemDefinition } from "./problem-catalog";
+import { existsSync, statSync } from "node:fs";
+import { isValidOriginalContentProvenance } from "./original-content-provenance";
+import { getLearnerSafeProblemMedia } from "./problem-media";
 
 type Pack = Readonly<{
   id: string;
@@ -77,7 +80,13 @@ export function validatePracticeContent(
         p.hints.map((h) => h.level).join() === "focus,strategy,next-step",
       `${label}: hint ordering`,
     );
-    check(p.solution.kind === "training-adaptation", `${label}: solution kind`);
+    check(
+      p.solution.kind ===
+        (p.provenance.kind === "original"
+          ? "original-explanation"
+          : "training-adaptation"),
+      `${label}: solution kind`,
+    );
     const a = p.assessment;
     if (a.kind === "nonnegative-integer") {
       check(
@@ -115,41 +124,90 @@ export function validatePracticeContent(
       );
     }
     const v = p.provenance;
-    check(
-      v.grade === p.grade &&
-        v.subject === p.subject &&
-        v.olympiad === "Всероссийская олимпиада школьников" &&
-        v.region === "Moscow" &&
-        v.sourceArchive === "vos.olimpiada.ru" &&
-        /^(\d{4})\/\d{2}$/.test(v.academicYear) &&
-        ["school", "invitational"].includes(v.stage) &&
-        Number.isInteger(v.problemNumber) &&
-        v.problemNumber > 0 &&
-        (v.variant === undefined ||
-          (Number.isInteger(v.variant) && v.variant > 0)),
-      `${label}: provenance metadata`,
-    );
-    for (const [reference, source] of [
-      ["I", v.originalSource],
-      ["IS", v.officialSolution],
-    ] as const) {
-      let validUrl = false;
-      try {
-        const url = new URL(source.url);
-        validUrl =
-          url.protocol === "https:" &&
-          url.hostname === v.sourceArchive &&
-          url.pathname.endsWith(".pdf");
-      } catch {
-        /* Report malformed URLs together with other issues. */
-      }
+    if (v.kind === "original") {
       check(
-        source.reference === reference &&
-          validUrl &&
-          Number.isInteger(source.page) &&
-          source.page > 0,
-        `${label}: ${reference} source reference`,
+        isValidOriginalContentProvenance(v) &&
+          v.grade === p.grade &&
+          v.subject === p.subject &&
+          ![
+            "olympiad",
+            "academicYear",
+            "stage",
+            "region",
+            "sourceArchive",
+            "problemNumber",
+            "variant",
+            "originalSource",
+            "officialSolution",
+          ].some((key) => key in v),
+        `${label}: original provenance metadata`,
       );
+      check(
+        isValidOriginalContentProvenance(v) &&
+          existsSync(v.dossierPath) &&
+          statSync(v.dossierPath).isFile(),
+        `${label}: original provenance dossier`,
+      );
+    } else {
+      check(
+        v.kind === undefined || v.kind === "vsosh",
+        `${label}: provenance kind`,
+      );
+      check(
+        v.grade === p.grade &&
+          v.subject === p.subject &&
+          !["authorship", "rightsNote", "dossierPath"].some(
+            (key) => key in v,
+          ) &&
+          v.olympiad === "Всероссийская олимпиада школьников" &&
+          v.region === "Moscow" &&
+          v.sourceArchive === "vos.olimpiada.ru" &&
+          /^(\d{4})\/\d{2}$/.test(v.academicYear) &&
+          ["school", "invitational"].includes(v.stage) &&
+          Number.isInteger(v.problemNumber) &&
+          v.problemNumber > 0 &&
+          (v.variant === undefined ||
+            (Number.isInteger(v.variant) && v.variant > 0)),
+        `${label}: provenance metadata`,
+      );
+      for (const [reference, source] of [
+        ["I", v.originalSource],
+        ["IS", v.officialSolution],
+      ] as const) {
+        let validUrl = false;
+        try {
+          const url = new URL(source?.url);
+          validUrl =
+            url.protocol === "https:" &&
+            url.hostname === v.sourceArchive &&
+            url.pathname.endsWith(".pdf");
+        } catch {
+          /* Report malformed URLs together with other issues. */
+        }
+        check(
+          source?.reference === reference &&
+            validUrl &&
+            Number.isInteger(source.page) &&
+            source.page > 0,
+          `${label}: ${reference} source reference`,
+        );
+      }
+    }
+    if (p.media) {
+      try {
+        getLearnerSafeProblemMedia(p.media);
+      } catch {
+        check(false, `${label}: media definition`);
+      }
+      const mediaProvenance = p.media.provenance;
+      if (mediaProvenance.kind === "original") {
+        check(
+          v.kind === "original" &&
+            mediaProvenance.dossierPath === v.dossierPath &&
+            mediaProvenance.authorship === v.authorship,
+          `${label}: original media provenance correspondence`,
+        );
+      }
     }
   }
   check(

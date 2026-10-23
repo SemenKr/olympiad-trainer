@@ -52,10 +52,10 @@ describe("Learning Path receipt reads", () => {
   });
   it("ignores well-formed future identities without assigning known completion", async () => {
     readRows.mockResolvedValue([
-      { packId: "pack-s", mode: "pack" },
+      { packId: "pack-t", mode: "pack" },
       { packId: "pack-future-2", mode: "pack" },
       { packId: "pack-j", mode: "pack" },
-      { packId: "pack-s", mode: "pack" },
+      { packId: "pack-t", mode: "pack" },
     ]);
     expect(await readCompletedPackIds(learnerContext("learner"))).toEqual([
       "pack-j",

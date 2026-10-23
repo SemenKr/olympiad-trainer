@@ -81,7 +81,7 @@ describe("Content Expansion Batch 2", () => {
   it("adds nine distinct sourced problems in three ordered ordinary Packs", () => {
     expect(cases).toHaveLength(9);
     expect(new Set(cases.map(({ id }) => id)).size).toBe(9);
-    expect(PRACTICE_PACKS.slice(15)).toEqual([
+    expect(PRACTICE_PACKS.slice(15, 18)).toEqual([
       {
         id: "pack-p",
         name: "Считаем части",

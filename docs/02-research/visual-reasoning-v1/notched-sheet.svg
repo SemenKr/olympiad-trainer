@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="440" viewBox="0 0 560 440" role="img" aria-labelledby="title desc" lang="ru">
+  <title id="title">Лист и два прямоугольных выреза</title>
+  <desc id="desc">Лист шириной 7 см и высотой 5 см. Верхний вырез шириной 3 см и глубиной 2 см начинается в 2 см от левого края. Нижний вырез шириной 2 см и глубиной 1 см начинается в 1 см от левого края. Штриховка обозначает оставшуюся бумагу, пунктир — удалённый исходный край.</desc>
+  <defs><pattern id="paper" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#eef0f3"/><path d="M0 10L10 0" stroke="#b6bdc8" stroke-width="1"/></pattern></defs>
+  <rect width="560" height="440" fill="white"/>
+  <path id="sheet" d="M100 100H200V200H350V100H450V350H250V300H150V350H100Z" fill="url(#paper)" stroke="#172033" stroke-width="3"/>
+  <path d="M200 100H350 M150 350H250" fill="none" stroke="#596273" stroke-width="2" stroke-dasharray="7 6"/>
+  <g fill="none" stroke="#172033" stroke-width="1.5">
+    <path d="M100 65H450 M100 57V75 M450 57V75 M100 78V54 M450 78V54"/>
+    <path d="M65 100V350 M57 100H75 M57 350H75"/>
+    <path d="M365 100V200 M357 100H373 M357 200H373"/>
+    <path d="M267 300V350 M259 300H275 M259 350H275"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="24" fill="#172033" text-anchor="middle">
+    <text x="275" y="48">7 см</text>
+    <text x="32" y="225" transform="rotate(-90 32 225)">5 см</text>
+    <text x="275" y="140">3 см</text>
+    <text x="400" y="158">2 см</text>
+    <text x="200" y="330">2 см</text>
+    <text x="306" y="334">1 см</text>
+  </g>
+  <text x="280" y="411" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#172033">Пунктир — исходный край листа</text>
+</svg>

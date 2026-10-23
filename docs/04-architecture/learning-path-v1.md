@@ -12,6 +12,8 @@ The deterministic projection chooses the earliest entry without a recorded compl
 
 ## Durable source of truth
 
+Pack S is an optional ordinary Pack outside the adopted 18-entry sequence. The chooser appends its card after the editorial cards without a step number. Path completion count/total/next remain based only on the existing A–R entries; S still has an ordinary durable receipt and History entry. Migration `0022_original_visual_pack_receipts.sql` extends receipts to S without changing previous rows. Human content release gates remain open; see [local implementation evidence](../05-development/visual-reasoning-v1-implementation.md).
+
 A completion marker means only a **successfully persisted Pack Finish**, including early Finish, skipped tasks, incorrect-only work or solution exposure. It does not mean all tasks were solved, independently solved, or a topic mastered.
 
 Migration `0011_learning_path_pack_receipts.sql` adds nullable `pack_id` to `practice_finish_receipts`. The server derives it from a validated nonempty ordered prefix of the registered tuple (one to three opened tasks) after validating the completed episode, only for `mode: pack`. Clients cannot submit a Pack identity or learner ID. Migration 0011 initially constrains non-null IDs to Packs A–L; forward migration `0020_content_expansion_pack_receipts.sql` extends that constraint to A–O; `0021_content_expansion_batch_2_pack_receipts.sql` subsequently extends it to A–R without editing either prior migration. The requirement for non-null `episode_mode = pack` and all existing receipts remain unchanged; other and legacy modes keep null.

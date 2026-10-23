@@ -846,6 +846,45 @@
       "solutionId": "diamond-emerald-balance-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "original-two-frames",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-two-frames-hint-focus",
+        "original-two-frames-hint-strategy",
+        "original-two-frames-hint-next-step"
+      ],
+      "solutionId": "original-two-frames-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "original-notched-sheet",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-notched-sheet-hint-focus",
+        "original-notched-sheet-hint-strategy",
+        "original-notched-sheet-hint-next-step"
+      ],
+      "solutionId": "original-notched-sheet-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "original-path-via-k",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-path-via-k-hint-focus",
+        "original-path-via-k-hint-strategy",
+        "original-path-via-k-hint-next-step"
+      ],
+      "solutionId": "original-path-via-k-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -991,6 +1030,14 @@
         "reversed-number-tens-digit",
         "corridor-single-layer",
         "alternating-queue-swaps"
+      ]
+    },
+    {
+      "id": "pack-s",
+      "problemIds": [
+        "original-two-frames",
+        "original-notched-sheet",
+        "original-path-via-k"
       ]
     }
   ]

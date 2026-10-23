@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420" role="img" aria-labelledby="title desc" lang="ru">
+  <title id="title">Две рамки на клетчатом поле</title>
+  <desc id="desc">Три ряда сверху вниз, четыре столбца слева направо. Сплошная рамка А: ряды 1–2, столбцы 1–3. Пунктирная рамка Б: ряды 2–3, столбцы 2–4.</desc>
+  <rect width="560" height="420" fill="white"/>
+  <g font-family="Arial, sans-serif" font-size="24" fill="#172033" text-anchor="middle">
+    <text x="140" y="52">1</text><text x="220" y="52">2</text><text x="300" y="52">3</text><text x="380" y="52">4</text>
+    <text x="66" y="135">1</text><text x="66" y="215">2</text><text x="66" y="295">3</text>
+  </g>
+  <path d="M100 80H420V320H100Z M180 80V320 M260 80V320 M340 80V320 M100 160H420 M100 240H420" fill="none" stroke="#6b7280" stroke-width="2"/>
+  <rect id="frame-a" x="100" y="80" width="240" height="160" fill="none" stroke="#172033" stroke-width="5"/>
+  <rect id="frame-b" x="180" y="160" width="240" height="160" fill="none" stroke="#172033" stroke-width="5" stroke-dasharray="12 8"/>
+  <g font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#172033">
+    <text x="112" y="112">А</text><text x="385" y="305">Б</text>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="22" fill="#172033">
+    <path d="M86 365H142" stroke="#172033" stroke-width="5"/><text x="154" y="373">А</text>
+    <path d="M286 365H342" stroke="#172033" stroke-width="5" stroke-dasharray="12 8"/><text x="354" y="373">Б</text>
+  </g>
+</svg>

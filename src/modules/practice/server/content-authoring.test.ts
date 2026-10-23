@@ -120,7 +120,7 @@ describe("new content authoring", () => {
     expect(output).not.toContain(source.statement);
     expect(output).not.toContain(source.hints[0].text);
     expect(output).not.toContain(source.solution.text);
-    expect(output).not.toContain(source.provenance.originalSource.url);
+    expect(output).not.toContain(source.provenance.originalSource!.url);
     expect(output).not.toContain("PRIVATE_CHECKPOINT");
     expect(output).not.toContain("PRIVATE_CORRECT_CHOICE");
     expect(output).not.toContain("correctOptionId");
