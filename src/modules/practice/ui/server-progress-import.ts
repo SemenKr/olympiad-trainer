@@ -7,6 +7,7 @@ import { importBrowserProgressEvidence } from "../../../app/progress/actions";
 
 import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import {
+  assertNoUnsupportedPracticeStateInsideLock,
   acknowledgeLegacyFinishImportInsideLock,
   recoverLegacyFinishBeforeImportInsideLock,
 } from "./practice-session-storage";
@@ -24,6 +25,7 @@ export async function ensureServerProgressImported(storage?: Storage) {
       PRACTICE_SESSION_MUTATION_LOCK,
       { mode: "exclusive" },
       async () => {
+        assertNoUnsupportedPracticeStateInsideLock(store);
         const legacyFinish = recoverLegacyFinishBeforeImportInsideLock(store);
         const raw = store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
         await importBrowserProgressEvidence(raw, owner);

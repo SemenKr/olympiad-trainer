@@ -4,6 +4,10 @@ import {
 } from "../../learner/local-ownership";
 import type { PracticeFinishOutcome } from "./practice-finish-outcome";
 import { browserProblemMetadata } from "./browser-problem-metadata.generated";
+import {
+  isUnsupportedFuturePackSnapshot,
+  isUnsupportedFuturePackSummary,
+} from "./future-pack-snapshot";
 import type {
   ActivePractice,
   PracticeHintExposure,
@@ -718,11 +722,125 @@ export function validatePracticeSessionSnapshot(
   ) as UnfinishedPracticeSessionSnapshot | null;
 }
 
+export class UnsupportedPracticeStateError extends Error {
+  constructor() {
+    super(
+      "This Practice state was saved by a newer version. Return to that version to continue.",
+    );
+    this.name = "UnsupportedPracticeStateError";
+  }
+}
+
+function parsedRaw(raw: string | null): unknown {
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function knownProblem(id: unknown) {
+  return typeof id === "string" && Object.hasOwn(browserProblemMetadata, id)
+    ? browserProblemMetadata[id as keyof typeof browserProblemMetadata]
+    : undefined;
+}
+
+function futureSnapshot(raw: string | null): boolean {
+  const value = parsedRaw(raw);
+  if (!isUnsupportedFuturePackSnapshot(value) || !record(value)) return false;
+  const results = value.completedResults as Record<string, unknown>[];
+  for (const [index, result] of results.entries()) {
+    const known = knownProblem(result.problemId);
+    if (known && !validResult(result, known, index === 2, index === 2))
+      return false;
+  }
+  if (value.status !== "no-next") {
+    const ids = value.problemIds as string[];
+    const known = knownProblem(ids[value.activeProblemIndex as number]);
+    if (known && !validActivePractice(value.activePractice, known))
+      return false;
+    if (
+      known &&
+      "optionIds" in known &&
+      !validSelectedOptionIds(value.selectedOptionIds, known)
+    )
+      return false;
+    if (known && Object.hasOwn(value, "reasoningCheckpointObservation")) {
+      const practice = value.activePractice as ActivePractice;
+      const firstCorrect =
+        practice.submissions.findIndex(
+          (submission) => submission.outcome === "correct",
+        ) + 1;
+      if (
+        !validReasoningCheckpointObservation(
+          value.reasoningCheckpointObservation,
+          known,
+          practice.submissions.length,
+          firstCorrect,
+        )
+      )
+        return false;
+    }
+  }
+  return true;
+}
+
+function futureSummary(raw: string | null): boolean {
+  const value = parsedRaw(raw);
+  if (validateLatestCompletedSummary(value)) return false;
+  if (!isUnsupportedFuturePackSummary(value)) return false;
+  const results = Array.isArray(value)
+    ? value
+    : (value as { results: unknown[] }).results;
+  return results.every((item, index) => {
+    if (!record(item)) return false;
+    const known = knownProblem(item.problemId);
+    return (
+      !known ||
+      validResult(
+        item,
+        known,
+        index === results.length - 1,
+        index === results.length - 1,
+      )
+    );
+  });
+}
+
+function hasUnsupportedPracticeState(store: Storage): boolean {
+  if (
+    futureSnapshot(store.getItem(PRACTICE_SESSION_STORAGE_KEY)) ||
+    futureSummary(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY))
+  )
+    return true;
+  for (const key of [
+    PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+    PRACTICE_SERVER_FINISH_REQUEST_KEY,
+  ]) {
+    const envelope = parsedRaw(store.getItem(key));
+    if (
+      record(envelope) &&
+      typeof envelope.unfinishedBefore === "string" &&
+      futureSnapshot(envelope.unfinishedBefore)
+    )
+      return true;
+  }
+  return false;
+}
+
+// Call under the shared Practice lock before any import or recovery mutation.
+export function assertNoUnsupportedPracticeStateInsideLock(store: Storage) {
+  if (hasUnsupportedPracticeState(store))
+    throw new UnsupportedPracticeStateError();
+}
+
 function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
   snapshot: UnfinishedPracticeSessionSnapshot;
   raw: string;
 } | null> {
   return withPracticeSessionLock(() => {
+    assertNoUnsupportedPracticeStateInsideLock(store);
     let raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
     const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
     if (pendingRaw !== null) {
@@ -843,7 +961,8 @@ export async function readPracticeSessionSnapshot(
         )
       )?.snapshot ?? null
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof UnsupportedPracticeStateError) throw error;
     return null;
   }
 }
@@ -979,6 +1098,7 @@ export async function createPracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null ||
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1009,6 +1129,7 @@ export async function savePracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
@@ -1033,6 +1154,7 @@ export async function saveNoNextPracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
@@ -1064,6 +1186,7 @@ export async function clearPracticeSessionSnapshot(
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(
       () =>
+        !hasUnsupportedPracticeState(store) &&
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) === null &&
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) === null &&
         clearPracticeSessionSnapshotInsideLock(store),
@@ -1199,7 +1322,9 @@ export function saveLatestCompletedResults(
   )
     return false;
   try {
-    (storage ?? captureLearnerStorage()).setItem(
+    const store = storage ?? captureLearnerStorage();
+    if (hasUnsupportedPracticeState(store)) return false;
+    store.setItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
@@ -1429,6 +1554,7 @@ export async function isCurrentPracticeFinish(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       const currentUnfinished = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
       if (requestRaw !== null) {
@@ -1721,6 +1847,7 @@ function reconcilePendingPracticeProgressFinish(
 export function recoverLegacyFinishBeforeImportInsideLock(
   store: Storage,
 ): { sessionId: string; pendingRaw: string } | null {
+  assertNoUnsupportedPracticeStateInsideLock(store);
   const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
   if (pendingRaw === null) return null;
   const pending = readPendingPracticeProgressFinish(pendingRaw);
@@ -1792,6 +1919,7 @@ export async function completeServerBackedPracticeSession(
       return outcome;
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(async () => {
+      if (hasUnsupportedPracticeState(store)) return outcome;
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
       let request =
         requestRaw === null
@@ -2036,6 +2164,7 @@ export async function completePracticeSession(
   if (expectedUnfinished === null) return false;
   try {
     return await withPracticeSessionLock(async () => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null)
         return false;
       const completedAfter = JSON.stringify(results);

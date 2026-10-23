@@ -24,6 +24,7 @@ import {
 type NextWork =
   | { status: "loading" }
   | { status: "error" }
+  | { status: "unsupported" }
   | {
       status: "ready";
       unfinished: UnfinishedPracticeSessionSnapshot | null;
@@ -72,8 +73,15 @@ export function ProgressNextUsefulWork({
       (value) => {
         if (active) setState(value);
       },
-      () => {
-        if (active) setState({ status: "error" });
+      (error: unknown) => {
+        if (active)
+          setState({
+            status:
+              error instanceof Error &&
+              error.name === "UnsupportedPracticeStateError"
+                ? "unsupported"
+                : "error",
+          });
       },
     );
     return () => {
@@ -121,6 +129,19 @@ export function ProgressNextUsefulWorkContent({
           Повторить
         </button>
         <Link href="/practice/choose">Выбрать набор</Link>
+      </section>
+    );
+  if (state.status === "unsupported")
+    return (
+      <section className={className}>
+        <h2>Сохранённая тренировка</h2>
+        <p role="status">
+          Эта тренировка создана в более новой версии. Данные сохранены; вернись
+          к новой версии, чтобы продолжить.
+        </p>
+        <button className={actionClassName} type="button" onClick={onRetry}>
+          Проверить снова
+        </button>
       </section>
     );
   const nextWork = selectNextPracticeWork({

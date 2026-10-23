@@ -399,6 +399,7 @@ export function PracticeSession({
     useState<UnfinishedPracticeSessionSnapshot | null>(null);
   const conflictHeadingRef = useRef<HTMLHeadingElement>(null);
   const [restoreError, setRestoreError] = useState(false);
+  const [unsupportedState, setUnsupportedState] = useState(false);
   const [adaptiveUnavailable, setAdaptiveUnavailable] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
   const [reviewUnavailable, setReviewUnavailable] = useState(false);
@@ -540,8 +541,15 @@ export function PracticeSession({
           if (snapshot && snapshot.activeProblemIndex > 0)
             setFocusNextProblem(true);
         })
-        .catch(() => {
-          if (active) setRestoreError(true);
+        .catch((error: unknown) => {
+          if (active) {
+            if (
+              error instanceof Error &&
+              error.name === "UnsupportedPracticeStateError"
+            )
+              setUnsupportedState(true);
+            else setRestoreError(true);
+          }
         });
     });
     return () => {
@@ -577,15 +585,39 @@ export function PracticeSession({
 
   const retryRestore = () => {
     setRestoreError(false);
+    setUnsupportedState(false);
     setAdaptiveUnavailable(false);
     setRestoreRetry((value) => value + 1);
   };
 
   useEffect(() => {
-    if (restoreError) restoreHeadingRef.current?.focus();
+    if (restoreError || unsupportedState) restoreHeadingRef.current?.focus();
     if (reviewUnavailable || packUnavailable || adaptiveUnavailable)
       unavailableHeadingRef.current?.focus();
-  }, [restoreError, reviewUnavailable, packUnavailable, adaptiveUnavailable]);
+  }, [
+    restoreError,
+    unsupportedState,
+    reviewUnavailable,
+    packUnavailable,
+    adaptiveUnavailable,
+  ]);
+
+  if (unsupportedState)
+    return (
+      <main>
+        <h1 ref={restoreHeadingRef} tabIndex={-1}>
+          Тренировка из более новой версии
+        </h1>
+        <p role="status">
+          Сохранённая тренировка не поддерживается этой версией. Данные
+          сохранены. Вернись к более новой версии, чтобы продолжить её.
+        </p>
+        <button onClick={retryRestore} type="button">
+          Проверить снова
+        </button>
+        <Link href="/">На главную</Link>
+      </main>
+    );
 
   if (packConflict)
     return (
