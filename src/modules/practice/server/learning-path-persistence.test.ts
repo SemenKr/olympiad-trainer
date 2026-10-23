@@ -7,6 +7,7 @@ vi.mock("./progress-db", () => ({
     select: () => ({ from: () => ({ where: readRows }) }),
   }),
 }));
+import { PRACTICE_PACKS } from "../application/completed-practice-episode";
 import { readCompletedPackIds } from "./learner-progress-persistence";
 beforeEach(() => vi.clearAllMocks());
 describe("Learning Path receipt reads", () => {
@@ -22,7 +23,21 @@ describe("Learning Path receipt reads", () => {
     ]);
   });
   it.each([
-    { packId: "pack-z", mode: "pack" },
+    ...[
+      "",
+      "pack-",
+      "Pack-z",
+      "pack-Z",
+      "pack-z ",
+      "pack--z",
+      "pack-z/other",
+      "other-z",
+      42,
+      undefined,
+    ].map((packId) => ({ packId, mode: "pack" })),
+    { packId: "pack-z", mode: "core" },
+    { packId: "pack-z", mode: null },
+    { packId: null, mode: "future-mode" },
     { packId: "pack-a", mode: "core" },
     { packId: "pack-a", mode: null },
   ])("rejects malformed persisted identity $packId/$mode", async (row) => {
@@ -30,6 +45,21 @@ describe("Learning Path receipt reads", () => {
     await expect(
       readCompletedPackIds(learnerContext("learner")),
     ).rejects.toThrow("could not be verified");
+  });
+  it.each(PRACTICE_PACKS)("retains known $id completion", async ({ id }) => {
+    readRows.mockResolvedValue([{ packId: id, mode: "pack" }]);
+    expect(await readCompletedPackIds(learnerContext("learner"))).toEqual([id]);
+  });
+  it("ignores well-formed future identities without assigning known completion", async () => {
+    readRows.mockResolvedValue([
+      { packId: "pack-s", mode: "pack" },
+      { packId: "pack-future-2", mode: "pack" },
+      { packId: "pack-j", mode: "pack" },
+      { packId: "pack-s", mode: "pack" },
+    ]);
+    expect(await readCompletedPackIds(learnerContext("learner"))).toEqual([
+      "pack-j",
+    ]);
   });
   it("propagates read failure instead of inventing an empty path", async () => {
     readRows.mockRejectedValue(new Error("database unavailable"));
