@@ -32,14 +32,12 @@ if (
   process.exit(1);
 }
 
-const file = resolve(
-  root,
-  "src/modules/practice/server/problems/drafts",
-  `${id}.ts`,
-);
+const file = resolve(root, "src/modules/practice/server/problems", `${id}.ts`);
 if (
   existsSync(file) ||
-  existsSync(resolve(root, "src/modules/practice/server/problems", `${id}.ts`))
+  existsSync(
+    resolve(root, "src/modules/practice/server/problems/drafts", `${id}.ts`),
+  )
 ) {
   console.error(`Draft already exists: ${id}`);
   process.exit(1);
@@ -47,7 +45,7 @@ if (
 mkdirSync(dirname(file), { recursive: true });
 writeFileSync(
   file,
-  `// Draft only. This incomplete object cannot be registered as a ProblemDefinition.\n// Complete and review the content, then move it to ../${id}.ts and register it explicitly.\nexport const draft = {\n  id: ${JSON.stringify(id)},\n  grade: 5,\n  subject: "mathematics",\n  title: "",\n  statement: "",\n} as const;\n`,
+  `// Draft only. This incomplete object cannot be registered as a ProblemDefinition.\n// Complete and review the content before explicitly registering it.\nexport const draft = {\n  id: ${JSON.stringify(id)},\n  grade: 5,\n  subject: "mathematics",\n  title: "",\n  statement: "",\n} as const;\n`,
   { flag: "wx" },
 );
 console.log(file);

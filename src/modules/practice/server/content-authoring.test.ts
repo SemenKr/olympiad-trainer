@@ -32,6 +32,7 @@ function withAuthoringFixture(run: (root: string) => void) {
   try {
     for (const path of [
       "src/modules/practice/server/content-identities.json",
+      "src/modules/practice/server/new-problem-modules.ts",
       "src/modules/practice/ui/browser-problem-metadata.generated.ts",
     ]) {
       const destination = join(root, path);
@@ -51,11 +52,23 @@ describe("new content authoring", () => {
       execFileSync(process.execPath, [script, "new-math-task"], { env });
       const file = join(
         root,
-        "src/modules/practice/server/problems/drafts/new-math-task.ts",
+        "src/modules/practice/server/problems/new-math-task.ts",
       );
       const draft = readFileSync(file, "utf8");
       expect(draft).toContain('id: "new-math-task"');
       expect(draft).not.toMatch(/expectedAnswer|expectedOptionIds|solution:/i);
+      expect(draft).toContain("before explicitly registering it");
+      for (const path of [
+        "src/modules/practice/server/new-problem-modules.ts",
+        "src/modules/practice/ui/browser-problem-metadata.generated.ts",
+      ]) {
+        expect(readFileSync(join(root, path), "utf8")).toBe(
+          readFileSync(join(fixtureRoot, path), "utf8"),
+        );
+        expect(readFileSync(join(root, path), "utf8")).not.toContain(
+          "new-math-task",
+        );
+      }
       expect(() =>
         execFileSync(process.execPath, [script, "new-math-task"], {
           env,
@@ -75,7 +88,7 @@ describe("new content authoring", () => {
       }
       expect(
         existsSync(
-          join(root, "src/modules/practice/server/problems/drafts/escape.ts"),
+          join(root, "src/modules/practice/server/problems/escape.ts"),
         ),
       ).toBe(false);
     });
