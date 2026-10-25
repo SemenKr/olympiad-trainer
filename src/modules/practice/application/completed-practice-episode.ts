@@ -347,6 +347,41 @@ export function validateCompletedEpisode(
       return null;
   } else return null;
 
+  if (!validCompletedProblemFacts(mode, problems)) return null;
+  return value as CompletedPracticeEpisodeFactsV1;
+}
+
+// Structure alone does not establish Pack membership. Finish must continue to
+// use validateCompletedEpisode, which checks the registered ordered prefix.
+export function validatePackEpisodeStructure(
+  value: unknown,
+): CompletedPracticeEpisodeFactsV1 | null {
+  if (
+    !record(value) ||
+    !exactKeys(value, ["version", "problems"]) ||
+    value.version !== 1 ||
+    !denseArray(value.problems) ||
+    value.problems.length < 1 ||
+    value.problems.length > 3 ||
+    !value.problems.every(
+      (fact) =>
+        record(fact) &&
+        typeof fact.problemId === "string" &&
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(fact.problemId),
+    ) ||
+    new Set(
+      value.problems.map((fact) => (fact as Record<string, unknown>).problemId),
+    ).size !== value.problems.length ||
+    !validCompletedProblemFacts("pack", value.problems)
+  )
+    return null;
+  return value as CompletedPracticeEpisodeFactsV1;
+}
+
+function validCompletedProblemFacts(
+  mode: unknown,
+  problems: readonly unknown[],
+): boolean {
   for (const fact of problems) {
     if (
       !record(fact) ||
@@ -369,7 +404,7 @@ export function validateCompletedEpisode(
         (level, index) => level === ["focus", "strategy", "next-step"][index],
       )
     )
-      return null;
+      return false;
     if (
       (fact.validSubmissionCount === 0 &&
         fact.outcome !== "no-valid-submissions") ||
@@ -385,7 +420,7 @@ export function validateCompletedEpisode(
           fact.hintLevelsExposed.length !== 3)) ||
       ((mode === "pack" || mode === "review") && fact.checkpoint !== null)
     )
-      return null;
+      return false;
     if (
       fact.checkpoint !== null &&
       (!record(fact.checkpoint) ||
@@ -396,7 +431,7 @@ export function validateCompletedEpisode(
         fact.outcome !== "eventually-correct" ||
         fact.solutionExposed)
     )
-      return null;
+      return false;
   }
-  return value as CompletedPracticeEpisodeFactsV1;
+  return true;
 }

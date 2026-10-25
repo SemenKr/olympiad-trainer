@@ -1,4 +1,5 @@
 import "server-only";
+import { NEW_PROBLEM_DEFINITIONS } from "./new-problem-modules";
 import {
   getLearnerSafeProblemMedia,
   type ProblemMediaDefinition,
@@ -3760,6 +3761,7 @@ export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   alternatingQueueSwapsProblem,
   corridorSingleLayerProblem,
   diamondEmeraldBalanceProblem,
+  ...NEW_PROBLEM_DEFINITIONS,
 ];
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> =

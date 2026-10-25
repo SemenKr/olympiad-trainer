@@ -3,6 +3,11 @@ import {
   withLocalIdentityRead,
 } from "../../learner/local-ownership";
 import type { PracticeFinishOutcome } from "./practice-finish-outcome";
+import { browserProblemMetadata } from "./browser-problem-metadata.generated";
+import {
+  isUnsupportedFuturePackSnapshot,
+  isUnsupportedFuturePackSummary,
+} from "./future-pack-snapshot";
 import type {
   ActivePractice,
   PracticeHintExposure,
@@ -77,697 +82,21 @@ function withPracticeSessionLock<T>(operation: () => T): Promise<T> {
 }
 
 const problems = [
-  {
-    id: "coinciding-seats",
-    title: "Совпадающие места",
-    hints: [
-      "coinciding-seats-focus-simultaneous-rules",
-      "coinciding-seats-strategy-repeat-interval",
-      "coinciding-seats-next-step-list-common-seats",
-    ],
-    solution: "coinciding-seats-full-solution",
-  },
-  {
-    id: "guaranteed-sock-pair",
-    title: "Носки в пакете",
-    hints: [
-      "guaranteed-sock-pair-focus-guarantee",
-      "guaranteed-sock-pair-strategy-worst-case",
-      "guaranteed-sock-pair-next-step-bound-without-pair",
-    ],
-    solution: "guaranteed-sock-pair-full-solution",
-  },
-  {
-    id: "table-impossible-sums",
-    title: "Невозможные суммы",
-    hints: [
-      "table-impossible-sums-focus-constraints",
-      "table-impossible-sums-strategy-minimum",
-      "table-impossible-sums-next-step-fives",
-    ],
-    solution: "table-impossible-sums-full-solution",
-    optionIds: ["sum-20", "sum-21", "sum-23", "sum-25", "sum-26"],
-  },
+  browserProblemMetadata["coinciding-seats"],
+  browserProblemMetadata["guaranteed-sock-pair"],
+  browserProblemMetadata["table-impossible-sums"],
 ] as const;
 
-const packProblemMetadata = {
-  "granddaughters-first": {
-    id: "granddaughters-first",
-    title: "Кто пришёл первым?",
-    hints: [
-      "granddaughters-first-focus",
-      "granddaughters-first-strategy",
-      "granddaughters-first-next-step",
-    ],
-    solution: "granddaughters-first-full-solution",
-    optionIds: ["anya", "bella", "valya", "galya", "dasha"],
-  },
-  "cutout-area-ratio": {
-    id: "cutout-area-ratio",
-    title: "Вырезанная фигура",
-    hints: [
-      "cutout-area-ratio-focus",
-      "cutout-area-ratio-strategy",
-      "cutout-area-ratio-next-step",
-    ],
-    solution: "cutout-area-ratio-full-solution",
-  },
-  "domino-placements": {
-    id: "domino-placements",
-    title: "Сколько прямоугольников?",
-    hints: [
-      "domino-placements-focus",
-      "domino-placements-strategy",
-      "domino-placements-next-step",
-    ],
-    solution: "domino-placements-full-solution",
-  },
-  "truck-car-same-arrival": {
-    id: "truck-car-same-arrival",
-    title: "Одновременно в город",
-    hints: [
-      "truck-car-same-arrival-focus",
-      "truck-car-same-arrival-strategy",
-      "truck-car-same-arrival-next-step",
-    ],
-    solution: "truck-car-same-arrival-full-solution",
-  },
-  "knights-all-or-none": {
-    id: "knights-all-or-none",
-    title: "Рыцари и лжецы",
-    hints: [
-      "knights-all-or-none-focus",
-      "knights-all-or-none-strategy",
-      "knights-all-or-none-next-step",
-    ],
-    solution: "knights-all-or-none-full-solution",
-    optionIds: [
-      "count-0",
-      "count-1",
-      "count-2",
-      "count-3",
-      "count-4",
-      "count-5",
-    ],
-  },
-  "boastful-fisherman-streak": {
-    id: "boastful-fisherman-streak",
-    title: "Хвастливый рыбак",
-    hints: [
-      "boastful-fisherman-streak-focus",
-      "boastful-fisherman-streak-strategy",
-      "boastful-fisherman-streak-next-step",
-    ],
-    solution: "boastful-fisherman-streak-full-solution",
-  },
-  "largest-valid-eight-digit": {
-    id: "largest-valid-eight-digit",
-    title: "Самое большое число",
-    hints: [
-      "largest-valid-eight-digit-focus",
-      "largest-valid-eight-digit-strategy",
-      "largest-valid-eight-digit-next-step",
-    ],
-    solution: "largest-valid-eight-digit-full-solution",
-  },
-  "three-numbers-digit-sums": {
-    id: "three-numbers-digit-sums",
-    title: "Три загадочных числа",
-    hints: [
-      "three-numbers-digit-sums-focus",
-      "three-numbers-digit-sums-strategy",
-      "three-numbers-digit-sums-next-step",
-    ],
-    solution: "three-numbers-digit-sums-full-solution",
-  },
-  "mountain-plain-flights": {
-    id: "mountain-plain-flights",
-    title: "Рейсы между городами",
-    hints: [
-      "mountain-plain-flights-focus",
-      "mountain-plain-flights-strategy",
-      "mountain-plain-flights-next-step",
-    ],
-    solution: "mountain-plain-flights-full-solution",
-  },
-  "exact-coin-payments": {
-    id: "exact-coin-payments",
-    title: "Пирожок без сдачи",
-    hints: [
-      "exact-coin-payments-focus",
-      "exact-coin-payments-strategy",
-      "exact-coin-payments-next-step",
-    ],
-    solution: "exact-coin-payments-full-solution",
-  },
-  "odd-neighbor-sugar-cubes": {
-    id: "odd-neighbor-sugar-cubes",
-    title: "Кубики с нечётным числом соседей",
-    hints: [
-      "odd-neighbor-sugar-cubes-focus",
-      "odd-neighbor-sugar-cubes-strategy",
-      "odd-neighbor-sugar-cubes-next-step",
-    ],
-    solution: "odd-neighbor-sugar-cubes-full-solution",
-  },
-  "last-student-friends": {
-    id: "last-student-friends",
-    title: "Сколько друзей у последнего?",
-    hints: [
-      "last-student-friends-focus",
-      "last-student-friends-strategy",
-      "last-student-friends-next-step",
-    ],
-    solution: "last-student-friends-full-solution",
-  },
-  "lineup-six-hooligans": {
-    id: "lineup-six-hooligans",
-    title: "Правдивые и лжецы в шеренге",
-    hints: [
-      "lineup-six-hooligans-focus",
-      "lineup-six-hooligans-strategy",
-      "lineup-six-hooligans-next-step",
-    ],
-    solution: "lineup-six-hooligans-full-solution",
-  },
-  "two-true-journalists": {
-    id: "two-true-journalists",
-    title: "Два правдивых журналиста",
-    hints: [
-      "two-true-journalists-focus",
-      "two-true-journalists-strategy",
-      "two-true-journalists-next-step",
-    ],
-    solution: "two-true-journalists-full-solution",
-    optionIds: [
-      "goals-10",
-      "goals-11",
-      "goals-12",
-      "goals-13",
-      "goals-14",
-      "goals-15",
-      "goals-16",
-      "goals-17",
-      "goals-18",
-    ],
-  },
-  "neighbor-comparison-codes": {
-    id: "neighbor-comparison-codes",
-    title: "Код соседних цифр",
-    hints: [
-      "neighbor-comparison-codes-focus",
-      "neighbor-comparison-codes-strategy",
-      "neighbor-comparison-codes-next-step",
-    ],
-    solution: "neighbor-comparison-codes-full-solution",
-    optionIds: [
-      "code-0112102011",
-      "code-1021021020",
-      "code-1101111111",
-      "code-1201201020",
-    ],
-  },
-  "five-piles-stones": {
-    id: "five-piles-stones",
-    title: "Пять кучек камней",
-    hints: [
-      "five-piles-stones-focus",
-      "five-piles-stones-strategy",
-      "five-piles-stones-next-step",
-    ],
-    solution: "five-piles-stones-full-solution",
-  },
-  "untouched-matchstick-figures": {
-    id: "untouched-matchstick-figures",
-    title: "Нетронутые фигурки",
-    hints: [
-      "untouched-matchstick-figures-focus",
-      "untouched-matchstick-figures-strategy",
-      "untouched-matchstick-figures-next-step",
-    ],
-    solution: "untouched-matchstick-figures-full-solution",
-  },
-  "mountain-numbers-over-77777": {
-    id: "mountain-numbers-over-77777",
-    title: "Сколько чисел-горок?",
-    hints: [
-      "mountain-numbers-over-77777-focus",
-      "mountain-numbers-over-77777-strategy",
-      "mountain-numbers-over-77777-next-step",
-    ],
-    solution: "mountain-numbers-over-77777-full-solution",
-  },
-  "nonadjacent-row-seating": {
-    id: "nonadjacent-row-seating",
-    title: "Рассадка без соседей",
-    hints: [
-      "nonadjacent-row-seating-focus",
-      "nonadjacent-row-seating-strategy",
-      "nonadjacent-row-seating-next-step",
-    ],
-    solution: "nonadjacent-row-seating-full-solution",
-  },
-  "eighteen-piece-pie-cuts": {
-    id: "eighteen-piece-pie-cuts",
-    title: "18 кусков пирога",
-    hints: [
-      "eighteen-piece-pie-cuts-focus",
-      "eighteen-piece-pie-cuts-strategy",
-      "eighteen-piece-pie-cuts-next-step",
-    ],
-    solution: "eighteen-piece-pie-cuts-full-solution",
-  },
-  "multiples-prefix-count": {
-    id: "multiples-prefix-count",
-    title: "Числа на доске",
-    hints: [
-      "multiples-prefix-count-focus",
-      "multiples-prefix-count-strategy",
-      "multiples-prefix-count-next-step",
-    ],
-    solution: "multiples-prefix-count-full-solution",
-  },
-  "rabbit-carrot-shortfall": {
-    id: "rabbit-carrot-shortfall",
-    title: "Морковь для кроликов",
-    hints: [
-      "rabbit-carrot-shortfall-focus",
-      "rabbit-carrot-shortfall-strategy",
-      "rabbit-carrot-shortfall-next-step",
-    ],
-    solution: "rabbit-carrot-shortfall-full-solution",
-  },
-  "grade-average-fives": {
-    id: "grade-average-fives",
-    title: "Средний балл",
-    hints: [
-      "grade-average-fives-focus",
-      "grade-average-fives-strategy",
-      "grade-average-fives-next-step",
-    ],
-    solution: "grade-average-fives-full-solution",
-  },
-  "magic-forest-coin-difference": {
-    id: "magic-forest-coin-difference",
-    title: "Монеты на деревьях",
-    hints: [
-      "magic-forest-coin-difference-focus",
-      "magic-forest-coin-difference-strategy",
-      "magic-forest-coin-difference-next-step",
-    ],
-    solution: "magic-forest-coin-difference-full-solution",
-  },
-  "four-houses-distance-cases": {
-    id: "four-houses-distance-cases",
-    title: "Четыре дома",
-    hints: [
-      "four-houses-distance-cases-focus",
-      "four-houses-distance-cases-strategy",
-      "four-houses-distance-cases-next-step",
-    ],
-    solution: "four-houses-distance-cases-full-solution",
-    optionIds: [
-      "distance-600",
-      "distance-900",
-      "distance-1200",
-      "distance-1800",
-      "distance-2400",
-    ],
-  },
-  "ivanov-older-brother-count": {
-    id: "ivanov-older-brother-count",
-    title: "Старший брат",
-    hints: [
-      "ivanov-older-brother-count-focus",
-      "ivanov-older-brother-count-strategy",
-      "ivanov-older-brother-count-next-step",
-    ],
-    solution: "ivanov-older-brother-count-full-solution",
-    optionIds: [
-      "children-4",
-      "children-6",
-      "children-8",
-      "children-10",
-      "children-12",
-      "children-14",
-    ],
-  },
-  "cube-red-face-sums": {
-    id: "cube-red-face-sums",
-    title: "Числа на гранях куба",
-    hints: [
-      "cube-red-face-sums-focus",
-      "cube-red-face-sums-strategy",
-      "cube-red-face-sums-next-step",
-    ],
-    solution: "cube-red-face-sums-full-solution",
-  },
-  "chocolate-promotion-price": {
-    id: "chocolate-promotion-price",
-    title: "Цена шоколадки",
-    hints: [
-      "chocolate-promotion-price-focus",
-      "chocolate-promotion-price-strategy",
-      "chocolate-promotion-price-next-step",
-    ],
-    solution: "chocolate-promotion-price-full-solution",
-  },
-  "school-lesson-teacher-count": {
-    id: "school-lesson-teacher-count",
-    title: "Сколько учителей?",
-    hints: [
-      "school-lesson-teacher-count-focus",
-      "school-lesson-teacher-count-strategy",
-      "school-lesson-teacher-count-next-step",
-    ],
-    solution: "school-lesson-teacher-count-full-solution",
-  },
-  "soldier-figures-guarantee": {
-    id: "soldier-figures-guarantee",
-    title: "Лучники и мечники",
-    hints: [
-      "soldier-figures-guarantee-focus",
-      "soldier-figures-guarantee-strategy",
-      "soldier-figures-guarantee-next-step",
-    ],
-    solution: "soldier-figures-guarantee-full-solution",
-  },
-  "apple-harvest-assignments": {
-    id: "apple-harvest-assignments",
-    title: "Урожай яблок",
-    hints: [
-      "apple-harvest-assignments-focus",
-      "apple-harvest-assignments-strategy",
-      "apple-harvest-assignments-next-step",
-    ],
-    solution: "apple-harvest-assignments-full-solution",
-    optionIds: [
-      "alena-19",
-      "borya-11",
-      "vera-11",
-      "polina-24",
-      "alena-24",
-      "vera-17",
-    ],
-  },
-  "liar-council-maximum": {
-    id: "liar-council-maximum",
-    title: "Заседание на острове",
-    hints: [
-      "liar-council-maximum-focus",
-      "liar-council-maximum-strategy",
-      "liar-council-maximum-next-step",
-    ],
-    solution: "liar-council-maximum-full-solution",
-  },
-  "central-coin-column": {
-    id: "central-coin-column",
-    title: "Монеты в среднем столбце",
-    hints: [
-      "central-coin-column-focus",
-      "central-coin-column-strategy",
-      "central-coin-column-next-step",
-    ],
-    solution: "central-coin-column-full-solution",
-  },
-  "five-fridays-calendar": {
-    id: "five-fridays-calendar",
-    title: "Пять пятниц",
-    hints: [
-      "five-fridays-calendar-focus",
-      "five-fridays-calendar-strategy",
-      "five-fridays-calendar-next-step",
-    ],
-    solution: "five-fridays-calendar-full-solution",
-    optionIds: [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday",
-    ],
-  },
-  "circular-table-seat-count": {
-    id: "circular-table-seat-count",
-    title: "Места за круглым столом",
-    hints: [
-      "circular-table-seat-count-focus",
-      "circular-table-seat-count-strategy",
-      "circular-table-seat-count-next-step",
-    ],
-    solution: "circular-table-seat-count-full-solution",
-  },
-  "balanced-six-groups": {
-    id: "balanced-six-groups",
-    title: "Шесть групп кружка",
-    hints: [
-      "balanced-six-groups-focus",
-      "balanced-six-groups-strategy",
-      "balanced-six-groups-next-step",
-    ],
-    solution: "balanced-six-groups-full-solution",
-    optionIds: [
-      "total-74",
-      "total-76",
-      "total-77",
-      "total-78",
-      "total-79",
-      "total-80",
-      "total-82",
-    ],
-  },
-  "false-box-labels": {
-    id: "false-box-labels",
-    title: "Все надписи неверны",
-    hints: [
-      "false-box-labels-focus-match-labels",
-      "false-box-labels-strategy-first-box",
-      "false-box-labels-next-step-second-box",
-    ],
-    solution: "false-box-labels-full-solution",
-  },
-  "pirate-coin-redistribution": {
-    id: "pirate-coin-redistribution",
-    title: "Монеты для пиратов",
-    hints: [
-      "pirate-coin-redistribution-focus-relative-amounts",
-      "pirate-coin-redistribution-strategy-quarter",
-      "pirate-coin-redistribution-next-step-equalize",
-    ],
-    solution: "pirate-coin-redistribution-full-solution",
-  },
-  "bicycle-lock-code": {
-    id: "bicycle-lock-code",
-    title: "Код велосипедного замка",
-    hints: [
-      "bicycle-lock-code-focus-excluded-digits",
-      "bicycle-lock-code-strategy-place-nine",
-      "bicycle-lock-code-next-step-use-two-misplaced",
-    ],
-    solution: "bicycle-lock-code-full-solution",
-  },
-  "crow-wire-positions": {
-    id: "crow-wire-positions",
-    title: "Вороны на проводе",
-    hints: [
-      "crow-wire-positions-focus-distance-maximum",
-      "crow-wire-positions-strategy-limit-crow",
-      "crow-wire-positions-next-step-check-cases",
-    ],
-    solution: "crow-wire-positions-full-solution",
-  },
-  "maximum-grid-neighbor-sum": {
-    id: "maximum-grid-neighbor-sum",
-    title: "Сумма чисел у соседей",
-    hints: [
-      "maximum-grid-neighbor-sum-focus-cell-degrees",
-      "maximum-grid-neighbor-sum-strategy-center-cells",
-      "maximum-grid-neighbor-sum-next-step-bound",
-    ],
-    solution: "maximum-grid-neighbor-sum-full-solution",
-  },
-  "rectangle-knight-count": {
-    id: "rectangle-knight-count",
-    title: "Рыцари в прямоугольнике",
-    hints: [
-      "rectangle-knight-count-focus-rows-columns",
-      "rectangle-knight-count-strategy-remaining-rectangle",
-      "rectangle-knight-count-next-step-subtract-products",
-    ],
-    solution: "rectangle-knight-count-full-solution",
-  },
-  "winter-day-number": {
-    id: "winter-day-number",
-    title: "День зимы",
-    hints: [
-      "winter-day-number-focus-inclusive-count",
-      "winter-day-number-strategy-month-lengths",
-      "winter-day-number-next-step-subtract",
-    ],
-    solution: "winter-day-number-full-solution",
-  },
-  "six-position-colorings": {
-    id: "six-position-colorings",
-    title: "Шесть цветных мест",
-    hints: [
-      "six-position-colorings-focus-special-colors",
-      "six-position-colorings-strategy-ordered-choices",
-      "six-position-colorings-next-step-multiply",
-    ],
-    solution: "six-position-colorings-full-solution",
-  },
-  "five-lamp-pattern": {
-    id: "five-lamp-pattern",
-    title: "Цвета гирлянды",
-    hints: [
-      "five-lamp-pattern-focus-overlapping-windows",
-      "five-lamp-pattern-strategy-cancel-shared",
-      "five-lamp-pattern-next-step-period-five",
-    ],
-    solution: "five-lamp-pattern-full-solution",
-    optionIds: [
-      "lamp-97-blue",
-      "lamp-97-yellow",
-      "lamp-98-blue",
-      "lamp-98-yellow",
-      "lamp-99-blue",
-      "lamp-99-yellow",
-      "lamp-100-blue",
-      "lamp-100-yellow",
-    ],
-  },
-  "cut-paper-triangle-count": {
-    id: "cut-paper-triangle-count",
-    title: "Треугольники из бумаги",
-    hints: [
-      "cut-paper-triangle-count-focus",
-      "cut-paper-triangle-count-strategy",
-      "cut-paper-triangle-count-next-step",
-    ],
-    solution: "cut-paper-triangle-count-full-solution",
-  },
-  "reversed-number-tens-digit": {
-    id: "reversed-number-tens-digit",
-    title: "Десятки в разности",
-    hints: [
-      "reversed-number-tens-digit-focus",
-      "reversed-number-tens-digit-strategy",
-      "reversed-number-tens-digit-next-step",
-    ],
-    solution: "reversed-number-tens-digit-full-solution",
-  },
-  "colored-clay-piece-count": {
-    id: "colored-clay-piece-count",
-    title: "Два разрезания",
-    hints: [
-      "colored-clay-piece-count-focus",
-      "colored-clay-piece-count-strategy",
-      "colored-clay-piece-count-next-step",
-    ],
-    solution: "colored-clay-piece-count-full-solution",
-  },
-  "square-border-tile-count": {
-    id: "square-border-tile-count",
-    title: "Плитки у края",
-    hints: [
-      "square-border-tile-count-focus",
-      "square-border-tile-count-strategy",
-      "square-border-tile-count-next-step",
-    ],
-    solution: "square-border-tile-count-full-solution",
-  },
-  "constant-scale-error": {
-    id: "constant-scale-error",
-    title: "Ошибка весов",
-    hints: [
-      "constant-scale-error-focus",
-      "constant-scale-error-strategy",
-      "constant-scale-error-next-step",
-    ],
-    solution: "constant-scale-error-full-solution",
-  },
-  "rabbit-middle-cage": {
-    id: "rabbit-middle-cage",
-    title: "Кролики по соседству",
-    hints: [
-      "rabbit-middle-cage-focus",
-      "rabbit-middle-cage-strategy",
-      "rabbit-middle-cage-next-step",
-    ],
-    solution: "rabbit-middle-cage-full-solution",
-  },
-  "alternating-queue-swaps": {
-    id: "alternating-queue-swaps",
-    title: "Обмены в очереди",
-    hints: [
-      "alternating-queue-swaps-focus",
-      "alternating-queue-swaps-strategy",
-      "alternating-queue-swaps-next-step",
-    ],
-    solution: "alternating-queue-swaps-full-solution",
-  },
-  "corridor-single-layer": {
-    id: "corridor-single-layer",
-    title: "Один слой краски",
-    hints: [
-      "corridor-single-layer-focus",
-      "corridor-single-layer-strategy",
-      "corridor-single-layer-next-step",
-    ],
-    solution: "corridor-single-layer-full-solution",
-  },
-  "diamond-emerald-balance": {
-    id: "diamond-emerald-balance",
-    title: "Камни на весах",
-    hints: [
-      "diamond-emerald-balance-focus",
-      "diamond-emerald-balance-strategy",
-      "diamond-emerald-balance-next-step",
-    ],
-    solution: "diamond-emerald-balance-full-solution",
-  },
-} as const;
+const packProblemMetadata = browserProblemMetadata;
+const transferProblem = browserProblemMetadata["brothers-ages-products"];
+const parrotsProblem = browserProblemMetadata["parrots-guaranteed-colors"];
+const pagesProblem = browserProblemMetadata["pages-without-digit-one"];
 
 function storedPackProblems(problemIds: readonly string[]) {
   const packId = packIdFromProblemIds(problemIds);
   if (!packId) return null;
   return packProblemIds(packId).map((id) => packProblemMetadata[id]);
 }
-
-const transferProblem = {
-  id: "brothers-ages-products",
-  title: "Возраст братьев",
-  hints: [
-    "brothers-ages-products-focus-distinct-products",
-    "brothers-ages-products-strategy-youngest",
-    "brothers-ages-products-next-step-bound",
-  ],
-  solution: "brothers-ages-products-full-solution",
-} as const;
-
-const parrotsProblem = {
-  id: "parrots-guaranteed-colors",
-  title: "Попугаи в зоопарке",
-  hints: [
-    "parrots-guaranteed-colors-focus-worst-group",
-    "parrots-guaranteed-colors-strategy-complements",
-    "parrots-guaranteed-colors-next-step-overlap",
-  ],
-  solution: "parrots-guaranteed-colors-full-solution",
-} as const;
-
-const pagesProblem = {
-  id: "pages-without-digit-one",
-  title: "Страницы без цифры 1",
-  hints: [
-    "pages-without-digit-one-focus-count",
-    "pages-without-digit-one-strategy-blocks",
-    "pages-without-digit-one-next-step-count",
-  ],
-  solution: "pages-without-digit-one-full-solution",
-} as const;
 
 const transferProblems = [transferProblem, parrotsProblem] as const;
 function storedTransferProblem(problemId: string) {
@@ -1393,11 +722,125 @@ export function validatePracticeSessionSnapshot(
   ) as UnfinishedPracticeSessionSnapshot | null;
 }
 
+export class UnsupportedPracticeStateError extends Error {
+  constructor() {
+    super(
+      "This Practice state was saved by a newer version. Return to that version to continue.",
+    );
+    this.name = "UnsupportedPracticeStateError";
+  }
+}
+
+function parsedRaw(raw: string | null): unknown {
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function knownProblem(id: unknown) {
+  return typeof id === "string" && Object.hasOwn(browserProblemMetadata, id)
+    ? browserProblemMetadata[id as keyof typeof browserProblemMetadata]
+    : undefined;
+}
+
+function futureSnapshot(raw: string | null): boolean {
+  const value = parsedRaw(raw);
+  if (!isUnsupportedFuturePackSnapshot(value) || !record(value)) return false;
+  const results = value.completedResults as Record<string, unknown>[];
+  for (const [index, result] of results.entries()) {
+    const known = knownProblem(result.problemId);
+    if (known && !validResult(result, known, index === 2, index === 2))
+      return false;
+  }
+  if (value.status !== "no-next") {
+    const ids = value.problemIds as string[];
+    const known = knownProblem(ids[value.activeProblemIndex as number]);
+    if (known && !validActivePractice(value.activePractice, known))
+      return false;
+    if (
+      known &&
+      "optionIds" in known &&
+      !validSelectedOptionIds(value.selectedOptionIds, known)
+    )
+      return false;
+    if (known && Object.hasOwn(value, "reasoningCheckpointObservation")) {
+      const practice = value.activePractice as ActivePractice;
+      const firstCorrect =
+        practice.submissions.findIndex(
+          (submission) => submission.outcome === "correct",
+        ) + 1;
+      if (
+        !validReasoningCheckpointObservation(
+          value.reasoningCheckpointObservation,
+          known,
+          practice.submissions.length,
+          firstCorrect,
+        )
+      )
+        return false;
+    }
+  }
+  return true;
+}
+
+function futureSummary(raw: string | null): boolean {
+  const value = parsedRaw(raw);
+  if (validateLatestCompletedSummary(value)) return false;
+  if (!isUnsupportedFuturePackSummary(value)) return false;
+  const results = Array.isArray(value)
+    ? value
+    : (value as { results: unknown[] }).results;
+  return results.every((item, index) => {
+    if (!record(item)) return false;
+    const known = knownProblem(item.problemId);
+    return (
+      !known ||
+      validResult(
+        item,
+        known,
+        index === results.length - 1,
+        index === results.length - 1,
+      )
+    );
+  });
+}
+
+function hasUnsupportedPracticeState(store: Storage): boolean {
+  if (
+    futureSnapshot(store.getItem(PRACTICE_SESSION_STORAGE_KEY)) ||
+    futureSummary(store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY))
+  )
+    return true;
+  for (const key of [
+    PRACTICE_PROGRESS_FINISH_PENDING_KEY,
+    PRACTICE_SERVER_FINISH_REQUEST_KEY,
+  ]) {
+    const envelope = parsedRaw(store.getItem(key));
+    if (
+      record(envelope) &&
+      typeof envelope.unfinishedBefore === "string" &&
+      futureSnapshot(envelope.unfinishedBefore)
+    )
+      return true;
+  }
+  return false;
+}
+
+// Call under the shared Practice lock before any import or recovery mutation.
+export function assertNoUnsupportedPracticeStateInsideLock(store: Storage) {
+  if (hasUnsupportedPracticeState(store))
+    throw new UnsupportedPracticeStateError();
+}
+
 function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
   snapshot: UnfinishedPracticeSessionSnapshot;
   raw: string;
 } | null> {
   return withPracticeSessionLock(() => {
+    assertNoUnsupportedPracticeStateInsideLock(store);
     let raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
     const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
     if (pendingRaw !== null) {
@@ -1518,7 +961,8 @@ export async function readPracticeSessionSnapshot(
         )
       )?.snapshot ?? null
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof UnsupportedPracticeStateError) throw error;
     return null;
   }
 }
@@ -1654,6 +1098,7 @@ export async function createPracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null ||
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1684,6 +1129,7 @@ export async function savePracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
@@ -1708,6 +1154,7 @@ export async function saveNoNextPracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
@@ -1739,6 +1186,7 @@ export async function clearPracticeSessionSnapshot(
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(
       () =>
+        !hasUnsupportedPracticeState(store) &&
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) === null &&
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) === null &&
         clearPracticeSessionSnapshotInsideLock(store),
@@ -1874,7 +1322,9 @@ export function saveLatestCompletedResults(
   )
     return false;
   try {
-    (storage ?? captureLearnerStorage()).setItem(
+    const store = storage ?? captureLearnerStorage();
+    if (hasUnsupportedPracticeState(store)) return false;
+    store.setItem(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
@@ -2104,6 +1554,7 @@ export async function isCurrentPracticeFinish(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(() => {
+      if (hasUnsupportedPracticeState(store)) return false;
       const currentUnfinished = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
       if (requestRaw !== null) {
@@ -2396,6 +1847,7 @@ function reconcilePendingPracticeProgressFinish(
 export function recoverLegacyFinishBeforeImportInsideLock(
   store: Storage,
 ): { sessionId: string; pendingRaw: string } | null {
+  assertNoUnsupportedPracticeStateInsideLock(store);
   const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
   if (pendingRaw === null) return null;
   const pending = readPendingPracticeProgressFinish(pendingRaw);
@@ -2467,6 +1919,7 @@ export async function completeServerBackedPracticeSession(
       return outcome;
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(async () => {
+      if (hasUnsupportedPracticeState(store)) return outcome;
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
       let request =
         requestRaw === null
@@ -2711,6 +2164,7 @@ export async function completePracticeSession(
   if (expectedUnfinished === null) return false;
   try {
     return await withPracticeSessionLock(async () => {
+      if (hasUnsupportedPracticeState(store)) return false;
       if (store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null)
         return false;
       const completedAfter = JSON.stringify(results);
