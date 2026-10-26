@@ -58,25 +58,59 @@ export function ownerStorageKey(owner: LocalLearnerOwner, key: string) {
     fail();
   return `olympiad-trainer:learner:${owner.learnerId}:${key.slice("olympiad-trainer:".length)}`;
 }
-function envelope(owner: LocalLearnerOwner, payload: string) {
-  return JSON.stringify({ version: 1, owner, payload });
+function envelope(owner: LocalLearnerOwner, payload: string | null) {
+  return JSON.stringify({ version: 2, owner, payload });
 }
-function readEnvelope(raw: string, owner: LocalLearnerOwner) {
+function readEnvelope(
+  raw: string,
+  owner: LocalLearnerOwner,
+  allowLegacy = false,
+) {
   const value = JSON.parse(raw);
   if (
-    value?.version !== 1 ||
+    !(value?.version === 2 || (allowLegacy && value?.version === 1)) ||
     !isLocalLearnerOwner(value.owner) ||
     !sameLocalLearnerOwner(value.owner, owner) ||
-    typeof value.payload !== "string"
+    !(
+      typeof value.payload === "string" ||
+      (value.version === 2 && value.payload === null)
+    )
   )
     fail();
-  return value.payload as string;
+  return value.payload as string | null;
 }
-function validateNamespace(store: Storage, owner: LocalLearnerOwner) {
+function validateNamespace(
+  store: Storage,
+  owner: LocalLearnerOwner,
+  allowLegacy = false,
+) {
   for (const key of LEARNER_LOCAL_KEYS) {
     const raw = store.getItem(ownerStorageKey(owner, key));
-    if (raw !== null) readEnvelope(raw, owner);
+    if (raw !== null) readEnvelope(raw, owner, allowLegacy);
+    else if (!allowLegacy) fail();
   }
+}
+// Called only inside the identity -> Practice -> Simulation barrier. Preflight
+// every slot before writing; a partial write is retryable without touching bytes
+// already promoted. Empty envelopes permanently fence pre-v2 writers.
+function promoteNamespace(store: Storage, owner: LocalLearnerOwner) {
+  validateNamespace(store, owner, true);
+  for (const key of LEARNER_LOCAL_KEYS) {
+    const namespaced = ownerStorageKey(owner, key);
+    const raw = store.getItem(namespaced);
+    if (raw !== null && JSON.parse(raw).version === 2) continue;
+    confirmedWrite(
+      store,
+      namespaced,
+      envelope(owner, raw === null ? null : readEnvelope(raw, owner, true)),
+    );
+  }
+  validateNamespace(store, owner);
+}
+function readSlot(store: Storage, owner: LocalLearnerOwner, key: string) {
+  const raw = store.getItem(ownerStorageKey(owner, key));
+  if (raw === null) fail();
+  return readEnvelope(raw, owner);
 }
 export function suspendLocalLearner(notify = false) {
   active = null;
@@ -107,26 +141,24 @@ export function captureLearnerStorage(): Storage {
     get length() {
       assert();
       return LEARNER_LOCAL_KEYS.filter(
-        (key) => lease.store.getItem(ownerStorageKey(owner, key)) !== null,
+        (key) => readSlot(lease.store, owner, key) !== null,
       ).length;
     },
     key(index) {
       assert();
       return (
         LEARNER_LOCAL_KEYS.filter(
-          (key) => lease.store.getItem(ownerStorageKey(owner, key)) !== null,
+          (key) => readSlot(lease.store, owner, key) !== null,
         )[index] ?? null
       );
     },
     getItem(key) {
       assert();
-      const raw = lease.store.getItem(ownerStorageKey(owner, key));
-      return raw === null ? null : readEnvelope(raw, owner);
+      return readSlot(lease.store, owner, key);
     },
     setItem(key, payload) {
       assert();
-      const previous = lease.store.getItem(ownerStorageKey(owner, key));
-      if (previous !== null) readEnvelope(previous, owner);
+      readSlot(lease.store, owner, key);
       confirmedWrite(
         lease.store,
         ownerStorageKey(owner, key),
@@ -136,10 +168,8 @@ export function captureLearnerStorage(): Storage {
     removeItem(key) {
       assert();
       const namespaced = ownerStorageKey(owner, key);
-      const previous = lease.store.getItem(namespaced);
-      if (previous !== null) readEnvelope(previous, owner);
-      lease.store.removeItem(namespaced);
-      if (lease.store.getItem(namespaced) !== null) fail();
+      readSlot(lease.store, owner, key);
+      confirmedWrite(lease.store, namespaced, envelope(owner, null));
     },
     clear() {
       fail();
@@ -214,18 +244,21 @@ function rewriteGeneration(
   source: LocalLearnerOwner,
   target: LocalLearnerOwner,
 ) {
-  for (const key of LEARNER_LOCAL_KEYS) {
+  const writes = LEARNER_LOCAL_KEYS.map((key) => {
     const namespaced = ownerStorageKey(source, key);
     const raw = store.getItem(namespaced);
-    if (raw === null) continue;
+    if (raw === null) return [namespaced, envelope(target, null)] as const;
     const parsed = JSON.parse(raw);
-    // Resume an interrupted generation update deterministically.
+    // Preflight all slots before rebinding; accept an already updated slot only
+    // at this authenticated target generation after an interrupted transition.
     const payload = readEnvelope(
       raw,
       sameLocalLearnerOwner(parsed.owner, target) ? target : source,
+      true,
     );
-    confirmedWrite(store, namespaced, envelope(target, payload));
-  }
+    return [namespaced, envelope(target, payload)] as const;
+  });
+  for (const [key, raw] of writes) confirmedWrite(store, key, raw);
 }
 
 function completeSwitch(
@@ -242,10 +275,11 @@ function completeSwitch(
   } else {
     // A previously visited target may have its own older-generation namespace.
     // Never read or reassign the source namespace to populate it.
-    for (const key of LEARNER_LOCAL_KEYS) {
+    const writes = LEARNER_LOCAL_KEYS.map((key) => {
       const namespaced = ownerStorageKey(authenticated, key);
       const previous = store.getItem(namespaced);
-      if (previous === null) continue;
+      if (previous === null)
+        return [namespaced, envelope(authenticated, null)] as const;
       const value = JSON.parse(previous);
       if (
         !isLocalLearnerOwner(value?.owner) ||
@@ -253,13 +287,14 @@ function completeSwitch(
         BigInt(value.owner.generation) > BigInt(authenticated.generation)
       )
         fail();
-      confirmedWrite(
-        store,
+      return [
         namespaced,
-        envelope(authenticated, readEnvelope(previous, value.owner)),
-      );
-    }
+        envelope(authenticated, readEnvelope(previous, value.owner, true)),
+      ] as const;
+    });
+    for (const [key, raw] of writes) confirmedWrite(store, key, raw);
   }
+  promoteNamespace(store, authenticated);
   const raw = JSON.stringify({ ...binding, owner: authenticated });
   confirmedWrite(store, LOCAL_OWNER_KEY, raw);
   store.removeItem(IDENTITY_SWITCH_KEY);
@@ -284,7 +319,7 @@ function completeRecoveredSwitch(
     return;
   }
 
-  validateNamespace(store, authenticated);
+  validateNamespace(store, authenticated, true);
   for (const key of LEARNER_LOCAL_KEYS) {
     const namespaced = ownerStorageKey(authenticated, key);
     const raw = store.getItem(namespaced);
@@ -299,9 +334,10 @@ function completeRecoveredSwitch(
     confirmedWrite(
       store,
       namespaced,
-      envelope(authenticated, readEnvelope(raw, value.owner)),
+      envelope(authenticated, readEnvelope(raw, value.owner, true)),
     );
   }
+  promoteNamespace(store, authenticated);
   const raw = JSON.stringify({ owner: authenticated, legacyOwner: null });
   confirmedWrite(store, LOCAL_OWNER_KEY, raw);
   store.removeItem(IDENTITY_SWITCH_KEY);
@@ -335,24 +371,36 @@ export async function reconcileAuthenticatedLocalOwner(
     sameLocalLearnerOwner(binding.owner, owner) &&
     markerRaw === null
   ) {
+    const bindingRaw = store.getItem(LOCAL_OWNER_KEY);
     try {
       validateNamespace(store, owner);
-    } catch (error) {
+      const verified = readBinding(store);
+      if (
+        !verified ||
+        !sameLocalLearnerOwner(verified.owner, owner) ||
+        store.getItem(LOCAL_OWNER_KEY) !== bindingRaw ||
+        store.getItem(IDENTITY_SWITCH_KEY) !== null ||
+        store.getItem(START_FRESH_KEY) !== null
+      )
+        fail();
+      if (
+        active?.store !== store ||
+        !sameLocalLearnerOwner(active.owner, owner) ||
+        active.bindingRaw !== bindingRaw
+      )
+        active = { owner, store, bindingRaw: bindingRaw! };
+      return;
+    } catch {
       suspendLocalLearner();
-      throw error;
+      // Legacy/incomplete namespaces must enter the exclusive barrier below.
+      // Unknown/corrupt envelopes are rejected again by its preflight.
     }
-    const bindingRaw = store.getItem(LOCAL_OWNER_KEY)!;
-    if (
-      active?.store !== store ||
-      !sameLocalLearnerOwner(active.owner, owner) ||
-      active.bindingRaw !== bindingRaw
-    )
-      active = { owner, store, bindingRaw };
-    return;
   }
+  suspendLocalLearner();
   await withIdentityBarrier(async () => {
     const latest = readBinding(store);
     const markerBytes = store.getItem(IDENTITY_SWITCH_KEY);
+    if (store.getItem(START_FRESH_KEY) !== null) fail();
     if (markerBytes !== null) {
       const marker = JSON.parse(markerBytes) as SwitchMarker;
       if (
@@ -376,6 +424,12 @@ export async function reconcileAuthenticatedLocalOwner(
       completeSwitch(store, marker as BoundSwitchMarker, owner, latest!);
       return;
     }
+    if (latest && sameLocalLearnerOwner(latest.owner, owner)) {
+      promoteNamespace(store, owner);
+      const bindingRaw = store.getItem(LOCAL_OWNER_KEY)!;
+      active = { owner, store, bindingRaw };
+      return;
+    }
     if (latest) {
       if (
         latest.owner.learnerId !== owner.learnerId ||
@@ -395,7 +449,7 @@ export async function reconcileAuthenticatedLocalOwner(
     const legacy = LEARNER_LOCAL_KEYS.map(
       (key) => [key, store.getItem(key)] as const,
     );
-    validateNamespace(store, owner);
+    validateNamespace(store, owner, true);
     if (!preexistingCredential && legacy.some(([, raw]) => raw !== null))
       fail();
     for (let i = 0; i < store.length; i++) {
@@ -411,7 +465,12 @@ export async function reconcileAuthenticatedLocalOwner(
         // An envelope in an old key is already bound, not eligible legacy data.
         try {
           const candidate = JSON.parse(payload);
-          if (candidate?.version === 1 && "owner" in candidate) fail();
+          if (
+            candidate &&
+            typeof candidate === "object" &&
+            "owner" in candidate
+          )
+            fail();
         } catch (error) {
           if (
             error instanceof Error &&
@@ -422,10 +481,15 @@ export async function reconcileAuthenticatedLocalOwner(
         const namespaced = ownerStorageKey(owner, key);
         const expected = envelope(owner, payload);
         const previous = store.getItem(namespaced);
-        if (previous !== null && previous !== expected) fail();
+        if (
+          previous !== null &&
+          readEnvelope(previous, owner, true) !== payload
+        )
+          fail();
         confirmedWrite(store, namespaced, expected);
       }
     }
+    promoteNamespace(store, owner);
     const raw = JSON.stringify({
       owner,
       legacyOwner: preexistingCredential ? owner.learnerId : null,

@@ -89,3 +89,17 @@ During preparation, the Russian `/restore` notice explained account/email-free a
 At preparation time, repository publication required tests, independent security/release review, PR CI and disabled Preview; merge required explicit owner approval, followed by deployment verification and disabled-state smoke. Those historical gates were followed by the controlled production release recorded above. Do not treat this historical preparation sequence as ongoing monitoring or as evidence of broader public promotion.
 
 Historical draft publication: [PR #85](https://github.com/SemenKr/olympiad-trainer/pull/85). Initial reviewed commit `02ef3696b53cef0268322d3f09a28827a43e9356` passed [CI 37806715558](https://github.com/SemenKr/olympiad-trainer/actions/runs/37806715558) and has READY Preview `dpl_5zwZ9xqQCUCNFk1SJfKx4TfjMm7a`; final documentary status updates required their own CI/Preview confirmation. Independent implementation review: Critical 0 / Major 0 / Minor 0, with the then-unresolved governance gates above. The later governance review and approved release basis are recorded above. This PR and review are historical preparation evidence, not the production release record.
+
+## Ownership Envelope v2 release dependency (not deployed by this task)
+
+The A–R compatibility follow-up changes only the browser ownership wrapper, not
+credentials, domain payloads or SQL. See the [protocol and rollback contract](content-pipeline-v2-browser-recovery.md#release-and-rollback-contract).
+Once promoted, a learner namespace requires an envelope-v2-aware application.
+Exact pre-guard main and original M1 reject it; neither is a usable rollback target.
+Retain a verified A–R envelope-v2 fallback before future Pack exposure. Never
+remove null envelopes or downconvert storage to restore old-build usability.
+Recovery/generation transitions must preserve all six slots, including pending
+Finish and Simulation. Held editor locks require normal closure/retry, never
+forced bypass. Existing effective binding, credential/recovery and explicit owner
+release gates in this runbook remain unchanged. This documentation records a
+local implementation dependency, not a change to the Production release record.
