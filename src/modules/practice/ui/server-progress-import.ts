@@ -1,4 +1,9 @@
 import {
+  isCanonicalStorage,
+  refreshCanonicalStorage,
+  CanonicalPersistenceError,
+} from "../../learner/canonical-local-store";
+import {
   captureLearnerStorage,
   currentLocalLearnerOwner,
   withLocalIdentityRead,
@@ -19,6 +24,18 @@ export async function ensureServerProgressImported(storage?: Storage) {
   if (!navigator.locks?.request)
     throw new Error("Practice session lock is unavailable.");
   const store = storage ?? captureLearnerStorage();
+  if (isCanonicalStorage(store)) {
+    await refreshCanonicalStorage(store);
+    if (
+      [
+        PROGRESS_EVIDENCE_STORAGE_KEY,
+        "olympiad-trainer:practice-progress-finish-pending",
+        "olympiad-trainer:practice-server-finish-request",
+      ].some((key) => store.getItem(key) !== null)
+    )
+      throw new CanonicalPersistenceError("conflict");
+    return null;
+  }
   const owner = currentLocalLearnerOwner();
   return withLocalIdentityRead(() =>
     navigator.locks.request(

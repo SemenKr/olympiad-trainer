@@ -1,4 +1,11 @@
 import {
+  isCanonicalStorage,
+  refreshCanonicalStorage,
+  assertCanonicalStorageCurrent,
+  mutateCanonicalStorage,
+  CanonicalPersistenceError,
+} from "../../learner/canonical-local-store";
+import {
   captureLearnerStorage,
   withLocalIdentityRead,
 } from "../../learner/local-ownership";
@@ -69,14 +76,61 @@ const PRACTICE_SERVER_FINISH_REQUEST_KEY =
 const PRACTICE_SESSION_MUTATION_LOCK =
   "olympiad-trainer:practice-session-mutation";
 
-function withPracticeSessionLock<T>(operation: () => T): Promise<T> {
+function withPracticeSessionLock<T>(
+  operation: (draft: Storage) => T,
+  storage: Storage,
+  admission?: { sessionId: string; fingerprint: string },
+): Promise<T> {
+  if (isCanonicalStorage(storage)) {
+    return withLocalIdentityRead(() =>
+      navigator.locks.request(
+        PRACTICE_SESSION_MUTATION_LOCK,
+        { mode: "exclusive" },
+        () =>
+          mutateCanonicalStorage(storage, (draft, record) => {
+            if (
+              draft.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
+              draft.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null
+            )
+              throw new CanonicalPersistenceError("conflict");
+            if (
+              admission &&
+              Object.hasOwn(record.operations, admission.sessionId)
+            ) {
+              if (
+                record.sessionId !== admission.sessionId ||
+                record.operations[admission.sessionId] !== admission.fingerprint
+              )
+                throw new CanonicalPersistenceError("conflict");
+              return true as T;
+            }
+            const result = operation(draft);
+            if (result === false)
+              throw new CanonicalPersistenceError("conflict");
+            const raw = draft.getItem(PRACTICE_SESSION_STORAGE_KEY);
+            const sessionId =
+              raw === null
+                ? null
+                : (JSON.parse(raw) as { sessionId: string }).sessionId;
+            if (sessionId !== null && record.sessionId === null) {
+              if (Object.hasOwn(record.operations, sessionId))
+                throw new CanonicalPersistenceError("conflict");
+              record.operations[sessionId] =
+                admission?.fingerprint ?? "restored";
+            }
+            record.sessionId = sessionId;
+            return result;
+          }),
+      ),
+    );
+  }
   if (typeof navigator === "undefined" || !navigator.locks?.request)
     return Promise.reject(new Error("Practice session lock is unavailable."));
   return withLocalIdentityRead(() =>
     navigator.locks.request(
       PRACTICE_SESSION_MUTATION_LOCK,
       { mode: "exclusive" },
-      operation,
+      () => operation(storage),
     ),
   );
 }
@@ -839,7 +893,22 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
   snapshot: UnfinishedPracticeSessionSnapshot;
   raw: string;
 } | null> {
-  return withPracticeSessionLock(() => {
+  if (isCanonicalStorage(store))
+    return (async () => {
+      await refreshCanonicalStorage(store);
+      assertNoUnsupportedPracticeStateInsideLock(store);
+      if (
+        store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
+        store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null
+      )
+        throw new CanonicalPersistenceError("conflict");
+      const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
+      if (raw === null) return null;
+      const snapshot = validatePracticeSessionSnapshot(JSON.parse(raw));
+      if (!snapshot) throw new CanonicalPersistenceError("conflict");
+      return { snapshot, raw };
+    })();
+  return withPracticeSessionLock((store) => {
     assertNoUnsupportedPracticeStateInsideLock(store);
     let raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
     const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
@@ -947,7 +1016,7 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
 
     store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
     return null;
-  });
+  }, store);
 }
 
 export async function readPracticeSessionSnapshot(
@@ -962,7 +1031,11 @@ export async function readPracticeSessionSnapshot(
       )?.snapshot ?? null
     );
   } catch (error) {
-    if (error instanceof UnsupportedPracticeStateError) throw error;
+    if (
+      error instanceof UnsupportedPracticeStateError ||
+      error instanceof CanonicalPersistenceError
+    )
+      throw error;
     return null;
   }
 }
@@ -1014,17 +1087,20 @@ export async function readVerifiedPracticeSessionSnapshot(
           snapshot.reasoningCheckpointObservation,
           getPracticeSummary(finishPractice(snapshot.activePractice)),
         );
+  await assertCanonicalStorageCurrent(store);
   if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
     throw new Error("Practice snapshot changed during verification.");
   if (
     resultVerification.some((verification) => !verification.valid) ||
     activeVerification?.valid === false
   ) {
-    await withPracticeSessionLock(() => {
+    if (isCanonicalStorage(store))
+      throw new CanonicalPersistenceError("conflict");
+    await withPracticeSessionLock((store) => {
       if (store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
         throw new Error("Practice snapshot changed during verification.");
       store.removeItem(PRACTICE_SESSION_STORAGE_KEY);
-    });
+    }, store);
     return { value: null, interpretation: null };
   }
   return {
@@ -1097,18 +1173,33 @@ export async function createPracticeSessionSnapshot(
   if (!validatePracticeSessionSnapshot(snapshot)) return false;
   try {
     const store = storage ?? captureLearnerStorage();
-    return await withPracticeSessionLock(() => {
-      if (hasUnsupportedPracticeState(store)) return false;
-      if (
-        store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null ||
-        store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
-        store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
-      )
-        return false;
-      const raw = JSON.stringify(snapshot);
-      store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
-      return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
-    });
+    const fingerprint = isCanonicalStorage(store)
+      ? Array.from(
+          new Uint8Array(
+            await crypto.subtle.digest(
+              "SHA-256",
+              new TextEncoder().encode(JSON.stringify(snapshot)),
+            ),
+          ),
+          (byte) => byte.toString(16).padStart(2, "0"),
+        ).join("")
+      : "legacy";
+    return await withPracticeSessionLock(
+      (store) => {
+        if (hasUnsupportedPracticeState(store)) return false;
+        if (
+          store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== null ||
+          store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
+          store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
+        )
+          return false;
+        const raw = JSON.stringify(snapshot);
+        store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
+        return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
+      },
+      store,
+      { sessionId: session.sessionId, fingerprint },
+    );
   } catch {
     return false;
   }
@@ -1128,7 +1219,7 @@ export async function savePracticeSessionSnapshot(
   if (!validSessionId(session.sessionId)) return false;
   try {
     const store = storage ?? captureLearnerStorage();
-    return await withPracticeSessionLock(() => {
+    return await withPracticeSessionLock((store) => {
       if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1139,7 +1230,7 @@ export async function savePracticeSessionSnapshot(
       const raw = JSON.stringify(snapshot);
       store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
       return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
-    });
+    }, store);
   } catch {
     return false;
   }
@@ -1153,7 +1244,7 @@ export async function saveNoNextPracticeSessionSnapshot(
   if (!validated || !("status" in validated)) return false;
   try {
     const store = storage ?? captureLearnerStorage();
-    return await withPracticeSessionLock(() => {
+    return await withPracticeSessionLock((store) => {
       if (hasUnsupportedPracticeState(store)) return false;
       if (
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null ||
@@ -1164,7 +1255,7 @@ export async function saveNoNextPracticeSessionSnapshot(
       const raw = JSON.stringify(session);
       store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
       return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
-    });
+    }, store);
   } catch {
     return false;
   }
@@ -1185,11 +1276,12 @@ export async function clearPracticeSessionSnapshot(
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock(
-      () =>
+      (store) =>
         !hasUnsupportedPracticeState(store) &&
         store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) === null &&
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) === null &&
         clearPracticeSessionSnapshotInsideLock(store),
+      store,
     );
   } catch {
     return false;
@@ -1553,7 +1645,8 @@ export async function isCurrentPracticeFinish(
   const expected = expectedUnfinishedForFinish(session, answer, results);
   try {
     const store = storage ?? captureLearnerStorage();
-    return await withPracticeSessionLock(() => {
+    if (isCanonicalStorage(store)) return false;
+    return await withPracticeSessionLock((store) => {
       if (hasUnsupportedPracticeState(store)) return false;
       const currentUnfinished = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
@@ -1588,7 +1681,7 @@ export async function isCurrentPracticeFinish(
         pending.completedAfter === JSON.stringify(results) &&
         (currentUnfinished === expected || currentUnfinished === null)
       );
-    });
+    }, store);
   } catch {
     return false;
   }
@@ -1918,7 +2011,8 @@ export async function completeServerBackedPracticeSession(
     )
       return outcome;
     const store = storage ?? captureLearnerStorage();
-    return await withPracticeSessionLock(async () => {
+    if (isCanonicalStorage(store)) return outcome;
+    return await withPracticeSessionLock(async (store) => {
       if (hasUnsupportedPracticeState(store)) return outcome;
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
       let request =
@@ -2119,7 +2213,7 @@ export async function completeServerBackedPracticeSession(
       ) && writeAndConfirm(store, PRACTICE_SERVER_FINISH_REQUEST_KEY, null)
         ? "completed"
         : outcome;
-    });
+    }, store);
   } catch {
     return outcome;
   }
@@ -2161,9 +2255,9 @@ export async function completePracticeSession(
   } catch {
     return false;
   }
-  if (expectedUnfinished === null) return false;
+  if (expectedUnfinished === null || isCanonicalStorage(store)) return false;
   try {
-    return await withPracticeSessionLock(async () => {
+    return await withPracticeSessionLock(async (store) => {
       if (hasUnsupportedPracticeState(store)) return false;
       if (store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null)
         return false;
@@ -2315,7 +2409,7 @@ export async function completePracticeSession(
         // Leave the current storage value untouched when it cannot be inspected.
       }
       return false;
-    });
+    }, store);
   } catch {
     return false;
   }

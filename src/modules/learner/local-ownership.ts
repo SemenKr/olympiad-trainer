@@ -1,4 +1,12 @@
 import {
+  assertLegacyIdentityTransition,
+  CANONICAL_SLOTS,
+  canonicalRequired,
+  captureCanonicalStorage,
+  prepareCanonicalOwner,
+  suspendCanonicalOwner,
+} from "./canonical-local-store";
+import {
   isLocalLearnerOwner,
   sameLocalLearnerOwner,
   type LocalLearnerOwner,
@@ -10,14 +18,7 @@ export const SIMULATION_LOCK = "olympiad-trainer:simulation-editor";
 export const LOCAL_OWNER_KEY = "olympiad-trainer:local-owner-v1";
 export const START_FRESH_KEY = "olympiad-trainer:start-fresh-v1";
 export const IDENTITY_SWITCH_KEY = "olympiad-trainer:identity-switch-v1";
-export const LEARNER_LOCAL_KEYS = [
-  "olympiad-trainer:practice-session",
-  "olympiad-trainer:practice-latest-completed",
-  "olympiad-trainer:progress-evidence-v0",
-  "olympiad-trainer:practice-progress-finish-pending",
-  "olympiad-trainer:practice-server-finish-request",
-  "olympiad-trainer:simulation-pending-v0",
-] as const;
+export const LEARNER_LOCAL_KEYS = CANONICAL_SLOTS;
 
 type Binding = { owner: LocalLearnerOwner; legacyOwner: string | null };
 type SwitchMarker = {
@@ -114,6 +115,7 @@ function readSlot(store: Storage, owner: LocalLearnerOwner, key: string) {
 }
 export function suspendLocalLearner(notify = false) {
   active = null;
+  suspendCanonicalOwner();
   if (notify && typeof window !== "undefined")
     window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
 }
@@ -128,6 +130,7 @@ export function currentLocalLearnerOwner(): LocalLearnerOwner {
   return active.owner;
 }
 export function captureLearnerStorage(): Storage {
+  if (canonicalRequired(active?.store)) return captureCanonicalStorage();
   const owner = currentLocalLearnerOwner();
   const lease = active!;
   const assert = () => {
@@ -353,6 +356,13 @@ export async function reconcileAuthenticatedLocalOwner(
   store: Storage = window.localStorage,
 ) {
   if (!isLocalLearnerOwner(owner)) fail();
+  if (canonicalRequired(store)) {
+    await prepareCanonicalOwner(owner, store);
+    const bindingRaw = store.getItem(LOCAL_OWNER_KEY);
+    if (!bindingRaw) fail();
+    active = { owner, store, bindingRaw };
+    return;
+  }
   let binding: Binding | null;
   try {
     binding = readBinding(store);
@@ -398,6 +408,7 @@ export async function reconcileAuthenticatedLocalOwner(
   }
   suspendLocalLearner();
   await withIdentityBarrier(async () => {
+    await assertLegacyIdentityTransition(store);
     const latest = readBinding(store);
     const markerBytes = store.getItem(IDENTITY_SWITCH_KEY);
     if (store.getItem(START_FRESH_KEY) !== null) fail();
@@ -506,8 +517,10 @@ export async function transitionLocalIdentity(
   acknowledge: () => Promise<LocalLearnerOwner>,
   store: Storage = window.localStorage,
 ) {
+  if (canonicalRequired(store)) fail();
   if (!isLocalLearnerOwner(target)) fail();
   return withIdentityBarrier(async () => {
+    await assertLegacyIdentityTransition(store);
     const source = currentLocalLearnerOwner();
     const binding = readBinding(store);
     if (
@@ -535,8 +548,10 @@ export async function transitionRecoveredLocalIdentity(
   store: Storage = window.localStorage,
 ) {
   if (!isLocalLearnerOwner(target)) fail();
+  if (canonicalRequired(store)) fail();
   if (active) return transitionLocalIdentity(target, acknowledge, store);
   return withIdentityBarrier(async () => {
+    await assertLegacyIdentityTransition(store);
     const binding = readBinding(store);
     const marker: SwitchMarker = {
       operationId: crypto.randomUUID(),
@@ -558,7 +573,9 @@ export async function startFreshLocalIdentity(
   acknowledge: () => Promise<LocalLearnerOwner>,
   store: Storage = window.localStorage,
 ) {
+  if (canonicalRequired(store)) fail();
   return withIdentityBarrier(async () => {
+    await assertLegacyIdentityTransition(store);
     const binding = readBinding(store);
     confirmedWrite(store, START_FRESH_KEY, "confirmed-v1");
     suspendLocalLearner();

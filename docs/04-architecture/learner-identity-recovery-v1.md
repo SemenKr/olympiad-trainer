@@ -147,6 +147,8 @@ Legacy unbound local data can be bound once only while a **pre-existing valid co
 
 Bound data for the **same** verified learner may resume after recovery, updating credential generation under the barrier and retaining exact pending request IDs/hashes. Different-owner data stays isolated. Switching away from a valid current learner requires an explicit warning if its server history has no recovery code, with an option to cancel and enable recovery first. Never claim that merely retaining its local namespace preserves access to its server history.
 
+> Experimental canonical IDB integration and its fail-closed limits are documented in [the first-slice guide](../05-development/canonical-learner-persistence-first-slice.md). It is not a complete replacement or a production release; credential transitions and Simulation remain unavailable after its explicit handoff.
+
 ### Local ownership foundation (slice 3)
 
 The browser boundary reads authenticated public `{ learnerId, generation }` metadata before mounting learner views. Generation is serialized as a decimal string to preserve PostgreSQL bigint precision. This metadata is not a credential. Progress/import/Finish, Review, Knowledge Support and Simulation actions compare expected context with the HttpOnly credential; persistence still rechecks credential authority inside its existing transactions.
