@@ -267,7 +267,7 @@ describe("authenticated local ownership", () => {
       expect(store.getItem(key)).toBe(`original ${key}`);
       expect(scoped.getItem(key)).toBe(`original ${key}`);
       expect(JSON.parse(store.getItem(ownerStorageKey(a, key))!)).toEqual({
-        version: 1,
+        version: 2,
         owner: a,
         payload: `original ${key}`,
       });
@@ -420,7 +420,9 @@ describe("authenticated local ownership", () => {
       owner: a,
       payload: "foreign simulation",
     });
-    expect(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))).toBeNull();
+    expect(
+      JSON.parse(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))!),
+    ).toEqual({ version: 2, owner: b, payload: null });
     expect(store.getItem(LOCAL_OWNER_KEY)).toContain(b.learnerId);
     expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
   });
