@@ -29,6 +29,17 @@ export type CanonicalRecord = {
   revision: number;
   sessionId: string | null;
   operations: Record<string, string>;
+  lease?: number;
+  retained?: Record<string, CanonicalRecord>;
+  pendingTransition?: {
+    kind: "recovery" | "fresh";
+    operationId: string;
+    source: LocalLearnerOwner;
+    target?: LocalLearnerOwner;
+    expectedRevision: number;
+    phase: "intent";
+    previousTransition?: CanonicalRecord["pendingTransition"];
+  };
 };
 export type PersistenceResult<T> =
   | { status: "ok"; value: T }
@@ -48,8 +59,15 @@ function fail(status: "conflict" | "unavailable" | "handoff-required"): never {
 }
 const physical = (owner: LocalLearnerOwner, key: string) =>
   `olympiad-trainer:learner:${owner.learnerId}:${key.slice("olympiad-trainer:".length)}`;
-function source(storage: Storage, owner: LocalLearnerOwner): Source {
-  if (storage.getItem(SWITCH) !== null || storage.getItem(FRESH) !== null)
+function source(
+  storage: Storage,
+  owner: LocalLearnerOwner,
+  frozen = false,
+): Source {
+  if (
+    !frozen &&
+    (storage.getItem(SWITCH) !== null || storage.getItem(FRESH) !== null)
+  )
     fail("conflict");
   const binding = storage.getItem(BINDING);
   if (!binding) fail("conflict");
@@ -106,23 +124,62 @@ function valid(value: unknown): asserts value is CanonicalRecord {
   )
     fail("unavailable");
   const binding = JSON.parse(r.source.binding);
-  if (
-    !isLocalLearnerOwner(binding?.owner) ||
-    !sameLocalLearnerOwner(binding.owner, r.owner)
-  )
-    fail("unavailable");
+  if (!isLocalLearnerOwner(binding?.owner)) fail("unavailable");
   const originals = r.source.envelopes.map((raw) => {
     const envelope = JSON.parse(raw);
     if (
       envelope?.version !== 2 ||
       !isLocalLearnerOwner(envelope.owner) ||
-      !sameLocalLearnerOwner(envelope.owner, r.owner) ||
+      !sameLocalLearnerOwner(envelope.owner, binding.owner) ||
       !(envelope.payload === null || typeof envelope.payload === "string")
     )
       fail("unavailable");
     return envelope.payload as string | null;
   });
   if (Array.isArray(r.operations)) fail("unavailable");
+  if (r.lease !== undefined && (!Number.isSafeInteger(r.lease) || r.lease < 0))
+    fail("unavailable");
+  if (r.retained !== undefined) {
+    if (
+      !r.retained ||
+      typeof r.retained !== "object" ||
+      Array.isArray(r.retained)
+    )
+      fail("unavailable");
+    for (const [id, retained] of Object.entries(r.retained)) {
+      if (
+        retained.retained !== undefined ||
+        retained.pendingTransition !== undefined
+      )
+        fail("unavailable");
+      valid(retained);
+      if (retained.owner.learnerId !== id || !equal(retained.source, r.source))
+        fail("unavailable");
+    }
+  }
+  if (r.pendingTransition !== undefined) {
+    const t = r.pendingTransition;
+    if (
+      !t ||
+      !["recovery", "fresh"].includes(t.kind) ||
+      t.phase !== "intent" ||
+      typeof t.operationId !== "string" ||
+      !t.operationId ||
+      !sameLocalLearnerOwner(t.source, r.owner) ||
+      t.expectedRevision !== r.revision ||
+      (t.kind === "recovery" && !isLocalLearnerOwner(t.target)) ||
+      (t.target !== undefined && !isLocalLearnerOwner(t.target))
+    )
+      fail("unavailable");
+    if (t.previousTransition) {
+      if (t.kind !== "fresh") fail("unavailable");
+      valid({
+        ...r,
+        retained: undefined,
+        pendingTransition: t.previousTransition,
+      });
+    }
+  }
   if (
     r.phase === "prepared" &&
     (r.revision !== 0 ||
@@ -139,8 +196,7 @@ function valid(value: unknown): asserts value is CanonicalRecord {
       !Object.hasOwn(r.operations, r.sessionId)
     )
       fail("unavailable");
-  } else if (r.revision > 0 && r.payloads[CANONICAL_SLOTS[0]] !== null)
-    fail("unavailable");
+  }
 }
 function witness(storage: Storage): string | null {
   const raw = storage.getItem(HANDOFF_KEY);
@@ -152,7 +208,7 @@ function witness(storage: Storage): string | null {
 }
 async function open(factory: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const r = factory.open(CANONICAL_DB, 1);
+    const r = factory.open(CANONICAL_DB, 2);
     let settled = false;
     const timer = setTimeout(() => {
       settled = true;
@@ -160,7 +216,8 @@ async function open(factory: IDBFactory): Promise<IDBDatabase> {
     }, 2000);
     r.onupgradeneeded = () => {
       if (settled) r.transaction?.abort();
-      else r.result.createObjectStore("learner");
+      else if (!r.result.objectStoreNames.contains("learner"))
+        r.result.createObjectStore("learner");
     };
     r.onblocked = () => {
       settled = true;
@@ -251,9 +308,13 @@ export class CanonicalLocalStore {
       fail(witness(this.storage) === null ? "handoff-required" : "unavailable");
     if (
       !sameLocalLearnerOwner(record.owner, owner) ||
-      !equal(source(this.storage, owner), record.source)
+      !equal(
+        source(this.storage, JSON.parse(record.source.binding).owner, true),
+        record.source,
+      )
     )
       fail("conflict");
+    if (active && record.pendingTransition) fail("conflict");
     if (
       active &&
       (record.phase !== "active" ||
@@ -317,16 +378,116 @@ export class CanonicalLocalStore {
       });
     });
   }
+  // Intent is committed before the authenticated callback. The callback is never
+  // inside an IDB transaction. Unknown outcomes retain the source and block use.
+  beginTransition(kind: "recovery" | "fresh", target?: LocalLearnerOwner) {
+    return outcome(() =>
+      transaction(this.factory, (record) => {
+        if (!record) fail("unavailable");
+        this.check(record, record.owner, false);
+        if (
+          record.phase !== "active" ||
+          witness(this.storage) !== record.operationId
+        )
+          fail("conflict");
+        if (
+          target &&
+          record.owner.learnerId === target.learnerId &&
+          BigInt(target.generation) < BigInt(record.owner.generation)
+        )
+          fail("conflict");
+        if (record.pendingTransition && kind !== "fresh") {
+          if (
+            record.pendingTransition.kind !== kind ||
+            !equal(record.pendingTransition.target, target)
+          )
+            fail("conflict");
+          return { value: record.pendingTransition.operationId };
+        }
+        const operationId = crypto.randomUUID();
+        record.pendingTransition = {
+          kind,
+          operationId,
+          source: record.owner,
+          target,
+          phase: "intent",
+          expectedRevision: record.revision,
+          ...(record.pendingTransition
+            ? { previousTransition: record.pendingTransition }
+            : {}),
+        };
+        return { value: operationId, write: record };
+      }),
+    );
+  }
+  completeTransition(owner: LocalLearnerOwner, operationId?: string) {
+    return outcome(() =>
+      transaction(this.factory, (record) => {
+        if (!record || !isLocalLearnerOwner(owner)) fail("unavailable");
+        this.check(record, record.owner, false);
+        const pending = record.pendingTransition;
+        if (!pending) {
+          if (
+            operationId ||
+            owner.learnerId !== record.owner.learnerId ||
+            BigInt(owner.generation) < BigInt(record.owner.generation)
+          )
+            fail("conflict");
+          if (sameLocalLearnerOwner(owner, record.owner))
+            return { value: record };
+          const next = { ...record, owner, lease: (record.lease ?? 0) + 1 };
+          return { value: next, write: next };
+        }
+        if (
+          (operationId && pending.operationId !== operationId) ||
+          (pending.kind === "recovery" &&
+            !sameLocalLearnerOwner(owner, pending.target!))
+        )
+          fail("conflict");
+        const { retained: previous = {}, ...sourceRecord } = record;
+        delete sourceRecord.pendingTransition;
+        const retained = {
+          ...previous,
+          [record.owner.learnerId]: sourceRecord,
+        };
+        const target = retained[owner.learnerId];
+        if (
+          target &&
+          BigInt(target.owner.generation) > BigInt(owner.generation)
+        )
+          fail("conflict");
+        const next: CanonicalRecord = {
+          ...(target ?? {
+            ...sourceRecord,
+            payloads: Object.fromEntries(
+              CANONICAL_SLOTS.map((k) => [k, null]),
+            ) as Record<Slot, string | null>,
+            revision: 0,
+            sessionId: null,
+            operations: {},
+          }),
+          owner,
+          retained,
+          lease: (record.lease ?? 0) + 1,
+        };
+        delete next.retained![owner.learnerId];
+        return { value: next, write: next };
+      }),
+    );
+  }
+
   mutate(
     owner: LocalLearnerOwner,
     expectedRevision: number,
     operation: (record: CanonicalRecord) => void,
+    expectedLease = 0,
   ) {
     return outcome(() =>
       transaction(this.factory, (record) => {
         const current = this.check(record, owner);
         if (
           current.revision !== expectedRevision ||
+          (current.lease ?? 0) !== expectedLease ||
           current.revision === Number.MAX_SAFE_INTEGER
         )
           fail("conflict");
@@ -389,7 +550,14 @@ export function captureCanonicalStorage(): Storage {
   const assert = () => {
     if (
       active !== context ||
-      !equal(source(view.storage, view.record.owner), view.record.source) ||
+      !equal(
+        source(
+          view.storage,
+          JSON.parse(view.record.source.binding).owner,
+          true,
+        ),
+        view.record.source,
+      ) ||
       witness(view.storage) !== view.record.operationId
     )
       fail("conflict");
@@ -436,6 +604,7 @@ export async function refreshCanonicalStorage(storage: Storage) {
     throw new CanonicalPersistenceError(result.status);
   // Calling getItem also verifies that this is still the active identity lease.
   storage.getItem(CANONICAL_SLOTS[0]);
+  if ((result.value.lease ?? 0) !== (view.record.lease ?? 0)) fail("conflict");
   view.record = result.value;
 }
 export async function assertCanonicalStorageCurrent(storage: Storage) {
@@ -445,7 +614,11 @@ export async function assertCanonicalStorageCurrent(storage: Storage) {
   if (result.status !== "ok")
     throw new CanonicalPersistenceError(result.status);
   storage.getItem(CANONICAL_SLOTS[0]);
-  if (result.value.revision !== view.record.revision) fail("conflict");
+  if (
+    result.value.revision !== view.record.revision ||
+    (result.value.lease ?? 0) !== (view.record.lease ?? 0)
+  )
+    fail("conflict");
 }
 export function canonicalStorageRevision(storage: Storage): number {
   const view = views.get(storage);
@@ -498,6 +671,7 @@ export async function mutateCanonicalStorage<T>(
       if (value && typeof (value as { then?: unknown }).then === "function")
         fail("unavailable");
     },
+    view.record.lease ?? 0,
   );
   if (result.status !== "ok")
     throw new CanonicalPersistenceError(result.status);
@@ -517,4 +691,34 @@ export async function assertLegacyIdentityTransition(storage: Storage) {
     value: record !== undefined,
   }));
   if (exists || canonicalRequired(storage)) fail("conflict");
+}
+
+// The caller holds identity -> Practice -> Simulation exclusively.
+export async function transitionCanonicalIdentity(
+  kind: "recovery" | "fresh",
+  target: LocalLearnerOwner | undefined,
+  acknowledge: () => Promise<LocalLearnerOwner>,
+  storage: Storage,
+) {
+  const client = new CanonicalLocalStore(storage, indexedDB);
+  const intent = await client.beginTransition(kind, target);
+  if (intent.status !== "ok")
+    throw new CanonicalPersistenceError(intent.status);
+  suspendCanonicalOwner();
+  const authenticated = await acknowledge();
+  const result = await client.completeTransition(authenticated, intent.value);
+  if (result.status !== "ok")
+    throw new CanonicalPersistenceError(result.status);
+  active = { client, record: result.value, storage };
+  return authenticated;
+}
+export async function reconcileCanonicalIdentity(
+  owner: LocalLearnerOwner,
+  storage: Storage,
+) {
+  const client = new CanonicalLocalStore(storage, indexedDB);
+  const result = await client.completeTransition(owner);
+  if (result.status !== "ok")
+    throw new CanonicalPersistenceError(result.status);
+  active = { client, record: result.value, storage };
 }

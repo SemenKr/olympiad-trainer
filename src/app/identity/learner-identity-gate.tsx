@@ -190,9 +190,7 @@ export default function LearnerIdentityGate({
   if (
     pathname === "/restore" ||
     pathname === "/sources" ||
-    (state === "ready" &&
-      readyPath === pathname &&
-      !pathname.startsWith("/simulation"))
+    (state === "ready" && readyPath === pathname)
   )
     return children;
   return (
@@ -212,10 +210,6 @@ export default function LearnerIdentityGate({
             Другие вкладки закрыты — перенести работу
           </button>
         </>
-      ) : pathname.startsWith("/simulation") ? (
-        <p role="alert">
-          Симуляция временно недоступна. Сохранённая работа остаётся в браузере.
-        </p>
       ) : (
         <>
           <p role="alert">

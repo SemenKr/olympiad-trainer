@@ -1,3 +1,37 @@
+import {
+  isCanonicalStorage,
+  mutateCanonicalStorage,
+  assertCanonicalStorageCurrent,
+} from "../../learner/canonical-local-store";
+
+const queues = new WeakMap<Storage, Promise<void>>();
+export function flushSimulationWrites(storage: Storage): Promise<void> {
+  return queues.get(storage) ?? Promise.resolve();
+}
+function writeSimulation(storage: Storage, raw: string | null) {
+  const write = (target: Storage) =>
+    raw === null
+      ? target.removeItem(SIMULATION_PENDING_KEY)
+      : target.setItem(SIMULATION_PENDING_KEY, raw);
+  if (!isCanonicalStorage(storage)) {
+    write(storage);
+    return;
+  }
+  // Each write is a complete draft, so an explicitly retried write can recover
+  // after a transient failed commit without acknowledging the failed draft.
+  const pending = flushSimulationWrites(storage)
+    .catch(() => undefined)
+    .then(() => mutateCanonicalStorage(storage, (draft) => write(draft)));
+  queues.set(storage, pending);
+  return pending;
+}
+export function clearSimulationDraft(storage: Storage) {
+  return writeSimulation(storage, null);
+}
+export async function verifySimulationStorage(storage: Storage) {
+  await flushSimulationWrites(storage);
+  await assertCanonicalStorageCurrent(storage);
+}
 import { captureLearnerStorage } from "../../learner/local-ownership";
 import {
   requireSimulationId,
@@ -14,8 +48,8 @@ export function storeSimulationDraft(
   pending: SimulationAttempt | null = null,
   storage: Storage = captureLearnerStorage(),
 ) {
-  storage.setItem(
-    SIMULATION_PENDING_KEY,
+  return writeSimulation(
+    storage,
     JSON.stringify({
       sessionId: attempt.sessionId,
       revision: attempt.revision,

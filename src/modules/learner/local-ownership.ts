@@ -1,5 +1,8 @@
 import {
   assertLegacyIdentityTransition,
+  transitionCanonicalIdentity,
+  reconcileCanonicalIdentity,
+  assertCanonicalStorageCurrent,
   CANONICAL_SLOTS,
   canonicalRequired,
   captureCanonicalStorage,
@@ -198,6 +201,7 @@ export async function requestForLocalOwner<T>(
   const owner = currentLocalLearnerOwner();
   const result = await request(owner);
   storage.getItem(LEARNER_LOCAL_KEYS[0]);
+  await assertCanonicalStorageCurrent(storage);
   return result;
 }
 
@@ -357,7 +361,12 @@ export async function reconcileAuthenticatedLocalOwner(
 ) {
   if (!isLocalLearnerOwner(owner)) fail();
   if (canonicalRequired(store)) {
-    await prepareCanonicalOwner(owner, store);
+    try {
+      await prepareCanonicalOwner(owner, store);
+    } catch {
+      await withIdentityBarrier(() => reconcileCanonicalIdentity(owner, store));
+      await prepareCanonicalOwner(owner, store);
+    }
     const bindingRaw = store.getItem(LOCAL_OWNER_KEY);
     if (!bindingRaw) fail();
     active = { owner, store, bindingRaw };
@@ -517,8 +526,24 @@ export async function transitionLocalIdentity(
   acknowledge: () => Promise<LocalLearnerOwner>,
   store: Storage = window.localStorage,
 ) {
-  if (canonicalRequired(store)) fail();
   if (!isLocalLearnerOwner(target)) fail();
+  if (canonicalRequired(store))
+    return withIdentityBarrier(async () => {
+      suspendLocalLearner(true);
+      const authenticated = await transitionCanonicalIdentity(
+        "recovery",
+        target,
+        acknowledge,
+        store,
+      );
+      active = {
+        owner: authenticated,
+        store,
+        bindingRaw: store.getItem(LOCAL_OWNER_KEY)!,
+      };
+      if (typeof window !== "undefined")
+        window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
+    });
   return withIdentityBarrier(async () => {
     await assertLegacyIdentityTransition(store);
     const source = currentLocalLearnerOwner();
@@ -548,7 +573,8 @@ export async function transitionRecoveredLocalIdentity(
   store: Storage = window.localStorage,
 ) {
   if (!isLocalLearnerOwner(target)) fail();
-  if (canonicalRequired(store)) fail();
+  if (canonicalRequired(store))
+    return transitionLocalIdentity(target, acknowledge, store);
   if (active) return transitionLocalIdentity(target, acknowledge, store);
   return withIdentityBarrier(async () => {
     await assertLegacyIdentityTransition(store);
@@ -573,7 +599,23 @@ export async function startFreshLocalIdentity(
   acknowledge: () => Promise<LocalLearnerOwner>,
   store: Storage = window.localStorage,
 ) {
-  if (canonicalRequired(store)) fail();
+  if (canonicalRequired(store))
+    return withIdentityBarrier(async () => {
+      suspendLocalLearner(true);
+      const authenticated = await transitionCanonicalIdentity(
+        "fresh",
+        undefined,
+        acknowledge,
+        store,
+      );
+      active = {
+        owner: authenticated,
+        store,
+        bindingRaw: store.getItem(LOCAL_OWNER_KEY)!,
+      };
+      if (typeof window !== "undefined")
+        window.dispatchEvent(new Event(LOCAL_IDENTITY_EVENT));
+    });
   return withIdentityBarrier(async () => {
     await assertLegacyIdentityTransition(store);
     const binding = readBinding(store);

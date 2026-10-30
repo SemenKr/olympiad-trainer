@@ -28,6 +28,8 @@ import {
   storeSimulationDraft,
   hasUnsubmittedDrafts,
   SIMULATION_PENDING_KEY,
+  clearSimulationDraft,
+  verifySimulationStorage,
 } from "./simulation-storage";
 import styles from "./simulation-session.module.scss";
 
@@ -71,6 +73,7 @@ export function SimulationSession({
   const [referenceError, setReferenceError] = useState(false);
   const dirty = useRef(false);
   const ownsEditor = useRef(false);
+  const editorEpoch = useRef(0);
   const [editorRequest, setEditorRequest] = useState(0);
   const pendingSave = useRef<SimulationAttempt | null>(null);
   const [unsubmitted, setUnsubmitted] = useState(false);
@@ -96,7 +99,9 @@ export function SimulationSession({
     async (isCurrent?: () => boolean) => {
       setError("");
       try {
+        await verifySimulationStorage(learnerStorage);
         const snapshot = await readSimulation(owner);
+        await verifySimulationStorage(learnerStorage);
         if (isCurrent?.() === false || !ownerCurrent()) return;
         acceptClock(snapshot);
         const restored = snapshot.attempt
@@ -157,11 +162,13 @@ export function SimulationSession({
                 return;
               }
               ownsEditor.current = true;
+              editorEpoch.current++;
               try {
                 void load(() => !disposed);
                 await released;
               } finally {
                 ownsEditor.current = false;
+                editorEpoch.current++;
               }
             },
           ),
@@ -189,6 +196,7 @@ export function SimulationSession({
         busyRef.current
       )
         return;
+      const epoch = editorEpoch.current;
       const sent = pendingSave.current ?? latestBeforeSave;
       if (finish && confirmed) confirmedFinish.current = true;
       busyRef.current = true;
@@ -196,7 +204,8 @@ export function SimulationSession({
       setError("");
       try {
         pendingSave.current = sent;
-        storeSimulationDraft(latestBeforeSave, sent, learnerStorage);
+        await storeSimulationDraft(latestBeforeSave, sent, learnerStorage);
+        await verifySimulationStorage(learnerStorage);
         const replaying = !sameSimulationWork(sent, latestBeforeSave);
         const snapshot =
           (finish || confirmedFinish.current) && !replaying
@@ -209,31 +218,55 @@ export function SimulationSession({
               )
             : await saveSimulation(sent.sessionId, sent.revision, sent, owner);
         // A released editor must never replace the next editor’s local recovery copy.
-        if (!ownsEditor.current || !ownerCurrent()) return;
+        if (
+          !ownsEditor.current ||
+          editorEpoch.current !== epoch ||
+          !ownerCurrent()
+        )
+          return;
         if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
         acceptClock(snapshot);
-        const latest = current.current;
-        const next =
-          snapshot.attempt.finishedAt !== null ||
-          !latest ||
-          sameSimulationWork(sent, latest)
-            ? snapshot.attempt
-            : {
-                ...snapshot.attempt,
-                drafts: latest.drafts,
-                selectedIndex: latest.selectedIndex,
-              };
-        dirty.current = !sameSimulationWork(next, snapshot.attempt);
+        const acknowledged = snapshot.attempt;
+        let next = acknowledged;
+        let unsent = false;
+        // Edits remain enabled during persistence. If work changes while its
+        // acknowledgement commits, persist the newer full draft with the server
+        // revision before publishing anything from that acknowledgement.
+        for (;;) {
+          const latest = current.current;
+          if (!latest || latest.sessionId !== acknowledged.sessionId) return;
+          const merged = {
+            ...acknowledged,
+            drafts: latest.drafts,
+            selectedIndex: latest.selectedIndex,
+          };
+          if (acknowledged.finishedAt !== null) {
+            next = acknowledged;
+            unsent = !sameSimulationWork(latest, acknowledged);
+            if (unsent)
+              await storeSimulationDraft(merged, null, learnerStorage);
+            else await clearSimulationDraft(learnerStorage);
+          } else {
+            next = merged;
+            await storeSimulationDraft(next, null, learnerStorage);
+          }
+          if (
+            !ownsEditor.current ||
+            editorEpoch.current !== epoch ||
+            !ownerCurrent()
+          )
+            return;
+          if (current.current === latest) break;
+        }
+        dirty.current = !sameSimulationWork(next, acknowledged);
+        if (next.finishedAt !== null) {
+          setConfirming(false);
+          setUnsubmitted(unsent);
+          confirmedFinish.current = false;
+        }
         pendingSave.current = null;
         showAttempt(next);
         setSaved(!dirty.current);
-        if (next.finishedAt !== null) {
-          setConfirming(false);
-          const unsent = !!(latest && !sameSimulationWork(latest, next));
-          setUnsubmitted(unsent);
-          if (!unsent) learnerStorage.removeItem(SIMULATION_PENDING_KEY);
-          confirmedFinish.current = false;
-        } else storeSimulationDraft(next, null, learnerStorage);
       } catch {
         setSaved(false);
         setError(
@@ -328,7 +361,18 @@ export function SimulationSession({
     if (seconds === 0 || next.finishedAt !== null) return;
     // Write before updating the editor so a reload cannot lose acknowledged keystrokes.
     try {
-      storeSimulationDraft(next, pendingSave.current, learnerStorage);
+      const persisted = storeSimulationDraft(
+        next,
+        pendingSave.current,
+        learnerStorage,
+      );
+      if (persisted)
+        void persisted.catch(() => {
+          setSaved(false);
+          setError(
+            "Не удалось сохранить локальную копию. Ввод остаётся в этой вкладке; сохрани копию и повтори восстановление.",
+          );
+        });
       dirty.current = true;
       setSaved(false);
       showAttempt(next);
@@ -343,11 +387,12 @@ export function SimulationSession({
     setBusy(true);
     setError("");
     try {
+      await verifySimulationStorage(learnerStorage);
       const snapshot = await startSimulation(owner);
       if (!ownsEditor.current || !ownerCurrent()) return;
       acceptClock(snapshot);
       if (!snapshot.attempt) throw new Error("Missing simulation attempt.");
-      storeSimulationDraft(snapshot.attempt, null, learnerStorage);
+      await storeSimulationDraft(snapshot.attempt, null, learnerStorage);
       showAttempt(snapshot.attempt);
       setSaved(true);
     } catch {

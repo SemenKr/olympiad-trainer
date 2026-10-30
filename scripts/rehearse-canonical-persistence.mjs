@@ -411,23 +411,6 @@ try {
     });
     assert.deepEqual(transport, { status: "blocked", calls: 0 });
     pass("stale Finish fails closed before simulated transport");
-    assert.equal(
-      await a.evaluate(async () => {
-        let calls = 0;
-        try {
-          await current.ownership.transitionLocalIdentity(
-            { ...owner, generation: "1" },
-            async () => {
-              calls++;
-              return { ...owner, generation: "1" };
-            },
-          );
-        } catch {}
-        return calls;
-      }),
-      0,
-    );
-    pass("identity generation transition blocks before acknowledgement");
     const legacy = await b.evaluate(async () => {
       window.oldSession = frozen.session.startPracticeSession();
       return frozen.storage.createPracticeSessionSnapshot(
@@ -698,11 +681,11 @@ try {
       generation: "conflict",
       unavailable: "unavailable",
       writes: false,
-      fresh: 0,
-      recovery: 0,
+      fresh: 1,
+      recovery: 1,
     });
     pass(
-      "foreign owner, generation, unavailable IDB, Simulation and recovery fail closed",
+      "foreign owner/generation and direct writes fail closed; authenticated transition callbacks run",
     );
     assert.equal(
       await p.evaluate(async () => {
@@ -728,7 +711,7 @@ try {
     );
     const blocked = await p.evaluate(async () => {
       const held = await new Promise((resolve) => {
-        const r = indexedDB.open(current.canonical.CANONICAL_DB, 1);
+        const r = indexedDB.open(current.canonical.CANONICAL_DB, 2);
         r.onsuccess = () => resolve(r.result);
       });
       const deletion = indexedDB.deleteDatabase(current.canonical.CANONICAL_DB);
@@ -878,7 +861,7 @@ try {
       await p.evaluate(
         async ({ original, variant }) => {
           const db = await new Promise((resolve) => {
-            const r = indexedDB.open(current.canonical.CANONICAL_DB, 1);
+            const r = indexedDB.open(current.canonical.CANONICAL_DB, 2);
             r.onsuccess = () => resolve(r.result);
           });
           const bad = structuredClone(original);

@@ -448,11 +448,10 @@ describe("canonical migration gate", () => {
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(confirmStartFreshLearner).not.toHaveBeenCalled();
   });
-  it("does not mount Simulation in the first canonical slice", async () => {
+  it("mounts Simulation after canonical owner preparation", async () => {
     navigation.pathname = "/simulation";
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
     await render();
-    expect(container.textContent).not.toContain("learner content");
-    expect(container.textContent).toContain("Симуляция временно недоступна");
+    expect(container.textContent).toContain("learner content");
   });
 });

@@ -2038,6 +2038,62 @@ export function acknowledgeLegacyFinishImportInsideLock(
   );
 }
 
+// Plan legacy recovery against a private in-memory copy. The caller publishes
+// this copy only after authenticated baseline acknowledgement, in one IDB commit.
+export function prepareCanonicalLegacyImportInsideLock(store: Storage) {
+  assertNoUnsupportedPracticeStateInsideLock(store);
+  const pendingRaw = store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
+  const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+  const pending =
+    pendingRaw === null ? null : readPendingPracticeProgressFinish(pendingRaw);
+  const request =
+    requestRaw === null ? null : readServerPracticeFinishRequest(requestRaw);
+  if ((pendingRaw !== null && !pending) || (requestRaw !== null && !request))
+    throw new Error("Legacy Finish is unresolved.");
+  if (pending && !pending.serverBacked) {
+    if (request) throw new Error("Conflicting legacy Finish intents.");
+    const recovered = recoverLegacyFinishBeforeImportInsideLock(store);
+    if (
+      !recovered ||
+      !acknowledgeLegacyFinishImportInsideLock(store, recovered.pendingRaw)
+    )
+      throw new Error("Legacy Finish is unresolved.");
+    return recovered.sessionId;
+  }
+  if (
+    pending &&
+    (!request ||
+      pending.sessionId !== request.sessionId ||
+      pending.unfinishedBefore !== request.unfinishedBefore ||
+      pending.completedBefore !== request.completedBefore ||
+      pending.completedAfter !== request.completedAfter ||
+      pending.progressBefore !== request.progressBefore)
+  )
+    throw new Error("Legacy server Finish is unresolved.");
+  if (request) {
+    const values = readPracticeFinishValues(store);
+    if (
+      !values ||
+      (values.unfinished !== null &&
+        values.unfinished !== request.unfinishedBefore) ||
+      (values.completed !== request.completedBefore &&
+        values.completed !== request.completedAfter) ||
+      values.progress !== request.progressBefore
+    )
+      throw new Error("Legacy server Finish is unresolved.");
+    store.setItem(PRACTICE_SESSION_STORAGE_KEY, request.unfinishedBefore);
+    if (request.completedBefore === null)
+      store.removeItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY);
+    else
+      store.setItem(
+        PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+        request.completedBefore,
+      );
+    store.removeItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY);
+  }
+  return null;
+}
+
 // The outbox and Summary share the canonical transaction boundary. Network
 // work is outside IDB transactions; the existing lock order still spans Finish.
 async function completeCanonicalPracticeSession(
@@ -2179,6 +2235,7 @@ async function completeCanonicalPracticeSession(
               );
               draft.removeItem(PRACTICE_SESSION_STORAGE_KEY);
               draft.removeItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+              draft.removeItem(PROGRESS_EVIDENCE_STORAGE_KEY);
               record.sessionId = null;
             },
             intentRevision,

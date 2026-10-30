@@ -2,6 +2,9 @@ import {
   isCanonicalStorage,
   assertCanonicalStorageCurrent,
   CanonicalPersistenceError,
+  CANONICAL_SLOTS,
+  canonicalStorageRevision,
+  mutateCanonicalStorage,
 } from "../../learner/canonical-local-store";
 import {
   captureLearnerStorage,
@@ -15,6 +18,7 @@ import {
   assertNoUnsupportedPracticeStateInsideLock,
   acknowledgeLegacyFinishImportInsideLock,
   recoverLegacyFinishBeforeImportInsideLock,
+  prepareCanonicalLegacyImportInsideLock,
 } from "./practice-session-storage";
 
 const PRACTICE_SESSION_MUTATION_LOCK =
@@ -25,18 +29,85 @@ export async function ensureServerProgressImported(storage?: Storage) {
     throw new Error("Practice session lock is unavailable.");
   const store = storage ?? captureLearnerStorage();
   if (isCanonicalStorage(store)) {
-    await assertCanonicalStorageCurrent(store);
-    if (
-      [
-        PROGRESS_EVIDENCE_STORAGE_KEY,
-        "olympiad-trainer:practice-progress-finish-pending",
-      ].some((key) => store.getItem(key) !== null)
-    )
-      throw new CanonicalPersistenceError("conflict");
-    // Empty legacy evidence still requires the existing authenticated baseline
-    // acknowledgement. A pending canonical Finish is never consumed here.
-    await importBrowserProgressEvidence(null, currentLocalLearnerOwner());
-    return null;
+    const owner = currentLocalLearnerOwner();
+    return withLocalIdentityRead(() =>
+      navigator.locks.request(
+        PRACTICE_SESSION_MUTATION_LOCK,
+        { mode: "exclusive" },
+        async () => {
+          await assertCanonicalStorageCurrent(store);
+          const revision = canonicalStorageRevision(store);
+          const before = new Map(
+            CANONICAL_SLOTS.map((k) => [k, store.getItem(k)]),
+          );
+          const planned = new Map(before);
+          const draft: Storage = {
+            get length() {
+              return planned.size;
+            },
+            key(i) {
+              return [...planned.keys()][i] ?? null;
+            },
+            getItem(k) {
+              if (!planned.has(k as (typeof CANONICAL_SLOTS)[number]))
+                throw new CanonicalPersistenceError("conflict");
+              return planned.get(k as (typeof CANONICAL_SLOTS)[number]) ?? null;
+            },
+            setItem(k, v) {
+              if (!planned.has(k as (typeof CANONICAL_SLOTS)[number]))
+                throw new CanonicalPersistenceError("conflict");
+              planned.set(k as (typeof CANONICAL_SLOTS)[number], v);
+            },
+            removeItem(k) {
+              if (!planned.has(k as (typeof CANONICAL_SLOTS)[number]))
+                throw new CanonicalPersistenceError("conflict");
+              planned.set(k as (typeof CANONICAL_SLOTS)[number], null);
+            },
+            clear() {
+              throw new CanonicalPersistenceError("conflict");
+            },
+          };
+          const recoveredSession =
+            prepareCanonicalLegacyImportInsideLock(draft);
+          const raw = draft.getItem(PROGRESS_EVIDENCE_STORAGE_KEY);
+          await importBrowserProgressEvidence(raw, owner);
+          // Empty baseline imports need no local mutation. Never consume Finish outbox.
+          if (
+            raw === null &&
+            CANONICAL_SLOTS.every((k) => before.get(k) === planned.get(k))
+          ) {
+            await assertCanonicalStorageCurrent(store);
+            return null;
+          }
+          await mutateCanonicalStorage(
+            store,
+            (target, record) => {
+              if (
+                CANONICAL_SLOTS.some((k) => target.getItem(k) !== before.get(k))
+              )
+                throw new CanonicalPersistenceError("conflict");
+              for (const key of CANONICAL_SLOTS) {
+                const value =
+                  key === PROGRESS_EVIDENCE_STORAGE_KEY &&
+                  draft.getItem(
+                    "olympiad-trainer:practice-server-finish-request",
+                  ) === null
+                    ? null
+                    : planned.get(key)!;
+                if (value === null) target.removeItem(key);
+                else target.setItem(key, value);
+              }
+              if (recoveredSession) {
+                record.sessionId = null;
+                record.operations[recoveredSession] ??= "legacy-finish";
+              }
+            },
+            revision,
+          );
+          return recoveredSession;
+        },
+      ),
+    );
   }
   const owner = currentLocalLearnerOwner();
   return withLocalIdentityRead(() =>

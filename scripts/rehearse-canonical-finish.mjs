@@ -25,7 +25,7 @@ const record = (page) =>
   page.evaluate(
     () =>
       new Promise((resolve, reject) => {
-        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1", 1);
+        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1", 2);
         r.onerror = () => reject(r.error);
         r.onsuccess = () => {
           const tx = r.result.transaction("learner", "readonly");
@@ -56,7 +56,11 @@ try {
     "intent-abort",
     "reconciliation-abort",
     "stale-callback",
-  ]) {
+  ].filter(
+    (s) =>
+      !process.env.CANONICAL_FINISH_SCENARIO ||
+      s === process.env.CANONICAL_FINISH_SCENARIO,
+  )) {
     const context = await browser.newContext();
     let page = await context.newPage();
     await page.goto(origin);
@@ -105,7 +109,7 @@ try {
                 await new Promise((resolve, reject) => {
                   const r = indexedDB.open(
                     "olympiad-trainer:learner-canonical-v1",
-                    1,
+                    2,
                   );
                   r.onsuccess = () => {
                     const tx = r.result.transaction("learner", "readwrite");
@@ -210,7 +214,12 @@ try {
         .getByRole("button", { name: "Завершить", exact: true })
         .click();
     }
-    await page.waitForURL(/\/practice\/summary\?session=/);
+    try {
+      await page.waitForURL(/\/practice\/summary\?session=/);
+    } catch (error) {
+      console.log("FAILED", scenario, await page.locator("body").innerText());
+      throw error;
+    }
     await page.getByText("Тренировка завершена", { exact: true }).waitFor();
     const after = await record(page);
     assert.deepEqual(await counts(sessionId), [1, 1]);
