@@ -218,7 +218,10 @@ export function validatePracticeContent(
   const problemIds = new Set(problems.map((p) => p.id));
   for (const pack of packs) {
     check(
-      stableId(pack.id) && nonempty(pack.name),
+      pack.id.length >= 6 &&
+        pack.id.length <= 64 &&
+        /^pack-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(pack.id) &&
+        nonempty(pack.name),
       `Pack ${pack.id}: identity/name`,
     );
     check(

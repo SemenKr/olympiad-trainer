@@ -20,6 +20,8 @@ Learner Identity & Recovery v1: [принятый архитектурный и 
 
 Content authoring: [Content Pipeline v1](05-development/content-pipeline-v1.md).
 
+v1 technical RC: [release rehearsal and minimum suite](05-development/v1-technical-rc-runbook.md).
+
 M2 local integration: [scalability and canonical lifecycle acceptance](05-development/m2-integration-scalability-acceptance.md).
 
 Public attribution and rights gates: [Content Sources & Attribution v1](05-development/content-sources-attribution-v1.md).

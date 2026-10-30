@@ -35,6 +35,25 @@ describe("repository content pipeline", () => {
       ]),
     ).toContain("content IDs must be stable and globally unique");
   });
+  it.each([
+    ["pack-t", true],
+    ["pack-0-next", true],
+    [`pack-${"a".repeat(59)}`, true],
+    [`pack-${"a".repeat(60)}`, false],
+    ["other-t", false],
+    ["pack-", false],
+    ["pack-T", false],
+    ["pack-t--next", false],
+    ["pack-t-", false],
+  ])("matches SQL 0023's structural Pack ID bound: %s", (id, accepted) => {
+    const pack = { ...PRACTICE_PACKS[0], id };
+    const errors = validatePracticeContent(
+      PRACTICE_PROBLEM_DEFINITIONS,
+      [pack],
+      { problems: [], packs: [] },
+    );
+    expect(errors.includes(`Pack ${id}: identity/name`)).toBe(!accepted);
+  });
   it("rejects broken numeric contracts, hint order, provenance and empty solutions", () => {
     const problems = structuredClone(PRACTICE_PROBLEM_DEFINITIONS);
     const first = problems[0];
