@@ -89,7 +89,7 @@ Summary ambiguity remain subject to M1's limitations above. This protocol is not
 Production approval: existing binding/recovery, rights, first-run Pack S eligibility,
 real browser/accessibility and release-owner gates remain open.
 
-### Open M2 integration concurrency gate
+### Historical envelope-only M2 integration concurrency gate
 
 The native integration rehearsal reproduced an inherited same-owner fresh-session
 race: two tabs can both report a successful start with different session IDs.
@@ -105,3 +105,33 @@ an adversarial regression and independent review is required before clearing
 this gate. Do not weaken the rehearsal assertion, infer that future-state
 preservation tests resolve this race, or treat this local integration as
 Production approval.
+
+### Canonical M2 integration supersedes envelope-only authority
+
+The current local integration uses canonical IndexedDB schema 2, described in the
+[canonical lifecycle guide](canonical-learner-persistence-first-slice.md), and
+retains all six original localStorage envelopes as immutable migration provenance.
+Canonical writes are transactional and are never mirrored into those envelopes.
+Practice admission records the session and its fingerprint in the same transaction;
+revisions and activation leases reject stale callbacks. Cleared-session admission
+tombstones remain retained. Identity transitions retain per-learner namespaces.
+The historical race above is the reason for this implementation; its historical
+failure evidence must remain visible. Current adversarial native and real transport
+checks are recorded in the [M2 acceptance record](m2-integration-scalability-acceptance.md).
+Independent review is required before accepting the integration.
+
+A writable fallback after canonical handoff must understand canonical schema 2.
+Exact canonical A–R `92552cf` preserves unknown S state; the integrated A–S build
+preserves unknown T state. Envelope-only `5463382`, `2ccc420` and `6e7376f` still
+contain legacy writers and are unsupported after handoff. Visible divergence
+fails closed and preserves both versions; this does not fence an old tab's unseen
+write. Schema-1 IDB clients cannot open an already upgraded schema-2 database.
+Never delete the witness/database, rewrite original envelopes, reverse 0023, or
+remove future receipts to make an older client writable. Missing IDB or missing
+canonical records after a witness also fail closed. Complete origin eviction can
+lose unsent work; Recovery credentials cannot recreate it.
+
+Production bindings, Recovery ingress/configuration, rights, first-run eligibility,
+learner validation and release-owner approval remain separate gates. The local
+Recovery rehearsal uses only the existing development ingress seam and a disposable
+PostgreSQL database; it changes no production security policy.

@@ -96,7 +96,7 @@ The A–R compatibility follow-up changes only the browser ownership wrapper, no
 credentials, domain payloads or SQL. See the [protocol and rollback contract](content-pipeline-v2-browser-recovery.md#release-and-rollback-contract).
 Once promoted, a learner namespace requires an envelope-v2-aware application.
 Exact pre-guard main and original M1 reject it; neither is a usable rollback target.
-Retain a verified A–R envelope-v2 fallback before future Pack exposure. Never
+After canonical handoff, retain a reviewed canonical schema-2-aware A–R fallback (`92552cf` is the local acceptance baseline), as described in the [current compatibility contract](content-pipeline-v2-browser-recovery.md#canonical-m2-integration-supersedes-envelope-only-authority). An envelope-only fallback is no longer writable after that boundary. Never
 remove null envelopes or downconvert storage to restore old-build usability.
 Recovery/generation transitions must preserve all six slots, including pending
 Finish and Simulation. Held editor locks require normal closure/retry, never

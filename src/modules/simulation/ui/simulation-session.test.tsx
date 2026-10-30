@@ -33,8 +33,10 @@ import {
   type SimulationAttempt,
 } from "../domain/simulation";
 import { SimulationSession } from "./simulation-session";
+import * as simulationStorage from "./simulation-storage";
 import {
   storeSimulationDraft,
+  restoreSimulationDraft,
   SIMULATION_PENDING_KEY,
 } from "./simulation-storage";
 const id = "00000000-0000-4000-8000-000000000001";
@@ -120,6 +122,7 @@ afterEach(async () => {
   host.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 async function mount() {
   await act(async () => root.render(<SimulationSession problems={problems} />));
@@ -370,6 +373,95 @@ describe("student simulation flow", () => {
     expect(host.textContent).toContain("PROTECTED REFERENCE");
     expect(saveSimulation).not.toHaveBeenCalled();
     expect(finishSimulation).not.toHaveBeenCalled();
+  });
+  it("retains typing and navigation across repeated local acknowledgement commits", async () => {
+    await mount();
+    await click("Начать");
+    const persist = simulationStorage.storeSimulationDraft;
+    let release!: () => void;
+    const acknowledgement = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let releaseSecond!: () => void;
+    const secondAcknowledgement = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    let paused = false;
+    let pausedAgain = false;
+    let writes = Promise.resolve();
+    // Model the canonical adapter's serialized transaction-completion seam.
+    // Server actions above are authenticated-action test doubles, not native IDB.
+    vi.spyOn(simulationStorage, "storeSimulationDraft").mockImplementation(
+      (attempt, pending = null, storage) => {
+        const hold = !paused && attempt.revision === 1 && pending === null;
+        const holdSecond =
+          paused &&
+          !pausedAgain &&
+          attempt.revision === 1 &&
+          pending === null &&
+          attempt.drafts[0] === "proof B" &&
+          attempt.selectedIndex === 1;
+        if (hold) paused = true;
+        if (holdSecond) pausedAgain = true;
+        writes = writes.then(async () => {
+          if (hold) await acknowledgement;
+          if (holdSecond) await secondAcknowledgement;
+          await persist(attempt, pending, storage);
+        });
+        return writes;
+      },
+    );
+    await type("proof A");
+    await advance(300);
+    expect(paused).toBe(true);
+    expect(server?.drafts[0]).toBe("proof A");
+    expect(host.querySelector("textarea")?.disabled).toBe(false);
+    await type("proof B");
+    await click("Задача 2");
+    await type("navigation B");
+    await act(async () => {
+      release();
+      await writes;
+    });
+    expect(host.querySelector("textarea")?.value).toBe("navigation B");
+    expect(
+      host
+        .querySelector('nav [aria-current="step"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("Задача 2");
+    expect(pausedAgain).toBe(true);
+    await type("navigation C");
+    await click("Задача 3");
+    await type("third C");
+    await act(async () => {
+      releaseSecond();
+      await writes;
+    });
+    expect(host.querySelector("textarea")?.value).toBe("third C");
+    expect(
+      host
+        .querySelector('nav [aria-current="step"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("Задача 3");
+    expect(host.textContent).not.toContain("Все черновики сохранены");
+    const local = JSON.parse(
+      captureLearnerStorage().getItem(SIMULATION_PENDING_KEY)!,
+    );
+    expect(local.drafts).toEqual(["proof B", "navigation C", "third C", ""]);
+    expect(local.selectedIndex).toBe(2);
+    expect(local.revision).toBe(1);
+    expect(local.pending).toBeNull();
+    expect(
+      restoreSimulationDraft(server!, captureLearnerStorage()),
+    ).toMatchObject({
+      drafts: ["proof B", "navigation C", "third C", ""],
+      selectedIndex: 2,
+      revision: 1,
+    });
+    await advance(300);
+    expect(server?.drafts).toEqual(["proof B", "navigation C", "third C", ""]);
+    expect(server?.selectedIndex).toBe(2);
+    expect(server?.revision).toBe(2);
   });
   it("keeps failed saves locally and provides a working retry", async () => {
     await mount();

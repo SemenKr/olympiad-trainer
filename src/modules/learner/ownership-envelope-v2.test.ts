@@ -1,3 +1,9 @@
+// Legacy ownership tests isolate the new IDB existence query; the native
+// canonical rehearsal covers its real cross-context behavior.
+vi.mock("./canonical-local-store", async (original) => ({
+  ...(await original<typeof import("./canonical-local-store")>()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+}));
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { runInNewContext } from "node:vm";

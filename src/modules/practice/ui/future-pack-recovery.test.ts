@@ -1,3 +1,9 @@
+// Legacy generation tests isolate the IDB-existence query; the native
+// canonical rehearsal verifies the real query and fail-closed transition.
+vi.mock("../../learner/canonical-local-store", async (original) => ({
+  ...(await original<typeof import("../../learner/canonical-local-store")>()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import {
