@@ -3,6 +3,7 @@ import {
   refreshCanonicalStorage,
   assertCanonicalStorageCurrent,
   mutateCanonicalStorage,
+  canonicalStorageRevision,
   CanonicalPersistenceError,
 } from "../../learner/canonical-local-store";
 import {
@@ -897,12 +898,24 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
     return (async () => {
       await refreshCanonicalStorage(store);
       assertNoUnsupportedPracticeStateInsideLock(store);
+      if (store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null)
+        throw new CanonicalPersistenceError("conflict");
+      const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+      const request =
+        requestRaw === null
+          ? null
+          : readServerPracticeFinishRequest(requestRaw);
+      const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       if (
-        store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
-        store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== null
+        requestRaw !== null &&
+        (!request ||
+          raw !== request.unfinishedBefore ||
+          store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !==
+            request.completedBefore ||
+          store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !==
+            request.progressBefore)
       )
         throw new CanonicalPersistenceError("conflict");
-      const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
       if (raw === null) return null;
       const snapshot = validatePracticeSessionSnapshot(JSON.parse(raw));
       if (!snapshot) throw new CanonicalPersistenceError("conflict");
@@ -1645,7 +1658,36 @@ export async function isCurrentPracticeFinish(
   const expected = expectedUnfinishedForFinish(session, answer, results);
   try {
     const store = storage ?? captureLearnerStorage();
-    if (isCanonicalStorage(store)) return false;
+    if (isCanonicalStorage(store)) {
+      await assertCanonicalStorageCurrent(store);
+      if (
+        hasUnsupportedPracticeState(store) ||
+        store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
+      )
+        return false;
+      const raw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+      if (raw !== null) {
+        const request = readServerPracticeFinishRequest(raw);
+        return (
+          !!request &&
+          request.sessionId === session.sessionId &&
+          request.unfinishedBefore === expected &&
+          store.getItem(PRACTICE_SESSION_STORAGE_KEY) === expected &&
+          store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) ===
+            request.completedBefore &&
+          store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) ===
+            request.progressBefore
+        );
+      }
+      return (
+        !!expected &&
+        store.getItem(PRACTICE_SESSION_STORAGE_KEY) === expected &&
+        !!validateLatestCompletedResults(
+          results,
+          session.mode === "review" ? "review" : undefined,
+        )
+      );
+    }
     return await withPracticeSessionLock((store) => {
       if (hasUnsupportedPracticeState(store)) return false;
       const currentUnfinished = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
@@ -1996,6 +2038,160 @@ export function acknowledgeLegacyFinishImportInsideLock(
   );
 }
 
+// The outbox and Summary share the canonical transaction boundary. Network
+// work is outside IDB transactions; the existing lock order still spans Finish.
+async function completeCanonicalPracticeSession(
+  session: ActivePracticeSessionState | FinishedPracticeSessionState,
+  answer: PracticeAnswerState | null,
+  results: readonly PracticeSessionResult[],
+  store: Storage,
+  serverPersist: (request: ServerPracticeFinishPayload) => Promise<unknown>,
+): Promise<PracticeFinishOutcome> {
+  let outcome: PracticeFinishOutcome = "blocked";
+  try {
+    if (!navigator.locks?.request) return outcome;
+    return await withLocalIdentityRead(() =>
+      navigator.locks.request(
+        PRACTICE_SESSION_MUTATION_LOCK,
+        { mode: "exclusive" },
+        async () => {
+          await assertCanonicalStorageCurrent(store);
+          assertNoUnsupportedPracticeStateInsideLock(store);
+          const expected = expectedUnfinishedForFinish(
+            session,
+            answer,
+            results,
+          );
+          const existingRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+          let request =
+            existingRaw === null
+              ? null
+              : readServerPracticeFinishRequest(existingRaw);
+          if (existingRaw !== null) outcome = "outcome-unknown";
+          if (
+            !expected ||
+            store.getItem(PRACTICE_SESSION_STORAGE_KEY) !== expected ||
+            store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null ||
+            (existingRaw !== null &&
+              (!request ||
+                request.sessionId !== session.sessionId ||
+                request.unfinishedBefore !== expected))
+          )
+            return outcome;
+          if (!request) {
+            const completedAfter = serializeLatestCompletedSummary(
+              results,
+              session.sessionId,
+              session.mode === "review" ? "review" : undefined,
+            );
+            const contributions = results
+              .map(getPracticeProgressContribution)
+              .filter((x) => x !== null);
+            const episodeMode = "mode" in session ? session.mode : "core";
+            const episodeFacts = completedEpisodeFacts(results);
+            if (
+              !validateLatestCompletedResults(
+                results,
+                session.mode === "review" ? "review" : undefined,
+              ) ||
+              !validateCompletedEpisode(episodeMode, episodeFacts) ||
+              contributions.length > 2
+            )
+              return outcome;
+            request = {
+              version: 2,
+              sessionId: session.sessionId,
+              contributions,
+              episodeMode,
+              episodeFacts,
+              unfinishedBefore: expected,
+              completedBefore: store.getItem(
+                PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+              ),
+              progressBefore: store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY),
+              completedAfter,
+            };
+          }
+          const intent = request;
+          const raw = existingRaw ?? JSON.stringify(intent);
+          if (
+            !readServerPracticeFinishRequest(raw) ||
+            store.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !==
+              intent.completedBefore ||
+            store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !==
+              intent.progressBefore
+          )
+            return outcome;
+          // Even replay obtains a transaction-completed revision before transport.
+          await mutateCanonicalStorage(store, (draft, record) => {
+            if (
+              draft.getItem(PRACTICE_SESSION_STORAGE_KEY) !==
+                intent.unfinishedBefore ||
+              draft.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== existingRaw
+            )
+              throw new CanonicalPersistenceError("conflict");
+            if (record.sessionId === null) {
+              if (Object.hasOwn(record.operations, intent.sessionId))
+                throw new CanonicalPersistenceError("conflict");
+              record.operations[intent.sessionId] = "restored";
+              record.sessionId = intent.sessionId;
+            }
+            if (record.sessionId !== intent.sessionId)
+              throw new CanonicalPersistenceError("conflict");
+            draft.setItem(PRACTICE_SERVER_FINISH_REQUEST_KEY, raw);
+          });
+          const intentRevision = canonicalStorageRevision(store);
+          outcome = "outcome-unknown";
+          await serverPersist({
+            ...(intent.version === 2 ? { version: 2 as const } : {}),
+            sessionId: intent.sessionId,
+            contributions: intent.contributions,
+            ...(intent.adaptiveFacts
+              ? { adaptiveFacts: intent.adaptiveFacts }
+              : {}),
+            ...(intent.episodeFacts
+              ? {
+                  episodeMode: intent.episodeMode,
+                  episodeFacts: intent.episodeFacts,
+                }
+              : {}),
+          });
+          outcome = "reconciliation-pending";
+          // A stale identity lease/revision cannot consume the immutable request.
+          await mutateCanonicalStorage(
+            store,
+            (draft, record) => {
+              if (
+                record.sessionId !== intent.sessionId ||
+                draft.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY) !== raw ||
+                draft.getItem(PRACTICE_SESSION_STORAGE_KEY) !==
+                  intent.unfinishedBefore ||
+                draft.getItem(PRACTICE_LATEST_COMPLETED_STORAGE_KEY) !==
+                  intent.completedBefore ||
+                draft.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !==
+                  intent.progressBefore ||
+                draft.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
+              )
+                throw new CanonicalPersistenceError("conflict");
+              draft.setItem(
+                PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
+                intent.completedAfter,
+              );
+              draft.removeItem(PRACTICE_SESSION_STORAGE_KEY);
+              draft.removeItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);
+              record.sessionId = null;
+            },
+            intentRevision,
+          );
+          return "completed";
+        },
+      ),
+    );
+  } catch {
+    return outcome;
+  }
+}
+
 export async function completeServerBackedPracticeSession(
   session: ActivePracticeSessionState | FinishedPracticeSessionState,
   answer: PracticeAnswerState | null,
@@ -2011,7 +2207,14 @@ export async function completeServerBackedPracticeSession(
     )
       return outcome;
     const store = storage ?? captureLearnerStorage();
-    if (isCanonicalStorage(store)) return outcome;
+    if (isCanonicalStorage(store))
+      return await completeCanonicalPracticeSession(
+        session,
+        answer,
+        results,
+        store,
+        serverPersist,
+      );
     return await withPracticeSessionLock(async (store) => {
       if (hasUnsupportedPracticeState(store)) return outcome;
       const requestRaw = store.getItem(PRACTICE_SERVER_FINISH_REQUEST_KEY);

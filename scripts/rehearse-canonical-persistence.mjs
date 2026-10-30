@@ -118,6 +118,143 @@ try {
       ),
     );
   }
+  for (const scenario of ["race", "stale-revision", "stale-lease"]) {
+    const c = await browser.newContext(),
+      p = await page(c);
+    await migrate(p);
+    const result = await p.evaluate(async (scenario) => {
+      const s = current.session.startPackPracticeSession("pack-a");
+      const base = current.answer.createShortNumericAnswerState();
+      const answer = current.metadata.browserProblemMetadata[s.problemIds[0]]
+        .optionIds
+        ? { selectedOptionIds: [], status: "typing", practice: base.practice }
+        : base;
+      if (
+        !(await current.storage.createPracticeSessionSnapshot(s, answer, view))
+      )
+        throw Error("Admission failed");
+      const snapshot = await current.storage.readPracticeSessionSnapshot(view);
+      const results = [
+        {
+          problemId: s.problemIds[0],
+          problemTitle: current.storage.getStoredProblemTitle(snapshot),
+          summary: current.practice.getPracticeSummary(
+            current.practice.finishPractice(answer.practice),
+          ),
+        },
+      ];
+      const second = current.ownership.captureLearnerStorage();
+      const original = IDBObjectStore.prototype.put;
+      let calls = 0;
+      IDBObjectStore.prototype.put = function () {
+        throw Error("Intent abort");
+      };
+      const aborted = await current.storage.completeServerBackedPracticeSession(
+        s,
+        answer,
+        results,
+        view,
+        async () => {
+          calls++;
+        },
+      );
+      IDBObjectStore.prototype.put = original;
+      const absent = view.getItem(
+        "olympiad-trainer:practice-server-finish-request",
+      );
+      if (scenario === "race") {
+        const outcomes = await Promise.all(
+          [view, second].map((v) =>
+            current.storage.completeServerBackedPracticeSession(
+              s,
+              answer,
+              results,
+              v,
+              async () => {
+                calls++;
+                await new Promise((r) => setTimeout(r, 30));
+              },
+            ),
+          ),
+        );
+        return { aborted, absent, outcomes, calls };
+      }
+      const status = await current.storage.completeServerBackedPracticeSession(
+        s,
+        answer,
+        results,
+        view,
+        async () => {
+          calls++;
+          if (scenario === "stale-lease")
+            current.canonical.suspendCanonicalOwner();
+          else {
+            const client = new current.canonical.CanonicalLocalStore(
+              localStorage,
+              indexedDB,
+            );
+            const r = await client.read(owner);
+            const changed = await client.mutate(
+              owner,
+              r.value.revision,
+              () => {},
+            );
+            if (changed.status !== "ok")
+              throw Error("Revision injection failed");
+            // A shared reader must not move the acknowledgement's pinned revision.
+            await current.canonical.refreshCanonicalStorage(view);
+          }
+        },
+      );
+      await current.canonical.prepareCanonicalOwner(owner);
+      window.view = current.ownership.captureLearnerStorage();
+      const retained = view.getItem(
+        "olympiad-trainer:practice-server-finish-request",
+      );
+      const unfinished = view.getItem("olympiad-trainer:practice-session");
+      const summary = view.getItem(
+        "olympiad-trainer:practice-latest-completed",
+      );
+      const retry = await current.storage.completeServerBackedPracticeSession(
+        s,
+        answer,
+        results,
+        view,
+        async () => {
+          calls++;
+        },
+      );
+      return {
+        aborted,
+        absent,
+        status,
+        retained,
+        unfinished,
+        summary,
+        retry,
+        calls,
+      };
+    }, scenario);
+    assert.equal(result.aborted, "blocked");
+    assert.equal(result.absent, null);
+    if (scenario === "race") {
+      assert.deepEqual([...result.outcomes].sort(), ["blocked", "completed"]);
+      assert.equal(result.calls, 1);
+    } else {
+      assert.equal(result.status, "reconciliation-pending");
+      assert.notEqual(result.retained, null);
+      assert.notEqual(result.unfinished, null);
+      assert.equal(result.summary, null);
+      assert.equal(result.retry, "completed");
+      assert.equal(result.calls, 2);
+    }
+    pass(
+      "canonical Finish " +
+        scenario +
+        " and pre-transport transaction abort (simulated transport)",
+    );
+    await c.close();
+  }
   // Exact six-slot byte preservation, including whitespace and nulls. These are
   // opaque fixture payloads, never submitted or rendered as domain content.
   {
@@ -273,7 +410,7 @@ try {
       return { status, calls };
     });
     assert.deepEqual(transport, { status: "blocked", calls: 0 });
-    pass("Finish fails closed before simulated transport");
+    pass("stale Finish fails closed before simulated transport");
     assert.equal(
       await a.evaluate(async () => {
         let calls = 0;
@@ -413,30 +550,93 @@ try {
     await migrate(p);
     const replay = await p.evaluate(async () => {
       let calls = 0;
-      const outcomes = [];
-      for (let i = 0; i < 2; i++)
-        outcomes.push(
-          await current.storage.completeServerBackedPracticeSession(
-            s,
-            answer,
-            results,
-            view,
-            async () => {
-              calls++;
-            },
-          ),
+      const payloads = [];
+      const lost = await current.storage.completeServerBackedPracticeSession(
+        s,
+        answer,
+        results,
+        view,
+        async (payload) => {
+          calls++;
+          payloads.push(payload);
+          throw Error("Lost response");
+        },
+      );
+      const retained = view.getItem(
+        "olympiad-trainer:practice-server-finish-request",
+      );
+      await current.canonical.prepareCanonicalOwner(owner);
+      window.view = current.ownership.captureLearnerStorage();
+      const aborted = await current.storage.completeServerBackedPracticeSession(
+        s,
+        answer,
+        results,
+        view,
+        async (payload) => {
+          calls++;
+          payloads.push(payload);
+          const original = IDBObjectStore.prototype.put;
+          IDBObjectStore.prototype.put = function () {
+            throw Error("Reconciliation abort");
+          };
+          setTimeout(() => {
+            IDBObjectStore.prototype.put = original;
+          }, 100);
+        },
+      );
+      await new Promise((r) => setTimeout(r, 150));
+      const afterAbort = view.getItem(
+        "olympiad-trainer:practice-server-finish-request",
+      );
+      const completed =
+        await current.storage.completeServerBackedPracticeSession(
+          s,
+          answer,
+          results,
+          view,
+          async (payload) => {
+            calls++;
+            payloads.push(payload);
+          },
+        );
+      const repeated =
+        await current.storage.completeServerBackedPracticeSession(
+          s,
+          answer,
+          results,
+          view,
+          async () => {
+            calls++;
+          },
         );
       return {
-        outcomes,
+        lost,
+        retained,
+        aborted,
+        afterAbort,
+        completed,
+        repeated,
         calls,
+        payloads,
         raw: view.getItem("olympiad-trainer:practice-server-finish-request"),
+        snapshot: view.getItem("olympiad-trainer:practice-session"),
+        summary: view.getItem("olympiad-trainer:practice-latest-completed"),
       };
     });
-    assert.deepEqual(replay.outcomes, ["blocked", "blocked"]);
-    assert.equal(replay.calls, 0);
-    assert.equal(replay.raw, before);
+    assert.equal(replay.lost, "outcome-unknown");
+    assert.equal(replay.retained, before);
+    assert.equal(replay.aborted, "reconciliation-pending");
+    assert.equal(replay.afterAbort, before);
+    assert.equal(replay.completed, "completed");
+    assert.equal(replay.repeated, "blocked");
+    assert.equal(replay.calls, 3);
+    assert.deepEqual(replay.payloads[0], replay.payloads[1]);
+    assert.deepEqual(replay.payloads[0], replay.payloads[2]);
+    assert.equal(replay.raw, null);
+    assert.equal(replay.snapshot, null);
+    assert.notEqual(replay.summary, null);
     pass(
-      "pending Finish exact bytes retained; repeated replay blocked before simulated transport",
+      "pending Finish exact retry, refreshed lease, reconciliation abort and atomic Summary (simulated transport)",
     );
     await c.close();
   }

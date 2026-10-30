@@ -447,9 +447,17 @@ export async function assertCanonicalStorageCurrent(storage: Storage) {
   storage.getItem(CANONICAL_SLOTS[0]);
   if (result.value.revision !== view.record.revision) fail("conflict");
 }
+export function canonicalStorageRevision(storage: Storage): number {
+  const view = views.get(storage);
+  if (!view) fail("unavailable");
+  storage.getItem(CANONICAL_SLOTS[0]);
+  return view.record.revision;
+}
+
 export async function mutateCanonicalStorage<T>(
   storage: Storage,
   operation: (draft: Storage, record: CanonicalRecord) => T,
+  expectedRevision?: number,
 ): Promise<T> {
   const view = views.get(storage);
   if (!view) fail("unavailable");
@@ -457,7 +465,7 @@ export async function mutateCanonicalStorage<T>(
   let value: T;
   const result = await view.client.mutate(
     view.record.owner,
-    view.record.revision,
+    expectedRevision ?? view.record.revision,
     (record) => {
       const draft: Storage = {
         get length() {

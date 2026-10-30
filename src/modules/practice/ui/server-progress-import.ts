@@ -1,6 +1,6 @@
 import {
   isCanonicalStorage,
-  refreshCanonicalStorage,
+  assertCanonicalStorageCurrent,
   CanonicalPersistenceError,
 } from "../../learner/canonical-local-store";
 import {
@@ -25,15 +25,17 @@ export async function ensureServerProgressImported(storage?: Storage) {
     throw new Error("Practice session lock is unavailable.");
   const store = storage ?? captureLearnerStorage();
   if (isCanonicalStorage(store)) {
-    await refreshCanonicalStorage(store);
+    await assertCanonicalStorageCurrent(store);
     if (
       [
         PROGRESS_EVIDENCE_STORAGE_KEY,
         "olympiad-trainer:practice-progress-finish-pending",
-        "olympiad-trainer:practice-server-finish-request",
       ].some((key) => store.getItem(key) !== null)
     )
       throw new CanonicalPersistenceError("conflict");
+    // Empty legacy evidence still requires the existing authenticated baseline
+    // acknowledgement. A pending canonical Finish is never consumed here.
+    await importBrowserProgressEvidence(null, currentLocalLearnerOwner());
     return null;
   }
   const owner = currentLocalLearnerOwner();
