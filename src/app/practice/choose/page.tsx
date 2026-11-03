@@ -1,3 +1,7 @@
+import {
+  originalOnlyBeta,
+  BETA_PACKS,
+} from "../../../modules/practice/server/content-access";
 import Link from "next/link";
 
 import {
@@ -20,6 +24,9 @@ export default function ChoosePracticePage() {
       (pack) => !LEARNING_PATH_V1.some((entry) => entry.packId === pack.id),
     ).map((pack) => ({ packId: pack.id, description: null, position: null })),
   ];
+  const visibleEntries = originalOnlyBeta()
+    ? entries.filter((e) => Object.hasOwn(BETA_PACKS, e.packId))
+    : entries;
   return (
     <main className={styles.chooser}>
       <HomeNavigation current="Тренировки" />
@@ -31,7 +38,7 @@ export default function ChoosePracticePage() {
           не означает порядок сложности или уровень знаний.
         </p>
       </header>
-      <UnfinishedPracticeContext />
+      {!originalOnlyBeta() && <UnfinishedPracticeContext />}
       <section
         className={styles["free-choice"]}
         aria-labelledby="all-packs-title"
@@ -43,7 +50,7 @@ export default function ChoosePracticePage() {
         </p>
       </section>
       <ol aria-label="Все наборы задач" className={styles["pack-grid"]}>
-        {entries.map((entry) => {
+        {visibleEntries.map((entry) => {
           const pack = packById(entry.packId)!;
           return (
             <li key={pack.id}>

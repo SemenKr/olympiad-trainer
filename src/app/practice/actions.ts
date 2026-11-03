@@ -1,4 +1,8 @@
 "use server";
+import {
+  requireProblemAccess,
+  requireFullCatalog,
+} from "../../modules/practice/server/content-access";
 
 import { requireSimulationAssistanceAllowed } from "../../modules/simulation/server/assistance-guard";
 
@@ -57,6 +61,7 @@ export async function submitPracticeAnswer(
   problemId: unknown,
   rawAnswer: unknown,
 ): Promise<NumericAnswerResult> {
+  requireProblemAccess(problemId);
   await requireSimulationAssistanceAllowed(problemId);
   const problem = getProblemDefinition(
     requireIdentifier(problemId, "practice problem ID"),
@@ -80,6 +85,7 @@ export async function revealPracticeHint(
   problemId: unknown,
   hintId: unknown,
 ): Promise<RevealedPracticeHint> {
+  requireProblemAccess(problemId);
   await requireSimulationAssistanceAllowed(problemId);
   return getRevealedPracticeHint(
     requireIdentifier(problemId, "practice problem ID"),
@@ -91,6 +97,7 @@ export async function revealPracticeSolution(
   problemId: unknown,
   solutionId: unknown,
 ): Promise<RevealedPracticeSolution> {
+  requireProblemAccess(problemId);
   await requireSimulationAssistanceAllowed(problemId);
   return getRevealedPracticeSolution(
     requireIdentifier(problemId, "practice problem ID"),
@@ -102,6 +109,7 @@ export async function revealReasoningCheckpoint(
   problemId: unknown,
   checkpointId: unknown,
 ): Promise<RevealedReasoningCheckpoint> {
+  requireProblemAccess(problemId);
   await requireSimulationAssistanceAllowed(problemId);
   return getRevealedReasoningCheckpoint(
     requireIdentifier(problemId, "practice problem ID"),
@@ -118,6 +126,7 @@ export async function submitReasoningCheckpointOption(
   outcome: "correct" | "incorrect";
   interpretation: ReasoningCheckpointInterpretation;
 }> {
+  requireProblemAccess(problemId);
   await requireSimulationAssistanceAllowed(problemId);
   const context = requireReasoningSummary(summary);
   const assessed = assessReasoningCheckpointOption(
@@ -140,6 +149,7 @@ export async function verifyPersistedReasoningCheckpointObservation(
   observation: unknown,
   summary: unknown,
 ): Promise<ReasoningCheckpointVerification> {
+  requireProblemAccess(problemId);
   if (
     !record(observation) ||
     typeof observation.checkpointId !== "string" ||
@@ -172,6 +182,7 @@ export async function verifyPersistedReasoningCheckpointObservation(
 export async function verifyPersistedGuaranteeEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
+  if (Array.isArray(facts) && facts.length > 0) requireFullCatalog();
   if (!Array.isArray(facts) || facts.length > 7) return false;
 
   let valid = true;
@@ -206,6 +217,7 @@ export async function verifyPersistedGuaranteeEvidenceFacts(
 export async function verifyPersistedPracticeProgressEvidenceFacts(
   facts: unknown,
 ): Promise<boolean> {
+  if (Array.isArray(facts) && facts.length > 0) requireFullCatalog();
   if (!Array.isArray(facts) || facts.length > 17) return false;
   let valid = true;
   for (const fact of facts) {

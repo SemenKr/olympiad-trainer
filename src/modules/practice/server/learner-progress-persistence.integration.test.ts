@@ -204,6 +204,96 @@ async function learner() {
 }
 
 describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
+  it("beta does not acknowledge retained legacy evidence as an empty import", async () => {
+    const context = learnerContext(await learner());
+    const raw = JSON.stringify(emptyGuaranteeProgressEvidence());
+    vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
+    try {
+      expect(await readRecentPracticeEpisodes(context)).toEqual([]);
+      await expect(importLegacyProgress(context, raw)).rejects.toThrow();
+      await expect(
+        persistFinishContributions(
+          context,
+          randomUUID(),
+          [],
+          undefined,
+          {
+            mode: "pack",
+            facts: {
+              version: 1,
+              problems: packProblemIds("pack-t").map(noAnswer),
+            },
+          },
+          2,
+        ),
+      ).rejects.toThrow();
+      vi.stubEnv("ORIGINAL_ONLY_BETA", "false");
+      await importLegacyProgress(context, raw);
+      await expect(readLearnerProgress(context)).resolves.toBeDefined();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("beta preserves historical reads, permits T Finish, rejects new legacy Finish", async () => {
+    const context = learnerContext(await learner());
+    await importLegacyProgress(context, null);
+    await persistFinishContributions(
+      context,
+      randomUUID(),
+      [],
+      undefined,
+      coreEpisode,
+      2,
+    );
+    const history = await readRecentPracticeEpisodes(context);
+    const progress = await readLearnerProgress(context);
+    vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
+    try {
+      expect(await readRecentPracticeEpisodes(context)).toEqual(history);
+      expect(await readLearnerProgress(context)).toEqual(progress);
+      const rejected = randomUUID();
+      await expect(
+        persistFinishContributions(
+          context,
+          rejected,
+          [],
+          undefined,
+          coreEpisode,
+          2,
+        ),
+      ).rejects.toThrow();
+      const session = randomUUID();
+      const episode = {
+        mode: "pack",
+        facts: { version: 1, problems: packProblemIds("pack-t").map(noAnswer) },
+      };
+      await persistFinishContributions(
+        context,
+        session,
+        [],
+        undefined,
+        episode,
+        2,
+      );
+      await persistFinishContributions(
+        context,
+        session,
+        [],
+        undefined,
+        episode,
+        2,
+      );
+      expect(await readCompletedPackIds(context)).toEqual(["pack-t"]);
+      expect(await readRecentPracticeEpisodes(context)).toHaveLength(
+        history.length + 1,
+      );
+      expect(await readLearnerProgress(context)).toEqual(progress);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it.each([
     "pack-m",
     "pack-n",

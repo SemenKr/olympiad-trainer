@@ -1,4 +1,5 @@
 import "server-only";
+import { requireProblemAccess, problemPermitted } from "./content-access";
 import type { OriginalContentProvenance } from "./original-content-provenance";
 import { NEW_PROBLEM_DEFINITIONS } from "./new-problem-modules";
 import {
@@ -3803,6 +3804,7 @@ export function getProblemDefinition(problemId: string): ProblemDefinition {
 export function getLearnerSafePracticeProblem(
   problemId: string,
 ): LearnerSafePracticeProblem {
+  requireProblemAccess(problemId);
   const problem = getProblemDefinition(problemId);
   const [focusHint, strategyHint, nextStepHint] = problem.hints;
 
@@ -3861,6 +3863,7 @@ export function getLearnerSafePackProblems(): Readonly<
     >
   > = {};
   for (const pack of PRACTICE_PACKS) {
+    if (!pack.problemIds.every(problemPermitted)) continue;
     packs[pack.id] = [
       getLearnerSafePracticeProblem(pack.problemIds[0]),
       getLearnerSafePracticeProblem(pack.problemIds[1]),
@@ -3892,6 +3895,7 @@ export function getRevealedReasoningCheckpoint(
   problemId: string,
   checkpointId: string,
 ): RevealedReasoningCheckpoint {
+  requireProblemAccess(problemId);
   const checkpoint = getReasoningCheckpointDefinition(problemId, checkpointId);
   return {
     checkpointId: checkpoint.id,
@@ -3920,6 +3924,7 @@ export function getRevealedPracticeHint(
   problemId: string,
   hintId: string,
 ): RevealedPracticeHint {
+  requireProblemAccess(problemId);
   const problem = getProblemDefinition(problemId);
   const hint = problem.hints.find((candidate) => candidate.id === hintId);
 
@@ -3934,6 +3939,7 @@ export function getRevealedPracticeSolution(
   problemId: string,
   solutionId: string,
 ): RevealedPracticeSolution {
+  requireProblemAccess(problemId);
   const problem = getProblemDefinition(problemId);
 
   if (problem.solution.id !== solutionId) {

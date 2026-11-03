@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { captureLearnerStorage } from "../../learner/local-ownership";
 import { HomeNavigation } from "../../../app/home-navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
@@ -22,7 +23,10 @@ import {
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
 
-export function LatestCompletedSummary() {
+export function LatestCompletedSummary({
+  allowedProblemIds,
+}: { allowedProblemIds?: readonly string[] } = {}) {
+  const [restricted, setRestricted] = useState(false);
   const [results, setResults] = useState<
     readonly PracticeSessionResult[] | null | undefined
   >();
@@ -44,6 +48,45 @@ export function LatestCompletedSummary() {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
+      if (allowedProblemIds) {
+        const store = captureLearnerStorage();
+        if (
+          store.getItem("olympiad-trainer:practice-progress-finish-pending") !==
+          null
+        ) {
+          setRestricted(true);
+          return;
+        }
+        const permitted = (v: unknown): boolean => {
+          if (!v || typeof v !== "object") return true;
+          if (Array.isArray(v)) return v.every(permitted);
+          return Object.entries(v).every(([k, x]) =>
+            k === "problemId"
+              ? typeof x === "string" && allowedProblemIds.includes(x)
+              : k === "problemIds"
+                ? Array.isArray(x) &&
+                  x.every((id) => allowedProblemIds.includes(id))
+                : permitted(x),
+          );
+        };
+        for (const key of [
+          "olympiad-trainer:practice-session",
+          "olympiad-trainer:practice-latest-completed",
+          "olympiad-trainer:practice-server-finish-request",
+        ]) {
+          const raw = store.getItem(key);
+          if (raw !== null)
+            try {
+              if (!permitted(JSON.parse(raw))) {
+                setRestricted(true);
+                return;
+              }
+            } catch {
+              setLoadError(true);
+              return;
+            }
+        }
+      }
       void readVerifiedLatestCompletedResults(
         verifyPersistedReasoningCheckpointObservation,
       )
@@ -76,7 +119,7 @@ export function LatestCompletedSummary() {
                 .catch(() => {
                   if (active) setJourneyFinish(null);
                 });
-              if (packId)
+              if (packId && !allowedProblemIds)
                 void readServerLearningPath()
                   .then((packIds) => {
                     if (active) setCompletedPackIds(packIds);
@@ -94,11 +137,24 @@ export function LatestCompletedSummary() {
     return () => {
       active = false;
     };
-  }, [loadRetry]);
+  }, [loadRetry, allowedProblemIds]);
 
   useEffect(() => {
     if (results) headingRef.current?.focus();
   }, [results]);
+
+  if (restricted)
+    return (
+      <main>
+        <h1>Прежняя тренировка временно недоступна</h1>
+        <p>
+          Работа и запрос завершения сохранены. В этой версии доступны только
+          авторские наборы S и T.
+        </p>
+        <Link href="/progress">История</Link>
+        <Link href="/restore">Сохранить доступ</Link>
+      </main>
+    );
 
   if (loadError) {
     return (

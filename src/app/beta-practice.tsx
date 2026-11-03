@@ -1,0 +1,52 @@
+import Link from "next/link";
+import { PracticeSession } from "../modules/practice/ui/practice-session";
+import {
+  BETA_PACKS,
+  BETA_PROBLEM_IDS,
+} from "../modules/practice/server/content-access";
+import { getLearnerSafePackProblems } from "../modules/practice/server/problem-catalog";
+export function BetaUnavailable() {
+  return (
+    <main>
+      <h1>Режим временно недоступен</h1>
+      <p>
+        В экспериментальной версии доступны только авторские наборы S и T.
+        Прежняя работа сохранена; продолжить её здесь пока нельзя.
+      </p>
+      <Link href="/practice/choose">Выбрать авторский набор</Link>
+      <Link href="/progress">История</Link>
+      <Link href="/restore">Восстановить доступ</Link>
+    </main>
+  );
+}
+export function BetaHome() {
+  return (
+    <main>
+      <h1>Авторские задачи · 5 класс</h1>
+      <p>
+        Экспериментальная версия: наборы S и T. Адаптивная практика, повторение
+        и олимпиадная работа временно недоступны.
+      </p>
+      <Link href="/practice">Начать тренировку</Link>
+      <Link href="/practice/choose">Выбрать набор</Link>
+      <Link href="/progress">История и прогресс</Link>
+      <Link href="/restore">Сохранить или восстановить доступ</Link>
+    </main>
+  );
+}
+export function BetaPractice({
+  pack = "pack-s",
+}: {
+  pack?: keyof typeof BETA_PACKS;
+}) {
+  const packs = getLearnerSafePackProblems();
+  return (
+    <PracticeSession
+      problems={packs[pack]}
+      packs={packs}
+      startMode="pack"
+      startPackId={pack}
+      allowedProblemIds={BETA_PROBLEM_IDS}
+    />
+  );
+}

@@ -1,3 +1,5 @@
+import { originalOnlyBeta } from "./../modules/practice/server/content-access";
+import { BetaHome } from "./beta-practice";
 import type { Metadata } from "next";
 import { productDescription, productOpenGraph } from "./site-metadata";
 import { HomePracticeAction } from "./home-practice-action";
@@ -14,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  if (originalOnlyBeta()) return <BetaHome />;
   return (
     <main className={styles.home}>
       <HomeNavigation current="Главная" recoveryAvailable={recoveryEnabled()} />

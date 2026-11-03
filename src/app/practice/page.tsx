@@ -1,3 +1,5 @@
+import { originalOnlyBeta } from "../../modules/practice/server/content-access";
+import { BetaPractice } from "../beta-practice";
 import {
   getLearnerSafePracticeProblem,
   getLearnerSafePackProblems,
@@ -9,6 +11,7 @@ import {
 import { PracticeSession } from "@/modules/practice/ui/practice-session";
 
 export default function PracticePage() {
+  if (originalOnlyBeta()) return <BetaPractice />;
   const problems = [
     getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[0]),
     getLearnerSafePracticeProblem(PRACTICE_SESSION_PROBLEM_IDS[1]),
