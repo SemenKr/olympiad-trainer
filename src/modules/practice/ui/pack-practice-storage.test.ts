@@ -4,12 +4,15 @@ import {
   finishPractice,
   getPracticeSummary,
   recordAnswerResult,
+  recordHintExposure,
+  recordSolutionExposure,
   startPractice,
 } from "../application/practice-state";
 import {
   PACK_A_PROBLEM_IDS,
   PACK_B_PROBLEM_IDS,
   PACK_C_PROBLEM_IDS,
+  packProblemIds,
 } from "../application/completed-practice-episode";
 import { getPracticeProgressContribution } from "../application/practice-progress-evidence";
 import {
@@ -95,6 +98,134 @@ const packCResult = (
   problemTitle: packCTitles[index],
   summary,
   ...(skipped ? { taskOutcome: "skipped" as const } : {}),
+});
+
+describe("original visual Pack S snapshot and Finish", () => {
+  it("restores support exposure and exact tuple, then retries the same Finish without adaptive evidence", async () => {
+    const store = storage();
+    const ids = packProblemIds("pack-s");
+    const titles = ["Две рамки", "Лист с двумя вырезами", "Дорожки через К"];
+    let session = startPackPracticeSession("pack-s");
+    let practice = recordAnswerResult(startPractice(), {
+      status: "incorrect",
+      normalizedAnswer: "10",
+    });
+    for (const level of ["focus", "strategy", "next-step"] as const) {
+      practice = recordHintExposure(practice, {
+        hintId: `${ids[0]}-hint-${level}`,
+        level,
+      });
+    }
+    practice = recordSolutionExposure(practice, {
+      solutionId: `${ids[0]}-full-solution`,
+    });
+    const supportedAnswer = {
+      rawAnswer: "10",
+      status: "incorrect" as const,
+      practice,
+    };
+    expect(
+      await createPracticeSessionSnapshot(session, supportedAnswer, store),
+    ).toBe(true);
+    const restored = await readPracticeSessionSnapshot(store);
+    if (!restored || "status" in restored)
+      throw new Error("missing Pack S snapshot");
+    expect(restored.problemIds).toEqual(ids);
+    expect(restoreAnswerState(restored)).toEqual(supportedAnswer);
+    expect(getStoredProblemTitle(restored)).toBe(titles[0]);
+    for (const problemIds of [
+      [...ids].reverse(),
+      ids.slice(1),
+      [ids[0], ids[1], "unknown"],
+    ]) {
+      expect(
+        validatePracticeSessionSnapshot({ ...restored, problemIds }),
+      ).toBeNull();
+    }
+    const first = {
+      problemId: ids[0],
+      problemTitle: titles[0],
+      summary: getPracticeSummary(finishPractice(practice)),
+    };
+    session = advancePracticeSession(session, first)!;
+    const secondPractice = recordAnswerResult(startPractice(), {
+      status: "correct",
+      normalizedAnswer: "27",
+    });
+    expect(
+      await savePracticeSessionSnapshot(
+        session,
+        { rawAnswer: "27", status: "correct", practice: secondPractice },
+        store,
+      ),
+    ).toBe(true);
+    session = advancePracticeSession(session, {
+      problemId: ids[1],
+      problemTitle: titles[1],
+      summary: getPracticeSummary(finishPractice(secondPractice)),
+    })!;
+    const lastPractice = recordAnswerResult(startPractice(), {
+      status: "correct",
+      normalizedAnswer: "9",
+    });
+    const lastAnswer = {
+      rawAnswer: "9",
+      status: "correct" as const,
+      practice: lastPractice,
+    };
+    expect(await savePracticeSessionSnapshot(session, lastAnswer, store)).toBe(
+      true,
+    );
+    const results = [
+      ...session.completedResults,
+      {
+        problemId: ids[2],
+        problemTitle: titles[2],
+        summary: getPracticeSummary(finishPractice(lastPractice)),
+      },
+    ];
+    const persist = vi
+      .fn<(request: ServerPracticeFinishPayload) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValue(undefined);
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        lastAnswer,
+        results,
+        store,
+        persist,
+      ),
+    ).toBe("outcome-unknown");
+    expect(await readPracticeSessionSnapshot(store)).not.toBeNull();
+    expect(
+      await completeServerBackedPracticeSession(
+        session,
+        lastAnswer,
+        results,
+        store,
+        persist,
+      ),
+    ).toBe("completed");
+    expect(persist.mock.calls[0]).toEqual(persist.mock.calls[1]);
+    expect(persist.mock.calls[0][0]).toMatchObject({
+      episodeMode: "pack",
+      contributions: [],
+      episodeFacts: {
+        problems: ids.map((problemId) => ({ problemId, checkpoint: null })),
+      },
+    });
+    expect(persist.mock.calls[0][0]).not.toHaveProperty("adaptiveFacts");
+    expect(
+      (
+        await readVerifiedLatestCompletedResults(
+          async () => ({ valid: false }),
+          store,
+        )
+      ).value,
+    ).toEqual(results);
+    expect(await readPracticeSessionSnapshot(store)).toBeNull();
+  });
 });
 
 describe("Pack A Practice snapshot and Finish", () => {

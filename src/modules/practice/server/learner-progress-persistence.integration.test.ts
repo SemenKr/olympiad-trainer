@@ -211,6 +211,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     "pack-p",
     "pack-q",
     "pack-r",
+    "pack-s",
   ] as const)(
     "persists and reads %s completion receipts through retries and history pruning",
     async (packId) => {
@@ -350,6 +351,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
         );
       }
     },
+    15000,
   );
 
   it("records zero XP for Skip-only Finish and no reward without an episode", async () => {

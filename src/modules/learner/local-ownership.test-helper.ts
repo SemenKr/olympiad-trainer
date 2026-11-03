@@ -1,4 +1,10 @@
 import { vi } from "vitest";
+// These fixtures exercise pre-handoff storage/domain behavior. Native Chrome
+// rehearsal covers the real canonical-IDB query and migration authority.
+vi.mock("./canonical-local-store", async (original) => ({
+  ...(await original<typeof import("./canonical-local-store")>()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+}));
 import {
   captureLearnerStorage,
   reconcileAuthenticatedLocalOwner,

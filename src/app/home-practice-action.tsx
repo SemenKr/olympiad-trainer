@@ -53,6 +53,7 @@ type StoredPractice = Readonly<{
 export function HomePracticeAction() {
   const [stored, setStored] = useState<StoredPractice | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [unsupportedState, setUnsupportedState] = useState(false);
   const [loadRetry, setLoadRetry] = useState(0);
   const [summaryRetryPending, setSummaryRetryPending] = useState(false);
 
@@ -131,8 +132,15 @@ export function HomePracticeAction() {
               ...adaptive,
             });
         })
-        .catch(() => {
-          if (active) setLoadError(true);
+        .catch((error: unknown) => {
+          if (active) {
+            if (
+              error instanceof Error &&
+              error.name === "UnsupportedPracticeStateError"
+            )
+              setUnsupportedState(true);
+            else setLoadError(true);
+          }
         });
     });
     return () => {
@@ -166,6 +174,29 @@ export function HomePracticeAction() {
     }
   }
 
+  if (unsupportedState) {
+    return (
+      <HomePracticeLayout>
+        <h2 tabIndex={-1} autoFocus>
+          Тренировка из более новой версии
+        </h2>
+        <p role="status">
+          Сохранённая тренировка не поддерживается этой версией. Данные
+          сохранены. Вернись к более новой версии, чтобы продолжить её.
+        </p>
+        <button
+          className={styles.primary}
+          onClick={() => {
+            setUnsupportedState(false);
+            setLoadRetry((value) => value + 1);
+          }}
+          type="button"
+        >
+          Проверить снова
+        </button>
+      </HomePracticeLayout>
+    );
+  }
   if (loadError) {
     return (
       <HomePracticeLayout>

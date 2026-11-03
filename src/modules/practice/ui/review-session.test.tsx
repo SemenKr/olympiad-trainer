@@ -73,6 +73,24 @@ afterEach(() => {
   dom.window.close();
 });
 describe("Review Practice entry", () => {
+  it("explains unsupported saved work without starting Review", async () => {
+    vi.mocked(readVerifiedPracticeSessionSnapshot).mockRejectedValueOnce(
+      Object.assign(new Error("future Pack"), {
+        name: "UnsupportedPracticeStateError",
+      }),
+    );
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = (await import("react-dom/client")).createRoot(container);
+    await act(async () => {
+      root.render(<PracticeSession problems={problems} startMode="review" />);
+    });
+    expect(container.textContent).toContain("Тренировка из более новой версии");
+    expect(container.textContent).toContain("Данные сохранены");
+    expect(startServerReview).not.toHaveBeenCalled();
+    expect(createPracticeSessionSnapshot).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
   it("starts a fresh one-problem server-owned attempt and displays distinct mode", async () => {
     vi.mocked(startServerReview).mockResolvedValue(
       "00000000-0000-4000-8000-000000000011",

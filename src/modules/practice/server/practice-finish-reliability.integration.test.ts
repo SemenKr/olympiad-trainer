@@ -3,6 +3,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 
 vi.mock("server-only", () => ({}));
+// This legacy Storage/real-DB fixture isolates the canonical existence check.
+// Native Chrome rehearsals exercise the real IDB lifecycle separately.
+vi.mock("../../learner/canonical-local-store", async (original) => ({
+  ...(await original<typeof import("../../learner/canonical-local-store")>()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+}));
 
 import {
   createTestLearner,

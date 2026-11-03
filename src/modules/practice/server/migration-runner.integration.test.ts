@@ -46,7 +46,10 @@ async function fixture(
     for (const name of [
       ...plan.base.filter(
         (name: string) =>
-          !name.startsWith("0020_") && !name.startsWith("0021_"),
+          !name.startsWith("0020_") &&
+          !name.startsWith("0021_") &&
+          !name.startsWith("0022_") &&
+          !name.startsWith("0023_"),
       ),
       ...(history === "0014" ? ["0014_adaptive_target_usage.sql"] : []),
     ]) {
@@ -155,7 +158,7 @@ async function waitForLock(client: pg.Client, app: string) {
 describe.skipIf(!url)("atomic migration runner safety", () => {
   for (const history of ["0013", "0014"] as const) {
     it(
-      `${history}: extends Pack receipts to P–R without changing A–O receipts or validation semantics`,
+      `${history}: upgrades 0021 through 0023 to reusable Pack IDs without changing receipts`,
       async () =>
         fixture(
           history,
@@ -174,7 +177,7 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
               "pack-k",
               "pack-l",
             ];
-            const newPackIds = ["pack-p", "pack-q", "pack-r"];
+            const newPackIds = ["pack-s"];
             // Start from the released Batch 1 schema and retain every receipt.
             await client.query(
               await readFile(
@@ -186,6 +189,16 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
               "0020_content_expansion_pack_receipts.sql",
             ]);
             oldPackIds.push("pack-m", "pack-n", "pack-o");
+            await client.query(
+              await readFile(
+                "db/migrations/0021_content_expansion_batch_2_pack_receipts.sql",
+                "utf8",
+              ),
+            );
+            await client.query("INSERT INTO schema_migrations VALUES($1)", [
+              "0021_content_expansion_batch_2_pack_receipts.sql",
+            ]);
+            oldPackIds.push("pack-p", "pack-q", "pack-r");
             const insertReceipt = (
               packId: string | null,
               mode: string | null,
@@ -213,27 +226,63 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
                 },
               );
 
+            await client.query(
+              await readFile(
+                "db/migrations/0022_original_visual_pack_receipts.sql",
+                "utf8",
+              ),
+            );
+            await client.query("INSERT INTO schema_migrations VALUES($1)", [
+              "0022_original_visual_pack_receipts.sql",
+            ]);
+            expect(await receipts()).toEqual(before);
+            for (const packId of newPackIds)
+              await insertReceipt(packId, "pack");
+            await expect(insertReceipt("pack-t", "pack")).rejects.toMatchObject(
+              {
+                code: "23514",
+                constraint: "practice_finish_receipts_pack_id_check",
+              },
+            );
+            const beforeStructural = await receipts();
             expect(await migrate(connectionString, app)).toMatchObject({
               code: 0,
             });
-            expect(await receipts()).toEqual(before);
-            expect((await shape(client)).markers).toContainEqual({
-              name: "0021_content_expansion_batch_2_pack_receipts.sql",
-            });
-            for (const packId of newPackIds)
-              await insertReceipt(packId, "pack");
+            expect(await receipts()).toEqual(beforeStructural);
+            expect(
+              (
+                await client.query(
+                  "SELECT name FROM schema_migrations WHERE name LIKE '002%' ORDER BY name",
+                )
+              ).rows.map((row) => row.name),
+            ).toEqual([
+              "0020_content_expansion_pack_receipts.sql",
+              "0021_content_expansion_batch_2_pack_receipts.sql",
+              "0022_original_visual_pack_receipts.sql",
+              "0023_pack_id_format.sql",
+            ]);
             expect(
               (await receipts())
                 .map((row) => row.pack_id)
                 .filter((id) => id !== null)
                 .sort(),
             ).toEqual([...oldPackIds, ...newPackIds]);
-            await expect(insertReceipt("pack-s", "pack")).rejects.toMatchObject(
-              {
+            await insertReceipt("pack-future-2", "pack");
+            for (const malformed of [
+              "pack-",
+              "pack--t",
+              "pack-T",
+              "pack-t_",
+              "pack-t ",
+              "other-t",
+              `pack-${"a".repeat(60)}`,
+            ])
+              await expect(
+                insertReceipt(malformed, "pack"),
+              ).rejects.toMatchObject({
                 code: "23514",
                 constraint: "practice_finish_receipts_pack_id_check",
-              },
-            );
+              });
             await expect(insertReceipt("pack-m", "core")).rejects.toMatchObject(
               {
                 code: "23514",
@@ -371,7 +420,7 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
                   capture: history === "0013" ? 2 : 1,
                 },
               ]);
-              expect(after.markers).toHaveLength(18);
+              expect(after.markers).toHaveLength(20);
               expect(await migrate(connectionString, app)).toMatchObject({
                 code: 0,
               });

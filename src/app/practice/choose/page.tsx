@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   packById,
   packHref,
+  PRACTICE_PACKS,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { HomeNavigation } from "../../home-navigation";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
@@ -10,6 +11,15 @@ import { UnfinishedPracticeContext } from "./unfinished-practice-context";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
+  const entries = [
+    ...LEARNING_PATH_V1.map((entry, index) => ({
+      ...entry,
+      position: index + 1,
+    })),
+    ...PRACTICE_PACKS.filter(
+      (pack) => !LEARNING_PATH_V1.some((entry) => entry.packId === pack.id),
+    ).map((pack) => ({ packId: pack.id, description: null, position: null })),
+  ];
   return (
     <main className={styles.chooser}>
       <HomeNavigation current="Тренировки" />
@@ -33,7 +43,7 @@ export default function ChoosePracticePage() {
         </p>
       </section>
       <ol aria-label="Все наборы задач" className={styles["pack-grid"]}>
-        {LEARNING_PATH_V1.map((entry, index) => {
+        {entries.map((entry) => {
           const pack = packById(entry.packId)!;
           return (
             <li key={pack.id}>
@@ -42,11 +52,13 @@ export default function ChoosePracticePage() {
                 className={styles["pack-card"]}
               >
                 <p className={styles.eyebrow}>
-                  ШАГ {index + 1} · НАБОР{" "}
+                  {entry.position === null
+                    ? "ДОПОЛНИТЕЛЬНЫЙ НАБОР"
+                    : `ШАГ ${entry.position} · НАБОР`}{" "}
                   {pack.id.replace("pack-", "").toUpperCase()}
                 </p>
                 <h2 id={`${pack.id}-title`}>{pack.name}</h2>
-                <p>{entry.description}</p>
+                {entry.description ? <p>{entry.description}</p> : null}
                 <p>{pack.problemIds.length} задачи</p>
                 <Link
                   className={styles.secondary}

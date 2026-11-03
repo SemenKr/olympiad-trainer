@@ -136,6 +136,29 @@ it("restores the same loading footprint during a failed verification retry", asy
   }
 });
 
+it("explains future saved work on Home without importing progress or starting another path", async () => {
+  vi.mocked(readVerifiedPracticeSessionSnapshot).mockRejectedValueOnce(
+    Object.assign(new Error("future Pack"), {
+      name: "UnsupportedPracticeStateError",
+    }),
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<HomePracticeAction />));
+    expect(container.textContent).toContain("Тренировка из более новой версии");
+    expect(container.textContent).toContain("Данные сохранены");
+    expect(container.textContent).toContain("Вернись к более новой версии");
+    expect(ensureServerProgressImported).not.toHaveBeenCalled();
+    expect(readServerAdaptiveRecommendation).not.toHaveBeenCalled();
+    expect(readVerifiedLatestCompletedResults).not.toHaveBeenCalled();
+    expect(container.querySelector('a[href="/practice"]')).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
 it("keeps Resume usable while the secondary latest Summary verification is pending", async () => {
   let resolve!: (
     value: Awaited<ReturnType<typeof readVerifiedLatestCompletedResults>>,

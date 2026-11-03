@@ -1,3 +1,9 @@
+// Legacy ownership tests isolate the new IDB existence query; the native
+// canonical rehearsal covers its real cross-context behavior.
+vi.mock("./canonical-local-store", async (original) => ({
+  ...(await original<typeof import("./canonical-local-store")>()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   completeServerBackedPracticeSession,
@@ -267,7 +273,7 @@ describe("authenticated local ownership", () => {
       expect(store.getItem(key)).toBe(`original ${key}`);
       expect(scoped.getItem(key)).toBe(`original ${key}`);
       expect(JSON.parse(store.getItem(ownerStorageKey(a, key))!)).toEqual({
-        version: 1,
+        version: 2,
         owner: a,
         payload: `original ${key}`,
       });
@@ -420,7 +426,9 @@ describe("authenticated local ownership", () => {
       owner: a,
       payload: "foreign simulation",
     });
-    expect(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))).toBeNull();
+    expect(
+      JSON.parse(store.getItem(ownerStorageKey(b, LEARNER_LOCAL_KEYS[0]))!),
+    ).toEqual({ version: 2, owner: b, payload: null });
     expect(store.getItem(LOCAL_OWNER_KEY)).toContain(b.learnerId);
     expect(captureLearnerStorage().getItem(LEARNER_LOCAL_KEYS[0])).toBeNull();
   });

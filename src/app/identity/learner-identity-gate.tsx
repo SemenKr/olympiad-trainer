@@ -20,6 +20,12 @@ import {
   startFreshLocalIdentity,
 } from "../../modules/learner/local-ownership";
 
+import {
+  CanonicalPersistenceError,
+  confirmCanonicalHandoff,
+  prepareCanonicalOwner,
+} from "../../modules/learner/canonical-local-store";
+import { withIdentityBarrier } from "../../modules/learner/local-ownership";
 import styles from "./learner-identity-gate.module.scss";
 
 export default function LearnerIdentityGate({
@@ -28,7 +34,9 @@ export default function LearnerIdentityGate({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error" | "handoff">(
+    "loading",
+  );
   const [readyPath, setReadyPath] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [lost, setLost] = useState(false);
@@ -39,6 +47,24 @@ export default function LearnerIdentityGate({
   useEffect(() => {
     if (confirming) confirmationHeading.current?.focus();
   }, [confirming]);
+  async function handoff() {
+    if (starting.current) return;
+    starting.current = true;
+    setState("loading");
+    try {
+      await withIdentityBarrier(async () => {
+        const owner = await readAuthenticatedLearnerContext();
+        if (typeof owner === "string") throw new Error("Identity unavailable");
+        await confirmCanonicalHandoff(owner);
+      });
+      setRetry((value) => value + 1);
+    } catch {
+      suspendLocalLearner();
+      setState("error");
+    } finally {
+      starting.current = false;
+    }
+  }
   async function startFresh() {
     if (starting.current) return;
     starting.current = true;
@@ -109,8 +135,10 @@ export default function LearnerIdentityGate({
         });
       if (typeof authenticated === "string")
         throw new Error("Identity unavailable");
-      if (active)
+      if (active) {
         await reconcileAuthenticatedLocalOwner(authenticated, preexisting);
+        await prepareCanonicalOwner(authenticated);
+      }
     }
     void prepare()
       .then(() => {
@@ -120,12 +148,17 @@ export default function LearnerIdentityGate({
           setState("ready");
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (active) {
           suspendLocalLearner();
           setConfirming(false);
           setLost(identityLost);
-          setState("error");
+          setState(
+            error instanceof CanonicalPersistenceError &&
+              error.status === "handoff-required"
+              ? "handoff"
+              : "error",
+          );
         }
       });
     return () => {
@@ -165,6 +198,18 @@ export default function LearnerIdentityGate({
       <h1>Олимпиадный тренажёр</h1>
       {state === "loading" || (state === "ready" && readyPath !== pathname) ? (
         <p role="status">Проверяем доступ к тренировкам…</p>
+      ) : state === "handoff" ? (
+        <>
+          <h2>Перенос сохранённой работы</h2>
+          <p>
+            Сначала сохрани работу в других вкладках тренажёра и закрой их.
+            После переноса не используй старые вкладки: их изменения не
+            перенесутся автоматически. Прежние данные останутся в браузере.
+          </p>
+          <button type="button" onClick={() => void handoff()}>
+            Другие вкладки закрыты — перенести работу
+          </button>
+        </>
       ) : (
         <>
           <p role="alert">

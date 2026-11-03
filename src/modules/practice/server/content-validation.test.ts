@@ -23,8 +23,8 @@ describe("repository content pipeline", () => {
   it("validates all authored problems and Packs against the identity baseline", () => {
     expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(60);
     expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(18);
-    expect(baseline.problems).toHaveLength(60);
-    expect(baseline.packs).toHaveLength(18);
+    expect(baseline.problems).toHaveLength(63);
+    expect(baseline.packs).toHaveLength(19);
     expect(validate()).toEqual([]);
   });
   it("detects duplicate IDs before lookup construction", () => {
@@ -34,6 +34,25 @@ describe("repository content pipeline", () => {
         PRACTICE_PROBLEM_DEFINITIONS[0],
       ]),
     ).toContain("content IDs must be stable and globally unique");
+  });
+  it.each([
+    ["pack-t", true],
+    ["pack-0-next", true],
+    [`pack-${"a".repeat(59)}`, true],
+    [`pack-${"a".repeat(60)}`, false],
+    ["other-t", false],
+    ["pack-", false],
+    ["pack-T", false],
+    ["pack-t--next", false],
+    ["pack-t-", false],
+  ])("matches SQL 0023's structural Pack ID bound: %s", (id, accepted) => {
+    const pack = { ...PRACTICE_PACKS[0], id };
+    const errors = validatePracticeContent(
+      PRACTICE_PROBLEM_DEFINITIONS,
+      [pack],
+      { problems: [], packs: [] },
+    );
+    expect(errors.includes(`Pack ${id}: identity/name`)).toBe(!accepted);
   });
   it("rejects broken numeric contracts, hint order, provenance and empty solutions", () => {
     const problems = structuredClone(PRACTICE_PROBLEM_DEFINITIONS);
@@ -73,6 +92,8 @@ describe("repository content pipeline", () => {
       (item) => item.id === "rectangle-knight-count",
     );
     expect(problem?.provenance.variant).toBe(3);
+    if (!problem || problem.provenance.kind === "original")
+      throw new Error("missing sourced fixture");
     expect(validate()).toEqual([]);
     const changed = {
       ...problem!,

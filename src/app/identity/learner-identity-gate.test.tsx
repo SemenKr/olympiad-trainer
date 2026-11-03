@@ -7,6 +7,20 @@ vi.mock("./actions", () => ({
   initializeFreshAnonymousLearner: vi.fn(),
   confirmStartFreshLearner: vi.fn(),
 }));
+// Gate behavior is isolated here; native rehearsal exercises real IDB.
+vi.mock("../../modules/learner/canonical-local-store", async (original) => ({
+  ...(await original<
+    typeof import("../../modules/learner/canonical-local-store")
+  >()),
+  assertLegacyIdentityTransition: vi.fn(async () => {}),
+  prepareCanonicalOwner: vi.fn(async () => {}),
+  confirmCanonicalHandoff: vi.fn(async () => {}),
+}));
+import {
+  prepareCanonicalOwner,
+  confirmCanonicalHandoff,
+  CanonicalPersistenceError,
+} from "../../modules/learner/canonical-local-store";
 const navigation = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
@@ -31,6 +45,8 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prepareCanonicalOwner).mockReset().mockResolvedValue();
+  vi.mocked(confirmCanonicalHandoff).mockReset().mockResolvedValue();
   navigation.pathname = "/";
   localStorage.clear();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -401,5 +417,41 @@ describe("Start fresh UX", () => {
     expect(
       captureLearnerStorage().getItem("olympiad-trainer:practice-session"),
     ).toBeNull();
+  });
+});
+
+describe("canonical migration gate", () => {
+  it("waits for explicit legacy handoff before rendering learner views", async () => {
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
+    vi.mocked(prepareCanonicalOwner).mockRejectedValueOnce(
+      new CanonicalPersistenceError("handoff-required"),
+    );
+    await render();
+    expect(container.textContent).not.toContain("learner content");
+    expect(container.textContent).toContain("Перенос сохранённой работы");
+    expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
+    await act(async () => container.querySelector("button")!.click());
+    expect(confirmCanonicalHandoff).toHaveBeenCalledWith(owner);
+    expect(container.textContent).toContain("learner content");
+  });
+  it("keeps unavailable or conflicting migration blocked without starting fresh", async () => {
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
+    vi.mocked(prepareCanonicalOwner).mockRejectedValueOnce(
+      new CanonicalPersistenceError("handoff-required"),
+    );
+    vi.mocked(confirmCanonicalHandoff).mockRejectedValueOnce(
+      new CanonicalPersistenceError("conflict"),
+    );
+    await render();
+    await act(async () => container.querySelector("button")!.click());
+    expect(container.textContent).not.toContain("learner content");
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+  });
+  it("mounts Simulation after canonical owner preparation", async () => {
+    navigation.pathname = "/simulation";
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
+    await render();
+    expect(container.textContent).toContain("learner content");
   });
 });

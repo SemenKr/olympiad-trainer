@@ -7,6 +7,7 @@ import {
   packById,
   packIdFromCompletedProblemIds,
   validateCompletedEpisode,
+  validatePackEpisodeStructure,
   type CompletedPracticeEpisodeFactsV1,
   type CompletedPracticeEpisodeMode,
   type PackId,
@@ -708,6 +709,14 @@ export async function persistFinishContributions(
   });
 }
 
+// Persisted syntax and current catalog membership are separate read concerns.
+// This does not authorize an unknown Pack for Finish.
+function isStoredPackId(value: unknown): value is string {
+  return (
+    typeof value === "string" && /^pack-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+  );
+}
+
 export async function readCompletedPackIds(
   context: AuthenticatedLearner,
 ): Promise<readonly PackId[]> {
@@ -722,11 +731,18 @@ export async function readCompletedPackIds(
       .where(eq(practiceFinishReceipts.learnerId, learnerId));
     const result: PackId[] = [];
     for (const row of rows) {
-      if (row.packId === null) continue;
-      const pack = packById(row.packId);
-      if (!pack || row.mode !== "pack")
+      if (
+        row.mode !== null &&
+        !["core", "transfer", "exploration", "pack", "review"].includes(
+          row.mode,
+        )
+      )
         throw new Error("Learning Path Pack receipt could not be verified.");
-      if (!result.includes(pack.id)) result.push(pack.id);
+      if (row.packId === null) continue;
+      if (!isStoredPackId(row.packId) || row.mode !== "pack")
+        throw new Error("Learning Path Pack receipt could not be verified.");
+      const pack = packById(row.packId);
+      if (pack && !result.includes(pack.id)) result.push(pack.id);
     }
     return result;
   });
@@ -790,21 +806,59 @@ export async function readRecentPracticeEpisodes(
         mode: practiceCompletedEpisodes.mode,
         facts: practiceCompletedEpisodes.episodeFacts,
         completedAt: practiceCompletedEpisodes.completedAt,
+        receiptPackId: practiceFinishReceipts.packId,
+        receiptMode: practiceFinishReceipts.episodeMode,
       })
       .from(practiceCompletedEpisodes)
+      .leftJoin(
+        practiceFinishReceipts,
+        and(
+          eq(
+            practiceFinishReceipts.learnerId,
+            practiceCompletedEpisodes.learnerId,
+          ),
+          eq(
+            practiceFinishReceipts.sessionId,
+            practiceCompletedEpisodes.sessionId,
+          ),
+        ),
+      )
       .where(eq(practiceCompletedEpisodes.learnerId, learnerId))
       .orderBy(
         desc(practiceCompletedEpisodes.completedAt),
         desc(practiceCompletedEpisodes.sessionId),
       )
       .limit(10);
-    return rows.map((row) => {
-      const checked = validateCompletedEpisode(row.mode, row.facts);
+    const result: RecentPracticeEpisode[] = [];
+    for (const row of rows) {
       if (
-        !checked ||
         !(row.completedAt instanceof Date) ||
-        Number.isNaN(row.completedAt.getTime())
+        Number.isNaN(row.completedAt.getTime()) ||
+        (row.receiptMode !== null && row.receiptMode !== row.mode)
       )
+        throw new Error("Completed Practice history could not be verified.");
+      if (row.receiptPackId !== null) {
+        if (
+          !isStoredPackId(row.receiptPackId) ||
+          row.mode !== "pack" ||
+          row.receiptMode !== "pack"
+        )
+          throw new Error("Completed Practice history could not be verified.");
+        const facts = validatePackEpisodeStructure(row.facts);
+        if (!facts)
+          throw new Error("Completed Practice history could not be verified.");
+        const knownId = packIdFromCompletedProblemIds(
+          facts.problems.map((fact) => fact.problemId),
+        );
+        const pack = packById(row.receiptPackId);
+        if (pack ? knownId !== pack.id : knownId !== null)
+          throw new Error("Completed Practice history could not be verified.");
+        // Only a same-learner/session receipt with a valid unsupported Pack
+        // identity licenses omission. Never infer support from unknown facts.
+        if (!pack) continue;
+      }
+      const checked = validateCompletedEpisode(row.mode, row.facts);
+      if (!checked)
         throw new Error("Completed Practice history could not be verified.");
       const problems = checked.problems.map((fact) => {
         const definition = getProblemDefinition(fact.problemId);
@@ -825,12 +879,13 @@ export async function readRecentPracticeEpisodes(
             : null,
         };
       });
-      return {
+      result.push({
         mode: row.mode,
         completedAt: row.completedAt.toISOString(),
         problems,
-      };
-    });
+      });
+    }
+    return result;
   });
 }
 

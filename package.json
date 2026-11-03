@@ -20,7 +20,10 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,scss}\" \"*.{json,mjs}\"",
     "stylelint": "stylelint \"src/**/*.scss\"",
     "verify": "node scripts/verify.mjs",
-    "content:validate": "vitest run src/modules/practice/server/content-validation.test.ts"
+    "content:validate": "vitest run src/modules/practice/server/content-validation.test.ts",
+    "content:new": "node scripts/content-new.mjs",
+    "content:generate": "CONTENT_GENERATE=write vitest run src/modules/practice/server/browser-problem-metadata.test.ts",
+    "content:check": "vitest run src/modules/practice/server/content-validation.test.ts src/modules/practice/server/browser-problem-metadata.test.ts src/modules/practice/server/content-authoring.test.ts src/modules/practice/ui/practice-session-storage.test.ts src/modules/practice/ui/pack-practice-storage.test.ts src/modules/practice/ui/practice-latest-completed-storage.test.ts src/modules/practice/ui/progress-history-load.test.tsx"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.9",

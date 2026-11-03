@@ -1,4 +1,3 @@
-import type { PackId } from "../application/completed-practice-episode";
 import type { AdaptiveTargetId } from "../application/adaptive-recommendation";
 import { sql } from "drizzle-orm";
 
@@ -132,7 +131,8 @@ export const practiceFinishReceipts = pgTable(
     episodeMode: text("episode_mode").$type<
       "core" | "transfer" | "exploration" | "pack" | "review"
     >(),
-    packId: text("pack_id").$type<PackId>(),
+    // Stored receipts may name a Pack introduced by a newer application.
+    packId: text("pack_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

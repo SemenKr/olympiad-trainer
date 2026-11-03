@@ -1,4 +1,6 @@
 import "server-only";
+import type { OriginalContentProvenance } from "./original-content-provenance";
+import { NEW_PROBLEM_DEFINITIONS } from "./new-problem-modules";
 import {
   getLearnerSafeProblemMedia,
   type ProblemMediaDefinition,
@@ -25,7 +27,7 @@ type SourceReference = Readonly<{
   page: number;
 }>;
 
-type ProblemProvenance = Readonly<{
+type VsoShProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
   academicYear:
@@ -47,6 +49,22 @@ type ProblemProvenance = Readonly<{
   officialSolution: SourceReference;
 }>;
 
+type OriginalProblemProvenance = OriginalContentProvenance &
+  Readonly<{ subject: "mathematics"; grade: 5 }> &
+  Readonly<{
+    [Key in Exclude<keyof VsoShProblemProvenance, "subject" | "grade">]?: never;
+  }>;
+
+type ProblemProvenance =
+  | (VsoShProblemProvenance &
+      Readonly<{
+        kind?: "vsosh";
+        authorship?: never;
+        rightsNote?: never;
+        dossierPath?: never;
+      }>)
+  | OriginalProblemProvenance;
+
 type FocusHintDefinition = Readonly<{
   id: string;
   level: "focus";
@@ -67,7 +85,7 @@ type NextStepHintDefinition = Readonly<{
 
 type TrainingSolutionDefinition = Readonly<{
   id: string;
-  kind: "training-adaptation";
+  kind: "training-adaptation" | "original-explanation";
   text: string;
 }>;
 
@@ -3760,6 +3778,7 @@ export const PRACTICE_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   alternatingQueueSwapsProblem,
   corridorSingleLayerProblem,
   diamondEmeraldBalanceProblem,
+  ...NEW_PROBLEM_DEFINITIONS,
 ];
 
 const problemCatalog: Readonly<Record<string, ProblemDefinition>> =
