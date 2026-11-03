@@ -78,11 +78,14 @@ Follow the [implementation conventions](docs/05-development/agent-system.md#impl
 
 ## Git safety
 
-Do not commit or push unless explicitly requested in the current task.
-Do not merge, switch/delete branches or rewrite/amend history unless explicitly authorized.
-Verify working tree and branch before Git mutations; protect unrelated work.
+Work in the existing repository directory opened in WebStorm by default. Make all edits there so changes are immediately visible in the IDE.
+Before each new implementation task, check Git status and create or switch to a dedicated task branch from the correct baseline. Never implement directly on main.
+Do not create separate Git worktrees unless explicitly requested.
+Never discard, reset, stash or overwrite uncommitted changes without owner approval. If the working tree is dirty and switching branches is unsafe, stop and report the conflict.
+Do not commit, push, merge or create PRs without authorization in the current task. Do not delete branches or rewrite/amend history without explicit authorization.
+Verify the active branch before Git mutations; protect unrelated work and stage or commit only authorized files.
 Never force-push without explicit authorization.
-Inspect diff and status before completion; include only authorized files in staging/commits.
+At completion, show the active branch, changed files, Git diff and verification results.
 A role handoff or READY/PASS status is not Git authorization.
 Do not send messages or publish externally without explicit authorization.
 
@@ -107,4 +110,3 @@ The Coordinator follows the [bounded correction loop and human gates](docs/05-de
 - Documentation and implementation are consistent.
 - Diff/status contain no accidental work.
 - Final report states what changed, evidence/checks and unresolved issues concisely.
-  Before editing any files, confirm you are on the requested feature branch. If it does not exist, create/switch to it from the specified baseline. Never implement directly on main. Do not use worktrees.
