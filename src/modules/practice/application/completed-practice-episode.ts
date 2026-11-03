@@ -184,6 +184,15 @@ export const PRACTICE_PACKS = [
       "original-path-via-k",
     ],
   },
+  {
+    id: "pack-t",
+    name: "Условия, варианты и гарантия",
+    problemIds: [
+      "original-linked-code",
+      "original-signal-flags",
+      "original-two-color-pairs",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

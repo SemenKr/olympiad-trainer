@@ -141,7 +141,7 @@ describe("public Practice history projection", () => {
     return {
       ...storedRow("correct"),
       mode: "pack",
-      receiptPackId: "pack-t",
+      receiptPackId: "pack-u",
       receiptMode: "pack",
       facts: {
         version: 1,

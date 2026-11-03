@@ -129,7 +129,7 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
     const id = await learner();
     const other = await learner();
     const session = randomUUID();
-    await receipt(id, session, "pack-t");
+    await receipt(id, session, "pack-u");
     await episode(id, session);
     await client.query(
       `INSERT INTO practice_journey_awards
@@ -227,9 +227,9 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
   it.each([
     ["pack--s", "pack"],
     ["Pack-s", "pack"],
-    ["pack-t ", "pack"],
-    ["pack-t", "core"],
-    ["pack-t", null],
+    ["pack-u ", "pack"],
+    ["pack-u", "core"],
+    ["pack-u", null],
     [null, "future-mode"],
   ] as const)("rejects malformed receipt %s/%s", async (packId, mode) => {
     const id = await learner();
@@ -240,9 +240,9 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
   });
 
   it.each([
-    ["pack-t", "pack", { version: 2, problems: [noAnswer("future-problem")] }],
+    ["pack-u", "pack", { version: 2, problems: [noAnswer("future-problem")] }],
     [
-      "pack-t",
+      "pack-u",
       "pack",
       {
         version: 1,
@@ -250,7 +250,7 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
       },
     ],
     [
-      "pack-t",
+      "pack-u",
       "pack",
       {
         version: 1,
@@ -261,7 +261,7 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
     ],
     ["pack-a", "pack", futureFacts()],
     [
-      "pack-t",
+      "pack-u",
       "pack",
       { version: 1, problems: [noAnswer(PRACTICE_PACKS[0].problemIds[0])] },
     ],
@@ -271,7 +271,7 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
       { version: 1, problems: [noAnswer(PRACTICE_PACKS[0].problemIds[0])] },
     ],
     ["pack--s", "pack", futureFacts()],
-    ["pack-t", "core", futureFacts()],
+    ["pack-u", "core", futureFacts()],
   ] as const)(
     "rejects inconsistent History %s/%s/%j",
     async (packId, mode, facts) => {
@@ -290,8 +290,8 @@ describe.skipIf(!testUrl)("forward-compatible server Pack reads", () => {
     const other = await learner();
     const session = randomUUID();
     await episode(id, session);
-    await receipt(other, session, "pack-t");
-    await receipt(id, randomUUID(), "pack-t");
+    await receipt(other, session, "pack-u");
+    await receipt(id, randomUUID(), "pack-u");
     await expect(
       readRecentPracticeEpisodes(learnerContext(id)),
     ).rejects.toThrow("could not be verified");

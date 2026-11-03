@@ -36,7 +36,7 @@ const validate = (problem: ProblemDefinition) =>
 
 describe("original visual Pack S", () => {
   it("registers the exact reviewed tuple without adaptive evidence", () => {
-    expect(PRACTICE_PACKS.at(-1)).toEqual({
+    expect(PRACTICE_PACKS[18]).toEqual({
       id: "pack-s",
       name: "Рисунки и рассуждения",
       problemIds: cases.map(([id]) => id),

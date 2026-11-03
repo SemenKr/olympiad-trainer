@@ -708,4 +708,34 @@ export const browserProblemMetadata = {
     ],
     solution: "original-path-via-k-full-solution",
   },
+  "original-linked-code": {
+    id: "original-linked-code",
+    title: "Код из трёх цифр",
+    hints: [
+      "original-linked-code-hint-focus",
+      "original-linked-code-hint-strategy",
+      "original-linked-code-hint-next-step",
+    ],
+    solution: "original-linked-code-full-solution",
+  },
+  "original-signal-flags": {
+    id: "original-signal-flags",
+    title: "Сигнальные флажки",
+    hints: [
+      "original-signal-flags-hint-focus",
+      "original-signal-flags-hint-strategy",
+      "original-signal-flags-hint-next-step",
+    ],
+    solution: "original-signal-flags-full-solution",
+  },
+  "original-two-color-pairs": {
+    id: "original-two-color-pairs",
+    title: "Пары двух цветов",
+    hints: [
+      "original-two-color-pairs-hint-focus",
+      "original-two-color-pairs-hint-strategy",
+      "original-two-color-pairs-hint-next-step",
+    ],
+    solution: "original-two-color-pairs-full-solution",
+  },
 } as const;

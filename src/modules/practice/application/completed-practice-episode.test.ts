@@ -48,6 +48,7 @@ describe("completed Practice episode facts", () => {
       "pack-q",
       "pack-r",
       "pack-s",
+      "pack-t",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -219,6 +220,15 @@ describe("completed Practice episode facts", () => {
           "original-two-frames",
           "original-notched-sheet",
           "original-path-via-k",
+        ],
+      },
+      {
+        id: "pack-t",
+        name: "Условия, варианты и гарантия",
+        problemIds: [
+          "original-linked-code",
+          "original-signal-flags",
+          "original-two-color-pairs",
         ],
       },
     ]);
