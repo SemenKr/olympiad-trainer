@@ -1,3 +1,4 @@
+import { originalOnlyBeta } from "../../modules/practice/server/content-access";
 import type { Metadata } from "next";
 import { ProgressOverview } from "@/modules/practice/ui/progress-overview";
 import { recoveryEnabled } from "../../modules/learner/server/recovery-security";
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default function ProgressPage() {
-  return <ProgressOverview recoveryAvailable={recoveryEnabled()} />;
+  return (
+    <ProgressOverview
+      originalOnly={originalOnlyBeta()}
+      recoveryAvailable={recoveryEnabled()}
+    />
+  );
 }

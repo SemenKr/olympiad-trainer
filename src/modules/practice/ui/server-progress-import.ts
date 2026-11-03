@@ -24,7 +24,10 @@ import {
 const PRACTICE_SESSION_MUTATION_LOCK =
   "olympiad-trainer:practice-session-mutation";
 
-export async function ensureServerProgressImported(storage?: Storage) {
+export async function ensureServerProgressImported(
+  storage?: Storage,
+  preserveLegacy = false,
+) {
   if (!navigator.locks?.request)
     throw new Error("Practice session lock is unavailable.");
   const store = storage ?? captureLearnerStorage();
@@ -36,6 +39,17 @@ export async function ensureServerProgressImported(storage?: Storage) {
         { mode: "exclusive" },
         async () => {
           await assertCanonicalStorageCurrent(store);
+          if (preserveLegacy) {
+            if (
+              store.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) === null &&
+              store.getItem(
+                "olympiad-trainer:practice-progress-finish-pending",
+              ) === null
+            )
+              await importBrowserProgressEvidence(null, owner);
+            await assertCanonicalStorageCurrent(store);
+            return null;
+          }
           const revision = canonicalStorageRevision(store);
           const before = new Map(
             CANONICAL_SLOTS.map((k) => [k, store.getItem(k)]),

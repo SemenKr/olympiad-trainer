@@ -10,6 +10,10 @@ import {
   packHref,
   type PackId,
 } from "../../../modules/practice/application/completed-practice-episode";
+vi.mock("../../../modules/practice/server/content-access", () => ({
+  originalOnlyBeta: () => false,
+  BETA_PACKS: {},
+}));
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
 vi.mock("../actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),

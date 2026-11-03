@@ -1,3 +1,5 @@
+import { originalOnlyBeta } from "../../../modules/practice/server/content-access";
+import { BetaUnavailable } from "../../beta-practice";
 import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   PARROTS_TRANSFER_PROBLEM_ID,
@@ -13,6 +15,7 @@ export default async function TransferPracticePage({
 }: {
   searchParams: Promise<{ problem?: string }>;
 }) {
+  if (originalOnlyBeta()) return <BetaUnavailable />;
   const requested = (await searchParams).problem;
   const startTransferProblemId =
     requested === PARROTS_TRANSFER_PROBLEM_ID

@@ -27,11 +27,13 @@ type ProgressLoad =
   | { status: "error" }
   | {
       status: "ready";
-      interpretations: readonly [
-        LearnerProgressInterpretation,
-        LearnerProgressInterpretation,
-        LearnerProgressInterpretation,
-      ];
+      interpretations:
+        | readonly [
+            LearnerProgressInterpretation,
+            LearnerProgressInterpretation,
+            LearnerProgressInterpretation,
+          ]
+        | null;
       episodes: readonly RecentPracticeEpisode[];
       journeyTotalXp: number;
       reviewAvailable: boolean | null;
@@ -40,8 +42,10 @@ type ProgressLoad =
 
 export function ProgressOverview({
   recoveryAvailable = false,
+  originalOnly = false,
 }: {
   recoveryAvailable?: boolean;
+  originalOnly?: boolean;
 } = {}) {
   const [load, setLoad] = useState<ProgressLoad>({ status: "loading" });
   const [retry, setRetry] = useState(0);
@@ -51,10 +55,10 @@ export function ProgressOverview({
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      void ensureServerProgressImported()
+      void ensureServerProgressImported(undefined, originalOnly)
         .then(() =>
           Promise.all([
-            readServerProgress(),
+            originalOnly ? Promise.resolve(null) : readServerProgress(),
             readServerRecentPracticeEpisodes(),
             readServerPracticeJourney(),
             readServerReviewAvailability().catch(() => null),
@@ -87,7 +91,7 @@ export function ProgressOverview({
     return () => {
       active = false;
     };
-  }, [retry]);
+  }, [retry, originalOnly]);
 
   useEffect(() => {
     if (load.status !== "loading") headingRef.current?.focus();
@@ -129,81 +133,91 @@ export function ProgressOverview({
       ) : (
         <div className={styles.content}>
           <div className={styles.work}>
-            <section
-              className={styles.evidence}
-              aria-labelledby="evidence-heading"
-            >
-              <h2 id="evidence-heading">Что уже получается</h2>
-              {load.interpretations.map((interpretation) => (
-                <ProgressEvidenceContent
-                  interpretation={interpretation}
-                  key={interpretation.learnerLabel}
-                />
-              ))}
-            </section>
+            {load.interpretations && (
+              <section
+                className={styles.evidence}
+                aria-labelledby="evidence-heading"
+              >
+                <h2 id="evidence-heading">Что уже получается</h2>
+                {load.interpretations.map((interpretation) => (
+                  <ProgressEvidenceContent
+                    interpretation={interpretation}
+                    key={interpretation.learnerLabel}
+                  />
+                ))}
+              </section>
+            )}
             <div className={styles.recent}>
               <RecentPracticeHistory episodes={load.episodes} />
             </div>
           </div>
-          <div className={styles.support}>
-            <div className={styles.next}>
-              <ProgressNextUsefulWork
-                completedPackIds={load.completedPackIds}
-                onPathRetry={() => {
-                  setLoad({ status: "loading" });
-                  setRetry((value) => value + 1);
-                }}
-                actionClassName={styles.primary}
-                className={styles["next-action"]}
-              />
-              <ReviewEntry
-                available={load.reviewAvailable}
-                actionClassName={styles.secondary}
-                className={styles["next-action"]}
-              />
-            </div>
-            <div className={styles.path}>
-              {load.completedPackIds ? (
-                <ProgressLearningPath
+          {!originalOnly && (
+            <div className={styles.support}>
+              <div className={styles.next}>
+                <ProgressNextUsefulWork
                   completedPackIds={load.completedPackIds}
-                  className={styles["path-card"]}
+                  onPathRetry={() => {
+                    setLoad({ status: "loading" });
+                    setRetry((value) => value + 1);
+                  }}
+                  actionClassName={styles.primary}
+                  className={styles["next-action"]}
                 />
-              ) : (
-                <section className={styles.error} aria-label="Путь тренировок">
-                  <h2>Путь тренировок</h2>
-                  <p role="alert">Не удалось загрузить отметки пути.</p>
-                  <button
-                    type="button"
-                    className={styles.secondary}
-                    onClick={() => {
-                      setLoad({ status: "loading" });
-                      setRetry((value) => value + 1);
-                    }}
+                <ReviewEntry
+                  available={load.reviewAvailable}
+                  actionClassName={styles.secondary}
+                  className={styles["next-action"]}
+                />
+              </div>
+              <div className={styles.path}>
+                {load.completedPackIds ? (
+                  <ProgressLearningPath
+                    completedPackIds={load.completedPackIds}
+                    className={styles["path-card"]}
+                  />
+                ) : (
+                  <section
+                    className={styles.error}
+                    aria-label="Путь тренировок"
                   >
-                    Повторить
-                  </button>
-                  <Link className={styles.secondary} href="/practice/choose">
-                    Выбрать тренировку
-                  </Link>
-                </section>
-              )}
+                    <h2>Путь тренировок</h2>
+                    <p role="alert">Не удалось загрузить отметки пути.</p>
+                    <button
+                      type="button"
+                      className={styles.secondary}
+                      onClick={() => {
+                        setLoad({ status: "loading" });
+                        setRetry((value) => value + 1);
+                      }}
+                    >
+                      Повторить
+                    </button>
+                    <Link className={styles.secondary} href="/practice/choose">
+                      Выбрать тренировку
+                    </Link>
+                  </section>
+                )}
+              </div>
+              <div className={styles.journey}>
+                <ProgressPracticeJourney
+                  totalXp={load.journeyTotalXp}
+                  className={styles["journey-card"]}
+                />
+              </div>
+              <section className={styles.destinations}>
+                <h2>Хочешь ещё?</h2>
+                <Link className={styles.secondary} href="/practice/choose">
+                  Выбрать тренировку
+                </Link>
+                <Link className={styles.secondary} href="/">
+                  На главную
+                </Link>
+              </section>
             </div>
-            <div className={styles.journey}>
-              <ProgressPracticeJourney
-                totalXp={load.journeyTotalXp}
-                className={styles["journey-card"]}
-              />
-            </div>
-            <section className={styles.destinations}>
-              <h2>Хочешь ещё?</h2>
-              <Link className={styles.secondary} href="/practice/choose">
-                Выбрать тренировку
-              </Link>
-              <Link className={styles.secondary} href="/">
-                На главную
-              </Link>
-            </section>
-          </div>
+          )}
+          {originalOnly && (
+            <Link href="/practice/choose">Выбрать авторский набор S или T</Link>
+          )}
         </div>
       )}
 
