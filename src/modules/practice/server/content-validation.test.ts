@@ -23,8 +23,8 @@ describe("repository content pipeline", () => {
   it("validates all authored problems and Packs against the identity baseline", () => {
     expect(PRACTICE_PROBLEM_DEFINITIONS.length).toBeGreaterThanOrEqual(60);
     expect(PRACTICE_PACKS.length).toBeGreaterThanOrEqual(18);
-    expect(baseline.problems).toHaveLength(63);
-    expect(baseline.packs).toHaveLength(19);
+    expect(baseline.problems).toHaveLength(66);
+    expect(baseline.packs).toHaveLength(20);
     expect(validate()).toEqual([]);
   });
   it("detects duplicate IDs before lookup construction", () => {

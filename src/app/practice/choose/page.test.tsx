@@ -43,10 +43,11 @@ afterEach(() => {
 
 function catalog(container: HTMLElement) {
   const cards = [...container.querySelectorAll("article")];
-  expect(cards).toHaveLength(19);
+  expect(cards).toHaveLength(20);
   expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual([
     ...LEARNING_PATH_V1.map(({ packId }) => `${packId}-title`),
     "pack-s-title",
+    "pack-t-title",
   ]);
   for (const [index, entry] of LEARNING_PATH_V1.entries()) {
     const pack = packById(entry.packId)!;
@@ -78,7 +79,7 @@ function deferred<T>() {
 }
 
 describe("Choose Practice stable catalog", () => {
-  it("renders eighteen editorial Packs and optional Pack S before any reads resolve", () => {
+  it("renders eighteen editorial Packs and additional original Packs before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
     catalog(container);
@@ -159,7 +160,7 @@ describe("Choose Practice stable catalog", () => {
         packHref("pack-h"),
       );
       expect(document.activeElement).toBe(summary.querySelector("h2"));
-      expect(container.querySelectorAll("article")).toHaveLength(19);
+      expect(container.querySelectorAll("article")).toHaveLength(20);
     } finally {
       await act(async () => root.unmount());
     }
