@@ -422,7 +422,7 @@ function HomePracticeLayout({
             >
               <h3 id="choose-practice-title">Выбрать тренировку</h3>
               <p>
-                {PRACTICE_PACKS.length} наборов по{" "}
+                Наборы: {PRACTICE_PACKS.length}. В каждом по{" "}
                 {PRACTICE_PACKS[0].problemIds.length} задачи. Выбирай тему сам.
               </p>
               <Link className={styles.secondary} href="/practice/choose">
