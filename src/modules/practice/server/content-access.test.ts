@@ -32,6 +32,27 @@ describe("original-only beta boundary", () => {
       BETA_PROBLEM_IDS,
     );
   });
+  it("keeps local Pack U outside the Production allowlist", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ORIGINAL_ONLY_BETA", "false");
+    const ids = [
+      "original-box-totals",
+      "original-fourteen-cards",
+      "original-bead-badges",
+    ];
+    expect(BETA_PROBLEM_IDS).toHaveLength(6);
+    for (const id of ids) {
+      expect(BETA_PROBLEM_IDS as readonly string[]).not.toContain(id);
+      expect(() => getLearnerSafePracticeProblem(id)).toThrow();
+      await expect(submitPracticeAnswer(id, "1")).rejects.toThrow();
+    }
+    expect(() =>
+      requireBetaFinish([], undefined, {
+        mode: "pack",
+        facts: { problems: ids.map((problemId) => ({ problemId })) },
+      }),
+    ).toThrow();
+  });
   it("denies direct projection, assistance and assessment for legacy IDs", async () => {
     vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
     for (const id of PRACTICE_PROBLEM_DEFINITIONS.filter(

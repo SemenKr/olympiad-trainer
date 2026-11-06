@@ -193,6 +193,15 @@ export const PRACTICE_PACKS = [
       "original-two-color-pairs",
     ],
   },
+  {
+    id: "pack-u",
+    name: "От условия к рассуждению",
+    problemIds: [
+      "original-box-totals",
+      "original-fourteen-cards",
+      "original-bead-badges",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

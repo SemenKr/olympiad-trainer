@@ -738,4 +738,34 @@ export const browserProblemMetadata = {
     ],
     solution: "original-two-color-pairs-full-solution",
   },
+  "original-box-totals": {
+    id: "original-box-totals",
+    title: "Три коробки с деталями",
+    hints: [
+      "original-box-totals-hint-focus",
+      "original-box-totals-hint-strategy",
+      "original-box-totals-hint-next-step",
+    ],
+    solution: "original-box-totals-full-solution",
+  },
+  "original-fourteen-cards": {
+    id: "original-fourteen-cards",
+    title: "Три карточки с суммой 14",
+    hints: [
+      "original-fourteen-cards-hint-focus",
+      "original-fourteen-cards-hint-strategy",
+      "original-fourteen-cards-hint-next-step",
+    ],
+    solution: "original-fourteen-cards-full-solution",
+  },
+  "original-bead-badges": {
+    id: "original-bead-badges",
+    title: "Значки из бусин",
+    hints: [
+      "original-bead-badges-hint-focus",
+      "original-bead-badges-hint-strategy",
+      "original-bead-badges-hint-next-step",
+    ],
+    solution: "original-bead-badges-full-solution",
+  },
 } as const;

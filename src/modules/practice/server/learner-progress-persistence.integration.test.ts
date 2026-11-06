@@ -303,6 +303,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     "pack-r",
     "pack-s",
     "pack-t",
+    "pack-u",
   ] as const)(
     "persists and reads %s completion receipts through retries and history pruning",
     async (packId) => {

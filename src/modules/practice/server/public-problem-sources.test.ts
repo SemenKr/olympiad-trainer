@@ -8,11 +8,11 @@ import { getPublicProblemSources } from "./public-problem-sources";
 describe("public source attribution boundary", () => {
   it("projects every registered problem exactly once, using factual provenance", () => {
     const sources = getPublicProblemSources();
-    expect(sources).toHaveLength(66);
+    expect(sources).toHaveLength(69);
     expect(sources.map((source) => source.problemId)).toEqual(
       PRACTICE_PROBLEM_DEFINITIONS.map((problem) => problem.id),
     );
-    expect(new Set(sources.map((source) => source.problemId)).size).toBe(66);
+    expect(new Set(sources.map((source) => source.problemId)).size).toBe(69);
     expect(sources.filter((source) => source.kind === "sourced")).toHaveLength(
       60,
     );
