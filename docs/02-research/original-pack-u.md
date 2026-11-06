@@ -22,11 +22,8 @@ Astra inspected A–R catalog statements and the separate S/T modules before des
 
 The exact local `pack-u` tuple follows the order above and is appended after unchanged A–T. Existing IDs, hint/solution identities, Pack tuples, records, schema and Finish/ownership contracts are preserved. Unregistered future-Pack fixtures move to unused `pack-v`, retaining their unknown-ID reader assertions. No migration or dependency is needed after0023. Registration makes U available in the existing full-catalog local workflow; Production projections/actions/Finish still reject U through the unchanged explicit S/T policy.
 
-- [ ] Independent human verifies exact statements, hints, all answers, exhaustive cases, upper bound and constructions.
-- [ ] Human reviews Grade 5 wording/suitability and observes learners.
 - [x] Owner approved distribution of all three original Pack U problems, including statements, hints, solutions and related materials, within Olympiad Trainer and its public GitHub repository, 2026-11-06. No open license, independent originality certification or human educator sign-off is implied.
-- [ ] Human verifies exact statements, hints, answers, exhaustive cases, upper bound and constructions; AI review does not satisfy this gate.
-- [ ] Human reviews Grade 5 wording/suitability and observes learners.
+- [ ] Human verifies mathematical correctness and Grade 5 suitability; AI review does not satisfy this gate.
 - [ ] Separate release approval and protected deployment verification before any public exposure through the running application.
 
 Local checks and independent AI review evidence belong in [acceptance record](../05-development/original-pack-u-acceptance.md). AI review is not independent human certification.

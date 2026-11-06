@@ -99,7 +99,10 @@ describe("original Pack U", () => {
         "next-step",
       ]);
       expect(problem.provenance.rightsNote).toContain(
-        "Публичное распространение владельцем не разрешено",
+        "владелец одобрил публичное распространение всех трёх оригинальных задач Pack U",
+      );
+      expect(problem.provenance.rightsNote).toContain(
+        "не является одобрением Production-релиза",
       );
       for (const projection of [
         getLearnerSafePracticeProblem(id),
