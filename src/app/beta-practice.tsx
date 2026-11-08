@@ -5,6 +5,7 @@ import {
   BETA_PROBLEM_IDS,
 } from "../modules/practice/server/content-access";
 import { getLearnerSafePackProblems } from "../modules/practice/server/problem-catalog";
+import styles from "./page.module.scss";
 export function BetaUnavailable() {
   return (
     <main>
@@ -21,16 +22,28 @@ export function BetaUnavailable() {
 }
 export function BetaHome() {
   return (
-    <main>
-      <h1>Авторские задачи · 5 класс</h1>
-      <p>
-        Экспериментальная версия: наборы S и T. Адаптивная практика, повторение
-        и олимпиадная работа временно недоступны.
-      </p>
-      <Link href="/practice">Начать тренировку</Link>
-      <Link href="/practice/choose">Выбрать набор</Link>
-      <Link href="/progress">История и прогресс</Link>
-      <Link href="/restore">Сохранить или восстановить доступ</Link>
+    <main className={styles.home}>
+      <header className={styles.introduction}>
+        <h1>Авторские задачи · 5 класс</h1>
+        <p>
+          Экспериментальная версия: наборы S и T. Адаптивная практика,
+          повторение и олимпиадная работа временно недоступны.
+        </p>
+      </header>
+      <Link className={styles.primary} href="/practice">
+        Начать тренировку
+      </Link>
+      <nav className={styles["secondary-area"]} aria-label="Другие действия">
+        <Link className={styles.secondary} href="/practice/choose">
+          Выбрать набор
+        </Link>
+        <Link className={styles.secondary} href="/progress">
+          История и прогресс
+        </Link>
+        <Link className={styles.secondary} href="/restore">
+          Сохранить или восстановить доступ
+        </Link>
+      </nav>
     </main>
   );
 }
