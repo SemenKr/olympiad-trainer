@@ -1,6 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("./practice/actions", () => ({
+  verifyPersistedReasoningCheckpointObservation: vi.fn(),
+}));
+
 vi.mock("../modules/practice/ui/practice-session", () => ({
   PracticeSession: () => null,
 }));
@@ -19,7 +23,8 @@ describe("original beta entry", () => {
   it("gives Start a primary target and separates the existing secondary destinations", () => {
     const markup = renderToStaticMarkup(<BetaHome />);
     expect(markup).toContain(`class="${styles.home}"`);
-    expect(markup).toContain(`class="${styles.primary}" href="/practice"`);
+    expect(markup).toContain('role="status"');
+    expect(markup).not.toContain('href="/practice"');
     expect(markup).toContain('aria-label="Другие действия"');
     expect(
       markup.match(new RegExp(`class="${styles.secondary}"`, "g")),

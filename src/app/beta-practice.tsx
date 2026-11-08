@@ -6,6 +6,7 @@ import {
 } from "../modules/practice/server/content-access";
 import { getLearnerSafePackProblems } from "../modules/practice/server/problem-catalog";
 import styles from "./page.module.scss";
+import { BetaHomeAction } from "./beta-home-action";
 export function BetaUnavailable() {
   return (
     <main>
@@ -30,9 +31,7 @@ export function BetaHome() {
           повторение и олимпиадная работа временно недоступны.
         </p>
       </header>
-      <Link className={styles.primary} href="/practice">
-        Начать тренировку
-      </Link>
+      <BetaHomeAction allowedProblemIds={BETA_PROBLEM_IDS} />
       <nav className={styles["secondary-area"]} aria-label="Другие действия">
         <Link className={styles.secondary} href="/practice/choose">
           Выбрать набор
