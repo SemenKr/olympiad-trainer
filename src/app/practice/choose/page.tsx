@@ -15,6 +15,7 @@ import { UnfinishedPracticeContext } from "./unfinished-practice-context";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
+  const beta = originalOnlyBeta();
   const entries = [
     ...LEARNING_PATH_V1.map((entry, index) => ({
       ...entry,
@@ -24,7 +25,7 @@ export default function ChoosePracticePage() {
       (pack) => !LEARNING_PATH_V1.some((entry) => entry.packId === pack.id),
     ).map((pack) => ({ packId: pack.id, description: null, position: null })),
   ];
-  const visibleEntries = originalOnlyBeta()
+  const visibleEntries = beta
     ? entries.filter((e) => Object.hasOwn(BETA_PACKS, e.packId))
     : entries;
   return (
@@ -34,11 +35,12 @@ export default function ChoosePracticePage() {
         <p className={styles.eyebrow}>5 КЛАСС · МАТЕМАТИКА</p>
         <h1>Тренировки</h1>
         <p>
-          Можно идти по предложенному пути или выбрать любой набор самому. Путь
-          не означает порядок сложности или уровень знаний.
+          {beta
+            ? "Выбери любой из авторских наборов S и T. Буквы обозначают наборы, а не ступени сложности."
+            : "Можно идти по предложенному пути или выбрать любой набор самому. Путь не означает порядок сложности или уровень знаний."}
         </p>
       </header>
-      {!originalOnlyBeta() && <UnfinishedPracticeContext />}
+      {!beta && <UnfinishedPracticeContext />}
       <section
         className={styles["free-choice"]}
         aria-labelledby="all-packs-title"
@@ -59,9 +61,11 @@ export default function ChoosePracticePage() {
                 className={styles["pack-card"]}
               >
                 <p className={styles.eyebrow}>
-                  {entry.position === null
-                    ? "ДОПОЛНИТЕЛЬНЫЙ НАБОР"
-                    : `ШАГ ${entry.position} · НАБОР`}{" "}
+                  {beta
+                    ? "НАБОР"
+                    : entry.position === null
+                      ? "ДОПОЛНИТЕЛЬНЫЙ НАБОР"
+                      : `ШАГ ${entry.position} · НАБОР`}{" "}
                   {pack.id.replace("pack-", "").toUpperCase()}
                 </p>
                 <h2 id={`${pack.id}-title`}>{pack.name}</h2>

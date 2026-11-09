@@ -200,6 +200,8 @@ describe("direct /practice restore", () => {
       );
       expect(container.textContent).toContain(storedPack.name);
       expect(container.textContent).toContain(requestedPack.name);
+      expect(container.textContent).toContain("нажми «Завершить»");
+      expect(container.textContent).not.toContain("«Завершить тренировку»");
       expect(document.activeElement).toBe(container.querySelector("h1"));
       expect(
         [...container.querySelectorAll("a")].map((link) => [
