@@ -704,7 +704,7 @@ export function PracticeSession({
         <p>Выбранный набор: {packById(startPackId)!.name}.</p>
         <p>
           Чтобы начать выбранный набор, открой текущую тренировку и нажми
-          «Завершить тренировку». Затем можно выбрать другой набор.
+          «Завершить». Затем можно выбрать другой набор.
         </p>
         <Link
           className={navigationStyles.primary}
