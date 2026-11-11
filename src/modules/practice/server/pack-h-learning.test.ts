@@ -6,12 +6,10 @@ import { validatePracticeContent } from "./content-validation";
 import {
   getLearnerSafePracticeProblem,
   getProblemDefinition,
-  getRevealedPracticeHint,
   getRevealedPracticeSolution,
   PRACTICE_PROBLEM_DEFINITIONS,
 } from "./problem-catalog";
 import { browserProblemMetadata } from "./browser-problem-metadata";
-import { requireBetaFinish } from "./content-access";
 
 const ids = [
   "rabbit-carrot-shortfall",
@@ -102,21 +100,5 @@ describe("Pack H reasoning slice", () => {
         getProblemDefinition("coinciding-seats").solution.id,
       ),
     ).not.toHaveProperty("learning");
-  });
-  it("keeps all three historical items unavailable through beta content and Finish boundaries", () => {
-    vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
-    for (const id of ids) {
-      const p = getProblemDefinition(id);
-      expect(() => getLearnerSafePracticeProblem(id)).toThrow();
-      for (const h of p.hints)
-        expect(() => getRevealedPracticeHint(id, h.id)).toThrow();
-      expect(() => getRevealedPracticeSolution(id, p.solution.id)).toThrow();
-    }
-    expect(() =>
-      requireBetaFinish([], undefined, {
-        mode: "pack",
-        facts: { problems: ids.map((problemId) => ({ problemId })) },
-      }),
-    ).toThrow();
   });
 });

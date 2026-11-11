@@ -115,14 +115,11 @@ import {
 } from "./fixed-practice-session-state";
 import {
   packIdFromProblemIds,
-  packIdFromCompletedProblemIds,
   packById,
-  packHref,
   type PackId,
 } from "../application/completed-practice-episode";
 import { getUnfinishedPracticeLabel } from "./unfinished-practice-label";
 import navigationStyles from "../../../app/page.module.scss";
-import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
 import { ensureServerProgressImported } from "./server-progress-import";
 
 type PracticeSessionProps = Readonly<{
@@ -141,7 +138,6 @@ type PracticeSessionProps = Readonly<{
       ]
     >
   >;
-  allowedProblemIds?: readonly string[];
   startPackId?: PackId;
   transferProblem?: LearnerSafePracticeProblem;
   parrotsProblem?: LearnerSafePracticeProblem;
@@ -289,7 +285,6 @@ export async function finishPracticeSessionAndNavigate(
   results: readonly PracticeSessionResult[],
   navigate: () => void,
   storage?: Storage,
-  preserveLegacy = false,
 ): Promise<PracticeFinishOutcome> {
   let outcome: PracticeFinishOutcome = "outcome-unknown";
   try {
@@ -300,10 +295,7 @@ export async function finishPracticeSessionAndNavigate(
       return "blocked";
     let importedLegacyFinish: string | null;
     try {
-      importedLegacyFinish = await ensureServerProgressImported(
-        storage,
-        preserveLegacy,
-      );
+      importedLegacyFinish = await ensureServerProgressImported(storage);
     } catch {
       return "outcome-unknown";
     }
@@ -377,7 +369,6 @@ export async function finishPracticeSessionAndNavigate(
 export function PracticeSession({
   problems,
   packs,
-  allowedProblemIds,
   startPackId = "pack-a",
   transferProblem,
   parrotsProblem,
@@ -408,7 +399,6 @@ export function PracticeSession({
     useState<UnfinishedPracticeSessionSnapshot | null>(null);
   const conflictHeadingRef = useRef<HTMLHeadingElement>(null);
   const [restoreError, setRestoreError] = useState(false);
-  const [restrictedState, setRestrictedState] = useState(false);
   const [unsupportedState, setUnsupportedState] = useState(false);
   const [adaptiveUnavailable, setAdaptiveUnavailable] = useState(false);
   const [packUnavailable, setPackUnavailable] = useState(false);
@@ -433,55 +423,6 @@ export function PracticeSession({
     queueMicrotask(() => {
       if (!active) return;
       setPackConflict(null);
-      if (allowedProblemIds && learnerStorage) {
-        // Inspect without a migration/read repair: blocked work and pending requests
-        // must retain their original bytes before any verification or mutation.
-        if (
-          learnerStorage.getItem(
-            "olympiad-trainer:practice-progress-finish-pending",
-          ) !== null ||
-          learnerStorage.getItem(PROGRESS_EVIDENCE_STORAGE_KEY) !== null
-        ) {
-          setRestrictedState(true);
-          return;
-        }
-        const permits = (value: unknown): boolean => {
-          if (!value || typeof value !== "object") return true;
-          if (Array.isArray(value)) return value.every(permits);
-          return Object.entries(value).every(([key, item]) => {
-            if (key === "problemId")
-              return (
-                typeof item === "string" && allowedProblemIds.includes(item)
-              );
-            if (key === "problemIds")
-              return (
-                Array.isArray(item) &&
-                item.every((id) => allowedProblemIds.includes(id))
-              );
-            return permits(item);
-          });
-        };
-        for (const key of [
-          "olympiad-trainer:practice-session",
-          "olympiad-trainer:practice-server-finish-request",
-        ]) {
-          const raw = learnerStorage.getItem(key);
-          if (raw === null) continue;
-          try {
-            const value = JSON.parse(raw);
-            if (
-              !permits(value) ||
-              (key.endsWith("practice-session") && value.mode !== "pack")
-            ) {
-              setRestrictedState(true);
-              return;
-            }
-          } catch {
-            setRestoreError(true);
-            return;
-          }
-        }
-      }
       void readVerifiedPracticeSessionSnapshot(
         verifyPersistedReasoningCheckpointObservation,
         learnerStorage,
@@ -564,7 +505,7 @@ export function PracticeSession({
                     ? packs![startPackId][0]
                     : problems[0],
               );
-          if (!allowedProblemIds && !snapshot && startMode === "pack") {
+          if (!snapshot && startMode === "pack") {
             await ensureServerProgressImported(learnerStorage);
             const [availability, completed] = await Promise.all([
               readServerAdaptiveRecommendation(),
@@ -616,7 +557,6 @@ export function PracticeSession({
     };
   }, [
     learnerStorage,
-    allowedProblemIds,
     restoreRetry,
     problems,
     packs,
@@ -662,21 +602,6 @@ export function PracticeSession({
     adaptiveUnavailable,
   ]);
 
-  if (restrictedState)
-    return (
-      <main>
-        <h1>Сохранённая тренировка временно недоступна</h1>
-        <p>
-          В этой версии доступны только авторские наборы S и T. Прежняя работа и
-          запрос завершения сохранены. Здесь продолжить их нельзя. Не удаляй
-          данные браузера; вернись к совместимой версии или сохрани доступ к
-          этому ученику перед созданием нового.
-        </p>
-        <Link href="/progress">История</Link>
-        <Link href="/restore">Сохранить доступ</Link>
-      </main>
-    );
-
   if (unsupportedState)
     return (
       <main>
@@ -706,20 +631,7 @@ export function PracticeSession({
           Чтобы начать выбранный набор, открой текущую тренировку и нажми
           «Завершить». Затем можно выбрать другой набор.
         </p>
-        <Link
-          className={navigationStyles.primary}
-          href={
-            allowedProblemIds && packConflict.mode === "pack"
-              ? packHref(
-                  packIdFromCompletedProblemIds(
-                    "status" in packConflict
-                      ? packConflict.completedResults.map((r) => r.problemId)
-                      : packConflict.problemIds,
-                  ) ?? startPackId,
-                )
-              : "/practice"
-          }
-        >
+        <Link className={navigationStyles.primary} href="/practice">
           Открыть текущую тренировку
         </Link>
         <Link className={navigationStyles.secondary} href="/practice/choose">
@@ -822,7 +734,6 @@ export function PracticeSession({
               );
             },
             learnerStorage,
-            Boolean(allowedProblemIds),
           ).then((outcome) => {
             if (outcome !== "completed") {
               setNoNextFinishOutcome(outcome);
@@ -958,7 +869,6 @@ export function PracticeSession({
         router.push(`/practice/summary?session=${sessionState.sessionId}`);
       },
       learnerStorage,
-      Boolean(allowedProblemIds),
     );
   }
 

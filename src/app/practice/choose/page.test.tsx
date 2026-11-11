@@ -10,11 +10,6 @@ import {
   packHref,
   type PackId,
 } from "../../../modules/practice/application/completed-practice-episode";
-const beta = vi.hoisted(() => ({ enabled: false }));
-vi.mock("../../../modules/practice/server/content-access", () => ({
-  originalOnlyBeta: () => beta.enabled,
-  BETA_PACKS: { "pack-s": [], "pack-t": [] },
-}));
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
 vi.mock("../actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
@@ -32,7 +27,6 @@ import { readVerifiedPracticeSessionSnapshot } from "../../../modules/practice/u
 import ChoosePracticePage from "./page";
 
 beforeEach(async () => {
-  beta.enabled = false;
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await installImmediatePracticeSessionLock();
   vi.mocked(readVerifiedPracticeSessionSnapshot).mockResolvedValue({
@@ -86,45 +80,6 @@ function deferred<T>() {
 }
 
 describe("Choose Practice stable catalog", () => {
-  it("offers only S/T as free choices in beta without a Learning Path or learner-data reads", async () => {
-    beta.enabled = true;
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    try {
-      await act(async () => root.render(<ChoosePracticePage />));
-      expect(container.textContent).toContain(
-        "Буквы обозначают наборы, а не ступени сложности",
-      );
-      expect(container.textContent).not.toMatch(
-        /предложенному пути|ДОПОЛНИТЕЛЬНЫЙ|ШАГ/,
-      );
-      expect(
-        container.querySelector('[aria-labelledby="learning-path-title"]'),
-      ).toBeNull();
-      const cards = [...container.querySelectorAll("article")];
-      expect(cards).toHaveLength(2);
-      for (const [index, id] of (["pack-s", "pack-t"] as const).entries()) {
-        const card = cards[index];
-        const pack = packById(id)!;
-        expect(card.getAttribute("aria-labelledby")).toBe(`${id}-title`);
-        expect(card.querySelector("p")?.textContent).toBe(
-          `НАБОР ${id.at(-1)!.toUpperCase()}`,
-        );
-        expect(card.querySelector("a")?.getAttribute("href")).toBe(
-          packHref(id),
-        );
-        expect(card.querySelector("a")?.getAttribute("aria-label")).toBe(
-          `Начать набор «${pack.name}»`,
-        );
-      }
-      expect(readVerifiedPracticeSessionSnapshot).not.toHaveBeenCalled();
-      expect(readServerLearningPath).not.toHaveBeenCalled();
-    } finally {
-      await act(async () => root.unmount());
-    }
-  });
-
   it("renders eighteen editorial Packs and additional original Packs before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);

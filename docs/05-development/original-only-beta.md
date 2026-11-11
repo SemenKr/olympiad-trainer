@@ -1,4 +1,6 @@
-# Original-only experimental beta
+# Original-only experimental beta — historical record
+
+Superseded by the owner-authorized unified Grade 5 product: A–U and existing learning flows now use the same catalog and server integrity rules in every environment. `ORIGINAL_ONLY_BETA` has no effect. Authentication, privacy, simulation assistance rules, canonical validation and operational deployment controls remain. This retirement does not grant historical-content reuse rights or authorize public release. The remainder records the former implementation and its verification.
 
 Local implementation on `feat/original-only-beta`, from main `4f9cd2c391a132d82f440fa948a05a189535ad37`. No commit, push, PR or deployment is authorized. Existing Production maintenance/access/build/cron controls are outside this task.
 

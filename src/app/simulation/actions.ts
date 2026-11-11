@@ -1,5 +1,4 @@
 "use server";
-import { requireFullCatalog } from "../../modules/practice/server/content-access";
 import type { LocalLearnerOwner } from "../../modules/learner/local-owner-context";
 import { resolveExpectedLearnerFromCookie } from "../../modules/practice/server/learner-identity";
 import { transactSimulation } from "../../modules/simulation/server/persistence";
@@ -7,14 +6,12 @@ import { getSimulationReferences } from "../../modules/simulation/server/content
 import { requireSimulationId } from "../../modules/simulation/domain/simulation";
 
 export async function readSimulation(expected: LocalLearnerOwner) {
-  requireFullCatalog();
   return transactSimulation(await resolveExpectedLearnerFromCookie(expected), {
     kind: "read",
   });
 }
 
 export async function startSimulation(expected: LocalLearnerOwner) {
-  requireFullCatalog();
   return transactSimulation(await resolveExpectedLearnerFromCookie(expected), {
     kind: "start",
   });
@@ -26,7 +23,6 @@ export async function saveSimulation(
   work: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   return transactSimulation(await resolveExpectedLearnerFromCookie(expected), {
     kind: "save",
     sessionId,
@@ -42,7 +38,6 @@ export async function finishSimulation(
   confirmed: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   return transactSimulation(await resolveExpectedLearnerFromCookie(expected), {
     kind: "finish",
     sessionId,
@@ -56,7 +51,6 @@ export async function readSimulationReferences(
   sessionId: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   const id = requireSimulationId(sessionId);
   const { attempt } = await readSimulation(expected);
   if (!attempt || attempt.sessionId !== id || attempt.finishedAt === null)

@@ -42,10 +42,8 @@ type ProgressLoad =
 
 export function ProgressOverview({
   recoveryAvailable = false,
-  originalOnly = false,
 }: {
   recoveryAvailable?: boolean;
-  originalOnly?: boolean;
 } = {}) {
   const [load, setLoad] = useState<ProgressLoad>({ status: "loading" });
   const [retry, setRetry] = useState(0);
@@ -55,10 +53,10 @@ export function ProgressOverview({
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      void ensureServerProgressImported(undefined, originalOnly)
+      void ensureServerProgressImported()
         .then(() =>
           Promise.all([
-            originalOnly ? Promise.resolve(null) : readServerProgress(),
+            readServerProgress(),
             readServerRecentPracticeEpisodes(),
             readServerPracticeJourney(),
             readServerReviewAvailability().catch(() => null),
@@ -91,7 +89,7 @@ export function ProgressOverview({
     return () => {
       active = false;
     };
-  }, [retry, originalOnly]);
+  }, [retry]);
 
   useEffect(() => {
     if (load.status !== "loading") headingRef.current?.focus();
@@ -151,7 +149,7 @@ export function ProgressOverview({
               <RecentPracticeHistory episodes={load.episodes} />
             </div>
           </div>
-          {!originalOnly && (
+          {
             <div className={styles.support}>
               <div className={styles.next}>
                 <ProgressNextUsefulWork
@@ -214,10 +212,7 @@ export function ProgressOverview({
                 </Link>
               </section>
             </div>
-          )}
-          {originalOnly && (
-            <Link href="/practice/choose">Выбрать авторский набор S или T</Link>
-          )}
+          }
         </div>
       )}
 
