@@ -91,7 +91,7 @@ describe("Sources page", () => {
   it("keeps the footer destination keyboard focusable", () => {
     const { document } = new JSDOM(renderToStaticMarkup(<SiteFooter />)).window;
     const link = document.querySelector<HTMLAnchorElement>("footer a")!;
-    expect(link.textContent).toBe("Источники и авторские права");
+    expect(link.textContent).toBe("Источники задач");
     expect(link.getAttribute("href")).toBe("/sources");
     expect(link.tabIndex).toBe(0);
     link.focus();
