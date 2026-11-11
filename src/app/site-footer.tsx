@@ -5,7 +5,7 @@ export default function SiteFooter() {
   return (
     <footer className={styles.footer}>
       <Link href="/sources" prefetch={false}>
-        Источники и авторские права
+        Источники задач
       </Link>
     </footer>
   );
