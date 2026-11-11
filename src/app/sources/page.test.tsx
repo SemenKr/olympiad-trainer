@@ -21,7 +21,7 @@ describe("Sources page", () => {
       expect(section.querySelector(`h2#${label}`)?.textContent).toBeTruthy();
     }
     const rows = [...document.querySelectorAll("li")];
-    expect(rows).toHaveLength(66);
+    expect(rows).toHaveLength(69);
     for (const [index, row] of rows.entries()) {
       const source = getPublicProblemSources()[index];
       expect(row.querySelector("h3")?.textContent).toBe(source.title);

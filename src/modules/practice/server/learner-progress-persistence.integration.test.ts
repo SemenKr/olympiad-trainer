@@ -235,7 +235,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     }
   });
 
-  it("beta preserves historical reads, permits T Finish, rejects new legacy Finish", async () => {
+  it("beta preserves historical reads, permits T Finish, and rejects new legacy and U Finish", async () => {
     const context = learnerContext(await learner());
     await importLegacyProgress(context, null);
     await persistFinishContributions(
@@ -252,17 +252,34 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     try {
       expect(await readRecentPracticeEpisodes(context)).toEqual(history);
       expect(await readLearnerProgress(context)).toEqual(progress);
-      const rejected = randomUUID();
-      await expect(
-        persistFinishContributions(
-          context,
-          rejected,
-          [],
-          undefined,
-          coreEpisode,
-          2,
-        ),
-      ).rejects.toThrow();
+      for (const rejectedEpisode of [
+        coreEpisode,
+        {
+          mode: "pack",
+          facts: {
+            version: 1,
+            problems: packProblemIds("pack-u").map(noAnswer),
+          },
+        },
+      ]) {
+        const rejected = randomUUID();
+        await expect(
+          persistFinishContributions(
+            context,
+            rejected,
+            [],
+            undefined,
+            rejectedEpisode,
+            2,
+          ),
+        ).rejects.toThrow();
+        expect(
+          await getProgressDb()
+            .select()
+            .from(practiceFinishReceipts)
+            .where(eq(practiceFinishReceipts.sessionId, rejected)),
+        ).toEqual([]);
+      }
       const session = randomUUID();
       const episode = {
         mode: "pack",
@@ -303,6 +320,7 @@ describe.skipIf(!testUrl)("PostgreSQL learner Progress", () => {
     "pack-r",
     "pack-s",
     "pack-t",
+    "pack-u",
   ] as const)(
     "persists and reads %s completion receipts through retries and history pruning",
     async (packId) => {

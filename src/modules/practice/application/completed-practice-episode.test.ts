@@ -49,6 +49,7 @@ describe("completed Practice episode facts", () => {
       "pack-r",
       "pack-s",
       "pack-t",
+      "pack-u",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -229,6 +230,15 @@ describe("completed Practice episode facts", () => {
           "original-linked-code",
           "original-signal-flags",
           "original-two-color-pairs",
+        ],
+      },
+      {
+        id: "pack-u",
+        name: "От условия к рассуждению",
+        problemIds: [
+          "original-box-totals",
+          "original-fourteen-cards",
+          "original-bead-badges",
         ],
       },
     ]);

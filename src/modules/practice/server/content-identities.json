@@ -924,6 +924,45 @@
       "solutionId": "original-two-color-pairs-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "original-box-totals",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-box-totals-hint-focus",
+        "original-box-totals-hint-strategy",
+        "original-box-totals-hint-next-step"
+      ],
+      "solutionId": "original-box-totals-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "original-fourteen-cards",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-fourteen-cards-hint-focus",
+        "original-fourteen-cards-hint-strategy",
+        "original-fourteen-cards-hint-next-step"
+      ],
+      "solutionId": "original-fourteen-cards-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "original-bead-badges",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "original-bead-badges-hint-focus",
+        "original-bead-badges-hint-strategy",
+        "original-bead-badges-hint-next-step"
+      ],
+      "solutionId": "original-bead-badges-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -1085,6 +1124,14 @@
         "original-linked-code",
         "original-signal-flags",
         "original-two-color-pairs"
+      ]
+    },
+    {
+      "id": "pack-u",
+      "problemIds": [
+        "original-box-totals",
+        "original-fourteen-cards",
+        "original-bead-badges"
       ]
     }
   ]

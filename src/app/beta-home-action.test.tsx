@@ -82,6 +82,17 @@ it.each([
   [key, "{"],
   [key, JSON.stringify({ ...session(), mode: "review" })],
   [key, JSON.stringify({ ...session(), problemIds: ["coinciding-seats"] })],
+  [key, JSON.stringify({ ...session(), problemIds: packProblemIds("pack-u") })],
+  [
+    "olympiad-trainer:practice-server-finish-request",
+    JSON.stringify({
+      episodeMode: "pack",
+      episodeFacts: {
+        version: 1,
+        problems: [{ problemId: "original-box-totals" }],
+      },
+    }),
+  ],
   [key, JSON.stringify({ ...session(), activeProblemIndex: 99 })],
   ["olympiad-trainer:practice-progress-finish-pending", "{}"],
   ["olympiad-trainer:progress-evidence-v0", "{}"],

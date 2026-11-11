@@ -1,3 +1,6 @@
+import { originalBoxTotalsProblem } from "./problems/original-box-totals";
+import { originalFourteenCardsProblem } from "./problems/original-fourteen-cards";
+import { originalBeadBadgesProblem } from "./problems/original-bead-badges";
 import type { ProblemDefinition } from "./problem-catalog";
 import { originalTwoFramesProblem } from "./problems/original-two-frames";
 import { originalNotchedSheetProblem } from "./problems/original-notched-sheet";
@@ -14,4 +17,7 @@ export const NEW_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   originalLinkedCodeProblem,
   originalSignalFlagsProblem,
   originalTwoColorPairsProblem,
+  originalBoxTotalsProblem,
+  originalFourteenCardsProblem,
+  originalBeadBadgesProblem,
 ];
