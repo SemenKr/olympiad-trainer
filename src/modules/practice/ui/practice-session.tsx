@@ -1797,6 +1797,16 @@ function PracticeProblemEpisode({
                 Решение открыто
               </h2>
               <p>{revealedSolution.text}</p>
+              {revealedSolution.learning ? (
+                <dl>
+                  <dt>Тема</dt>
+                  <dd>{revealedSolution.learning.topic}</dd>
+                  <dt>Способ рассуждения</dt>
+                  <dd>{revealedSolution.learning.method}</dd>
+                  <dt>Что пригодилось</dt>
+                  <dd>{revealedSolution.learning.prerequisites}</dd>
+                </dl>
+              ) : null}
             </section>
           ) : null}
 
