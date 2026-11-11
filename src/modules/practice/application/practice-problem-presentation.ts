@@ -60,6 +60,11 @@ export type RevealedPracticeHint = Readonly<{
 export type RevealedPracticeSolution = Readonly<{
   solutionId: string;
   text: string;
+  learning?: Readonly<{
+    topic: string;
+    method: string;
+    prerequisites: string;
+  }>;
 }>;
 
 export type RevealedReasoningCheckpoint = Readonly<{

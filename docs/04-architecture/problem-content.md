@@ -41,3 +41,9 @@ No server-side Practice-session persistence is introduced to enforce hint or sol
 [Learning Path v1](learning-path-v1.md) adds an optional editorial sequence referencing existing Pack IDs, with no difficulty or prerequisite metadata. J/K/L display names omit technical prefixes. Pack tuples, protected content and evidence policies are unchanged.
 
 Repository authoring and structural/identity checks: [Content Pipeline v1](../05-development/content-pipeline-v1.md) and [Content Pipeline v2 authoring](../05-development/content-pipeline-v2-authoring.md). Human verification remains required for mathematical correctness and usage rights.
+
+### Pack H reasoning support
+
+The existing Pack H order now connects comparing totals, a changing shortfall, and balancing groups. Statements, numeric assessments, provenance, support IDs and Pack identity stay unchanged. Its independently authored training explanations include optional `solution.learning` topic, method and prerequisite descriptions, projected only through the existing protected solution reveal and restored using the existing exposure flow. They are shown after the solution, never in initial browser metadata or session persistence. Content validation rejects empty descriptions.
+
+These are local editorial descriptions, not official source classifications, a difficulty scale, a prerequisite graph or adopted mastery taxonomy. Quantitative modeling and decomposition reuse vocabulary from the provisional skill-taxonomy research without adopting that research as a domain model. Grade 5 suitability and instructional usefulness require human/learner observation; no effectiveness claim follows from AI or test agreement. Existing historical-content rights and original-only S/T beta restrictions remain in force. No additional source statements or official solutions were copied for this slice.

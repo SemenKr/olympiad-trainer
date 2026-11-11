@@ -87,6 +87,16 @@ export function validatePracticeContent(
           : "training-adaptation"),
       `${label}: solution kind`,
     );
+    if (p.solution.learning) {
+      check(
+        [
+          p.solution.learning.topic,
+          p.solution.learning.method,
+          p.solution.learning.prerequisites,
+        ].every(nonempty),
+        `${label}: empty solution learning metadata`,
+      );
+    }
     const a = p.assessment;
     if (a.kind === "nonnegative-integer") {
       check(
