@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("../ui/practice-session", () => ({ PracticeSession: () => null }));
+vi.mock("@/modules/practice/ui/practice-session", () => ({
+  PracticeSession: () => null,
+}));
+vi.mock(
+  "@/modules/practice/server/problem-catalog",
+  async () => import("./problem-catalog"),
+);
 import {
   BETA_PROBLEM_IDS,
   originalOnlyBeta,
@@ -13,7 +21,11 @@ import {
   getProblemDefinition,
   PRACTICE_PROBLEM_DEFINITIONS,
 } from "./problem-catalog";
-import { submitPracticeAnswer } from "../../../app/practice/actions";
+import {
+  submitPracticeAnswer,
+  revealPracticeHint,
+  revealPracticeSolution,
+} from "../../../app/practice/actions";
 import { getPublicProblemSources } from "./public-problem-sources";
 afterEach(() => vi.unstubAllEnvs());
 describe("original-only beta boundary", () => {
@@ -42,9 +54,15 @@ describe("original-only beta boundary", () => {
     ];
     expect(BETA_PROBLEM_IDS).toHaveLength(6);
     for (const id of ids) {
+      const definition = getProblemDefinition(id);
       expect(BETA_PROBLEM_IDS as readonly string[]).not.toContain(id);
       expect(() => getLearnerSafePracticeProblem(id)).toThrow();
       await expect(submitPracticeAnswer(id, "1")).rejects.toThrow();
+      for (const hint of definition.hints)
+        await expect(revealPracticeHint(id, hint.id)).rejects.toThrow();
+      await expect(
+        revealPracticeSolution(id, definition.solution.id),
+      ).rejects.toThrow();
     }
     expect(() =>
       requireBetaFinish([], undefined, {
@@ -52,6 +70,16 @@ describe("original-only beta boundary", () => {
         facts: { problems: ids.map((problemId) => ({ problemId })) },
       }),
     ).toThrow();
+  });
+  it("rejects the registered Pack U route in beta", async () => {
+    vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
+    const { default: PackPracticePage } =
+      await import("../../../app/practice/pack/page");
+    const { BetaUnavailable } = await import("../../../app/beta-practice");
+    const page = await PackPracticePage({
+      searchParams: Promise.resolve({ pack: "pack-u" }),
+    });
+    expect(page.type).toBe(BetaUnavailable);
   });
   it("denies direct projection, assistance and assessment for legacy IDs", async () => {
     vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
