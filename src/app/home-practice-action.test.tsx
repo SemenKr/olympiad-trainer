@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("./beta-practice", () => ({ BetaHome: () => null }));
 
 vi.mock("./practice/actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),

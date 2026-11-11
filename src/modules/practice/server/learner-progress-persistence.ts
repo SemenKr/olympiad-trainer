@@ -1,9 +1,4 @@
 import "server-only";
-import {
-  requireBetaFinish,
-  originalOnlyBeta,
-  requireFullCatalog,
-} from "./content-access";
 
 import { isEligibleReviewSource } from "../application/review";
 import { randomUUID, createHash } from "node:crypto";
@@ -149,7 +144,7 @@ export async function importLegacyProgress(
   raw: unknown,
 ): Promise<void> {
   const learnerId = context.learnerId;
-  if (raw !== null) requireFullCatalog();
+
   if (!(raw === null || (typeof raw === "string" && raw.length <= 32768)))
     throw new Error("Invalid legacy Progress data.");
   const originalHash = hash(raw ?? NO_LOCAL_EVIDENCE);
@@ -416,7 +411,6 @@ export async function persistFinishContributions(
   episode?: unknown,
   requestVersion?: unknown,
 ): Promise<PracticeJourneyFinish | null> {
-  requireBetaFinish(input, adaptiveFacts, episode);
   const learnerId = context.learnerId;
   if (requestVersion !== undefined && requestVersion !== 2)
     throw new Error("Invalid Finish version.");
@@ -919,8 +913,6 @@ export async function readAdaptiveRecommendation(
     hasPracticeHistory: boolean;
   }>
 > {
-  if (originalOnlyBeta())
-    return { availability: { status: "none" }, hasPracticeHistory: false };
   return withAuthenticatedLearner(context, async (tx) => {
     const learnerId = context.learnerId;
     const [row] = await tx
@@ -1037,7 +1029,6 @@ const eligibleUnassignedReviewSource = sql`mode = 'core'
 export async function readReviewAvailability(
   context: AuthenticatedLearner,
 ): Promise<boolean> {
-  if (originalOnlyBeta()) return false;
   return withAuthenticatedLearner(context, async (tx) => {
     const learnerId = context.learnerId;
     const db = tx;
@@ -1073,7 +1064,6 @@ export async function readReviewAvailability(
 export async function startReview(
   context: AuthenticatedLearner,
 ): Promise<string | null> {
-  requireFullCatalog();
   const learnerId = context.learnerId;
   return withAuthenticatedLearner(context, async (tx, learner) => {
     if (!learner || learner.legacyImportHash === null)

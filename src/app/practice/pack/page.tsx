@@ -1,9 +1,4 @@
 import {
-  originalOnlyBeta,
-  BETA_PACKS,
-} from "../../../modules/practice/server/content-access";
-import { BetaPractice, BetaUnavailable } from "../../beta-practice";
-import {
   ADAPTIVE_TRANSFER_PROBLEM_ID,
   ENUMERATION_EXPLORATION_PROBLEM_ID,
   getLearnerSafePracticeProblem,
@@ -24,12 +19,6 @@ export default async function PackPracticePage({
   searchParams: Promise<{ pack?: string | string[] }>;
 }) {
   const requested = (await searchParams).pack;
-  if (originalOnlyBeta()) {
-    if (requested === undefined) return <BetaPractice />;
-    if (typeof requested !== "string" || !Object.hasOwn(BETA_PACKS, requested))
-      return <BetaUnavailable />;
-    return <BetaPractice pack={requested as keyof typeof BETA_PACKS} />;
-  }
   const pack =
     requested === undefined ? PRACTICE_PACKS[0] : packById(requested);
   if (!pack) notFound();

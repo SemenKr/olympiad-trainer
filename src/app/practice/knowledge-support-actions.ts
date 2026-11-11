@@ -1,5 +1,4 @@
 "use server";
-import { requireFullCatalog } from "../../modules/practice/server/content-access";
 
 import { requireSimulationAssistanceAllowed } from "../../modules/simulation/server/assistance-guard";
 
@@ -25,7 +24,6 @@ export async function readKnowledgeSupport(
   sessionId: string,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   requireSessionId(sessionId);
   const authenticated = await resolveExpectedLearnerFromCookie(expected);
   await requireSimulationAssistanceAllowed();
@@ -36,7 +34,6 @@ export async function readKnowledgeSupportEligibility(
   context: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   await resolveExpectedLearnerFromCookie(expected);
   await requireSimulationAssistanceAllowed();
   return requireDiagnosticEligibility(context);
@@ -48,7 +45,6 @@ export async function submitKnowledgeDiagnostic(
   context: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
   const eligible = requireDiagnosticEligibility(context);
@@ -67,7 +63,6 @@ export async function openKnowledgeLesson(
   sessionId: string,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   requireSessionId(sessionId);
   const authenticated = await resolveExpectedLearnerFromCookie(expected);
   await requireSimulationAssistanceAllowed();
@@ -85,7 +80,6 @@ export async function submitKnowledgeMicroCheck(
   selectedOptionId: unknown,
   expected: LocalLearnerOwner,
 ) {
-  requireFullCatalog();
   requireSessionId(sessionId);
   requireOptionId(selectedOptionId);
   const authenticated = await resolveExpectedLearnerFromCookie(expected);
