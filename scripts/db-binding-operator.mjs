@@ -13,6 +13,10 @@ export async function browserDiagnosticCheck(config, browser = globalThis) {
   try {
     const issued = Date.parse(config.DB_BINDING_DIAGNOSTIC_ISSUED_AT);
     const expires = Date.parse(config.DB_BINDING_DIAGNOSTIC_EXPIRES_AT);
+    const insideWindow = () => {
+      const at = Date.now();
+      return issued <= at && at < expires;
+    };
     if (
       !browser.isSecureContext ||
       browser.top !== browser.self ||
@@ -31,8 +35,7 @@ export async function browserDiagnosticCheck(config, browser = globalThis) {
       !/^[a-f0-9]{64}$/.test(config.DB_BINDING_DIAGNOSTIC_TOKEN_SHA256 ?? "") ||
       !Number.isFinite(issued) ||
       !Number.isFinite(expires) ||
-      issued > Date.now() ||
-      expires <= Date.now() ||
+      !insideWindow() ||
       expires <= issued ||
       expires - issued > 600_000 ||
       browser.__dbBindingDiagnosticAttempted
@@ -46,7 +49,7 @@ export async function browserDiagnosticCheck(config, browser = globalThis) {
       browser.prompt(
         "Dedicated diagnostic bearer (private manual transcription; no clipboard):",
       ) ?? "";
-    if (!/^[A-Za-z0-9_-]{43}$/.test(token) || Date.now() >= expires)
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token) || !insideWindow())
       throw new Error();
     const digest = await browser.crypto.subtle.digest(
       "SHA-256",
@@ -57,7 +60,7 @@ export async function browserDiagnosticCheck(config, browser = globalThis) {
     ).join("");
     if (
       verifier !== config.DB_BINDING_DIAGNOSTIC_TOKEN_SHA256 ||
-      Date.now() >= expires
+      !insideWindow()
     )
       throw new Error();
     headers = new Headers({
@@ -109,15 +112,27 @@ export async function browserDiagnosticCheck(config, browser = globalThis) {
   }
 }
 
-export function createOperatorSession(now = Date.now()) {
+export function parseLeadMinutes(args) {
+  if (args.length === 0) return 0;
+  const [flag, value] = args;
+  if (
+    args.length !== 2 ||
+    flag !== "--start-in-minutes" ||
+    !/^(?:[1-9]|[12][0-9]|30)$/.test(value)
+  )
+    throw new Error("Expected --start-in-minutes followed by 1 to 30.");
+  return Number(value);
+}
+
+export function createOperatorSession(issued = Date.now()) {
   let token = randomBytes(32).toString("base64url");
-  const expires = now + WINDOW_MS;
+  const expires = issued + WINDOW_MS;
   let prepared = false;
   const config = {
     DB_BINDING_DIAGNOSTIC_TOKEN_SHA256: createHash("sha256")
       .update(token)
       .digest("hex"),
-    DB_BINDING_DIAGNOSTIC_ISSUED_AT: new Date(now).toISOString(),
+    DB_BINDING_DIAGNOSTIC_ISSUED_AT: new Date(issued).toISOString(),
     DB_BINDING_DIAGNOSTIC_EXPIRES_AT: new Date(expires).toISOString(),
   };
   return {
@@ -125,7 +140,7 @@ export function createOperatorSession(now = Date.now()) {
     browserScript(confirmation, at = Date.now()) {
       if (
         prepared ||
-        at < now ||
+        at < issued ||
         at >= expires ||
         !confirmation ||
         !/^dpl_[A-Za-z0-9]+$/.test(confirmation.deploymentId ?? "") ||
@@ -152,7 +167,7 @@ export function createOperatorSession(now = Date.now()) {
       return `void (${browserDiagnosticCheck.toString()})(${JSON.stringify(pinned)});`;
     },
     takeBearerForTranscription(at = Date.now()) {
-      if (!prepared || !token || at < now || at >= expires)
+      if (!prepared || !token || at < issued || at >= expires)
         throw new Error("Operator prerequisites not satisfied.");
       const value = token;
       token = "";
@@ -171,7 +186,8 @@ async function main() {
   ) {
     throw new Error("Private alternate-screen terminal required.");
   }
-  const session = createOperatorSession();
+  const leadMinutes = parseLeadMinutes(process.argv.slice(2));
+  const session = createOperatorSession(Date.now() + leadMinutes * 60_000);
   // Only public verifier/window and secret-free browser source use stdout.
   process.stdout.write(`${JSON.stringify(session.config, null, 2)}\n`);
   const terminal = createInterface({
@@ -182,7 +198,7 @@ async function main() {
   try {
     const confirmation = JSON.parse(
       await terminal.question(
-        "After authorized provisioning and normal browser login, enter verified non-secret confirmation JSON: ",
+        "At or after ISSUED_AT, after authorized provisioning and normal browser login, enter verified non-secret confirmation JSON: ",
       ),
     );
     process.stdout.write(`${session.browserScript(confirmation)}\n`);
