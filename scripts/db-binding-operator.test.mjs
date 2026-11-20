@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   browserDiagnosticCheck,
   createOperatorSession,
+  parseLeadMinutes,
 } from "./db-binding-operator.mjs";
 
 const now = Date.parse("2026-10-19T12:00:00Z");
@@ -29,10 +30,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-function fixture() {
-  const session = createOperatorSession(now);
-  const source = session.browserScript(confirmation, now);
-  const token = session.takeBearerForTranscription(now);
+function fixture(issued = now) {
+  const session = createOperatorSession(issued);
+  const source = session.browserScript(confirmation, issued);
+  const token = session.takeBearerForTranscription(issued);
   const config = { ...session.config, ...confirmation };
   const browser = {
     isSecureContext: true,
@@ -64,6 +65,46 @@ function fixture() {
 }
 
 describe("private operator provisioning", () => {
+  it("accepts immediate default and bounded whole-minute leads", () => {
+    expect(parseLeadMinutes([])).toBe(0);
+    for (const value of ["1", "15", "30"]) {
+      expect(parseLeadMinutes(["--start-in-minutes", value])).toBe(
+        Number(value),
+      );
+    }
+    for (const args of [
+      ["--start-in-minutes"],
+      ["--other", "1"],
+      ["--start-in-minutes", "1", "2"],
+      ...["0", "-1", "1.5", "31", "1e1", " 1", "NaN"].map((value) => [
+        "--start-in-minutes",
+        value,
+      ]),
+    ])
+      expect(() => parseLeadMinutes(args)).toThrow();
+  });
+
+  it("holds confirmation and reveal to the scheduled ten-minute interval", () => {
+    const issued = now + 15 * 60_000;
+    const session = createOperatorSession(issued);
+    expect(Date.parse(session.config.DB_BINDING_DIAGNOSTIC_ISSUED_AT)).toBe(
+      issued,
+    );
+    expect(Date.parse(session.config.DB_BINDING_DIAGNOSTIC_EXPIRES_AT)).toBe(
+      issued + 600_000,
+    );
+    expect(() => session.browserScript(confirmation)).toThrow();
+    vi.setSystemTime(issued);
+    session.browserScript(confirmation);
+    expect(() => session.takeBearerForTranscription(issued - 1)).toThrow();
+    expect(() =>
+      session.takeBearerForTranscription(issued + 600_000),
+    ).toThrow();
+    expect(session.takeBearerForTranscription(issued + 599_999)).toHaveLength(
+      43,
+    );
+  });
+
   it("generates a unique verifier and reveals a random bearer once without embedding it in browser source", () => {
     const { session, source, token } = fixture();
     expect(Buffer.from(token, "base64url")).toHaveLength(32);
@@ -122,6 +163,36 @@ describe("private operator provisioning", () => {
 });
 
 describe("same-origin browser invocation", () => {
+  it.each([
+    [-1, 0],
+    [0, 1],
+    [599_999, 1],
+    [600_000, 0],
+  ])(
+    "allows prompt and POST only inside the scheduled window (offset %i)",
+    async (offset, calls) => {
+      const issued = now + 15 * 60_000;
+      const { browser, config } = fixture(issued);
+      vi.setSystemTime(issued + offset);
+      await browserDiagnosticCheck(config, browser);
+      expect(browser.prompt).toHaveBeenCalledTimes(calls);
+      expect(browser.fetch).toHaveBeenCalledTimes(calls);
+    },
+  );
+
+  it.each([-1, 600_000])(
+    "rejects a clock outside the window after prompt (%i)",
+    async (offset) => {
+      const { browser, config, token } = fixture();
+      browser.prompt.mockImplementation(() => {
+        vi.setSystemTime(now + offset);
+        return token;
+      });
+      await browserDiagnosticCheck(config, browser);
+      expect(browser.fetch).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses existing cookie credentials without reading/exporting them, sends a bodyless POST and reports booleans only", async () => {
     const { browser, config, token } = fixture();
     let usedHeaders;
