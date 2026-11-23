@@ -72,6 +72,7 @@ function request(
 beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-19T12:01:00Z"));
   for (const [key, value] of Object.entries({
@@ -108,6 +109,7 @@ beforeEach(async () => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("Production binding route through the actual app selector and pool (mock PostgreSQL transport)", () => {
@@ -258,6 +260,7 @@ describe("Production binding route through the actual app selector and pool (moc
   ])("rejects request mismatch %j before connecting", async (options) => {
     expect((await route.POST(request(options))).status).toBe(404);
     expect(transport.pool).not.toHaveBeenCalled();
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -278,6 +281,10 @@ describe("Production binding route through the actual app selector and pool (moc
       expect(result.status).toBe(503);
       expect(await result.json()).toEqual(failed);
       expect(transport.pool).not.toHaveBeenCalled();
+      expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+        "production-db-binding-unavailable",
+        "configuration",
+      );
     },
   );
 
@@ -394,9 +401,27 @@ describe("Production binding route through the actual app selector and pool (moc
       expect(await result.json()).toEqual(failed);
       expect(transport.release).toHaveBeenCalledExactlyOnceWith(true);
       expect(log).not.toHaveBeenCalled();
+      expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+        "production-db-binding-unavailable",
+        "read-only-query",
+      );
       log.mockRestore();
     },
   );
+
+  it("labels a rejected connection without logging driver data", async () => {
+    transport.connect.mockRejectedValueOnce(
+      new Error("sensitive driver details"),
+    );
+    const result = await route.POST(request());
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual(failed);
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+      "production-db-binding-unavailable",
+      "pool-acquisition",
+    );
+    expect(transport.query).not.toHaveBeenCalled();
+  });
 
   it("bounds acquisition and destroys a late client", async () => {
     let resolveClient!: (client: unknown) => void;
@@ -408,6 +433,10 @@ describe("Production binding route through the actual app selector and pool (moc
     const pending = route.POST(request());
     await vi.advanceTimersByTimeAsync(2000);
     expect((await pending).status).toBe(503);
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+      "production-db-binding-unavailable",
+      "pool-deadline",
+    );
     resolveClient({ release: transport.release });
     await Promise.resolve();
     expect(transport.release).toHaveBeenCalledExactlyOnceWith(true);

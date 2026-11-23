@@ -10,6 +10,15 @@ const PATH = "/api/internal/db-binding";
 const EXPECTED_HOST = "ep-green-breeze-b83kwqyf.c-14.us-east-1.aws.neon.tech";
 const WINDOW_MS = 10 * 60 * 1_000;
 const QUERY_TIMEOUT_MS = 2_500;
+const POOL_ACQUISITION_DEADLINE = Symbol("pool acquisition deadline");
+
+type FailureStage =
+  "configuration" | "pool-deadline" | "pool-acquisition" | "read-only-query";
+
+function unavailable(stage: FailureStage) {
+  console.warn("production-db-binding-unavailable", stage);
+  return response(FAILED, 503);
+}
 const FAILED = {
   ok: false,
   targetMatches: false,
@@ -131,24 +140,22 @@ async function acquire(pool: Pool): Promise<PoolClient> {
     return await Promise.race([
       pending,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("Unavailable")), 2_000);
+        timer = setTimeout(() => reject(POOL_ACQUISITION_DEADLINE), 2_000);
       }),
     ]);
-  } catch {
+  } catch (error) {
     // Pool acquisition cannot be cancelled. Destroy a client arriving after our deadline.
     void pending.then(
       (client) => client.release(true),
       () => undefined,
     );
-    throw new Error("Unavailable");
+    throw error;
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function inspect() {
-  // This is the existing application pool, not an independently supplied inspector credential.
-  const client = await acquire(getProgressDb().$client);
+async function inspect(client: PoolClient) {
   let rolledBack = false;
   const query = (text: string) => {
     // pg supports a per-query deadline; @types/pg only declares it on ClientConfig.
@@ -213,14 +220,26 @@ async function inspect() {
 
 export async function runProductionBindingDiagnostic(request: Request) {
   if (request.method !== "POST") return denyDiagnosticMethod();
+  let stage: FailureStage | undefined;
   try {
     if (!authorized(request)) return response(FAILED, 404);
     if (!(await hasEmptyBody(request))) return response(FAILED, 404);
-    if (!matchesExpectedTarget()) return response(FAILED, 503);
-    const result = await inspect();
+    stage = "configuration";
+    if (!matchesExpectedTarget()) return unavailable(stage);
+    // Use the same pool as learner persistence.
+    const pool = getProgressDb().$client;
+    stage = "pool-acquisition";
+    const client = await acquire(pool);
+    stage = "read-only-query";
+    const result = await inspect(client);
     return response(result, result.ok ? 200 : 503);
-  } catch {
-    // No errors, headers, URLs, credentials, or database details enter responses or logs.
+  } catch (error) {
+    // Only a fixed stage is recorded after all request authorization checks.
+    if (stage) {
+      return unavailable(
+        error === POOL_ACQUISITION_DEADLINE ? "pool-deadline" : stage,
+      );
+    }
     return response(FAILED, 503);
   }
 }
