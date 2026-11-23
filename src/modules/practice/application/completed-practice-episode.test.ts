@@ -54,6 +54,10 @@ describe("completed Practice episode facts", () => {
       "pack-w",
       "pack-x",
       "pack-y",
+      "pack-z",
+      "pack-aa",
+      "pack-ab",
+      "pack-ac",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -279,6 +283,42 @@ describe("completed Practice episode facts", () => {
           "hidden-double-topping",
           "family-age-order",
           "cube-opposite-sums",
+        ],
+      },
+      {
+        id: "pack-z",
+        name: "Доли и скрытые условия",
+        problemIds: [
+          "four-animal-shares",
+          "cap-swap-cycle",
+          "robot-two-distances",
+        ],
+      },
+      {
+        id: "pack-aa",
+        name: "Варианты и разбиения",
+        problemIds: [
+          "four-numbers-ten-threes",
+          "knights-divisor-count",
+          "stepped-outline-perimeter",
+        ],
+      },
+      {
+        id: "pack-ab",
+        name: "Схемы и соответствия",
+        problemIds: [
+          "quest-teammate-matching",
+          "tower-visible-bricks",
+          "equal-triangle-digit-products",
+        ],
+      },
+      {
+        id: "pack-ac",
+        name: "Масса, расстояние, узор",
+        problemIds: [
+          "filled-cookie-weight-ratio",
+          "houses-at-equal-intervals",
+          "alternating-pool-tile-layers",
         ],
       },
     ]);

@@ -233,7 +233,7 @@ describe("Home Practice precedence", () => {
         markup.match(/aria-label="Путь тренировок"/g)?.length ?? 0,
       ).toBeLessThanOrEqual(1);
       expect(markup).not.toContain("Решить 3 задачи");
-      expect(markup).toContain("Наборы: 25. В каждом по 3 задачи");
+      expect(markup).toContain("Наборы: 29. В каждом по 3 задачи");
       expect(markup).toContain('href="/simulation"');
     }
     const recommended = renderToStaticMarkup(

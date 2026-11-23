@@ -61,3 +61,20 @@ The owner stated in the current delivery assignment that the necessary permissio
 For the May 2021 invitational tasks, the date in the PDFs governs the 2020/21 academic-year field. For the May 2022 sources, use 2021/22 as stated in the solution document. Preserve the archive URL's folder verbatim in both cases.
 
 The local catalog has 81 problems in 25 Packs, including 72 historical problems and nine original problems. Remaining to 102 total: 21. The specified 33 additions reach 93 historical problems because the baseline contains 60 historical problems.
+
+## Batch 2 registration
+
+| Pack | Ordered problem IDs                                                                       |
+| ---- | ----------------------------------------------------------------------------------------- |
+| Z    | `four-animal-shares`, `cap-swap-cycle`, `robot-two-distances`                             |
+| AA   | `four-numbers-ten-threes`, `knights-divisor-count`, `stepped-outline-perimeter`           |
+| AB   | `quest-teammate-matching`, `tower-visible-bricks`, `equal-triangle-digit-products`        |
+| AC   | `filled-cookie-weight-ratio`, `houses-at-equal-intervals`, `alternating-pool-tile-layers` |
+
+The per-problem modules record exact official PDF references and starting pages. These are all Moscow Grade 5 mathematics sources. The author verified official diagrams against the originals.
+
+- [2026/27 school tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2026-27/school/math/tasks-math-5-sch-msk-26-27.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2026-27/school/math/sol-math-5-sch-msk-26-27.pdf). #2 v1 pages 3/3 (shares 509), #3 v1 pages 3/5 (matching), #5 v1 pages 6/8–9 (two starts), #6 v1 pages 7/10–11 (height 19), #8 v1 pages 9/13 (cap cycle), #4 v2 pages 5/6 (three robot cells), #7 v1 pages 8/11–12 (30 tiles).
+- [2026/27 invitational tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2026-27/prigl/math/tasks-math-5-prigl-msk-26-27.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2026-27/prigl/math/sol-math-5-prigl-msk-26-27.pdf). #6 pages 2/4 (two feasible first houses), #7 pages 2/4–5 (four knights), #8 pages 2/5 (100 gingerbread pieces), #5 pages 2/3 (perimeter 38). The [organizer index](https://vos.olimpiada.ru/2026/invite/tasks) confirms the academic-year designation for this May 2026 event. The official #7 divisor table has a typo for six people. The solution in the module recomputes all possibilities and confirms the official final answer.
+- [2025/26 school tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf). #5 v1 pages 7/9. Permutation check finds exactly the first and second offered digits.
+
+The catalog now contains 93 problems in 29 Packs, including 84 historical problems. Remaining to 102: nine.

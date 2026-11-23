@@ -1,3 +1,15 @@
+import { fourAnimalSharesProblem } from "./problems/four-animal-shares";
+import { capSwapCycleProblem } from "./problems/cap-swap-cycle";
+import { robotTwoDistancesProblem } from "./problems/robot-two-distances";
+import { fourNumbersTenThreesProblem } from "./problems/four-numbers-ten-threes";
+import { knightsDivisorCountProblem } from "./problems/knights-divisor-count";
+import { steppedOutlinePerimeterProblem } from "./problems/stepped-outline-perimeter";
+import { questTeammateMatchingProblem } from "./problems/quest-teammate-matching";
+import { towerVisibleBricksProblem } from "./problems/tower-visible-bricks";
+import { equalTriangleDigitProductsProblem } from "./problems/equal-triangle-digit-products";
+import { filledCookieWeightRatioProblem } from "./problems/filled-cookie-weight-ratio";
+import { housesAtEqualIntervalsProblem } from "./problems/houses-at-equal-intervals";
+import { alternatingPoolTileLayersProblem } from "./problems/alternating-pool-tile-layers";
 import { treasureAroundTableProblem } from "./problems/treasure-around-table";
 import { markedRectangleCellProblem } from "./problems/marked-rectangle-cell";
 import { streetCrossingCoverageProblem } from "./problems/street-crossing-coverage";
@@ -44,4 +56,16 @@ export const NEW_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   hiddenDoubleToppingProblem,
   familyAgeOrderProblem,
   cubeOppositeSumsProblem,
+  fourAnimalSharesProblem,
+  capSwapCycleProblem,
+  robotTwoDistancesProblem,
+  fourNumbersTenThreesProblem,
+  knightsDivisorCountProblem,
+  steppedOutlinePerimeterProblem,
+  questTeammateMatchingProblem,
+  towerVisibleBricksProblem,
+  equalTriangleDigitProductsProblem,
+  filledCookieWeightRatioProblem,
+  housesAtEqualIntervalsProblem,
+  alternatingPoolTileLayersProblem,
 ];

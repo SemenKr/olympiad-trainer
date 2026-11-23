@@ -1143,6 +1143,214 @@
       "solutionId": "cube-opposite-sums-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "four-animal-shares",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "four-animal-shares-hint-focus",
+        "four-animal-shares-hint-strategy",
+        "four-animal-shares-hint-next-step"
+      ],
+      "solutionId": "four-animal-shares-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cap-swap-cycle",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "seryozha-blue",
+        "seryozha-red",
+        "seryozha-yellow",
+        "kolya-blue",
+        "kolya-red",
+        "kolya-yellow",
+        "zhenya-blue",
+        "zhenya-red",
+        "zhenya-yellow"
+      ],
+      "hintIds": [
+        "cap-swap-cycle-hint-focus",
+        "cap-swap-cycle-hint-strategy",
+        "cap-swap-cycle-hint-next-step"
+      ],
+      "solutionId": "cap-swap-cycle-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "robot-two-distances",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "cell-1-4",
+        "cell-1-6",
+        "cell-2-3",
+        "cell-2-7",
+        "cell-3-2",
+        "cell-3-8",
+        "cell-4-3",
+        "cell-4-7",
+        "cell-5-4",
+        "cell-5-6",
+        "cell-6-5"
+      ],
+      "hintIds": [
+        "robot-two-distances-hint-focus",
+        "robot-two-distances-hint-strategy",
+        "robot-two-distances-hint-next-step"
+      ],
+      "solutionId": "robot-two-distances-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "four-numbers-ten-threes",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "start-3328",
+        "start-3329",
+        "start-3337",
+        "start-3338",
+        "start-3339",
+        "start-3330"
+      ],
+      "hintIds": [
+        "four-numbers-ten-threes-hint-focus",
+        "four-numbers-ten-threes-hint-strategy",
+        "four-numbers-ten-threes-hint-next-step"
+      ],
+      "solutionId": "four-numbers-ten-threes-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "knights-divisor-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "knights-divisor-count-hint-focus",
+        "knights-divisor-count-hint-strategy",
+        "knights-divisor-count-hint-next-step"
+      ],
+      "solutionId": "knights-divisor-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "stepped-outline-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "stepped-outline-perimeter-hint-focus",
+        "stepped-outline-perimeter-hint-strategy",
+        "stepped-outline-perimeter-hint-next-step"
+      ],
+      "solutionId": "stepped-outline-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "quest-teammate-matching",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "artem-katya",
+        "artem-lena",
+        "artem-masha",
+        "artem-olya",
+        "misha-katya",
+        "misha-lena",
+        "misha-masha",
+        "misha-olya",
+        "ilya-katya",
+        "ilya-lena",
+        "ilya-masha",
+        "ilya-olya",
+        "kirill-katya",
+        "kirill-lena",
+        "kirill-masha",
+        "kirill-olya"
+      ],
+      "hintIds": [
+        "quest-teammate-matching-hint-focus",
+        "quest-teammate-matching-hint-strategy",
+        "quest-teammate-matching-hint-next-step"
+      ],
+      "solutionId": "quest-teammate-matching-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "tower-visible-bricks",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "tower-visible-bricks-hint-focus",
+        "tower-visible-bricks-hint-strategy",
+        "tower-visible-bricks-hint-next-step"
+      ],
+      "solutionId": "tower-visible-bricks-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "equal-triangle-digit-products",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["first", "second", "third", "fourth", "fifth"],
+      "hintIds": [
+        "equal-triangle-digit-products-hint-focus",
+        "equal-triangle-digit-products-hint-strategy",
+        "equal-triangle-digit-products-hint-next-step"
+      ],
+      "solutionId": "equal-triangle-digit-products-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "filled-cookie-weight-ratio",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "filled-cookie-weight-ratio-hint-focus",
+        "filled-cookie-weight-ratio-hint-strategy",
+        "filled-cookie-weight-ratio-hint-next-step"
+      ],
+      "solutionId": "filled-cookie-weight-ratio-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "houses-at-equal-intervals",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "anya-first",
+        "kolya-first",
+        "vova-third",
+        "borya-first",
+        "dima-third"
+      ],
+      "hintIds": [
+        "houses-at-equal-intervals-hint-focus",
+        "houses-at-equal-intervals-hint-strategy",
+        "houses-at-equal-intervals-hint-next-step"
+      ],
+      "solutionId": "houses-at-equal-intervals-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "alternating-pool-tile-layers",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "alternating-pool-tile-layers-hint-focus",
+        "alternating-pool-tile-layers-hint-strategy",
+        "alternating-pool-tile-layers-hint-next-step"
+      ],
+      "solutionId": "alternating-pool-tile-layers-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -1344,6 +1552,38 @@
         "hidden-double-topping",
         "family-age-order",
         "cube-opposite-sums"
+      ]
+    },
+    {
+      "id": "pack-z",
+      "problemIds": [
+        "four-animal-shares",
+        "cap-swap-cycle",
+        "robot-two-distances"
+      ]
+    },
+    {
+      "id": "pack-aa",
+      "problemIds": [
+        "four-numbers-ten-threes",
+        "knights-divisor-count",
+        "stepped-outline-perimeter"
+      ]
+    },
+    {
+      "id": "pack-ab",
+      "problemIds": [
+        "quest-teammate-matching",
+        "tower-visible-bricks",
+        "equal-triangle-digit-products"
+      ]
+    },
+    {
+      "id": "pack-ac",
+      "problemIds": [
+        "filled-cookie-weight-ratio",
+        "houses-at-equal-intervals",
+        "alternating-pool-tile-layers"
       ]
     }
   ]

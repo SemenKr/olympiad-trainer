@@ -238,6 +238,38 @@ export const PRACTICE_PACKS = [
       "cube-opposite-sums",
     ],
   },
+  {
+    id: "pack-z",
+    name: "Доли и скрытые условия",
+    problemIds: ["four-animal-shares", "cap-swap-cycle", "robot-two-distances"],
+  },
+  {
+    id: "pack-aa",
+    name: "Варианты и разбиения",
+    problemIds: [
+      "four-numbers-ten-threes",
+      "knights-divisor-count",
+      "stepped-outline-perimeter",
+    ],
+  },
+  {
+    id: "pack-ab",
+    name: "Схемы и соответствия",
+    problemIds: [
+      "quest-teammate-matching",
+      "tower-visible-bricks",
+      "equal-triangle-digit-products",
+    ],
+  },
+  {
+    id: "pack-ac",
+    name: "Масса, расстояние, узор",
+    problemIds: [
+      "filled-cookie-weight-ratio",
+      "houses-at-equal-intervals",
+      "alternating-pool-tile-layers",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;
