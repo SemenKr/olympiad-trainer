@@ -270,6 +270,33 @@ export const PRACTICE_PACKS = [
       "alternating-pool-tile-layers",
     ],
   },
+  {
+    id: "pack-ad",
+    name: "Шаги и условия",
+    problemIds: [
+      "football-line-elimination",
+      "gym-outfit-colors",
+      "gel-pen-price-ratio",
+    ],
+  },
+  {
+    id: "pack-ae",
+    name: "Числа на линиях",
+    problemIds: [
+      "restore-grid-row-sums",
+      "seven-line-number-puzzle",
+      "five-lines-missing-number",
+    ],
+  },
+  {
+    id: "pack-af",
+    name: "Разрезы и подсчёт",
+    problemIds: [
+      "square-cutout-perimeter",
+      "bridged-grid-square-count",
+      "nested-corner-tilings",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

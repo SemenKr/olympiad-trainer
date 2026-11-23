@@ -1097,4 +1097,104 @@ export const browserProblemMetadata = {
     ],
     solution: "alternating-pool-tile-layers-full-solution",
   },
+  "football-line-elimination": {
+    id: "football-line-elimination",
+    title: "После команды тренера",
+    hints: [
+      "football-line-elimination-hint-focus",
+      "football-line-elimination-hint-strategy",
+      "football-line-elimination-hint-next-step",
+    ],
+    solution: "football-line-elimination-full-solution",
+  },
+  "gym-outfit-colors": {
+    id: "gym-outfit-colors",
+    title: "Цвета спортивной формы",
+    hints: [
+      "gym-outfit-colors-hint-focus",
+      "gym-outfit-colors-hint-strategy",
+      "gym-outfit-colors-hint-next-step",
+    ],
+    solution: "gym-outfit-colors-full-solution",
+    optionIds: [
+      "alina-red-red",
+      "alina-red-blue",
+      "bogdan-red-red",
+      "bogdan-red-blue",
+      "vika-red-blue",
+      "vika-blue-blue",
+      "grisha-red-blue",
+      "grisha-blue-blue",
+    ],
+  },
+  "gel-pen-price-ratio": {
+    id: "gel-pen-price-ratio",
+    title: "Две цены на ручки",
+    hints: [
+      "gel-pen-price-ratio-hint-focus",
+      "gel-pen-price-ratio-hint-strategy",
+      "gel-pen-price-ratio-hint-next-step",
+    ],
+    solution: "gel-pen-price-ratio-full-solution",
+  },
+  "restore-grid-row-sums": {
+    id: "restore-grid-row-sums",
+    title: "Числа под буквами",
+    hints: [
+      "restore-grid-row-sums-hint-focus",
+      "restore-grid-row-sums-hint-strategy",
+      "restore-grid-row-sums-hint-next-step",
+    ],
+    solution: "restore-grid-row-sums-full-solution",
+  },
+  "seven-line-number-puzzle": {
+    id: "seven-line-number-puzzle",
+    title: "Семь линий с равной суммой",
+    hints: [
+      "seven-line-number-puzzle-hint-focus",
+      "seven-line-number-puzzle-hint-strategy",
+      "seven-line-number-puzzle-hint-next-step",
+    ],
+    solution: "seven-line-number-puzzle-full-solution",
+  },
+  "five-lines-missing-number": {
+    id: "five-lines-missing-number",
+    title: "Одно число осталось",
+    hints: [
+      "five-lines-missing-number-hint-focus",
+      "five-lines-missing-number-hint-strategy",
+      "five-lines-missing-number-hint-next-step",
+    ],
+    solution: "five-lines-missing-number-full-solution",
+  },
+  "square-cutout-perimeter": {
+    id: "square-cutout-perimeter",
+    title: "Что изменится у контура?",
+    hints: [
+      "square-cutout-perimeter-hint-focus",
+      "square-cutout-perimeter-hint-strategy",
+      "square-cutout-perimeter-hint-next-step",
+    ],
+    solution: "square-cutout-perimeter-full-solution",
+  },
+  "bridged-grid-square-count": {
+    id: "bridged-grid-square-count",
+    title: "Квадраты в фигуре с перемычкой",
+    hints: [
+      "bridged-grid-square-count-hint-focus",
+      "bridged-grid-square-count-hint-strategy",
+      "bridged-grid-square-count-hint-next-step",
+    ],
+    solution: "bridged-grid-square-count-full-solution",
+  },
+  "nested-corner-tilings": {
+    id: "nested-corner-tilings",
+    title: "Три уголка и клетка",
+    hints: [
+      "nested-corner-tilings-hint-focus",
+      "nested-corner-tilings-hint-strategy",
+      "nested-corner-tilings-hint-next-step",
+    ],
+    solution: "nested-corner-tilings-full-solution",
+  },
 } as const;

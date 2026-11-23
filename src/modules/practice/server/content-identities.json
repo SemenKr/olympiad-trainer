@@ -1351,6 +1351,132 @@
       "solutionId": "alternating-pool-tile-layers-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "football-line-elimination",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "football-line-elimination-hint-focus",
+        "football-line-elimination-hint-strategy",
+        "football-line-elimination-hint-next-step"
+      ],
+      "solutionId": "football-line-elimination-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "gym-outfit-colors",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "alina-red-red",
+        "alina-red-blue",
+        "bogdan-red-red",
+        "bogdan-red-blue",
+        "vika-red-blue",
+        "vika-blue-blue",
+        "grisha-red-blue",
+        "grisha-blue-blue"
+      ],
+      "hintIds": [
+        "gym-outfit-colors-hint-focus",
+        "gym-outfit-colors-hint-strategy",
+        "gym-outfit-colors-hint-next-step"
+      ],
+      "solutionId": "gym-outfit-colors-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "gel-pen-price-ratio",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "gel-pen-price-ratio-hint-focus",
+        "gel-pen-price-ratio-hint-strategy",
+        "gel-pen-price-ratio-hint-next-step"
+      ],
+      "solutionId": "gel-pen-price-ratio-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "restore-grid-row-sums",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "restore-grid-row-sums-hint-focus",
+        "restore-grid-row-sums-hint-strategy",
+        "restore-grid-row-sums-hint-next-step"
+      ],
+      "solutionId": "restore-grid-row-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "seven-line-number-puzzle",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "seven-line-number-puzzle-hint-focus",
+        "seven-line-number-puzzle-hint-strategy",
+        "seven-line-number-puzzle-hint-next-step"
+      ],
+      "solutionId": "seven-line-number-puzzle-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "five-lines-missing-number",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "five-lines-missing-number-hint-focus",
+        "five-lines-missing-number-hint-strategy",
+        "five-lines-missing-number-hint-next-step"
+      ],
+      "solutionId": "five-lines-missing-number-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "square-cutout-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "square-cutout-perimeter-hint-focus",
+        "square-cutout-perimeter-hint-strategy",
+        "square-cutout-perimeter-hint-next-step"
+      ],
+      "solutionId": "square-cutout-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "bridged-grid-square-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "bridged-grid-square-count-hint-focus",
+        "bridged-grid-square-count-hint-strategy",
+        "bridged-grid-square-count-hint-next-step"
+      ],
+      "solutionId": "bridged-grid-square-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "nested-corner-tilings",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "nested-corner-tilings-hint-focus",
+        "nested-corner-tilings-hint-strategy",
+        "nested-corner-tilings-hint-next-step"
+      ],
+      "solutionId": "nested-corner-tilings-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -1584,6 +1710,30 @@
         "filled-cookie-weight-ratio",
         "houses-at-equal-intervals",
         "alternating-pool-tile-layers"
+      ]
+    },
+    {
+      "id": "pack-ad",
+      "problemIds": [
+        "football-line-elimination",
+        "gym-outfit-colors",
+        "gel-pen-price-ratio"
+      ]
+    },
+    {
+      "id": "pack-ae",
+      "problemIds": [
+        "restore-grid-row-sums",
+        "seven-line-number-puzzle",
+        "five-lines-missing-number"
+      ]
+    },
+    {
+      "id": "pack-af",
+      "problemIds": [
+        "square-cutout-perimeter",
+        "bridged-grid-square-count",
+        "nested-corner-tilings"
       ]
     }
   ]

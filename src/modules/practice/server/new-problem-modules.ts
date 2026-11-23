@@ -1,3 +1,12 @@
+import { footballLineEliminationProblem } from "./problems/football-line-elimination";
+import { gymOutfitColorsProblem } from "./problems/gym-outfit-colors";
+import { gelPenPriceRatioProblem } from "./problems/gel-pen-price-ratio";
+import { restoreGridRowSumsProblem } from "./problems/restore-grid-row-sums";
+import { sevenLineNumberPuzzleProblem } from "./problems/seven-line-number-puzzle";
+import { fiveLinesMissingNumberProblem } from "./problems/five-lines-missing-number";
+import { squareCutoutPerimeterProblem } from "./problems/square-cutout-perimeter";
+import { bridgedGridSquareCountProblem } from "./problems/bridged-grid-square-count";
+import { nestedCornerTilingsProblem } from "./problems/nested-corner-tilings";
 import { fourAnimalSharesProblem } from "./problems/four-animal-shares";
 import { capSwapCycleProblem } from "./problems/cap-swap-cycle";
 import { robotTwoDistancesProblem } from "./problems/robot-two-distances";
@@ -68,4 +77,13 @@ export const NEW_PROBLEM_DEFINITIONS: readonly ProblemDefinition[] = [
   filledCookieWeightRatioProblem,
   housesAtEqualIntervalsProblem,
   alternatingPoolTileLayersProblem,
+  footballLineEliminationProblem,
+  gymOutfitColorsProblem,
+  gelPenPriceRatioProblem,
+  restoreGridRowSumsProblem,
+  sevenLineNumberPuzzleProblem,
+  fiveLinesMissingNumberProblem,
+  squareCutoutPerimeterProblem,
+  bridgedGridSquareCountProblem,
+  nestedCornerTilingsProblem,
 ];

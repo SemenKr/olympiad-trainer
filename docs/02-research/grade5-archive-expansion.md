@@ -78,3 +78,22 @@ The per-problem modules record exact official PDF references and starting pages.
 - [2025/26 school tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/tasks-math-5-sch-msk-25-26.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2025-26/school/math/sol-math-5-sch-msk-25-26.pdf). #5 v1 pages 7/9. Permutation check finds exactly the first and second offered digits.
 
 The catalog now contains 93 problems in 29 Packs, including 84 historical problems. Remaining to 102: nine.
+
+## Batch 3 registration
+
+| Pack | Ordered problem IDs                                                              |
+| ---- | -------------------------------------------------------------------------------- |
+| AD   | `football-line-elimination`, `gym-outfit-colors`, `gel-pen-price-ratio`          |
+| AE   | `restore-grid-row-sums`, `seven-line-number-puzzle`, `five-lines-missing-number` |
+| AF   | `square-cutout-perimeter`, `bridged-grid-square-count`, `nested-corner-tilings`  |
+
+- 2020/21 school (documents D). #1 pages 4/8, answer 5. The official intermediate trace omits the end player numbered 1 in the first departure. Simultaneous elimination with the existing-neighbor convention yields 11 → 7 → 4 → 3, with player 5 the sole departure leaving three. #2 pages 4/8, one assignment among 256. #3 pages 4–5/9, ratio 8. #4 pages 5/9–10, unique 412563 among 720 permutations.
+- [2020/21 invitational tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/tasks-math-5-prigl-msk-20-21.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2020-21/prigl/math/ans-math-5-prigl-msk-20-21.pdf). #1 pages 1/1, unique 15243 among 120 permutations. #2 pages 1/2, perimeter 44. #7 pages 2–3/4–5, 64 exact covers.
+- [2019/20 school tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/tasks-math-5-sch-msk-19-20.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2019-20/school/math/ans-math-5-sch-msk-19-20.pdf). #8 pages 1/3. Exhausted 40,320 placements, and both valid placements omit 6.
+- [2024/25 invitational tasks](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/tasks-math-5-prigl-msk-24-25.pdf) / [solutions](https://vos.olimpiada.ru/upload/files/Arhive_tasks/2024-25/prigl/math/sol-math-5-prigl-msk-24-25.pdf). #2 pages 1/1–2, 14 of 18 anchors. The task header cites May 2024's invitational event and the organizer groups it under 2024/25.
+
+The completed catalog contains 102 problems in 32 Packs A–AF, with 93 historical and nine original problems. The 33 requested historical additions are complete. A literal minimum of 100 historical problems would require seven more.
+
+## Release handoff
+
+Use the exact reviewed Git head and tree. Keep Production access protected and cron paused. Before promotion, record the accepted artifact identity, verify the required migration history including 0023, attest the application's actual DB binding on that deployment, confirm Recovery and rollback readiness, and pass the protected learner smoke. Authorize each Production operation separately under the [diagnostic runbook](../05-development/production-db-binding-diagnostic.md) and [release runbook](../05-development/v1-technical-rc-runbook.md). A rollback for active new Pack writers must understand their identities and saved facts. The earlier A–U artifact is suitable for preservation checks of unknown future work. An operational fallback must let affected learners resume existing work without losing their saved state.

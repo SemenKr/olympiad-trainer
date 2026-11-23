@@ -58,6 +58,9 @@ describe("completed Practice episode facts", () => {
       "pack-aa",
       "pack-ab",
       "pack-ac",
+      "pack-ad",
+      "pack-ae",
+      "pack-af",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -319,6 +322,33 @@ describe("completed Practice episode facts", () => {
           "filled-cookie-weight-ratio",
           "houses-at-equal-intervals",
           "alternating-pool-tile-layers",
+        ],
+      },
+      {
+        id: "pack-ad",
+        name: "Шаги и условия",
+        problemIds: [
+          "football-line-elimination",
+          "gym-outfit-colors",
+          "gel-pen-price-ratio",
+        ],
+      },
+      {
+        id: "pack-ae",
+        name: "Числа на линиях",
+        problemIds: [
+          "restore-grid-row-sums",
+          "seven-line-number-puzzle",
+          "five-lines-missing-number",
+        ],
+      },
+      {
+        id: "pack-af",
+        name: "Разрезы и подсчёт",
+        problemIds: [
+          "square-cutout-perimeter",
+          "bridged-grid-square-count",
+          "nested-corner-tilings",
         ],
       },
     ]);
