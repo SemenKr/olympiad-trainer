@@ -31,6 +31,7 @@ type VsoShProblemProvenance = Readonly<{
   olympiad: "Всероссийская олимпиада школьников";
   subject: "mathematics";
   academicYear:
+    | "2026/27"
     | "2025/26"
     | "2024/25"
     | "2023/24"

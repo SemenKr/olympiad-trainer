@@ -963,6 +963,520 @@
       "solutionId": "original-bead-badges-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "treasure-around-table",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["cave", "lake", "castle", "forest"],
+      "hintIds": [
+        "treasure-around-table-focus",
+        "treasure-around-table-strategy",
+        "treasure-around-table-next-step"
+      ],
+      "solutionId": "treasure-around-table-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "marked-rectangle-cell",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["b3", "c3", "c4", "d6"],
+      "hintIds": [
+        "marked-rectangle-cell-focus",
+        "marked-rectangle-cell-strategy",
+        "marked-rectangle-cell-next-step"
+      ],
+      "solutionId": "marked-rectangle-cell-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "street-crossing-coverage",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "crossing-a",
+        "crossing-b",
+        "crossing-c",
+        "crossing-d",
+        "crossing-e",
+        "crossing-f",
+        "crossing-g",
+        "crossing-h",
+        "crossing-i",
+        "crossing-j",
+        "crossing-k"
+      ],
+      "hintIds": [
+        "street-crossing-coverage-hint-focus",
+        "street-crossing-coverage-hint-strategy",
+        "street-crossing-coverage-hint-next-step"
+      ],
+      "solutionId": "street-crossing-coverage-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "square-columns-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "square-columns-perimeter-focus",
+        "square-columns-perimeter-strategy",
+        "square-columns-perimeter-next-step"
+      ],
+      "solutionId": "square-columns-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "raised-cell-tilings",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["tee", "square", "zigzag", "ell", "bar"],
+      "hintIds": [
+        "raised-cell-tilings-focus",
+        "raised-cell-tilings-strategy",
+        "raised-cell-tilings-next-step"
+      ],
+      "solutionId": "raised-cell-tilings-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "two-outlines-rectangle-area",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "two-outlines-rectangle-area-focus",
+        "two-outlines-rectangle-area-strategy",
+        "two-outlines-rectangle-area-next-step"
+      ],
+      "solutionId": "two-outlines-rectangle-area-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "three-candy-box-balances",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "three-candy-box-balances-focus",
+        "three-candy-box-balances-strategy",
+        "three-candy-box-balances-next-step"
+      ],
+      "solutionId": "three-candy-box-balances-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "fruit-weight-order",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "apple-first",
+        "mandarin-first",
+        "banana-before-apple",
+        "peach-last"
+      ],
+      "hintIds": [
+        "fruit-weight-order-hint-focus",
+        "fruit-weight-order-hint-strategy",
+        "fruit-weight-order-hint-next-step"
+      ],
+      "solutionId": "fruit-weight-order-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "dance-attendance",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "dance-attendance-hint-focus",
+        "dance-attendance-hint-strategy",
+        "dance-attendance-hint-next-step"
+      ],
+      "solutionId": "dance-attendance-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "hidden-double-topping",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "hidden-double-topping-focus",
+        "hidden-double-topping-strategy",
+        "hidden-double-topping-next-step"
+      ],
+      "solutionId": "hidden-double-topping-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "family-age-order",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "older-and-married",
+        "older-than-wife",
+        "youngest-wife",
+        "older-and-boris",
+        "larisa-older",
+        "boris-not-svetlana"
+      ],
+      "hintIds": [
+        "family-age-order-hint-focus",
+        "family-age-order-hint-strategy",
+        "family-age-order-hint-next-step"
+      ],
+      "solutionId": "family-age-order-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cube-opposite-sums",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["sum-5", "sum-6", "sum-7", "sum-8", "sum-9", "sum-10"],
+      "hintIds": [
+        "cube-opposite-sums-hint-focus",
+        "cube-opposite-sums-hint-strategy",
+        "cube-opposite-sums-hint-next-step"
+      ],
+      "solutionId": "cube-opposite-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "four-animal-shares",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "four-animal-shares-hint-focus",
+        "four-animal-shares-hint-strategy",
+        "four-animal-shares-hint-next-step"
+      ],
+      "solutionId": "four-animal-shares-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cap-swap-cycle",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "seryozha-blue",
+        "seryozha-red",
+        "seryozha-yellow",
+        "kolya-blue",
+        "kolya-red",
+        "kolya-yellow",
+        "zhenya-blue",
+        "zhenya-red",
+        "zhenya-yellow"
+      ],
+      "hintIds": [
+        "cap-swap-cycle-hint-focus",
+        "cap-swap-cycle-hint-strategy",
+        "cap-swap-cycle-hint-next-step"
+      ],
+      "solutionId": "cap-swap-cycle-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "robot-two-distances",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "cell-1-4",
+        "cell-1-6",
+        "cell-2-3",
+        "cell-2-7",
+        "cell-3-2",
+        "cell-3-8",
+        "cell-4-3",
+        "cell-4-7",
+        "cell-5-4",
+        "cell-5-6",
+        "cell-6-5"
+      ],
+      "hintIds": [
+        "robot-two-distances-hint-focus",
+        "robot-two-distances-hint-strategy",
+        "robot-two-distances-hint-next-step"
+      ],
+      "solutionId": "robot-two-distances-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "four-numbers-ten-threes",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "start-3328",
+        "start-3329",
+        "start-3337",
+        "start-3338",
+        "start-3339",
+        "start-3330"
+      ],
+      "hintIds": [
+        "four-numbers-ten-threes-hint-focus",
+        "four-numbers-ten-threes-hint-strategy",
+        "four-numbers-ten-threes-hint-next-step"
+      ],
+      "solutionId": "four-numbers-ten-threes-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "knights-divisor-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "knights-divisor-count-hint-focus",
+        "knights-divisor-count-hint-strategy",
+        "knights-divisor-count-hint-next-step"
+      ],
+      "solutionId": "knights-divisor-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "stepped-outline-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "stepped-outline-perimeter-hint-focus",
+        "stepped-outline-perimeter-hint-strategy",
+        "stepped-outline-perimeter-hint-next-step"
+      ],
+      "solutionId": "stepped-outline-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "quest-teammate-matching",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "artem-katya",
+        "artem-lena",
+        "artem-masha",
+        "artem-olya",
+        "misha-katya",
+        "misha-lena",
+        "misha-masha",
+        "misha-olya",
+        "ilya-katya",
+        "ilya-lena",
+        "ilya-masha",
+        "ilya-olya",
+        "kirill-katya",
+        "kirill-lena",
+        "kirill-masha",
+        "kirill-olya"
+      ],
+      "hintIds": [
+        "quest-teammate-matching-hint-focus",
+        "quest-teammate-matching-hint-strategy",
+        "quest-teammate-matching-hint-next-step"
+      ],
+      "solutionId": "quest-teammate-matching-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "tower-visible-bricks",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "tower-visible-bricks-hint-focus",
+        "tower-visible-bricks-hint-strategy",
+        "tower-visible-bricks-hint-next-step"
+      ],
+      "solutionId": "tower-visible-bricks-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "equal-triangle-digit-products",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["first", "second", "third", "fourth", "fifth"],
+      "hintIds": [
+        "equal-triangle-digit-products-hint-focus",
+        "equal-triangle-digit-products-hint-strategy",
+        "equal-triangle-digit-products-hint-next-step"
+      ],
+      "solutionId": "equal-triangle-digit-products-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "filled-cookie-weight-ratio",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "filled-cookie-weight-ratio-hint-focus",
+        "filled-cookie-weight-ratio-hint-strategy",
+        "filled-cookie-weight-ratio-hint-next-step"
+      ],
+      "solutionId": "filled-cookie-weight-ratio-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "houses-at-equal-intervals",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "anya-first",
+        "kolya-first",
+        "vova-third",
+        "borya-first",
+        "dima-third"
+      ],
+      "hintIds": [
+        "houses-at-equal-intervals-hint-focus",
+        "houses-at-equal-intervals-hint-strategy",
+        "houses-at-equal-intervals-hint-next-step"
+      ],
+      "solutionId": "houses-at-equal-intervals-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "alternating-pool-tile-layers",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "alternating-pool-tile-layers-hint-focus",
+        "alternating-pool-tile-layers-hint-strategy",
+        "alternating-pool-tile-layers-hint-next-step"
+      ],
+      "solutionId": "alternating-pool-tile-layers-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "football-line-elimination",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "football-line-elimination-hint-focus",
+        "football-line-elimination-hint-strategy",
+        "football-line-elimination-hint-next-step"
+      ],
+      "solutionId": "football-line-elimination-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "gym-outfit-colors",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "alina-red-red",
+        "alina-red-blue",
+        "bogdan-red-red",
+        "bogdan-red-blue",
+        "vika-red-blue",
+        "vika-blue-blue",
+        "grisha-red-blue",
+        "grisha-blue-blue"
+      ],
+      "hintIds": [
+        "gym-outfit-colors-hint-focus",
+        "gym-outfit-colors-hint-strategy",
+        "gym-outfit-colors-hint-next-step"
+      ],
+      "solutionId": "gym-outfit-colors-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "gel-pen-price-ratio",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "gel-pen-price-ratio-hint-focus",
+        "gel-pen-price-ratio-hint-strategy",
+        "gel-pen-price-ratio-hint-next-step"
+      ],
+      "solutionId": "gel-pen-price-ratio-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "restore-grid-row-sums",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "restore-grid-row-sums-hint-focus",
+        "restore-grid-row-sums-hint-strategy",
+        "restore-grid-row-sums-hint-next-step"
+      ],
+      "solutionId": "restore-grid-row-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "seven-line-number-puzzle",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "seven-line-number-puzzle-hint-focus",
+        "seven-line-number-puzzle-hint-strategy",
+        "seven-line-number-puzzle-hint-next-step"
+      ],
+      "solutionId": "seven-line-number-puzzle-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "five-lines-missing-number",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "five-lines-missing-number-hint-focus",
+        "five-lines-missing-number-hint-strategy",
+        "five-lines-missing-number-hint-next-step"
+      ],
+      "solutionId": "five-lines-missing-number-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "square-cutout-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "square-cutout-perimeter-hint-focus",
+        "square-cutout-perimeter-hint-strategy",
+        "square-cutout-perimeter-hint-next-step"
+      ],
+      "solutionId": "square-cutout-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "bridged-grid-square-count",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "bridged-grid-square-count-hint-focus",
+        "bridged-grid-square-count-hint-strategy",
+        "bridged-grid-square-count-hint-next-step"
+      ],
+      "solutionId": "bridged-grid-square-count-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "nested-corner-tilings",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "nested-corner-tilings-hint-focus",
+        "nested-corner-tilings-hint-strategy",
+        "nested-corner-tilings-hint-next-step"
+      ],
+      "solutionId": "nested-corner-tilings-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -1132,6 +1646,94 @@
         "original-box-totals",
         "original-fourteen-cards",
         "original-bead-badges"
+      ]
+    },
+    {
+      "id": "pack-v",
+      "problemIds": [
+        "treasure-around-table",
+        "marked-rectangle-cell",
+        "street-crossing-coverage"
+      ]
+    },
+    {
+      "id": "pack-w",
+      "problemIds": [
+        "square-columns-perimeter",
+        "raised-cell-tilings",
+        "two-outlines-rectangle-area"
+      ]
+    },
+    {
+      "id": "pack-x",
+      "problemIds": [
+        "three-candy-box-balances",
+        "fruit-weight-order",
+        "dance-attendance"
+      ]
+    },
+    {
+      "id": "pack-y",
+      "problemIds": [
+        "hidden-double-topping",
+        "family-age-order",
+        "cube-opposite-sums"
+      ]
+    },
+    {
+      "id": "pack-z",
+      "problemIds": [
+        "four-animal-shares",
+        "cap-swap-cycle",
+        "robot-two-distances"
+      ]
+    },
+    {
+      "id": "pack-aa",
+      "problemIds": [
+        "four-numbers-ten-threes",
+        "knights-divisor-count",
+        "stepped-outline-perimeter"
+      ]
+    },
+    {
+      "id": "pack-ab",
+      "problemIds": [
+        "quest-teammate-matching",
+        "tower-visible-bricks",
+        "equal-triangle-digit-products"
+      ]
+    },
+    {
+      "id": "pack-ac",
+      "problemIds": [
+        "filled-cookie-weight-ratio",
+        "houses-at-equal-intervals",
+        "alternating-pool-tile-layers"
+      ]
+    },
+    {
+      "id": "pack-ad",
+      "problemIds": [
+        "football-line-elimination",
+        "gym-outfit-colors",
+        "gel-pen-price-ratio"
+      ]
+    },
+    {
+      "id": "pack-ae",
+      "problemIds": [
+        "restore-grid-row-sums",
+        "seven-line-number-puzzle",
+        "five-lines-missing-number"
+      ]
+    },
+    {
+      "id": "pack-af",
+      "problemIds": [
+        "square-cutout-perimeter",
+        "bridged-grid-square-count",
+        "nested-corner-tilings"
       ]
     }
   ]

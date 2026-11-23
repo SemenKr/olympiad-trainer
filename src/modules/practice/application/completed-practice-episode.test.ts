@@ -50,6 +50,17 @@ describe("completed Practice episode facts", () => {
       "pack-s",
       "pack-t",
       "pack-u",
+      "pack-v",
+      "pack-w",
+      "pack-x",
+      "pack-y",
+      "pack-z",
+      "pack-aa",
+      "pack-ab",
+      "pack-ac",
+      "pack-ad",
+      "pack-ae",
+      "pack-af",
     ];
     expect(PRACTICE_PACKS).toEqual([
       {
@@ -239,6 +250,105 @@ describe("completed Practice episode facts", () => {
           "original-box-totals",
           "original-fourteen-cards",
           "original-bead-badges",
+        ],
+      },
+      {
+        id: "pack-v",
+        name: "Логика и расположение",
+        problemIds: [
+          "treasure-around-table",
+          "marked-rectangle-cell",
+          "street-crossing-coverage",
+        ],
+      },
+      {
+        id: "pack-w",
+        name: "Фигуры и их границы",
+        problemIds: [
+          "square-columns-perimeter",
+          "raised-cell-tilings",
+          "two-outlines-rectangle-area",
+        ],
+      },
+      {
+        id: "pack-x",
+        name: "Сравнения и подсчёт",
+        problemIds: [
+          "three-candy-box-balances",
+          "fruit-weight-order",
+          "dance-attendance",
+        ],
+      },
+      {
+        id: "pack-y",
+        name: "Условия и исключения",
+        problemIds: [
+          "hidden-double-topping",
+          "family-age-order",
+          "cube-opposite-sums",
+        ],
+      },
+      {
+        id: "pack-z",
+        name: "Доли и скрытые условия",
+        problemIds: [
+          "four-animal-shares",
+          "cap-swap-cycle",
+          "robot-two-distances",
+        ],
+      },
+      {
+        id: "pack-aa",
+        name: "Варианты и разбиения",
+        problemIds: [
+          "four-numbers-ten-threes",
+          "knights-divisor-count",
+          "stepped-outline-perimeter",
+        ],
+      },
+      {
+        id: "pack-ab",
+        name: "Схемы и соответствия",
+        problemIds: [
+          "quest-teammate-matching",
+          "tower-visible-bricks",
+          "equal-triangle-digit-products",
+        ],
+      },
+      {
+        id: "pack-ac",
+        name: "Масса, расстояние, узор",
+        problemIds: [
+          "filled-cookie-weight-ratio",
+          "houses-at-equal-intervals",
+          "alternating-pool-tile-layers",
+        ],
+      },
+      {
+        id: "pack-ad",
+        name: "Шаги и условия",
+        problemIds: [
+          "football-line-elimination",
+          "gym-outfit-colors",
+          "gel-pen-price-ratio",
+        ],
+      },
+      {
+        id: "pack-ae",
+        name: "Числа на линиях",
+        problemIds: [
+          "restore-grid-row-sums",
+          "seven-line-number-puzzle",
+          "five-lines-missing-number",
+        ],
+      },
+      {
+        id: "pack-af",
+        name: "Разрезы и подсчёт",
+        problemIds: [
+          "square-cutout-perimeter",
+          "bridged-grid-square-count",
+          "nested-corner-tilings",
         ],
       },
     ]);

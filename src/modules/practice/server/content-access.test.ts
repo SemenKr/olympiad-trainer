@@ -17,7 +17,7 @@ describe("unified catalog", () => {
       vi.stubEnv("NODE_ENV", environment);
       vi.stubEnv("VERCEL", "1");
       vi.stubEnv("ORIGINAL_ONLY_BETA", "true");
-      expect(Object.keys(getLearnerSafePackProblems())).toHaveLength(21);
+      expect(Object.keys(getLearnerSafePackProblems())).toHaveLength(32);
       for (const pack of PRACTICE_PACKS)
         for (const id of pack.problemIds) {
           const definition = getProblemDefinition(id);
