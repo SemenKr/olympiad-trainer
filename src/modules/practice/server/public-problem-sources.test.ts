@@ -8,13 +8,13 @@ import { getPublicProblemSources } from "./public-problem-sources";
 describe("public source attribution boundary", () => {
   it("projects every registered problem exactly once, using factual provenance", () => {
     const sources = getPublicProblemSources();
-    expect(sources).toHaveLength(69);
+    expect(sources).toHaveLength(81);
     expect(sources.map((source) => source.problemId)).toEqual(
       PRACTICE_PROBLEM_DEFINITIONS.map((problem) => problem.id),
     );
-    expect(new Set(sources.map((source) => source.problemId)).size).toBe(69);
+    expect(new Set(sources.map((source) => source.problemId)).size).toBe(81);
     expect(sources.filter((source) => source.kind === "sourced")).toHaveLength(
-      60,
+      72,
     );
     for (const [index, source] of sources.entries()) {
       const problem = PRACTICE_PROBLEM_DEFINITIONS[index];

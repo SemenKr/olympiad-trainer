@@ -202,6 +202,42 @@ export const PRACTICE_PACKS = [
       "original-bead-badges",
     ],
   },
+  {
+    id: "pack-v",
+    name: "Логика и расположение",
+    problemIds: [
+      "treasure-around-table",
+      "marked-rectangle-cell",
+      "street-crossing-coverage",
+    ],
+  },
+  {
+    id: "pack-w",
+    name: "Фигуры и их границы",
+    problemIds: [
+      "square-columns-perimeter",
+      "raised-cell-tilings",
+      "two-outlines-rectangle-area",
+    ],
+  },
+  {
+    id: "pack-x",
+    name: "Сравнения и подсчёт",
+    problemIds: [
+      "three-candy-box-balances",
+      "fruit-weight-order",
+      "dance-attendance",
+    ],
+  },
+  {
+    id: "pack-y",
+    name: "Условия и исключения",
+    problemIds: [
+      "hidden-double-topping",
+      "family-age-order",
+      "cube-opposite-sums",
+    ],
+  },
 ] as const satisfies readonly Readonly<{
   id: string;
   name: string;

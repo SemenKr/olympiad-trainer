@@ -963,6 +963,186 @@
       "solutionId": "original-bead-badges-full-solution",
       "checkpointId": null,
       "checkpointOptionIds": []
+    },
+    {
+      "id": "treasure-around-table",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["cave", "lake", "castle", "forest"],
+      "hintIds": [
+        "treasure-around-table-focus",
+        "treasure-around-table-strategy",
+        "treasure-around-table-next-step"
+      ],
+      "solutionId": "treasure-around-table-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "marked-rectangle-cell",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["b3", "c3", "c4", "d6"],
+      "hintIds": [
+        "marked-rectangle-cell-focus",
+        "marked-rectangle-cell-strategy",
+        "marked-rectangle-cell-next-step"
+      ],
+      "solutionId": "marked-rectangle-cell-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "street-crossing-coverage",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "crossing-a",
+        "crossing-b",
+        "crossing-c",
+        "crossing-d",
+        "crossing-e",
+        "crossing-f",
+        "crossing-g",
+        "crossing-h",
+        "crossing-i",
+        "crossing-j",
+        "crossing-k"
+      ],
+      "hintIds": [
+        "street-crossing-coverage-hint-focus",
+        "street-crossing-coverage-hint-strategy",
+        "street-crossing-coverage-hint-next-step"
+      ],
+      "solutionId": "street-crossing-coverage-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "square-columns-perimeter",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "square-columns-perimeter-focus",
+        "square-columns-perimeter-strategy",
+        "square-columns-perimeter-next-step"
+      ],
+      "solutionId": "square-columns-perimeter-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "raised-cell-tilings",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["tee", "square", "zigzag", "ell", "bar"],
+      "hintIds": [
+        "raised-cell-tilings-focus",
+        "raised-cell-tilings-strategy",
+        "raised-cell-tilings-next-step"
+      ],
+      "solutionId": "raised-cell-tilings-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "two-outlines-rectangle-area",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "two-outlines-rectangle-area-focus",
+        "two-outlines-rectangle-area-strategy",
+        "two-outlines-rectangle-area-next-step"
+      ],
+      "solutionId": "two-outlines-rectangle-area-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "three-candy-box-balances",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "three-candy-box-balances-focus",
+        "three-candy-box-balances-strategy",
+        "three-candy-box-balances-next-step"
+      ],
+      "solutionId": "three-candy-box-balances-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "fruit-weight-order",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "apple-first",
+        "mandarin-first",
+        "banana-before-apple",
+        "peach-last"
+      ],
+      "hintIds": [
+        "fruit-weight-order-hint-focus",
+        "fruit-weight-order-hint-strategy",
+        "fruit-weight-order-hint-next-step"
+      ],
+      "solutionId": "fruit-weight-order-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "dance-attendance",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "dance-attendance-hint-focus",
+        "dance-attendance-hint-strategy",
+        "dance-attendance-hint-next-step"
+      ],
+      "solutionId": "dance-attendance-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "hidden-double-topping",
+      "responseKind": "nonnegative-integer",
+      "optionIds": [],
+      "hintIds": [
+        "hidden-double-topping-focus",
+        "hidden-double-topping-strategy",
+        "hidden-double-topping-next-step"
+      ],
+      "solutionId": "hidden-double-topping-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "family-age-order",
+      "responseKind": "multiple-choice-set",
+      "optionIds": [
+        "older-and-married",
+        "older-than-wife",
+        "youngest-wife",
+        "older-and-boris",
+        "larisa-older",
+        "boris-not-svetlana"
+      ],
+      "hintIds": [
+        "family-age-order-hint-focus",
+        "family-age-order-hint-strategy",
+        "family-age-order-hint-next-step"
+      ],
+      "solutionId": "family-age-order-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
+    },
+    {
+      "id": "cube-opposite-sums",
+      "responseKind": "multiple-choice-set",
+      "optionIds": ["sum-5", "sum-6", "sum-7", "sum-8", "sum-9", "sum-10"],
+      "hintIds": [
+        "cube-opposite-sums-hint-focus",
+        "cube-opposite-sums-hint-strategy",
+        "cube-opposite-sums-hint-next-step"
+      ],
+      "solutionId": "cube-opposite-sums-full-solution",
+      "checkpointId": null,
+      "checkpointOptionIds": []
     }
   ],
   "packs": [
@@ -1132,6 +1312,38 @@
         "original-box-totals",
         "original-fourteen-cards",
         "original-bead-badges"
+      ]
+    },
+    {
+      "id": "pack-v",
+      "problemIds": [
+        "treasure-around-table",
+        "marked-rectangle-cell",
+        "street-crossing-coverage"
+      ]
+    },
+    {
+      "id": "pack-w",
+      "problemIds": [
+        "square-columns-perimeter",
+        "raised-cell-tilings",
+        "two-outlines-rectangle-area"
+      ]
+    },
+    {
+      "id": "pack-x",
+      "problemIds": [
+        "three-candy-box-balances",
+        "fruit-weight-order",
+        "dance-attendance"
+      ]
+    },
+    {
+      "id": "pack-y",
+      "problemIds": [
+        "hidden-double-topping",
+        "family-age-order",
+        "cube-opposite-sums"
       ]
     }
   ]
