@@ -31,7 +31,13 @@ import {
   initializeFreshAnonymousLearner,
 } from "./actions";
 import LearnerIdentityGate from "./learner-identity-gate";
-import { captureLearnerStorage } from "../../modules/learner/local-ownership";
+import {
+  captureLearnerStorage,
+  IDENTITY_LOCK,
+  LOCAL_OWNER_KEY,
+  PRACTICE_LOCK,
+  SIMULATION_LOCK,
+} from "../../modules/learner/local-ownership";
 import {
   createPracticeSessionSnapshot,
   savePracticeSessionSnapshot,
@@ -421,7 +427,85 @@ describe("Start fresh UX", () => {
 });
 
 describe("canonical migration gate", () => {
-  it("waits for explicit legacy handoff before rendering learner views", async () => {
+  it("automatically initializes canonical storage for a new anonymous learner", async () => {
+    vi.mocked(readAuthenticatedLearnerContext)
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValue(owner);
+    await render();
+    expect(initializeFreshAnonymousLearner).toHaveBeenCalledOnce();
+    expect(confirmCanonicalHandoff).toHaveBeenCalledExactlyOnceWith(
+      owner,
+      localStorage,
+    );
+    expect(container.textContent).toContain("learner content");
+    expect(container.textContent).not.toContain("Перенос сохранённой работы");
+  });
+  it("keeps the identity and editor locks until canonical activation completes", async () => {
+    const held = new Set<string>();
+    vi.spyOn(navigator.locks, "request").mockImplementation(
+      async (name, _options, callback) => {
+        held.add(name);
+        try {
+          return await callback!({ name } as Lock);
+        } finally {
+          held.delete(name);
+        }
+      },
+    );
+    vi.mocked(readAuthenticatedLearnerContext)
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValue(owner);
+    let locksDuringIssuance: string[] = [];
+    let locksDuringActivation: string[] = [];
+    vi.mocked(initializeFreshAnonymousLearner).mockImplementationOnce(
+      async () => {
+        locksDuringIssuance = [...held];
+      },
+    );
+    vi.mocked(confirmCanonicalHandoff).mockImplementationOnce(async () => {
+      await Promise.resolve();
+      locksDuringActivation = [...held];
+    });
+    await render();
+    expect(locksDuringIssuance).toEqual([
+      IDENTITY_LOCK,
+      PRACTICE_LOCK,
+      SIMULATION_LOCK,
+    ]);
+    expect(locksDuringActivation).toEqual(locksDuringIssuance);
+    expect(held.size).toBe(0);
+    expect(container.textContent).toContain("learner content");
+  });
+  it("blocks first-visit onboarding if canonical initialization fails", async () => {
+    vi.mocked(readAuthenticatedLearnerContext)
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValue(owner);
+    vi.mocked(confirmCanonicalHandoff).mockRejectedValueOnce(
+      new CanonicalPersistenceError("unavailable"),
+    );
+    await render();
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("learner content");
+    expect(confirmStartFreshLearner).not.toHaveBeenCalled();
+  });
+  it("does not import unbound legacy work when a credential appears while waiting for the lock", async () => {
+    const key = "olympiad-trainer:practice-session";
+    localStorage.setItem(key, "legacy work");
+    vi.mocked(readAuthenticatedLearnerContext)
+      .mockResolvedValueOnce("missing")
+      .mockResolvedValue(owner);
+    await render();
+    expect(localStorage.getItem(key)).toBe("legacy work");
+    expect(localStorage.getItem(LOCAL_OWNER_KEY)).toBeNull();
+    expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("learner content");
+  });
+  it("preserves legacy work and waits for explicit handoff", async () => {
+    const key = "olympiad-trainer:practice-session";
+    localStorage.setItem(key, "legacy work");
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
     vi.mocked(prepareCanonicalOwner).mockRejectedValueOnce(
       new CanonicalPersistenceError("handoff-required"),
@@ -433,6 +517,7 @@ describe("canonical migration gate", () => {
     await act(async () => container.querySelector("button")!.click());
     expect(confirmCanonicalHandoff).toHaveBeenCalledWith(owner);
     expect(container.textContent).toContain("learner content");
+    expect(localStorage.getItem(key)).toBe("legacy work");
   });
   it("keeps unavailable or conflicting migration blocked without starting fresh", async () => {
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);

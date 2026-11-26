@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import {
   hasLocalLearnerBytes,
+  initializeEmptyLocalOwner,
   reconcileAuthenticatedLocalOwner,
   suspendLocalLearner,
   LOCAL_IDENTITY_EVENT,
@@ -90,7 +91,11 @@ export default function LearnerIdentityGate({
     async function prepare() {
       if (!navigator.locks?.request)
         throw new Error("Identity lock unavailable");
-      let authenticated = await readAuthenticatedLearnerContext();
+      let authenticated = await navigator.locks.request(
+        IDENTITY_LOCK,
+        { mode: "shared" },
+        readAuthenticatedLearnerContext,
+      );
       if (!active) return;
       if (authenticated === "unavailable")
         throw new Error("Identity unavailable");
@@ -112,31 +117,48 @@ export default function LearnerIdentityGate({
         });
         return;
       }
-      const preexisting = authenticated !== "missing";
-      if (authenticated === "missing")
-        await navigator.locks.request(IDENTITY_LOCK, async () => {
-          const status = await readAuthenticatedLearnerContext();
-          if (status === "unavailable") throw new Error("Identity unavailable");
-          if (status === "invalid") {
-            identityLost = true;
-            throw new Error("Invalid identity");
-          }
-          if (status === "missing") {
-            // Existing local work is not evidence of ownership after cookie loss.
-            if (hasLocalLearnerBytes(localStorage)) {
+      const preexistingCredential = authenticated !== "missing";
+      if (authenticated === "missing") {
+        const initialized = await withIdentityBarrier(
+          async () => {
+            const status = await readAuthenticatedLearnerContext();
+            if (status === "unavailable")
+              throw new Error("Identity unavailable");
+            if (status === "invalid") {
               identityLost = true;
-              throw new Error(
-                "Local learner work requires its original identity",
-              );
+              throw new Error("Invalid identity");
             }
-            await initializeFreshAnonymousLearner();
-          }
-          authenticated = await readAuthenticatedLearnerContext();
-        });
+            if (status === "missing") {
+              // Existing local work is not evidence of ownership after cookie loss.
+              if (hasLocalLearnerBytes(localStorage)) {
+                identityLost = true;
+                throw new Error(
+                  "Local learner work requires its original identity",
+                );
+              }
+              await initializeEmptyLocalOwner(async () => {
+                await initializeFreshAnonymousLearner();
+                const owner = await readAuthenticatedLearnerContext();
+                if (typeof owner === "string")
+                  throw new Error("Identity unavailable");
+                return owner;
+              });
+              return true;
+            }
+            authenticated = status;
+            return false;
+          },
+          { waitForIdentity: true },
+        );
+        if (initialized) return;
+      }
       if (typeof authenticated === "string")
         throw new Error("Identity unavailable");
       if (active) {
-        await reconcileAuthenticatedLocalOwner(authenticated, preexisting);
+        await reconcileAuthenticatedLocalOwner(
+          authenticated,
+          preexistingCredential,
+        );
         await prepareCanonicalOwner(authenticated);
       }
     }
