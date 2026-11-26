@@ -21,6 +21,7 @@ import {
   prepareCanonicalOwner,
   confirmCanonicalHandoff,
   initializeEmptyCanonicalOwner,
+  CANONICAL_SLOTS,
   HANDOFF_KEY,
   CanonicalPersistenceError,
 } from "../../modules/learner/canonical-local-store";
@@ -39,6 +40,7 @@ import {
   captureLearnerStorage,
   IDENTITY_LOCK,
   LOCAL_OWNER_KEY,
+  ownerStorageKey,
   PRACTICE_LOCK,
   SIMULATION_LOCK,
 } from "../../modules/learner/local-ownership";
@@ -629,4 +631,69 @@ describe("public learner entry", () => {
     expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
     expect(container.textContent).toContain("learner content");
   });
+  it.each(["released", "timed out"] as const)(
+    "keeps automatic setup safe when a busy Practice lock is %s",
+    async (outcome) => {
+      vi.useFakeTimers();
+      try {
+        navigation.pathname = "/practice";
+        localStorage.setItem(
+          LOCAL_OWNER_KEY,
+          JSON.stringify({ owner, legacyOwner: null }),
+        );
+        for (const slot of CANONICAL_SLOTS) {
+          localStorage.setItem(
+            ownerStorageKey(owner, slot),
+            JSON.stringify({ version: 2, owner, payload: null }),
+          );
+        }
+        vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
+        vi.mocked(prepareCanonicalOwner)
+          .mockRejectedValueOnce(
+            new CanonicalPersistenceError("handoff-required"),
+          )
+          .mockRejectedValueOnce(
+            new CanonicalPersistenceError("handoff-required"),
+          );
+        let releasePractice: (() => void) | undefined;
+        vi.spyOn(navigator.locks, "request").mockImplementation(
+          async (name, options, callback) => {
+            const lock = { name } as Lock;
+            if (name !== PRACTICE_LOCK) return callback!(lock);
+            const requested = options as LockOptions;
+            if (requested.ifAvailable) return callback!(null);
+            await new Promise<void>((resolve, reject) => {
+              releasePractice = resolve;
+              requested.signal?.addEventListener("abort", () =>
+                reject(requested.signal?.reason),
+              );
+            });
+            return callback!(lock);
+          },
+        );
+
+        await render();
+        expect(releasePractice).toBeDefined();
+        expect(container.querySelector('[role="alert"]')).toBeNull();
+        expect(initializeEmptyCanonicalOwner).not.toHaveBeenCalled();
+
+        if (outcome === "released") {
+          await act(async () => releasePractice!());
+          expect(initializeEmptyCanonicalOwner).toHaveBeenCalledExactlyOnceWith(
+            owner,
+          );
+          expect(container.textContent).toContain("learner content");
+        } else {
+          await act(async () => vi.advanceTimersByTimeAsync(2_000));
+          expect(container.querySelector('[role="alert"]')).not.toBeNull();
+          expect(initializeEmptyCanonicalOwner).not.toHaveBeenCalled();
+          expect(container.textContent).not.toContain("learner content");
+        }
+        expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
+        expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 });

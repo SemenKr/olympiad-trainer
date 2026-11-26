@@ -221,7 +221,7 @@ export default function LearnerIdentityGate({
                 await initializeEmptyCanonicalOwner(owner);
               }
             },
-            { waitForIdentity: true },
+            { waitForIdentity: true, waitForPractice: true },
           );
           await reconcileAuthenticatedLocalOwner(owner, preexistingCredential);
         }

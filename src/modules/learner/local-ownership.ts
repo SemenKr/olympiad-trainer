@@ -206,33 +206,40 @@ export async function requestForLocalOwner<T>(
   return result;
 }
 
-// Exclusive transitions never queue behind or steal a live editor. All operations
-// acquire identity first; Practice mutation then Simulation editor follows it.
+// All operations acquire identity, Practice, then Simulation. Explicit
+// transitions fail fast; automatic setup may wait briefly for Practice cleanup.
 export async function withIdentityBarrier<T>(
   operation: () => Promise<T>,
-  { waitForIdentity = false } = {},
+  { waitForIdentity = false, waitForPractice = false } = {},
 ): Promise<T> {
   if (!navigator.locks?.request) fail();
   return navigator.locks.request(
     IDENTITY_LOCK,
     { ifAvailable: !waitForIdentity },
-    (identity) => {
+    async (identity) => {
       if (!identity) fail();
-      return navigator.locks.request(
-        PRACTICE_LOCK,
-        { ifAvailable: true },
-        (practice) => {
-          if (!practice) fail();
-          return navigator.locks.request(
-            SIMULATION_LOCK,
-            { ifAvailable: true },
-            (simulation) => {
-              if (!simulation) fail();
-              return operation();
-            },
-          );
-        },
-      );
+      const wait = waitForPractice ? new AbortController() : null;
+      const deadline = wait ? setTimeout(() => wait.abort(), 2_000) : undefined;
+      try {
+        return await navigator.locks.request(
+          PRACTICE_LOCK,
+          wait ? { signal: wait.signal } : { ifAvailable: true },
+          (practice) => {
+            clearTimeout(deadline);
+            if (!practice) fail();
+            return navigator.locks.request(
+              SIMULATION_LOCK,
+              { ifAvailable: true },
+              (simulation) => {
+                if (!simulation) fail();
+                return operation();
+              },
+            );
+          },
+        );
+      } finally {
+        clearTimeout(deadline);
+      }
     },
   );
 }
