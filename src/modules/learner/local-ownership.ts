@@ -6,7 +6,7 @@ import {
   CANONICAL_SLOTS,
   canonicalRequired,
   captureCanonicalStorage,
-  confirmCanonicalHandoff,
+  initializeEmptyCanonicalOwner,
   prepareCanonicalOwner,
   suspendCanonicalOwner,
 } from "./canonical-local-store";
@@ -250,7 +250,7 @@ export async function initializeEmptyLocalOwner(
   promoteNamespace(store, owner);
   const bindingRaw = JSON.stringify({ owner, legacyOwner: null });
   confirmedWrite(store, LOCAL_OWNER_KEY, bindingRaw);
-  await confirmCanonicalHandoff(owner, store);
+  await initializeEmptyCanonicalOwner(owner, store);
   active = { owner, store, bindingRaw };
 }
 
@@ -536,6 +536,26 @@ export async function reconcileAuthenticatedLocalOwner(
     confirmedWrite(store, LOCAL_OWNER_KEY, raw);
     active = { owner, store, bindingRaw: raw };
   });
+}
+
+// Public routes may show an existing profile without repairing or migrating it.
+export async function prepareExistingLocalOwner(owner: LocalLearnerOwner) {
+  const store = window.localStorage;
+  const bindingRaw = store.getItem(LOCAL_OWNER_KEY);
+  if (
+    !bindingRaw ||
+    store.getItem(START_FRESH_KEY) !== null ||
+    store.getItem(IDENTITY_SWITCH_KEY) !== null
+  )
+    fail();
+  await prepareCanonicalOwner(owner, store);
+  if (
+    store.getItem(LOCAL_OWNER_KEY) !== bindingRaw ||
+    store.getItem(START_FRESH_KEY) !== null ||
+    store.getItem(IDENTITY_SWITCH_KEY) !== null
+  )
+    fail();
+  active = { owner, store, bindingRaw };
 }
 
 // Foundation only: no recovery/credential endpoint is invoked here. The supplied

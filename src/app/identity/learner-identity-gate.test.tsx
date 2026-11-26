@@ -15,10 +15,13 @@ vi.mock("../../modules/learner/canonical-local-store", async (original) => ({
   assertLegacyIdentityTransition: vi.fn(async () => {}),
   prepareCanonicalOwner: vi.fn(async () => {}),
   confirmCanonicalHandoff: vi.fn(async () => {}),
+  initializeEmptyCanonicalOwner: vi.fn(async () => {}),
 }));
 import {
   prepareCanonicalOwner,
   confirmCanonicalHandoff,
+  initializeEmptyCanonicalOwner,
+  HANDOFF_KEY,
   CanonicalPersistenceError,
 } from "../../modules/learner/canonical-local-store";
 const navigation = vi.hoisted(() => ({ pathname: "/" }));
@@ -31,6 +34,7 @@ import {
   initializeFreshAnonymousLearner,
 } from "./actions";
 import LearnerIdentityGate from "./learner-identity-gate";
+import { useLearnerViewReady } from "./learner-view-readiness";
 import {
   captureLearnerStorage,
   IDENTITY_LOCK,
@@ -53,7 +57,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(prepareCanonicalOwner).mockReset().mockResolvedValue();
   vi.mocked(confirmCanonicalHandoff).mockReset().mockResolvedValue();
-  navigation.pathname = "/";
+  vi.mocked(initializeEmptyCanonicalOwner).mockReset().mockResolvedValue();
+  navigation.pathname = "/progress";
   localStorage.clear();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Object.defineProperty(navigator, "locks", {
@@ -107,7 +112,7 @@ describe("explicit fresh-browser initialization gate", () => {
       );
     },
   );
-  it.each(["/practice", "/progress", "/simulation", "/sources/private"])(
+  it.each(["/practice", "/progress", "/simulation"])(
     "still guards %s after leaving public Sources",
     async (path) => {
       navigation.pathname = "/sources";
@@ -434,12 +439,14 @@ describe("canonical migration gate", () => {
       .mockResolvedValue(owner);
     await render();
     expect(initializeFreshAnonymousLearner).toHaveBeenCalledOnce();
-    expect(confirmCanonicalHandoff).toHaveBeenCalledExactlyOnceWith(
+    expect(initializeEmptyCanonicalOwner).toHaveBeenCalledExactlyOnceWith(
       owner,
       localStorage,
     );
     expect(container.textContent).toContain("learner content");
-    expect(container.textContent).not.toContain("Перенос сохранённой работы");
+    expect(container.textContent).not.toContain(
+      "Продолжить с сохранённой работой",
+    );
   });
   it("keeps the identity and editor locks until canonical activation completes", async () => {
     const held = new Set<string>();
@@ -464,10 +471,12 @@ describe("canonical migration gate", () => {
         locksDuringIssuance = [...held];
       },
     );
-    vi.mocked(confirmCanonicalHandoff).mockImplementationOnce(async () => {
-      await Promise.resolve();
-      locksDuringActivation = [...held];
-    });
+    vi.mocked(initializeEmptyCanonicalOwner).mockImplementationOnce(
+      async () => {
+        await Promise.resolve();
+        locksDuringActivation = [...held];
+      },
+    );
     await render();
     expect(locksDuringIssuance).toEqual([
       IDENTITY_LOCK,
@@ -483,7 +492,7 @@ describe("canonical migration gate", () => {
       .mockResolvedValueOnce("missing")
       .mockResolvedValueOnce("missing")
       .mockResolvedValue(owner);
-    vi.mocked(confirmCanonicalHandoff).mockRejectedValueOnce(
+    vi.mocked(initializeEmptyCanonicalOwner).mockRejectedValueOnce(
       new CanonicalPersistenceError("unavailable"),
     );
     await render();
@@ -507,12 +516,15 @@ describe("canonical migration gate", () => {
     const key = "olympiad-trainer:practice-session";
     localStorage.setItem(key, "legacy work");
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
-    vi.mocked(prepareCanonicalOwner).mockRejectedValueOnce(
+    vi.mocked(prepareCanonicalOwner)
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"))
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"));
+    vi.mocked(initializeEmptyCanonicalOwner).mockRejectedValueOnce(
       new CanonicalPersistenceError("handoff-required"),
     );
     await render();
     expect(container.textContent).not.toContain("learner content");
-    expect(container.textContent).toContain("Перенос сохранённой работы");
+    expect(container.textContent).toContain("Продолжить с сохранённой работой");
     expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
     await act(async () => container.querySelector("button")!.click());
     expect(confirmCanonicalHandoff).toHaveBeenCalledWith(owner);
@@ -521,7 +533,10 @@ describe("canonical migration gate", () => {
   });
   it("keeps unavailable or conflicting migration blocked without starting fresh", async () => {
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
-    vi.mocked(prepareCanonicalOwner).mockRejectedValueOnce(
+    vi.mocked(prepareCanonicalOwner)
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"))
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"));
+    vi.mocked(initializeEmptyCanonicalOwner).mockRejectedValueOnce(
       new CanonicalPersistenceError("handoff-required"),
     );
     vi.mocked(confirmCanonicalHandoff).mockRejectedValueOnce(
@@ -537,6 +552,81 @@ describe("canonical migration gate", () => {
     navigation.pathname = "/simulation";
     vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
     await render();
+    expect(container.textContent).toContain("learner content");
+  });
+});
+
+describe("public learner entry", () => {
+  function Entry() {
+    return <p>{useLearnerViewReady() ? "personalized" : "public entry"}</p>;
+  }
+  async function renderEntry() {
+    await act(async () =>
+      root.render(
+        <LearnerIdentityGate>
+          <Entry />
+        </LearnerIdentityGate>,
+      ),
+    );
+  }
+  it.each(["/", "/practice/choose", "/not-a-page", "/practice/unknown"])(
+    "shows %s without checking identity or initializing an empty browser",
+    async (path) => {
+      navigation.pathname = path;
+      await renderEntry();
+      expect(container.textContent).toContain("public entry");
+      expect(readAuthenticatedLearnerContext).not.toHaveBeenCalled();
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(initializeEmptyCanonicalOwner).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["invalid", "unavailable", "missing"] as const)(
+    "leaves public entry available with %s identity and saved browser data",
+    async (status) => {
+      navigation.pathname = "/";
+      localStorage.setItem(HANDOFF_KEY, '{"version":1,"operationId":"saved"}');
+      vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(status);
+      await renderEntry();
+      expect(container.textContent).toContain("public entry");
+      expect(initializeFreshAnonymousLearner).not.toHaveBeenCalled();
+      expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
+      expect(localStorage.getItem(HANDOFF_KEY)).toContain("saved");
+    },
+  );
+  it("checks identity and fails closed on navigation from Home to Practice", async () => {
+    navigation.pathname = "/";
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue("unavailable");
+    await renderEntry();
+    navigation.pathname = "/practice";
+    await renderEntry();
+    expect(container.textContent).not.toContain("public entry");
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+  });
+  it("keeps Home available when storage access throws", async () => {
+    navigation.pathname = "/";
+    const storage = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Storage denied");
+      });
+    try {
+      await renderEntry();
+      expect(container.textContent).toContain("public entry");
+      expect(readAuthenticatedLearnerContext).not.toHaveBeenCalled();
+    } finally {
+      storage.mockRestore();
+    }
+  });
+  it("automatically activates an authenticated empty profile on a learner route", async () => {
+    vi.mocked(readAuthenticatedLearnerContext).mockResolvedValue(owner);
+    vi.mocked(prepareCanonicalOwner)
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"))
+      .mockRejectedValueOnce(new CanonicalPersistenceError("handoff-required"));
+    await render();
+    expect(initializeEmptyCanonicalOwner).toHaveBeenCalledExactlyOnceWith(
+      owner,
+    );
+    expect(confirmCanonicalHandoff).not.toHaveBeenCalled();
     expect(container.textContent).toContain("learner content");
   });
 });

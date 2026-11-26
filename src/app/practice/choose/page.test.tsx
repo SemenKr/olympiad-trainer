@@ -11,6 +11,10 @@ import {
   type PackId,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
+const readiness = vi.hoisted(() => ({ ready: true }));
+vi.mock("../../identity/learner-view-readiness", () => ({
+  useLearnerViewReady: () => readiness.ready,
+}));
 vi.mock("../actions", () => ({
   verifyPersistedReasoningCheckpointObservation: vi.fn(),
 }));
@@ -27,6 +31,7 @@ import { readVerifiedPracticeSessionSnapshot } from "../../../modules/practice/u
 import ChoosePracticePage from "./page";
 
 beforeEach(async () => {
+  readiness.ready = true;
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await installImmediatePracticeSessionLock();
   vi.mocked(readVerifiedPracticeSessionSnapshot).mockResolvedValue({
@@ -91,6 +96,16 @@ function deferred<T>() {
 }
 
 describe("Choose Practice stable catalog", () => {
+  it("offers the whole catalog while personalized storage is unavailable", () => {
+    readiness.ready = false;
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
+    catalog(container);
+    expect(
+      container.querySelector('[aria-labelledby="learning-path-title"]'),
+    ).toBeNull();
+    expect(readServerLearningPath).not.toHaveBeenCalled();
+  });
   it("renders eighteen editorial Packs and additional original Packs before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);

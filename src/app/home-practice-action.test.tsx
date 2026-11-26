@@ -123,9 +123,9 @@ describe("Home Practice precedence", () => {
 
   it("moves ordinary Pack choices behind the chooser while preserving every Pack Resume route", () => {
     const render = (
-      unfinishedValue: Parameters<
-        typeof HomePracticeContent
-      >[0]["stored"]["unfinished"],
+      unfinishedValue: NonNullable<
+        Parameters<typeof HomePracticeContent>[0]["stored"]
+      >["unfinished"],
       returning = true,
     ) =>
       renderToStaticMarkup(
@@ -347,7 +347,8 @@ describe("Home Practice precedence", () => {
     expect(markup).toContain("Что лучше сделать сейчас");
     expect(markup).toContain("5 КЛАСС · МАТЕМАТИКА");
     expect(markup).not.toContain("Скоро здесь можно будет готовиться");
-    expect(markup).toContain("Проверяем, есть ли незаконченная тренировка…");
+    expect(markup).toContain("Открыть тренировку");
+    expect(markup).toContain('href="/practice"');
     expect(markup).toContain('aria-live="polite"');
     expect(markup).toContain('href="/progress"');
   });

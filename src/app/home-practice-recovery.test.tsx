@@ -60,15 +60,44 @@ afterEach(() => {
 
 beforeEach(installImmediatePracticeSessionLock);
 
-it("reserves the initial action card with announced, non-interactive loading content", () => {
+it("offers a practice link before the personalized action is ready", () => {
   const container = document.createElement("div");
   container.innerHTML = renderToStaticMarkup(<HomePracticeAction />);
   const action = container.querySelector('[class*="next-action"]')!;
-  expect(action.querySelector('[role="status"]')?.textContent).toContain(
-    "Проверяем, есть ли незаконченная тренировка",
+  expect(action.querySelector('a[href="/practice"]')?.textContent).toContain(
+    "Открыть тренировку",
   );
-  expect(action.querySelector('[aria-hidden="true"]')).not.toBeNull();
-  expect(action.querySelector("a, button, [tabindex]")).toBeNull();
+});
+
+it("keeps a focused Home link mounted while delayed personalization loads", async () => {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof readVerifiedPracticeSessionSnapshot>>,
+  ) => void;
+  vi.mocked(readVerifiedPracticeSessionSnapshot).mockImplementationOnce(
+    () => new Promise((done) => (resolve = done)),
+  );
+  vi.mocked(readVerifiedLatestCompletedResults).mockResolvedValue({
+    value: null,
+    interpretation: null,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<HomePracticeAction enabled={false} />));
+    expect(readVerifiedPracticeSessionSnapshot).not.toHaveBeenCalled();
+    const choose = container.querySelector<HTMLAnchorElement>(
+      'a[href="/practice/choose"]',
+    )!;
+    choose.focus();
+    await act(async () => root.render(<HomePracticeAction enabled />));
+    expect(document.activeElement).toBe(choose);
+    await act(async () => resolve({ value: unfinished, interpretation: null }));
+    expect(container.textContent).toContain("Продолжить тренировку");
+    expect(document.activeElement).toBe(choose);
+  } finally {
+    await act(async () => root.unmount());
+  }
 });
 
 it("replaces loading content with verified Resume without changing the surrounding action card", async () => {
@@ -88,8 +117,7 @@ it("replaces loading content with verified Resume without changing the surroundi
   try {
     await act(async () => root.render(<HomePracticeAction />));
     const action = container.querySelector('[class*="next-action"]')!;
-    expect(action.querySelector('[role="status"]')).not.toBeNull();
-    expect(action.querySelector("a, button")).toBeNull();
+    expect(action.querySelector('a[href="/practice"]')).not.toBeNull();
     await act(async () => resolve({ value: unfinished, interpretation: null }));
     const loadedAction = container.querySelector('[class*="next-action"]')!;
     expect(loadedAction.className).toBe(action.className);
@@ -127,8 +155,7 @@ it("restores the same loading footprint during a failed verification retry", asy
     );
     const retryAction = container.querySelector('[class*="next-action"]')!;
     expect(retryAction.className).toBe(action.className);
-    expect(retryAction.querySelector('[role="status"]')).not.toBeNull();
-    expect(retryAction.querySelector("a, button")).toBeNull();
+    expect(retryAction.querySelector('a[href="/practice"]')).not.toBeNull();
     await act(async () => resolve({ value: unfinished, interpretation: null }));
     expect(container.textContent).toContain("Продолжить тренировку");
   } finally {

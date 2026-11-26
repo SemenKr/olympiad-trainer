@@ -11,6 +11,7 @@ import {
 import {
   hasLocalLearnerBytes,
   initializeEmptyLocalOwner,
+  prepareExistingLocalOwner,
   reconcileAuthenticatedLocalOwner,
   suspendLocalLearner,
   LOCAL_IDENTITY_EVENT,
@@ -19,15 +20,31 @@ import {
   IDENTITY_LOCK,
   START_FRESH_KEY,
   startFreshLocalIdentity,
+  withIdentityBarrier,
 } from "../../modules/learner/local-ownership";
 
 import {
   CanonicalPersistenceError,
+  canonicalRequired,
   confirmCanonicalHandoff,
+  HANDOFF_KEY,
+  initializeEmptyCanonicalOwner,
   prepareCanonicalOwner,
 } from "../../modules/learner/canonical-local-store";
-import { withIdentityBarrier } from "../../modules/learner/local-ownership";
+import { sameLocalLearnerOwner } from "../../modules/learner/local-owner-context";
 import styles from "./learner-identity-gate.module.scss";
+
+import { LearnerViewReady } from "./learner-view-readiness";
+
+const learnerRoutes = new Set([
+  "/practice",
+  "/practice/pack",
+  "/practice/review",
+  "/practice/summary",
+  "/practice/transfer",
+  "/progress",
+  "/simulation",
+]);
 
 export default function LearnerIdentityGate({
   children,
@@ -35,16 +52,23 @@ export default function LearnerIdentityGate({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const optionalProfile = pathname === "/" || pathname === "/practice/choose";
+  const publicOnly = !optionalProfile && !learnerRoutes.has(pathname);
   const [state, setState] = useState<"loading" | "ready" | "error" | "handoff">(
     "loading",
   );
-  const [readyPath, setReadyPath] = useState<string | null>(null);
+  const [observedPath, setObservedPath] = useState(pathname);
   const [retry, setRetry] = useState(0);
   const [lost, setLost] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const confirmationHeading = useRef<HTMLHeadingElement>(null);
   const freshButton = useRef<HTMLButtonElement>(null);
   const starting = useRef(false);
+  if (observedPath !== pathname) {
+    setObservedPath(pathname);
+    setState("loading");
+    setConfirming(false);
+  }
   useEffect(() => {
     if (confirming) confirmationHeading.current?.focus();
   }, [confirming]);
@@ -83,14 +107,26 @@ export default function LearnerIdentityGate({
     }
   }
   useEffect(() => {
-    // Public attribution and Restore must not initialize a learner, including
-    // when a browser has lost its cookie but still contains saved work.
-    if (pathname === "/restore" || pathname === "/sources") return;
+    // Public pages and Recovery must never initialize a learner.
+    if (publicOnly) return;
     let active = true;
     let identityLost = false;
     async function prepare() {
       if (!navigator.locks?.request)
         throw new Error("Identity lock unavailable");
+      if (optionalProfile) {
+        if (!canonicalRequired()) return false;
+        return navigator.locks.request(
+          IDENTITY_LOCK,
+          { mode: "shared" },
+          async () => {
+            const owner = await readAuthenticatedLearnerContext();
+            if (!active || typeof owner === "string") return false;
+            await prepareExistingLocalOwner(owner);
+            return true;
+          },
+        );
+      }
       let authenticated = await navigator.locks.request(
         IDENTITY_LOCK,
         { mode: "shared" },
@@ -155,17 +191,45 @@ export default function LearnerIdentityGate({
       if (typeof authenticated === "string")
         throw new Error("Identity unavailable");
       if (active) {
-        await reconcileAuthenticatedLocalOwner(
-          authenticated,
-          preexistingCredential,
-        );
-        await prepareCanonicalOwner(authenticated);
+        const owner = authenticated;
+        try {
+          await reconcileAuthenticatedLocalOwner(owner, preexistingCredential);
+          await prepareCanonicalOwner(owner);
+        } catch (error) {
+          if (
+            !(error instanceof CanonicalPersistenceError) ||
+            error.status !== "handoff-required"
+          )
+            throw error;
+          await withIdentityBarrier(
+            async () => {
+              const current = await readAuthenticatedLearnerContext();
+              if (
+                typeof current === "string" ||
+                !sameLocalLearnerOwner(current, owner)
+              )
+                throw new Error("Identity changed before storage setup");
+              try {
+                // Another tab may have activated storage while we waited.
+                await prepareCanonicalOwner(owner);
+              } catch (error) {
+                if (
+                  !(error instanceof CanonicalPersistenceError) ||
+                  error.status !== "handoff-required"
+                )
+                  throw error;
+                await initializeEmptyCanonicalOwner(owner);
+              }
+            },
+            { waitForIdentity: true },
+          );
+          await reconcileAuthenticatedLocalOwner(owner, preexistingCredential);
+        }
       }
     }
     void prepare()
-      .then(() => {
-        if (active) {
-          setReadyPath(pathname);
+      .then((ready) => {
+        if (active && ready !== false) {
           setConfirming(false);
           setState("ready");
         }
@@ -186,7 +250,7 @@ export default function LearnerIdentityGate({
     return () => {
       active = false;
     };
-  }, [pathname, retry]);
+  }, [optionalProfile, pathname, publicOnly, retry]);
   useEffect(() => {
     const invalidate = () => {
       if (starting.current) return;
@@ -198,6 +262,7 @@ export default function LearnerIdentityGate({
         event.key === null ||
         event.key === START_FRESH_KEY ||
         event.key === LOCAL_OWNER_KEY ||
+        event.key === HANDOFF_KEY ||
         event.key === IDENTITY_SWITCH_KEY
       )
         invalidate();
@@ -209,24 +274,21 @@ export default function LearnerIdentityGate({
       window.removeEventListener(LOCAL_IDENTITY_EVENT, invalidate);
     };
   }, []);
-  if (
-    pathname === "/restore" ||
-    pathname === "/sources" ||
-    (state === "ready" && readyPath === pathname)
-  )
-    return children;
+  const ready = state === "ready" && observedPath === pathname;
+  if (publicOnly) return children;
+  if (optionalProfile || ready)
+    return <LearnerViewReady value={ready}>{children}</LearnerViewReady>;
   return (
     <main className={styles.gate}>
       <h1>Олимпиадный тренажёр</h1>
-      {state === "loading" || (state === "ready" && readyPath !== pathname) ? (
+      {state === "loading" || observedPath !== pathname ? (
         <p role="status">Проверяем доступ к тренировкам…</p>
       ) : state === "handoff" ? (
         <>
-          <h2>Перенос сохранённой работы</h2>
+          <h2>Продолжить с сохранённой работой</h2>
           <p>
-            Сначала сохрани работу в других вкладках тренажёра и закрой их.
-            После переноса не используй старые вкладки: их изменения не
-            перенесутся автоматически. Прежние данные останутся в браузере.
+            Если тренажёр открыт в других вкладках, сохрани там работу и закрой
+            их. Затем подтверди перенос. Прежние данные останутся в браузере.
           </p>
           <button type="button" onClick={() => void handoff()}>
             Другие вкладки закрыты — перенести работу
@@ -237,7 +299,7 @@ export default function LearnerIdentityGate({
           <p role="alert">
             {lost
               ? "Доступ к прежнему профилю потерян. Сохранённая работа остаётся в браузере. Восстанови доступ по коду или начни заново."
-              : "Не удалось проверить доступ. Возможно, временно недоступны сервер или хранилище браузера. Закрой другие вкладки с тренировкой и попробуй ещё раз. Сохранённая работа не переносится автоматически."}
+              : "Не получилось открыть твой профиль. Закрой другие вкладки с тренажёром и попробуй ещё раз. Сохранённая работа останется в браузере."}
           </p>
           <button
             type="button"
@@ -294,6 +356,7 @@ export default function LearnerIdentityGate({
           </p>
         </>
       )}
+      <Link href="/">На главную</Link>
     </main>
   );
 }

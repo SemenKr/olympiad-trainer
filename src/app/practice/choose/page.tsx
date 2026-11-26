@@ -7,7 +7,7 @@ import {
 } from "../../../modules/practice/application/completed-practice-episode";
 import { HomeNavigation } from "../../home-navigation";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
-import { UnfinishedPracticeContext } from "./unfinished-practice-context";
+import { OptionalUnfinishedPracticeContext } from "./unfinished-practice-context";
 import styles from "../../page.module.scss";
 
 export default function ChoosePracticePage() {
@@ -31,7 +31,7 @@ export default function ChoosePracticePage() {
           не означает порядок сложности или уровень знаний.
         </p>
       </header>
-      <UnfinishedPracticeContext />
+      <OptionalUnfinishedPracticeContext />
       <section
         className={styles["free-choice"]}
         aria-labelledby="all-packs-title"

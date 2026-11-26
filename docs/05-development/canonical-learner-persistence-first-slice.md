@@ -6,7 +6,7 @@ This document preserves the A–R prototype history from exact `6e7376f073ed5bde
 
 IndexedDB `olympiad-trainer:learner-canonical-v1` schema 2 contains one transactional active control/binding with retained per-learner namespaces, all six serialized payloads, their original v2 envelopes, the original binding, migration operation identity, session identity, revision and admission fingerprints/tombstones. The original localStorage slots remain unchanged. No canonical write is mirrored to them.
 
-The learner gate requires explicit confirmation that other old trainer tabs have been saved and closed. This is a handoff precondition, not a technical fence: exact `6e7376f` can still write its old branch. A deployment, storage event, marker or Web Lock cannot upgrade frozen JavaScript. Old tabs must stop being used; reopening a cached old build is unsupported.
+The learner gate requires explicit confirmation that other old trainer tabs have been saved and closed when it detects legacy work. On a learner route it can activate an authenticated empty namespace automatically only after checking all six slots and finding no other learner storage or unresolved transition under the same exclusive barrier. This is a handoff precondition, not a technical fence: exact `6e7376f` can still write its old branch. A deployment, storage event, marker or Web Lock cannot upgrade frozen JavaScript. Old tabs must stop being used; reopening a cached old build is unsupported.
 
 Under the existing identity → Practice → Simulation exclusive barrier:
 
@@ -108,7 +108,7 @@ Exact `6e7376f` is not a writable rollback target after handoff. It can acknowle
 
 This section supersedes the earlier deliberately unavailable paths. The implementation is now included in the authorized local M2 integration; its acceptance record and independent review remain separate from Production deployment approval. D1–D5, server authentication/credential protocols, SQL, content and learning facts are unchanged.
 
-The same database name now opens at IndexedDB schema **2**. Its transactional binding contains the active owner, a monotonically changing activation lease, retained learner namespaces, and a pending identity transition when applicable. Each namespace preserves its six payloads, Practice session admission fingerprints/tombstones and revision. A schema-1 first-slice client receives `VersionError` after upgrade. Pre-IDB frozen JavaScript remains unsupported and can still write its legacy branch; the explicit close-old-tabs handoff remains necessary.
+The same database name now opens at IndexedDB schema **2**. Its transactional binding contains the active owner, a monotonically changing activation lease, retained learner namespaces, and a pending identity transition when applicable. Each namespace preserves its six payloads, Practice session admission fingerprints/tombstones and revision. A schema-1 first-slice client receives `VersionError` after upgrade. Pre-IDB frozen JavaScript remains unsupported and can still write its legacy branch; the explicit close-old-tabs handoff remains necessary when legacy work exists.
 
 The original binding and six original envelopes remain immutable provenance. They continue to refer to the original learner/generation, independently of the current authenticated owner. Generation rotation never rewrites those localStorage bytes. Divergence checks always compare the original owner's physical source keys; a new identity never selects or imports another legacy branch.
 

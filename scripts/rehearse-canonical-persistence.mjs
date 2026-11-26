@@ -118,6 +118,53 @@ try {
       ),
     );
   }
+  for (const fixture of ["empty", "legacy", "other-namespace"]) {
+    const c = await browser.newContext(),
+      p = await page(c);
+    const result = await p.evaluate(async (fixture) => {
+      const { ownership, canonical } = current;
+      const legacyKey = canonical.CANONICAL_SLOTS[0];
+      const otherKey = ownership.ownerStorageKey(
+        { ...owner, learnerId: "00000000-0000-4000-8000-000000000200" },
+        legacyKey,
+      );
+      await ownership.reconcileAuthenticatedLocalOwner(owner, true);
+      if (fixture === "legacy")
+        ownership.captureLearnerStorage().setItem(legacyKey, "saved work");
+      if (fixture === "other-namespace")
+        localStorage.setItem(otherKey, "other profile");
+      const client = new canonical.CanonicalLocalStore(localStorage, indexedDB);
+      const attempted = await ownership.withIdentityBarrier(() =>
+        client.migrate(owner, false),
+      );
+      return {
+        status: attempted.status,
+        payloads: attempted.value?.payloads,
+        witness: localStorage.getItem(canonical.HANDOFF_KEY) !== null,
+        retained: localStorage.getItem(
+          fixture === "legacy"
+            ? ownership.ownerStorageKey(owner, legacyKey)
+            : otherKey,
+        ),
+      };
+    }, fixture);
+    if (fixture === "empty") {
+      assert.equal(result.status, "ok");
+      assert.equal(result.witness, true);
+      assert(
+        Object.values(result.payloads).every((payload) => payload === null),
+      );
+    } else {
+      assert.equal(result.status, "handoff-required");
+      assert.equal(result.witness, false);
+      assert.match(
+        result.retained,
+        fixture === "legacy" ? /saved work/ : /other profile/,
+      );
+    }
+    pass("automatic canonical setup", { fixture, status: result.status });
+    await c.close();
+  }
   for (const scenario of ["race", "stale-revision", "stale-lease"]) {
     const c = await browser.newContext(),
       p = await page(c);

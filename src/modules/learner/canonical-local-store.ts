@@ -331,15 +331,47 @@ export class CanonicalLocalStore {
     );
   }
   // Caller must hold the existing identity -> Practice -> Simulation barrier.
-  // Confirmation is a user handoff, not a claim that frozen clients are fenced.
+  // Only a proven empty namespace may activate without the user's handoff.
   migrate(owner: LocalLearnerOwner, confirmed: boolean) {
     return outcome(async () => {
-      if (!confirmed) fail("handoff-required");
       if (!isLocalLearnerOwner(owner)) fail("conflict");
+      const assertEmpty = (original: Source) => {
+        if (confirmed) return;
+        const slots = new Set<string>(
+          CANONICAL_SLOTS.map((k) => physical(owner, k)),
+        );
+        if (original.envelopes.some((raw) => JSON.parse(raw).payload !== null))
+          fail("handoff-required");
+        for (let i = 0; i < this.storage.length; i++) {
+          const key = this.storage.key(i);
+          if (
+            key &&
+            (key.startsWith("olympiad-trainer:") ||
+              key.startsWith("olympiad-trainer-")) &&
+            key !== BINDING &&
+            key !== HANDOFF_KEY &&
+            !slots.has(key)
+          )
+            fail("handoff-required");
+        }
+      };
       const prepared = await transaction(this.factory, (record) => {
-        if (record) return { value: this.check(record, owner, false) };
+        if (record) {
+          this.check(record, owner, false);
+          if (!confirmed) {
+            if (
+              record.phase !== "prepared" ||
+              record.pendingTransition ||
+              record.retained
+            )
+              fail("handoff-required");
+            assertEmpty(source(this.storage, owner));
+          }
+          return { value: record };
+        }
         if (witness(this.storage) !== null) fail("unavailable");
         const original = source(this.storage, owner);
+        assertEmpty(original);
         const payloads = Object.fromEntries(
           CANONICAL_SLOTS.map((key, i) => [
             key,
@@ -364,6 +396,7 @@ export class CanonicalLocalStore {
       const previous = witness(this.storage);
       if (previous !== null && previous !== prepared.operationId)
         fail("conflict");
+      if (!confirmed) assertEmpty(source(this.storage, owner));
       const raw = JSON.stringify({
         version: 1,
         operationId: prepared.operationId,
@@ -373,6 +406,7 @@ export class CanonicalLocalStore {
       return transaction(this.factory, (record) => {
         const current = this.check(record, owner, false);
         if (current.operationId !== prepared.operationId) fail("conflict");
+        if (!confirmed) assertEmpty(source(this.storage, owner));
         const next = { ...current, phase: "active" as const };
         return { value: next, write: next };
       });
@@ -539,6 +573,16 @@ export async function confirmCanonicalHandoff(
 ) {
   const client = new CanonicalLocalStore(storage, indexedDB);
   const result = await client.migrate(owner, true);
+  if (result.status !== "ok")
+    throw new CanonicalPersistenceError(result.status);
+  active = { client, record: result.value, storage };
+}
+export async function initializeEmptyCanonicalOwner(
+  owner: LocalLearnerOwner,
+  storage: Storage = window.localStorage,
+) {
+  const client = new CanonicalLocalStore(storage, indexedDB);
+  const result = await client.migrate(owner, false);
   if (result.status !== "ok")
     throw new CanonicalPersistenceError(result.status);
   active = { client, record: result.value, storage };

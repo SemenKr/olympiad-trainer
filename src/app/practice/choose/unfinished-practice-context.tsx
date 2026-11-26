@@ -9,6 +9,11 @@ import {
 } from "../../../modules/practice/ui/practice-session-storage";
 import { LearningPathGuideLoader } from "../../../modules/practice/ui/learning-path";
 import { verifyPersistedReasoningCheckpointObservation } from "../actions";
+import { useLearnerViewReady } from "../../identity/learner-view-readiness";
+
+export function OptionalUnfinishedPracticeContext() {
+  return useLearnerViewReady() ? <UnfinishedPracticeContext /> : null;
+}
 
 export function UnfinishedPracticeContext() {
   const [state, setState] = useState<
