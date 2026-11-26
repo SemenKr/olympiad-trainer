@@ -38,6 +38,7 @@ import { getLearningPathProjection } from "../modules/practice/application/learn
 import styles from "./page.module.scss";
 import { ReviewEntry } from "../modules/practice/ui/review-entry";
 import { AdaptiveRecommendationCard } from "../modules/practice/ui/adaptive-recommendation";
+import { useLearnerViewReady } from "./identity/learner-view-readiness";
 
 type StoredPractice = Readonly<{
   unfinished: UnfinishedPracticeSessionSnapshot | null;
@@ -50,14 +51,42 @@ type StoredPractice = Readonly<{
   completedPackIds?: readonly PackId[] | null;
 }>;
 
-export function HomePracticeAction() {
+export function HomePracticeEntry() {
+  return <HomePracticeAction enabled={useLearnerViewReady()} />;
+}
+
+function PublicPracticeAction() {
+  return (
+    <section>
+      <h2>Потренируйся решать задачи</h2>
+      <p>Попробуй решить задачу сам. Если понадобится, открой подсказку.</p>
+      <Link className={styles.primary} href="/practice">
+        Открыть тренировку
+      </Link>
+    </section>
+  );
+}
+
+export function HomePracticeAction({ enabled = true }: { enabled?: boolean }) {
   const [stored, setStored] = useState<StoredPractice | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [unsupportedState, setUnsupportedState] = useState(false);
   const [loadRetry, setLoadRetry] = useState(0);
-  const [summaryRetryPending, setSummaryRetryPending] = useState(false);
+  const [summaryRetryFor, setSummaryRetryFor] = useState<StoredPractice | null>(
+    null,
+  );
+  const [wasEnabled, setWasEnabled] = useState(enabled);
+  if (wasEnabled !== enabled) {
+    setWasEnabled(enabled);
+    setStored(null);
+    setLoadError(false);
+    setUnsupportedState(false);
+    setSummaryRetryFor(null);
+  }
+  const summaryRetryPending = stored !== null && summaryRetryFor === stored;
 
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
@@ -146,17 +175,17 @@ export function HomePracticeAction() {
     return () => {
       active = false;
     };
-  }, [loadRetry]);
+  }, [enabled, loadRetry]);
 
   async function retrySummary() {
-    if (summaryRetryPending) return;
-    setSummaryRetryPending(true);
+    if (!stored || summaryRetryPending) return;
+    setSummaryRetryFor(stored);
     try {
       const completed = await readVerifiedLatestCompletedResults(
         verifyPersistedReasoningCheckpointObservation,
       );
       setStored((current) =>
-        current
+        current === stored
           ? {
               ...current,
               completed: completed.value,
@@ -167,19 +196,18 @@ export function HomePracticeAction() {
       );
     } catch {
       setStored((current) =>
-        current ? { ...current, completedLoadError: true } : current,
+        current === stored ? { ...current, completedLoadError: true } : current,
       );
     } finally {
-      setSummaryRetryPending(false);
+      setSummaryRetryFor((current) => (current === stored ? null : current));
     }
   }
 
-  if (unsupportedState) {
-    return (
-      <HomePracticeLayout>
-        <h2 tabIndex={-1} autoFocus>
-          Тренировка из более новой версии
-        </h2>
+  let fallback: ReactNode;
+  if (enabled && unsupportedState) {
+    fallback = (
+      <>
+        <h2>Тренировка из более новой версии</h2>
         <p role="status">
           Сохранённая тренировка не поддерживается этой версией. Данные
           сохранены. Вернись к более новой версии, чтобы продолжить её.
@@ -194,15 +222,12 @@ export function HomePracticeAction() {
         >
           Проверить снова
         </button>
-      </HomePracticeLayout>
+      </>
     );
-  }
-  if (loadError) {
-    return (
-      <HomePracticeLayout>
-        <h2 tabIndex={-1} autoFocus>
-          Не удалось открыть домашнюю страницу
-        </h2>
+  } else if (enabled && loadError) {
+    fallback = (
+      <>
+        <h2>Не удалось проверить твою тренировку</h2>
         <p role="alert">Не удалось проверить сохранённую тренировку.</p>
         <button
           className={styles.primary}
@@ -214,12 +239,16 @@ export function HomePracticeAction() {
         >
           Повторить
         </button>
-      </HomePracticeLayout>
+        <Link className={styles.secondary} href="/practice">
+          Открыть тренировку
+        </Link>
+      </>
     );
   }
-  return stored ? (
+  return (
     <HomePracticeContent
-      stored={stored}
+      stored={enabled && !fallback ? stored : null}
+      fallback={fallback}
       onSummaryRetry={retrySummary}
       summaryRetryPending={summaryRetryPending}
       onPathRetry={() => {
@@ -227,32 +256,28 @@ export function HomePracticeAction() {
         setLoadRetry((value) => value + 1);
       }}
     />
-  ) : (
-    <HomePracticeLayout>
-      <div className={styles["next-action-loading"]} role="status">
-        <p>Проверяем, есть ли незаконченная тренировка…</p>
-        <div className={styles["next-action-skeleton"]} aria-hidden="true">
-          <span className={styles["skeleton-heading"]} />
-          <span className={styles["skeleton-line"]} />
-          <span className={styles["skeleton-line-short"]} />
-          <span className={styles["skeleton-action"]} />
-        </div>
-      </div>
-    </HomePracticeLayout>
   );
 }
 
 export function HomePracticeContent({
   stored,
+  fallback,
   onPathRetry,
   onSummaryRetry,
   summaryRetryPending,
 }: {
-  stored: StoredPractice;
+  stored: StoredPractice | null;
+  fallback?: ReactNode;
   onPathRetry?: () => void;
   onSummaryRetry?: () => void;
   summaryRetryPending?: boolean;
 }) {
+  if (!stored)
+    return (
+      <HomePracticeLayout>
+        {fallback ?? <PublicPracticeAction />}
+      </HomePracticeLayout>
+    );
   const path =
     stored.completedPackIds === null
       ? null
