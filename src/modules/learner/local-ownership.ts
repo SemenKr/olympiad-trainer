@@ -6,6 +6,7 @@ import {
   CANONICAL_SLOTS,
   canonicalRequired,
   captureCanonicalStorage,
+  confirmCanonicalHandoff,
   prepareCanonicalOwner,
   suspendCanonicalOwner,
 } from "./canonical-local-store";
@@ -209,11 +210,12 @@ export async function requestForLocalOwner<T>(
 // acquire identity first; Practice mutation then Simulation editor follows it.
 export async function withIdentityBarrier<T>(
   operation: () => Promise<T>,
+  { waitForIdentity = false } = {},
 ): Promise<T> {
   if (!navigator.locks?.request) fail();
   return navigator.locks.request(
     IDENTITY_LOCK,
-    { ifAvailable: true },
+    { ifAvailable: !waitForIdentity },
     (identity) => {
       if (!identity) fail();
       return navigator.locks.request(
@@ -233,6 +235,23 @@ export async function withIdentityBarrier<T>(
       );
     },
   );
+}
+
+// First-visit callers hold the full barrier from the authenticated read through
+// activation, so another tab cannot adopt a half-initialized browser binding.
+export async function initializeEmptyLocalOwner(
+  authenticate: () => Promise<LocalLearnerOwner>,
+  store: Storage = window.localStorage,
+) {
+  await assertLegacyIdentityTransition(store);
+  if (hasLocalLearnerBytes(store)) fail();
+  const owner = await authenticate();
+  if (!isLocalLearnerOwner(owner) || hasLocalLearnerBytes(store)) fail();
+  promoteNamespace(store, owner);
+  const bindingRaw = JSON.stringify({ owner, legacyOwner: null });
+  confirmedWrite(store, LOCAL_OWNER_KEY, bindingRaw);
+  await confirmCanonicalHandoff(owner, store);
+  active = { owner, store, bindingRaw };
 }
 
 export async function withLocalIdentityRead<T>(
