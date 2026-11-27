@@ -51,13 +51,21 @@ try {
     stdin: {
       contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
         import Page from './src/app/practice/choose/page';
+        import {LearnerViewReady} from './src/app/identity/learner-view-readiness';
+        import {LEARNING_PATH_V1} from './src/modules/practice/application/learning-path';
         import {PRACTICE_PACKS} from './src/modules/practice/application/completed-practice-episode';
         import {LOCAL_IDENTITY_EVENT} from './src/modules/learner/local-ownership';
-        if (location.search) PRACTICE_PACKS[0].name = 'Разные способы рассуждать, сравнивать условия и объяснять выбранные решения';
-        window.packs = PRACTICE_PACKS; window.identityEvent = LOCAL_IDENTITY_EVENT;
+        if (new URLSearchParams(location.search).get("longLabels") === "true") PRACTICE_PACKS[0].name = 'Разные способы рассуждать, сравнивать условия и объяснять выбранные решения';
+        window.packs = PRACTICE_PACKS; window.pathIds = LEARNING_PATH_V1.map(({packId}) => packId);
+        window.identityEvent = LOCAL_IDENTITY_EVENT;
         window.reads = {session:[],path:[]};
         window.readFixture = kind => new Promise((resolve,reject)=>window.reads[kind].push({resolve,reject}));
-        createRoot(document.getElementById('root')).render(<Page/>);`,
+        function App() {
+          const [ready, setReady] = React.useState(!new URLSearchParams(location.search).has("unavailable"));
+          window.setFixtureReady = setReady;
+          return <LearnerViewReady value={ready}><Page/></LearnerViewReady>;
+        }
+        createRoot(document.getElementById('root')).render(<App/>);`,
       resolveDir: root,
       loader: "tsx",
     },
@@ -129,18 +137,21 @@ try {
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   browser = await chromium.launch({ channel: "chrome", headless: true });
-  for (const width of [320, 768, 1440]) {
+  for (const width of [320, 390, 768, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const summary = page.locator('[aria-labelledby="learning-path-title"]');
-    async function start(longLabels = false) {
+    async function start({ longLabels = false, unavailable = false } = {}) {
       await page.goto(
-        `http://127.0.0.1:${server.address().port}/practice/choose${longLabels ? "?long=1" : ""}`,
+        `http://127.0.0.1:${server.address().port}/practice/choose?longLabels=${longLabels}${unavailable ? "&unavailable" : ""}`,
       );
-      await page.waitForFunction(
-        () => window.reads.session.length && window.reads.path.length,
-      );
+      await page.locator("article").first().waitFor();
+      if (!unavailable) {
+        await page.waitForFunction(
+          () => window.reads.session.length && window.reads.path.length,
+        );
+      }
       const fonts = await page.evaluate(async () => {
         await Promise.all(
           [400, 600, 700].map((weight) =>
@@ -161,13 +172,11 @@ try {
         `Onest weights must load: ${JSON.stringify(fonts)}`,
       );
       await page.evaluate(() => {
-        window.cards = [
-          ...document.querySelectorAll(
-            'ol[aria-label="Все наборы задач"] > li',
-          ),
-        ];
-        window.catalogTop =
-          document.querySelector("ol").getBoundingClientRect().top + scrollY;
+        window.catalogLists = [...document.querySelectorAll("ol, ul")];
+        window.cards = [...document.querySelectorAll("article")];
+        window.catalogTops = window.catalogLists.map(
+          (list) => list.getBoundingClientRect().top + scrollY,
+        );
       });
       await stable("loading");
     }
@@ -192,21 +201,45 @@ try {
     }
     async function stable(label) {
       const metrics = await page.evaluate(() => {
-        const list = document.querySelector("ol");
-        const section = document.querySelector(
-          '[aria-labelledby="learning-path-title"]',
-        );
+        const lists = [...document.querySelectorAll("ol, ul")];
+        const cards = [...document.querySelectorAll("article")];
+        const controls = [...document.querySelectorAll("main a, main button")];
+        const elements = [
+          ...document.querySelectorAll("main p, main h2, main h3"),
+          ...controls,
+        ];
+        const expectedIds = [
+          ...window.pathIds,
+          ...window.packs
+            .map(({ id }) => id)
+            .filter((id) => !window.pathIds.includes(id)),
+        ];
         return {
-          shift: Math.abs(
-            list.getBoundingClientRect().top + scrollY - window.catalogTop,
+          shift: Math.max(
+            ...lists.map((list, i) =>
+              Math.abs(
+                list.getBoundingClientRect().top +
+                  scrollY -
+                  window.catalogTops[i],
+              ),
+            ),
           ),
-          same: window.cards.every((card, i) => list.children[i] === card),
-          count: list.children.length,
+          same:
+            window.catalogLists.every((list, i) => lists[i] === list) &&
+            window.cards.every((card, i) => cards[i] === card),
+          sizes: lists.map((list) => list.children.length),
+          order: cards.every(
+            (card, i) =>
+              card.getAttribute("aria-labelledby") ===
+              expectedIds[i] + "-title",
+          ),
           overflow: document.documentElement.scrollWidth > innerWidth,
-          clipped: [...section.querySelectorAll("p,a,button")].some(
-            (el) => el.scrollHeight > el.clientHeight + 1,
+          clipped: elements.some(
+            (el) =>
+              el.scrollHeight > el.clientHeight + 1 ||
+              el.scrollWidth > el.clientWidth + 1,
           ),
-          controls: [...section.querySelectorAll("a,button")].every(
+          controls: controls.every(
             (el) => el.getBoundingClientRect().height >= 44,
           ),
         };
@@ -220,7 +253,8 @@ try {
         {
           shift: 0,
           same: true,
-          count: 12,
+          sizes: [18, 14],
+          order: true,
           overflow: false,
           clipped: false,
           controls: true,
@@ -228,6 +262,64 @@ try {
       );
       console.log(`PASS ${width}px ${label}: displacement ${metrics.shift}px`);
     }
+    await start({ unavailable: true });
+    assert.deepEqual(
+      await page.evaluate(() => [
+        window.reads.session.length,
+        window.reads.path.length,
+      ]),
+      [0, 0],
+    );
+    const navigation = page.getByRole("navigation", {
+      name: "Разделы каталога",
+    });
+    for (const id of ["recommended-packs", "additional-packs"]) {
+      await navigation.locator(`a[href="#${id}"]`).focus();
+      await page.keyboard.press("Enter");
+      assert.equal(await page.evaluate(() => document.activeElement.id), id);
+      await page.keyboard.press("Tab");
+      assert.equal(
+        await page.evaluate(
+          (id) =>
+            document.activeElement ===
+            document.querySelector(
+              `section[aria-labelledby="${id}"] article a`,
+            ),
+          id,
+        ),
+        true,
+      );
+    }
+    // Each list is navigable in document order from its own section shortcut.
+    for (const [id, count] of [
+      ["recommended-packs", 18],
+      ["additional-packs", 14],
+    ]) {
+      const links = page.locator(`section[aria-labelledby="${id}"] article a`);
+      await navigation.locator(`a[href="#${id}"]`).focus();
+      await page.keyboard.press("Enter");
+      for (let i = 0; i < count; i++) {
+        await page.keyboard.press("Tab");
+        assert.equal(
+          await links
+            .nth(i)
+            .evaluate((link) => document.activeElement === link),
+          true,
+        );
+      }
+    }
+    await page.evaluate(() => window.setFixtureReady(true));
+    await page.waitForFunction(
+      () => window.reads.session.length && window.reads.path.length,
+    );
+    await stable("availability turns on");
+    await settle("session", null);
+    await settle("path", ["pack-a"]);
+    await stable("availability with recorded progress");
+    await page.evaluate(() => window.setFixtureReady(false));
+    await summary.getByText("Отметки пути пока недоступны").waitFor();
+    await stable("availability turns off");
+    assert.equal(await summary.locator("a, button").count(), 0);
     const pack = await (async () => {
       await start();
       return page.evaluate(() => window.packs[0]);
@@ -272,7 +364,7 @@ try {
         );
         assert.match(
           await summary.innerText(),
-          /Сохранённые завершения: 1 из 12/,
+          /Сохранённые завершения: 1 из 18/,
         );
       }
     }
@@ -292,7 +384,7 @@ try {
       assert.equal(await summary.locator("a").count(), 0);
       assert.equal(await summary.locator("button").count(), 1);
       if (failure !== "session")
-        assert.doesNotMatch(await summary.innerText(), /0 из 12/);
+        assert.doesNotMatch(await summary.innerText(), /0 из 18/);
       await summary.locator("button").focus();
       await summary.locator("button").click();
       await page.waitForFunction(
@@ -321,11 +413,11 @@ try {
         "/practice",
       );
     }
-    await start(true);
+    await start({ longLabels: true });
     await settle("path", []);
     await settle("session", null);
     await stable("long Russian Path label");
-    await start(true);
+    await start({ longLabels: true });
     await settle("path", []);
     await settle("session", unfinished);
     await stable("long Russian unfinished Pack label");
@@ -356,7 +448,7 @@ try {
       await settle("session", null, false, 1);
       await settle("path", [], false, 1);
       await stable(`${event} refreshed`);
-      assert.match(await summary.innerText(), /0 из 12/);
+      assert.match(await summary.innerText(), /0 из 18/);
     }
     await start();
     await page.evaluate(() =>
@@ -371,7 +463,7 @@ try {
     await settle("path", []);
     await stable("stale pre-ownership responses ignored");
     assert.equal(await summary.locator("a").getAttribute("href"), "/practice");
-    assert.match(await summary.innerText(), /Сохранённые завершения: 1 из 12/);
+    assert.match(await summary.innerText(), /Сохранённые завершения: 1 из 18/);
     assert.deepEqual(errors, []);
     await page.close();
   }

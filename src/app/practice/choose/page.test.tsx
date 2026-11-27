@@ -8,6 +8,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   packById,
   packHref,
+  PRACTICE_PACKS,
   type PackId,
 } from "../../../modules/practice/application/completed-practice-episode";
 import { LEARNING_PATH_V1 } from "../../../modules/practice/application/learning-path";
@@ -49,39 +50,48 @@ afterEach(() => {
 function catalog(container: HTMLElement) {
   const cards = [...container.querySelectorAll("article")];
   expect(cards).toHaveLength(32);
-  expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual([
-    ...LEARNING_PATH_V1.map(({ packId }) => `${packId}-title`),
-    "pack-s-title",
-    "pack-t-title",
-    "pack-u-title",
-    "pack-v-title",
-    "pack-w-title",
-    "pack-x-title",
-    "pack-y-title",
-    "pack-z-title",
-    "pack-aa-title",
-    "pack-ab-title",
-    "pack-ac-title",
-    "pack-ad-title",
-    "pack-ae-title",
-    "pack-af-title",
-  ]);
-  for (const [index, entry] of LEARNING_PATH_V1.entries()) {
-    const pack = packById(entry.packId)!;
-    const link = cards[index].querySelector("a")!;
+  const additional = PRACTICE_PACKS.filter(
+    ({ id }) => !LEARNING_PATH_V1.some(({ packId }) => packId === id),
+  );
+  const expected = [
+    ...LEARNING_PATH_V1.map(({ packId }) => packById(packId)!),
+    ...additional,
+  ];
+  const nav = container.querySelector('nav[aria-label="Разделы каталога"]')!;
+  for (const [index, [id, count, tag]] of (
+    [
+      ["recommended-packs", 18, "ol"],
+      ["additional-packs", 14, "ul"],
+    ] as const
+  ).entries()) {
+    const section = container.querySelector(
+      `section[aria-labelledby="${id}"]`,
+    )!;
+    const heading = section.querySelector("h2")!;
+    const link = nav.querySelectorAll("a")[index];
+    expect(link.getAttribute("href")).toBe(`#${id}`);
+    expect(link.textContent).toBe(heading.textContent);
+    expect(heading.tabIndex).toBe(-1);
+    expect(section.querySelectorAll(`${tag} > li`)).toHaveLength(count);
+  }
+  expect(cards.map((card) => card.getAttribute("aria-labelledby"))).toEqual(
+    expected.map(({ id }) => `${id}-title`),
+  );
+  for (const [index, pack] of expected.entries()) {
+    const card = cards[index];
+    const link = card.querySelector("a")!;
     expect(link.getAttribute("href")).toBe(packHref(pack.id));
     expect(link.getAttribute("aria-label")).toBe(`Начать набор «${pack.name}»`);
-    expect(cards[index].textContent).toContain(entry.description);
+    expect(card.querySelector("h3")?.textContent).toBe(pack.name);
+    expect(card.textContent).toContain(`${pack.problemIds.length} задачи`);
     expect(link.hasAttribute("aria-disabled")).toBe(false);
+    if (index < LEARNING_PATH_V1.length) {
+      expect(card.textContent).toContain(`Шаг ${index + 1} ·`);
+      expect(card.textContent).toContain(LEARNING_PATH_V1[index].description);
+    } else {
+      expect(card.querySelector("p")?.textContent).not.toMatch(/^Шаг /);
+    }
   }
-  expect(cards[18].textContent).toContain("ДОПОЛНИТЕЛЬНЫЙ НАБОР S");
-  expect(cards[18].textContent).not.toContain("ШАГ 19");
-  expect(cards[18].querySelector("a")?.getAttribute("href")).toBe(
-    "/practice/pack?pack=pack-s",
-  );
-  expect(cards[18].querySelector("a")?.getAttribute("aria-label")).toBe(
-    "Начать набор «Рисунки и рассуждения»",
-  );
   return cards;
 }
 
@@ -101,12 +111,14 @@ describe("Choose Practice stable catalog", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
     catalog(container);
-    expect(
-      container.querySelector('[aria-labelledby="learning-path-title"]'),
-    ).toBeNull();
+    const summary = container.querySelector(
+      '[aria-labelledby="learning-path-title"]',
+    )!;
+    expect(summary.textContent).toContain("Отметки пути пока недоступны");
+    expect(summary.querySelector("a, button")).toBeNull();
     expect(readServerLearningPath).not.toHaveBeenCalled();
   });
-  it("renders eighteen editorial Packs and additional original Packs before any reads resolve", () => {
+  it("renders eighteen editorial Packs and fourteen additional Packs before any reads resolve", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(<ChoosePracticePage />);
     catalog(container);
@@ -116,6 +128,36 @@ describe("Choose Practice stable catalog", () => {
     );
     expect(container.textContent).toContain("На главную");
     expect(container.querySelector('a[href="/simulation"]')).toBeNull();
+  });
+
+  it("retains catalog and focus as readiness changes without showing stale progress", async () => {
+    readiness.ready = false;
+    vi.mocked(readServerLearningPath).mockResolvedValue(["pack-a"]);
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = () => act(async () => root.render(<ChoosePracticePage />));
+    try {
+      await render();
+      const before = catalog(container);
+      const link = before[18].querySelector("a")!;
+      link.focus();
+      expect(readVerifiedPracticeSessionSnapshot).not.toHaveBeenCalled();
+      expect(readServerLearningPath).not.toHaveBeenCalled();
+      readiness.ready = true;
+      await render();
+      expect(catalog(container)).toEqual(before);
+      expect(container.textContent).toContain(
+        "Сохранённые завершения: 1 из 18",
+      );
+      readiness.ready = false;
+      await render();
+      expect(catalog(container)).toEqual(before);
+      expect(container.textContent).not.toContain("Сохранённые завершения:");
+      expect(document.activeElement).toBe(link);
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 
   it("loads the compact next step without inserting, moving or replacing Pack cards or keyboard focus", async () => {

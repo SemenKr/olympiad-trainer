@@ -902,6 +902,10 @@ describe("Practice selection safety", () => {
   it("shows chooser context and refreshes after a cross-tab change", async () => {
     const before = savePack();
     await act(async () => root.render(<UnfinishedPracticeContext />));
+    const summary = container.querySelector(
+      '[aria-labelledby="learning-path-title"]',
+    );
+    expect(summary).not.toBeNull();
     expect(container.textContent).toContain(PRACTICE_PACKS[0].name);
     expect(container.querySelector("a")?.getAttribute("href")).toBe(
       "/practice",
@@ -912,7 +916,9 @@ describe("Practice selection safety", () => {
       window.dispatchEvent(new dom.window.Event("storage")),
     );
     expect(container.querySelector('a[href="/practice"]')).toBeNull();
-    expect(container.textContent).toContain("Путь тренировок");
+    expect(
+      container.querySelector('[aria-labelledby="learning-path-title"]'),
+    ).toBe(summary);
   });
 
   it("shows chooser verification errors with retry rather than claiming no unfinished work", async () => {

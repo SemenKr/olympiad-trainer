@@ -30,9 +30,12 @@ The Home next-action card reserves a responsive loading footprint for its headin
 
 ## Stable chooser catalog — observed UX correction
 
+This section records the earlier chooser. The current groups and navigation
+are described under [Recommended path and additional packs](#recommended-path-and-additional-packs).
+
 The former chooser rendered 12 guided cards asynchronously above 12 static free-choice cards. This duplicated every Pack, mixed card visuals and displaced the catalog after loading. The adopted correction replaces those two lists with one 18-Pack catalog, present on the initial render in editorial order A → J → H → L → D → G → E → I → C → B → F → K → M → N → O → P → Q → R. Each card reuses the existing chooser visuals, registry name/count/route and distinct “Начать набор «{name}»” accessible link name, with its static Path position and orientation copy. Loading never changes card order or replaces a card/link.
 
-A compact “Путь тренировок” summary shows the count of recorded Pack Finishes and the earliest unrecorded Pack as “Следующий ориентир”, with “Продолжить путь”. All-recorded learners see factual repeat/free-choice wording. Loading and errors never imply zero completions. Retry, next-step and all-recorded states use the same reserved count, description and action slots; text may grow for accessibility rather than clip. All fifteen catalog links remain available during every summary state. The single catalog keeps the chooser’s existing one-column layout below 1024px and three columns from 1024px, visible focus and practical targets.
+A compact “Путь тренировок” summary shows the count of recorded Pack Finishes and the earliest unrecorded Pack as “Следующий ориентир”, with “Продолжить путь”. All-recorded learners see factual repeat/free-choice wording. Loading and errors never imply zero completions. Retry, next-step and all-recorded states use the same reserved count, description and action slots; text may grow for accessibility rather than clip. All catalog links remain available during every summary state. The single catalog keeps the chooser’s existing one-column layout below 1024px and three columns from 1024px, visible focus and practical targets.
 
 This evidence-driven correction supersedes the duplicate-list chooser described in Learning Path v1 and the earlier registry-order-only chooser above. It does not claim new Figma approval. Path order/completion meaning, existing unfinished-session context/entry gate, Practice persistence, Finish and Recovery remain unchanged.
 
@@ -47,3 +50,29 @@ The integrated browser regression (`scripts/verify-chooser-layout.mjs`) mounts t
 ### Keyboard focus and catalog contrast
 
 When personalization replaces a focused control in the Home next-action card, focus follows to the replacement action. A control that remains mounted or has focus elsewhere keeps it. Catalog text uses foreground colors that meet 4.5:1 against the canvas and card surfaces in the supported light and dark themes.
+
+## Recommended path and additional packs
+
+The chooser renders two groups from the first response. “Путь тренировок” uses
+the 18 entries in the existing editorial sequence. “Дополнительные наборы”
+uses the remaining 14 entries in registry order. Both groups are freely
+selectable and reached by native section links near the top. Each jump moves
+keyboard focus to the group heading so Tab continues into that group.
+
+Cards retain the registry names, counts and destinations, with a compact
+metadata line and the existing outlined start action. Path cards show the
+step number and orientation text. The step is a suggestion for where to go
+next, with no difficulty or mastery claim. The layout uses one column below
+1024px and three from 1024px. Long titles and descriptions can wrap.
+
+The chooser reserves the same status footprint before learner storage is
+ready. While personalization is unavailable it neither reads saved work nor
+shows learner-specific actions. Once ready, verified unfinished work keeps
+precedence over the next recommended pack. Pack entry and pending Finish
+protection continue to use the existing Practice guards.
+
+The chooser Chrome regression covers 320, 390, 768 and 1440px with real fonts,
+native keyboard jumps and deferred storage/progress fixtures. It compares
+both lists across readiness, loading, retry and refresh, including retained
+node identity, displacement, overflow and text clipping. The design keeps
+the visual conventions of the existing desktop and mobile Figma frames.
