@@ -30,6 +30,9 @@ The Home next-action card reserves a responsive loading footprint for its headin
 
 ## Stable chooser catalog — observed UX correction
 
+This section records the earlier chooser. The current groups and navigation
+are described under [Recommended path and additional packs](#recommended-path-and-additional-packs).
+
 The former chooser rendered 12 guided cards asynchronously above 12 static free-choice cards. This duplicated every Pack, mixed card visuals and displaced the catalog after loading. The adopted correction replaces those two lists with one 18-Pack catalog, present on the initial render in editorial order A → J → H → L → D → G → E → I → C → B → F → K → M → N → O → P → Q → R. Each card reuses the existing chooser visuals, registry name/count/route and distinct “Начать набор «{name}»” accessible link name, with its static Path position and orientation copy. Loading never changes card order or replaces a card/link.
 
 A compact “Путь тренировок” summary shows the count of recorded Pack Finishes and the earliest unrecorded Pack as “Следующий ориентир”, with “Продолжить путь”. All-recorded learners see factual repeat/free-choice wording. Loading and errors never imply zero completions. Retry, next-step and all-recorded states use the same reserved count, description and action slots; text may grow for accessibility rather than clip. All catalog links remain available during every summary state. The single catalog keeps the chooser’s existing one-column layout below 1024px and three columns from 1024px, visible focus and practical targets.
