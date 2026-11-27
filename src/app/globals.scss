@@ -97,6 +97,11 @@
   box-sizing: border-box;
 }
 
+.problem-statement {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 body {
   display: flex;
   min-height: 100dvh;

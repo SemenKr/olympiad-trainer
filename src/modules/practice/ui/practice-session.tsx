@@ -1940,7 +1940,7 @@ function PracticeProblemEpisode({
       }
     >
       <TaskBlockText title="Условие задачи">
-        <p>{problem.statement}</p>
+        <p className="problem-statement">{problem.statement}</p>
       </TaskBlockText>
       {problem.media ? <ProblemMedia media={problem.media} /> : null}
     </TaskShell>

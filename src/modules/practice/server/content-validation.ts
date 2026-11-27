@@ -132,6 +132,14 @@ export function validatePracticeContent(
           ids.includes(c.correctOptionId),
         `${label}: checkpoint option references`,
       );
+      const order = c.displayOptionIds;
+      if (order)
+        check(
+          order.length === ids.length &&
+            unique(order) &&
+            order.every((id) => ids.includes(id)),
+          `${label}: checkpoint display order must include each option once`,
+        );
     }
     const v = p.provenance;
     if (v.kind === "original") {

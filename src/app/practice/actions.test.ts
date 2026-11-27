@@ -89,8 +89,8 @@ describe("reasoning checkpoint server boundary", () => {
       question: "Почему 7 носков уже гарантируют нужную пару?",
     });
     expect(revealed.options.map((option) => option.id)).toEqual([
-      "A",
       "B",
+      "A",
       "C",
     ]);
     expect(JSON.stringify(revealed)).not.toContain("correctOptionId");

@@ -43,3 +43,7 @@ Unfinished-session verification and Path reads share the compact summary above t
 No separate unfinished card is inserted or removed. The same count, description and action slots cover loading, errors and Retry; a Path failure alongside verified unfinished work retains Resume and a separate Path Retry. Refresh after storage, focus or learner ownership changes invalidates prior responses. Catalog links remain present and existing entry gates preserve drafts and pending Finish. Text can grow beyond the compact reserved lines without clipping.
 
 The integrated browser regression (`scripts/verify-chooser-layout.mjs`) mounts the real chooser and app SCSS with deferred client reads, tests both resolution orders at 320/768/1440px, and measures catalog displacement, overflow, control size and retained catalog nodes. It loads and verifies the Onest faces/variable from local Next build output (`.next/static`, or `APP_FONT_BUILD_DIR`) before measuring. The runner uses existing Playwright/esbuild installations (optionally supplied via `PLAYWRIGHT_MODULE`/`ESBUILD_MODULE`), includes long Russian fixture labels, errors/Retry and refresh events, and does not exercise live server or persistence behavior.
+
+### Keyboard focus and catalog contrast
+
+When personalization replaces a focused control in the Home next-action card, focus follows to the replacement action. A control that remains mounted or has focus elsewhere keeps it. Catalog text uses foreground colors that meet 4.5:1 against the canvas and card surfaces in the supported light and dark themes.

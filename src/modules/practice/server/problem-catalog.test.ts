@@ -41,20 +41,53 @@ const sockSolutionText =
 const checkpointId = "guaranteed-sock-pair-guarantee-argument";
 const checkpointOptions = [
   {
-    id: "A",
-    text: "Если нужной пары нет, целых носков каждого цвета может быть не больше одного. Значит, целых носков не больше 3, а вместе с тремя дырявыми можно вынуть не больше 6.",
+    id: "B",
+    text: "В семи носках два обязательно одного цвета, ведь цветов всего три. Этого достаточно для нужной пары.",
   },
   {
-    id: "B",
-    text: "Среди любых 7 носков обязательно найдутся два носка одного цвета.",
+    id: "A",
+    text: "Без нужной пары выйдет до 3 целых носков, по одному каждого цвета, и до 3 дырявых. Это меньше 7.",
   },
   {
     id: "C",
-    text: "Дырявых носков всего три, значит остальные четыре обязательно будут одного цвета.",
+    text: "Среди семи носков есть хотя бы четыре целых. Целых больше, чем цветов, значит, четыре носка одного цвета.",
   },
 ];
 
 describe("practice problem catalog", () => {
+  it("varies the correct position and length while retaining all historical grades", () => {
+    const problemIds = [
+      sockProblemId,
+      "table-impossible-sums",
+      ADAPTIVE_TRANSFER_PROBLEM_ID,
+      PARROTS_TRANSFER_PROBLEM_ID,
+      ENUMERATION_EXPLORATION_PROBLEM_ID,
+    ];
+
+    const positions = new Set<number>();
+    const lengthRanks = new Set<number>();
+    for (const problemId of problemIds) {
+      const checkpoint = getProblemDefinition(problemId).reasoningCheckpoint!;
+      const { options } = getRevealedReasoningCheckpoint(
+        problemId,
+        checkpoint.id,
+      );
+      expect(options.map(({ id }) => id).sort()).toEqual(["A", "B", "C"]);
+      const correct = options.find(({ id }) => id === "A")!;
+      positions.add(options.indexOf(correct));
+      lengthRanks.add(
+        options.filter(({ text }) => text.length > correct.text.length).length,
+      );
+      for (const { id } of options) {
+        expect(
+          assessReasoningCheckpointOption(problemId, checkpoint.id, id),
+        ).toEqual({ outcome: id === "A" ? "correct" : "incorrect" });
+      }
+    }
+    expect(positions.size).toBe(3);
+    expect(lengthRanks.size).toBe(3);
+  });
+
   it("explains the maximal continuation and rules out every larger eight-digit number", () => {
     const { text } = getProblemDefinition("largest-valid-eight-digit").solution;
     for (const argument of [
@@ -581,8 +614,13 @@ describe("practice problem catalog", () => {
         id: checkpointId,
         heading: "Проверь рассуждение",
         question: "Почему 7 носков уже гарантируют нужную пару?",
-        options: checkpointOptions,
+        options: [
+          checkpointOptions[1],
+          checkpointOptions[0],
+          checkpointOptions[2],
+        ],
         correctOptionId: "A",
+        displayOptionIds: ["B", "A", "C"],
       },
     });
   });
@@ -806,16 +844,16 @@ describe("learner-safe practice problem projection", () => {
         "Какой способ действительно доказывает, что найденный номер — именно 100-й подходящий, а в подсчёте ничего не пропущено и не посчитано дважды?",
       options: [
         {
-          id: "A",
-          text: "Разделить числа на непересекающиеся блоки, в каждом блоке посчитать все числа без цифры 1 и отдельно проверить, что пропущенные промежутки целиком содержат цифру 1.",
+          id: "C",
+          text: "Проверить, что в найденном номере цифры 1 нет, а в предыдущем числе она есть. По этим двум номерам определить место ответа.",
         },
         {
           id: "B",
-          text: "Проверить несколько первых подходящих номеров и несколько номеров рядом с найденным ответом.",
+          text: "Проверить номера без цифры 1 в начале списка и рядом с ответом. По этим двум участкам судить обо всём подсчёте.",
         },
         {
-          id: "C",
-          text: "Проверить только, что найденное число не содержит цифру 1, а предыдущее неподходящее число содержит.",
+          id: "A",
+          text: "Проверить, что в ответе нет 1. Разбить номера до ответа на блоки без пересечений и найти ровно 99 номеров без цифры 1.",
         },
       ],
     });

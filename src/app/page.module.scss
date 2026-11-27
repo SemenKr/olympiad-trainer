@@ -37,6 +37,13 @@
   }
 }
 
+@media (prefers-color-scheme: light) {
+  .chooser {
+    --ot-color-text-secondary: #5b6578;
+    --ot-color-accent-text: #5048cd;
+  }
+}
+
 .navigation {
   display: flex;
   min-width: 0;
@@ -68,7 +75,7 @@
 
 .recovery-link {
   justify-content: flex-end;
-  color: var(--ot-color-primary) !important;
+  color: var(--ot-color-accent-text, var(--ot-color-primary)) !important;
   font-size: var(--ot-font-size-caption) !important;
   text-align: right;
 }
@@ -109,7 +116,7 @@
 
 .home .eyebrow,
 .chooser .eyebrow {
-  color: var(--ot-color-primary);
+  color: var(--ot-color-accent-text, var(--ot-color-primary));
   font-size: var(--ot-font-size-micro);
   font-weight: 600;
   line-height: var(--ot-line-height-micro);
