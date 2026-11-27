@@ -714,9 +714,9 @@ export function SimulationSession({
                       <h3 id={`simulation-submission-title-${index + 1}`}>
                         {index + 1}. {item.title}
                       </h3>
-                      <p className={styles.statement}>{item.statement}</p>
+                      <p className="problem-statement">{item.statement}</p>
                       <h4>Твоя сданная работа</h4>
-                      <p className={styles.statement}>
+                      <p className="problem-statement">
                         {attempt.drafts[index] ||
                           "Черновик пуст — решение не записано."}
                       </p>
@@ -724,7 +724,7 @@ export function SimulationSession({
                     {references && (
                       <div className={`${styles.card} ${styles.reference}`}>
                         <h4>Разбор для сравнения</h4>
-                        <p className={styles.statement}>
+                        <p className="problem-statement">
                           {
                             references.find(
                               (reference) =>

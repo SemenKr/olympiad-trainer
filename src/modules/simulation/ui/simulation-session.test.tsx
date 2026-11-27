@@ -374,6 +374,41 @@ describe("student simulation flow", () => {
     expect(saveSimulation).not.toHaveBeenCalled();
     expect(finishSimulation).not.toHaveBeenCalled();
   });
+  it("renders all completed work with the shared multiline style", async () => {
+    const statement = "Condition one\nCondition two";
+    const draft = "My first step\n\nMy conclusion";
+    const reference = "Reference method\nReference conclusion";
+    server = updateSimulation(
+      newSimulation(id, 1000),
+      0,
+      { drafts: [draft, "", "", ""], selectedIndex: 0 },
+      2000,
+      true,
+      true,
+    );
+    vi.mocked(readSimulationReferences).mockResolvedValueOnce(
+      SIMULATION_PROBLEM_IDS.map((problemId) => ({
+        problemId,
+        text: reference,
+      })),
+    );
+    await act(async () =>
+      root.render(
+        <SimulationSession
+          problems={[{ ...problems[0], statement }, ...problems.slice(1)]}
+        />,
+      ),
+    );
+
+    const textBlocks = host.querySelectorAll(
+      "#simulation-submission-1 p.problem-statement",
+    );
+    expect(Array.from(textBlocks, (block) => block.textContent)).toEqual([
+      statement,
+      draft,
+      reference,
+    ]);
+  });
   it("retains typing and navigation across repeated local acknowledgement commits", async () => {
     await mount();
     await click("Начать");
