@@ -18,7 +18,9 @@ import styles from "./learning-path.module.scss";
 export function LearningPathGuideLoader({
   unfinished = { status: "ready", snapshot: null },
   retryUnfinished,
+  available = true,
 }: {
+  available?: boolean;
   unfinished?:
     | { status: "loading" | "error" }
     | { status: "ready"; snapshot: UnfinishedPracticeSessionSnapshot | null };
@@ -39,6 +41,7 @@ export function LearningPathGuideLoader({
   }, []);
 
   useEffect(() => {
+    if (!available) return;
     let active = true;
     let readId = 0;
     const refresh = () => {
@@ -64,7 +67,7 @@ export function LearningPathGuideLoader({
       window.removeEventListener("focus", refresh);
       window.removeEventListener(LOCAL_IDENTITY_EVENT, refresh);
     };
-  }, [retry]);
+  }, [available, retry]);
 
   const projection =
     value.status === "ready"
@@ -100,21 +103,22 @@ export function LearningPathGuideLoader({
       aria-labelledby="learning-path-title"
     >
       <h2 id="learning-path-title" ref={headingRef} tabIndex={-1}>
-        Путь тренировок
+        Твой прогресс по пути
       </h2>
       <p>
         Отметки — завершённые тренировки, а не решённые задачи. Старые
-        тренировки могли не получить отметку; XP и уровни пути учитываются
-        отдельно.
+        тренировки могли не получить отметку.
       </p>
       <div className={styles["summary-state"]}>
         <div className={styles["summary-count"]}>
           <p role={value.status === "error" && snapshot ? "alert" : "status"}>
-            {projection
-              ? `Сохранённые завершения: ${projection.completedCount} из ${projection.totalCount}`
-              : value.status === "loading"
-                ? "Загружаем отметки пути…"
-                : "Отметки пути недоступны"}
+            {!available
+              ? "Отметки пути пока недоступны"
+              : projection
+                ? `Сохранённые завершения: ${projection.completedCount} из ${projection.totalCount}`
+                : value.status === "loading"
+                  ? "Загружаем отметки пути…"
+                  : "Отметки пути недоступны"}
           </p>
           {snapshot && value.status === "error" && retryButton}
         </div>
@@ -126,21 +130,23 @@ export function LearningPathGuideLoader({
               : "status"
           }
         >
-          {unfinished.status === "loading"
-            ? "Проверяем сохранённую тренировку…"
-            : verificationFailed
-              ? "Не удалось проверить сохранённую тренировку. Повтори проверку перед выбором."
-              : snapshot
-                ? "status" in snapshot
-                  ? "Тренировка готова к завершению. Открой её, чтобы завершить."
-                  : `Не закончена: ${getUnfinishedPracticeLabel(snapshot)}.`
-                : value.status === "error"
-                  ? "Не удалось загрузить отметки пути. Все наборы ниже всё равно доступны."
-                  : next
-                    ? `Следующий ориентир: ${next.name}`
-                    : projection
-                      ? "Во всех наборах есть сохранённое завершение. Можно выбрать любой набор снова."
-                      : "Все наборы ниже доступны — можно выбрать любой."}
+          {!available
+            ? "Можно посмотреть все наборы."
+            : unfinished.status === "loading"
+              ? "Проверяем сохранённую тренировку…"
+              : verificationFailed
+                ? "Не удалось проверить сохранённую тренировку. Повтори проверку перед выбором."
+                : snapshot
+                  ? "status" in snapshot
+                    ? "Тренировка готова к завершению. Открой её, чтобы завершить."
+                    : `Не закончена: ${getUnfinishedPracticeLabel(snapshot)}.`
+                  : value.status === "error"
+                    ? "Не удалось загрузить отметки пути. Все наборы ниже всё равно доступны."
+                    : next
+                      ? `Следующий ориентир: ${next.name}`
+                      : projection
+                        ? "Во всех наборах есть сохранённое завершение. Можно выбрать любой набор снова."
+                        : "Все наборы ниже доступны — можно выбрать любой."}
         </p>
         <div className={styles["summary-action"]}>
           {verificationFailed ||

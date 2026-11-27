@@ -12,7 +12,11 @@ import { verifyPersistedReasoningCheckpointObservation } from "../actions";
 import { useLearnerViewReady } from "../../identity/learner-view-readiness";
 
 export function OptionalUnfinishedPracticeContext() {
-  return useLearnerViewReady() ? <UnfinishedPracticeContext /> : null;
+  return useLearnerViewReady() ? (
+    <UnfinishedPracticeContext />
+  ) : (
+    <LearningPathGuideLoader available={false} />
+  );
 }
 
 export function UnfinishedPracticeContext() {
