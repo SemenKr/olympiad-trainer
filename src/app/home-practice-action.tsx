@@ -2,7 +2,13 @@
 import { selectNextPracticeWork } from "../modules/practice/application/next-practice-work";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  Component,
+  createRef,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { verifyPersistedReasoningCheckpointObservation } from "./practice/actions";
 import {
@@ -402,6 +408,55 @@ export function HomePracticeContent({
   );
 }
 
+class HomeNextAction extends Component<
+  {
+    className: string;
+    children: ReactNode;
+  },
+  object,
+  HTMLElement | null
+> {
+  private region = createRef<HTMLDivElement>();
+
+  getSnapshotBeforeUpdate() {
+    const active = document.activeElement;
+    return active instanceof HTMLElement &&
+      this.region.current?.contains(active)
+      ? active
+      : null;
+  }
+
+  componentDidUpdate(
+    _previousProps: Readonly<{ className: string; children: ReactNode }>,
+    _previousState: object,
+    previousFocus: HTMLElement | null,
+  ) {
+    // Restore focus only when replacing its DOM node left focus on the body.
+    if (
+      previousFocus &&
+      !previousFocus.isConnected &&
+      document.activeElement === document.body
+    ) {
+      this.region.current
+        ?.querySelector<HTMLElement>("a[href], button:enabled")
+        ?.focus();
+    }
+  }
+
+  render() {
+    return (
+      <div
+        ref={this.region}
+        className={this.props.className}
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {this.props.children}
+      </div>
+    );
+  }
+}
+
 function HomePracticeLayout({
   children,
   stored,
@@ -426,15 +481,13 @@ function HomePracticeLayout({
             режимов.
           </p>
         </header>
-        <div
+        <HomeNextAction
           className={
             styles["next-action"] + (neutral ? " " + styles.neutral : "")
           }
-          aria-live="polite"
-          aria-atomic="true"
         >
           {children}
-        </div>
+        </HomeNextAction>
         <section
           className={styles["secondary-area"]}
           aria-labelledby="secondary-title"

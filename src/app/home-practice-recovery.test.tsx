@@ -69,36 +69,58 @@ it("offers a practice link before the personalized action is ready", () => {
   );
 });
 
-it("keeps a focused Home link mounted while delayed personalization loads", async () => {
-  let resolve!: (
-    value: Awaited<ReturnType<typeof readVerifiedPracticeSessionSnapshot>>,
-  ) => void;
-  vi.mocked(readVerifiedPracticeSessionSnapshot).mockImplementationOnce(
-    () => new Promise((done) => (resolve = done)),
-  );
-  vi.mocked(readVerifiedLatestCompletedResults).mockResolvedValue({
-    value: null,
-    interpretation: null,
-  });
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () => root.render(<HomePracticeAction enabled={false} />));
-    expect(readVerifiedPracticeSessionSnapshot).not.toHaveBeenCalled();
-    const choose = container.querySelector<HTMLAnchorElement>(
-      'a[href="/practice/choose"]',
-    )!;
-    choose.focus();
-    await act(async () => root.render(<HomePracticeAction enabled />));
-    expect(document.activeElement).toBe(choose);
-    await act(async () => resolve({ value: unfinished, interpretation: null }));
-    expect(container.textContent).toContain("Продолжить тренировку");
-    expect(document.activeElement).toBe(choose);
-  } finally {
-    await act(async () => root.unmount());
-  }
-});
+it.each(["next action", "unrelated link", "body"])(
+  "resolves delayed personalization with focus on %s",
+  async (focus) => {
+    let resolve!: (
+      value: Awaited<ReturnType<typeof readVerifiedPracticeSessionSnapshot>>,
+    ) => void;
+    vi.mocked(readVerifiedPracticeSessionSnapshot).mockImplementationOnce(
+      () => new Promise((done) => (resolve = done)),
+    );
+    vi.mocked(readVerifiedLatestCompletedResults).mockResolvedValue({
+      value: null,
+      interpretation: null,
+    });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(<HomePracticeAction enabled={false} />),
+      );
+      expect(readVerifiedPracticeSessionSnapshot).not.toHaveBeenCalled();
+      const choose = container.querySelector<HTMLAnchorElement>(
+        'a[href="/practice/choose"]',
+      )!;
+      const provisional = container.querySelector<HTMLAnchorElement>(
+        '[class*="next-action"] a[href="/practice"]',
+      )!;
+      const before =
+        focus === "next action"
+          ? provisional
+          : focus === "unrelated link"
+            ? choose
+            : document.body;
+      before.focus();
+      await act(async () => root.render(<HomePracticeAction enabled />));
+      expect(document.activeElement).toBe(before);
+      await act(async () =>
+        resolve({ value: unfinished, interpretation: null }),
+      );
+      expect(container.textContent).toContain("Продолжить тренировку");
+      const resume = container.querySelector(
+        '[class*="next-action"] a[href="/practice"]',
+      );
+      expect(resume).not.toBe(provisional);
+      expect(document.activeElement).toBe(
+        focus === "next action" ? resume : before,
+      );
+    } finally {
+      await act(async () => root.unmount());
+    }
+  },
+);
 
 it("replaces loading content with verified Resume without changing the surrounding action card", async () => {
   let resolve!: (

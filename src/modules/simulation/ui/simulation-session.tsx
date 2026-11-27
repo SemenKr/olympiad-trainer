@@ -527,7 +527,7 @@ export function SimulationSession({
               <h2 id="simulation-problem-title">
                 {attempt.selectedIndex + 1}. {problem.title}
               </h2>
-              <p className={styles.statement}>{problem.statement}</p>
+              <p className="problem-statement">{problem.statement}</p>
               {problem.options.length > 0 && (
                 <p>
                   Варианты из условия: {problem.options.join(", ")}. Укажи выбор

@@ -194,10 +194,36 @@ describe("repository content pipeline", () => {
           problem.id === source.id ? changed : problem,
         ),
       );
-      // Both changes retain unique options and the correct answer; only the
-      // identity baseline should reject them.
-      expect(errors).toEqual([
+      expect(errors).toContain(
         `problems ${source.id}: existing identity changed or removed`,
+      );
+    },
+  );
+  it.each([
+    ["A", "B"],
+    ["A", "B", "B"],
+  ] as const)(
+    "rejects a display order that does not include each checkpoint option once (%j)",
+    (...displayOptionIds) => {
+      const source = PRACTICE_PROBLEM_DEFINITIONS.find(
+        (p) => p.id === "guaranteed-sock-pair",
+      );
+      if (!source?.reasoningCheckpoint) throw new Error("missing checkpoint");
+      const changed = {
+        ...source,
+        reasoningCheckpoint: {
+          ...source.reasoningCheckpoint,
+          displayOptionIds,
+        },
+      };
+      expect(
+        validate(
+          PRACTICE_PROBLEM_DEFINITIONS.map((p) =>
+            p.id === source.id ? changed : p,
+          ),
+        ),
+      ).toEqual([
+        `problem ${source.id}: checkpoint display order must include each option once`,
       ]);
     },
   );
