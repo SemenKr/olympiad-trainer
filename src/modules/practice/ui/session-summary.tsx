@@ -90,6 +90,8 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
     independentCount === 2 ? "Две задачи ты решил самостоятельно." : null,
     supportedCount === 2 ? "В двух задачах получилось с подсказкой." : null,
     supportedCount === 3 ? "В трёх задачах получилось с подсказкой." : null,
+    independentCount >= 3 ? `Самостоятельно: ${independentCount}.` : null,
+    supportedCount > 3 ? `С подсказкой: ${supportedCount}.` : null,
   ]
     .filter(Boolean)
     .join(" ");

@@ -89,7 +89,7 @@ const record = (p) =>
   p.evaluate(
     () =>
       new Promise((resolve, reject) => {
-        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1", 2);
+        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1");
         r.onerror = () => reject(r.error);
         r.onsuccess = () => {
           const q = r.result

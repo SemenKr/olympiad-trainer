@@ -158,7 +158,7 @@ async function waitForLock(client: pg.Client, app: string) {
 describe.skipIf(!url)("atomic migration runner safety", () => {
   for (const history of ["0013", "0014"] as const) {
     it(
-      `${history}: upgrades 0021 through 0023 to reusable Pack IDs without changing receipts`,
+      `${history}: upgrades 0021 through 0024 with reusable Pack IDs without changing receipts`,
       async () =>
         fixture(
           history,
@@ -260,6 +260,7 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
               "0021_content_expansion_batch_2_pack_receipts.sql",
               "0022_original_visual_pack_receipts.sql",
               "0023_pack_id_format.sql",
+              "0024_practice_session_xp.sql",
             ]);
             expect(
               (await receipts())
@@ -420,7 +421,7 @@ describe.skipIf(!url)("atomic migration runner safety", () => {
                   capture: history === "0013" ? 2 : 1,
                 },
               ]);
-              expect(after.markers).toHaveLength(20);
+              expect(after.markers).toHaveLength(21);
               expect(await migrate(connectionString, app)).toMatchObject({
                 code: 0,
               });

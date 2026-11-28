@@ -32,7 +32,7 @@ const record = (p) =>
   p.evaluate(
     () =>
       new Promise((resolve, reject) => {
-        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1", 2);
+        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1");
         r.onsuccess = () => {
           const t = r.result.transaction("learner", "readonly"),
             q = t.objectStore("learner").get("binding");

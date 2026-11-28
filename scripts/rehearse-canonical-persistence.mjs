@@ -758,7 +758,7 @@ try {
     );
     const blocked = await p.evaluate(async () => {
       const held = await new Promise((resolve) => {
-        const r = indexedDB.open(current.canonical.CANONICAL_DB, 2);
+        const r = indexedDB.open(current.canonical.CANONICAL_DB);
         r.onsuccess = () => resolve(r.result);
       });
       const deletion = indexedDB.deleteDatabase(current.canonical.CANONICAL_DB);
@@ -908,7 +908,7 @@ try {
       await p.evaluate(
         async ({ original, variant }) => {
           const db = await new Promise((resolve) => {
-            const r = indexedDB.open(current.canonical.CANONICAL_DB, 2);
+            const r = indexedDB.open(current.canonical.CANONICAL_DB);
             r.onsuccess = () => resolve(r.result);
           });
           const bad = structuredClone(original);

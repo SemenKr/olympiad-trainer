@@ -25,7 +25,7 @@ const record = (page) =>
   page.evaluate(
     () =>
       new Promise((resolve, reject) => {
-        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1", 2);
+        const r = indexedDB.open("olympiad-trainer:learner-canonical-v1");
         r.onerror = () => reject(r.error);
         r.onsuccess = () => {
           const tx = r.result.transaction("learner", "readonly");
@@ -109,7 +109,6 @@ try {
                 await new Promise((resolve, reject) => {
                   const r = indexedDB.open(
                     "olympiad-trainer:learner-canonical-v1",
-                    2,
                   );
                   r.onsuccess = () => {
                     const tx = r.result.transaction("learner", "readwrite");

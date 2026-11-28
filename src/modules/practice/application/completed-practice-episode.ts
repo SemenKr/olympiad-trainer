@@ -6,6 +6,37 @@ export const CORE_EPISODE_PROBLEM_IDS = [
   "guaranteed-sock-pair",
   "table-impossible-sums",
 ] as const;
+export const CORE_PLAN_V1_PROBLEM_IDS = [
+  ...CORE_EPISODE_PROBLEM_IDS,
+  "chocolate-promotion-price",
+  "cutout-area-ratio",
+  "granddaughters-first",
+  "domino-placements",
+  "rabbit-carrot-shortfall",
+  "four-houses-distance-cases",
+  "school-lesson-teacher-count",
+] as const;
+
+export type CorePracticePlan = Readonly<{
+  version: 1;
+  problemIds: readonly string[];
+}>;
+
+export function validateCorePracticePlan(
+  value: unknown,
+): CorePracticePlan | null {
+  if (
+    !record(value) ||
+    !exactKeys(value, ["version", "problemIds"]) ||
+    value.version !== 1 ||
+    !denseArray(value.problemIds) ||
+    ![3, 5, 10].includes(value.problemIds.length) ||
+    !value.problemIds.every((id, i) => id === CORE_PLAN_V1_PROBLEM_IDS[i])
+  )
+    return null;
+  return { version: 1, problemIds: value.problemIds as string[] };
+}
+
 export const TRANSFER_EPISODE_PROBLEM_IDS = [
   "brothers-ages-products",
   "parrots-guaranteed-colors",
@@ -362,6 +393,13 @@ export type CompletedPracticeEpisodeFactsV1 = Readonly<{
   version: 1;
   problems: readonly CompletedPracticeProblemFact[];
 }>;
+export type CompletedPracticeEpisodeFacts =
+  | CompletedPracticeEpisodeFactsV1
+  | Readonly<{
+      version: 2;
+      plan: CorePracticePlan;
+      problems: readonly CompletedPracticeProblemFact[];
+    }>;
 export type CompletedPracticeEpisodeMode =
   "core" | "transfer" | "exploration" | "pack" | "review";
 
@@ -374,24 +412,23 @@ type CompletedResult = Readonly<{
 
 export function completedEpisodeFacts(
   results: readonly CompletedResult[],
-): CompletedPracticeEpisodeFactsV1 {
-  return {
-    version: 1,
-    problems: results.map((result) => ({
-      problemId: result.problemId,
-      outcome: result.summary.outcome,
-      skipped: result.taskOutcome === "skipped",
-      validSubmissionCount: result.summary.validSubmissionCount,
-      hintLevelsExposed: result.summary.hintExposures.map((hint) => hint.level),
-      solutionExposed: result.summary.solutionExposure !== null,
-      checkpoint: result.reasoningCheckpointObservation
-        ? {
-            checkpointId: result.reasoningCheckpointObservation.checkpointId,
-            outcome: result.reasoningCheckpointObservation.outcome,
-          }
-        : null,
-    })),
-  };
+  plan?: CorePracticePlan,
+): CompletedPracticeEpisodeFacts {
+  const problems = results.map((result) => ({
+    problemId: result.problemId,
+    outcome: result.summary.outcome,
+    skipped: result.taskOutcome === "skipped",
+    validSubmissionCount: result.summary.validSubmissionCount,
+    hintLevelsExposed: result.summary.hintExposures.map((hint) => hint.level),
+    solutionExposed: result.summary.solutionExposure !== null,
+    checkpoint: result.reasoningCheckpointObservation
+      ? {
+          checkpointId: result.reasoningCheckpointObservation.checkpointId,
+          outcome: result.reasoningCheckpointObservation.outcome,
+        }
+      : null,
+  }));
+  return plan ? { version: 2, plan, problems } : { version: 1, problems };
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -415,7 +452,44 @@ function denseArray(value: unknown): value is unknown[] {
 export function validateCompletedEpisode(
   mode: unknown,
   value: unknown,
-): CompletedPracticeEpisodeFactsV1 | null {
+): CompletedPracticeEpisodeFacts | null {
+  if (record(value) && value.version === 2) {
+    const plan = validateCorePracticePlan(value.plan);
+    if (
+      mode !== "core" ||
+      !plan ||
+      !exactKeys(value, ["version", "plan", "problems"]) ||
+      !denseArray(value.problems) ||
+      value.problems.length < 1 ||
+      value.problems.length > plan.problemIds.length ||
+      !value.problems.every(
+        (fact, i) =>
+          record(fact) &&
+          fact.problemId === plan.problemIds[i] &&
+          (i < CORE_EPISODE_PROBLEM_IDS.length || fact.checkpoint === null),
+      ) ||
+      !validCompletedProblemFacts(mode, value.problems)
+    )
+      return null;
+    return {
+      version: 2,
+      plan,
+      problems: (value.problems as CompletedPracticeProblemFact[]).map(
+        (fact) => ({
+          problemId: fact.problemId,
+          outcome: fact.outcome,
+          skipped: fact.skipped,
+          validSubmissionCount: fact.validSubmissionCount,
+          hintLevelsExposed: fact.hintLevelsExposed,
+          solutionExposed: fact.solutionExposed,
+          checkpoint: fact.checkpoint && {
+            checkpointId: fact.checkpoint.checkpointId,
+            outcome: fact.checkpoint.outcome,
+          },
+        }),
+      ),
+    };
+  }
   if (
     !record(value) ||
     !exactKeys(value, ["version", "problems"]) ||

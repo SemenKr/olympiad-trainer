@@ -109,6 +109,7 @@ import {
   startPackPracticeSession,
   startAdaptivePracticeSession,
   isFixedPracticeSession,
+  practiceSessionLength,
   type ActivePracticeSessionState,
   type FinishedPracticeSessionState,
   type PracticeSessionResult,
@@ -158,7 +159,17 @@ export function getActivePracticeProblem(
   packs?: PracticeSessionProps["packs"],
 ): LearnerSafePracticeProblem | null {
   if (isFixedPracticeSession(session)) {
-    if (session.mode !== "pack") return problems[session.activeProblemIndex];
+    if (session.mode !== "pack") {
+      const id = session.problemIds?.[session.activeProblemIndex];
+      if (!id) return problems[session.activeProblemIndex] ?? null;
+      return (
+        problems.find((problem) => problem.problemId === id) ??
+        Object.values(packs ?? {})
+          .flat()
+          .find((problem) => problem.problemId === id) ??
+        null
+      );
+    }
     const packId = packIdFromProblemIds(session.problemIds ?? []);
     return packId
       ? (packs?.[packId][session.activeProblemIndex] ?? null)
@@ -468,7 +479,12 @@ export function PracticeSession({
                     }
                   : snapshot.mode === "pack"
                     ? { mode: "pack" as const, problemIds: snapshot.problemIds }
-                    : {}),
+                    : {
+                        problemIds: snapshot.problemIds,
+                        ...("plan" in snapshot && snapshot.plan
+                          ? { plan: snapshot.plan }
+                          : {}),
+                      }),
                 activeProblemIndex: snapshot.activeProblemIndex,
                 completedResults: snapshot.completedResults,
               } as ActivePracticeSessionState)
@@ -819,7 +835,14 @@ export function PracticeSession({
     const nextAnswer = createPracticeAnswerState(
       nextSession.mode === "pack"
         ? activePackProblems![nextSession.activeProblemIndex]
-        : problems[nextSession.activeProblemIndex],
+        : getActivePracticeProblem(
+            nextSession,
+            problems,
+            transferProblem,
+            parrotsProblem,
+            pagesProblem,
+            packs,
+          )!,
     );
     if (
       !(await savePracticeSessionSnapshot(
@@ -887,7 +910,14 @@ export function PracticeSession({
       const answer = createPracticeAnswerState(
         nextSession.mode === "pack"
           ? activePackProblems![nextSession.activeProblemIndex]
-          : problems[nextSession.activeProblemIndex],
+          : getActivePracticeProblem(
+              nextSession,
+              problems,
+              transferProblem,
+              parrotsProblem,
+              pagesProblem,
+              packs,
+            )!,
       );
       if (
         !(await savePracticeSessionSnapshot(
@@ -947,7 +977,7 @@ export function PracticeSession({
     <PracticeProblemEpisode
       position={
         isFixedPracticeSession(sessionState)
-          ? `Задача ${sessionState.activeProblemIndex + 1} из 3`
+          ? `Задача ${sessionState.activeProblemIndex + 1} из ${practiceSessionLength(sessionState)}`
           : undefined
       }
       sessionId={sessionState.sessionId}
@@ -955,7 +985,8 @@ export function PracticeSession({
       focusHeadingOnMount={focusNextProblem}
       hasNextProblem={
         isFixedPracticeSession(sessionState) &&
-        sessionState.activeProblemIndex < 2
+        sessionState.activeProblemIndex <
+          practiceSessionLength(sessionState) - 1
       }
       key={activeProblem.problemId}
       initialAnswerState={loaded.answer}

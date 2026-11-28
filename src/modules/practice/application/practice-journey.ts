@@ -1,4 +1,4 @@
-import type { CompletedPracticeEpisodeFactsV1 } from "./completed-practice-episode";
+import type { CompletedPracticeEpisodeFacts } from "./completed-practice-episode";
 
 export const PRACTICE_XP_PER_PROBLEM = 10;
 
@@ -43,7 +43,7 @@ function normalizedXp(totalXp: number) {
 }
 
 export function calculatePracticeJourneyFinish(
-  facts: CompletedPracticeEpisodeFactsV1,
+  facts: CompletedPracticeEpisodeFacts,
   previousTotalXp: number,
 ): PracticeJourneyFinish {
   const earnedXp = facts.problems.reduce(

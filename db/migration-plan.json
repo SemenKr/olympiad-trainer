@@ -16,7 +16,8 @@
     "0020_content_expansion_pack_receipts.sql",
     "0021_content_expansion_batch_2_pack_receipts.sql",
     "0022_original_visual_pack_receipts.sql",
-    "0023_pack_id_format.sql"
+    "0023_pack_id_format.sql",
+    "0024_practice_session_xp.sql"
   ],
   "expansion": [
     "0018_adaptive_compat_expand_basis.sql",

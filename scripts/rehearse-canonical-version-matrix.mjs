@@ -102,7 +102,7 @@ try {
     return page.evaluate(
       () =>
         new Promise((resolve, reject) => {
-          const q = indexedDB.open(app.canonical.CANONICAL_DB, 2);
+          const q = indexedDB.open(app.canonical.CANONICAL_DB);
           q.onsuccess = () => {
             const t = q.result.transaction("learner"),
               r = t.objectStore("learner").get("binding");

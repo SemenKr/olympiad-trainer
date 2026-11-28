@@ -8,7 +8,7 @@ import {
   packIdFromCompletedProblemIds,
   validateCompletedEpisode,
   validatePackEpisodeStructure,
-  type CompletedPracticeEpisodeFactsV1,
+  type CompletedPracticeEpisodeFacts,
   type CompletedPracticeEpisodeMode,
   type PackId,
 } from "../application/completed-practice-episode";
@@ -485,7 +485,7 @@ export async function persistFinishContributions(
   );
   let completedEpisode: null | Readonly<{
     mode: CompletedPracticeEpisodeMode;
-    facts: CompletedPracticeEpisodeFactsV1;
+    facts: CompletedPracticeEpisodeFacts;
   }> = null;
   if (episode !== undefined) {
     if (
@@ -520,10 +520,31 @@ export async function persistFinishContributions(
                 (adaptiveFacts as LegacyAdaptiveFinishFacts).solutionExposed))))
     )
       throw new Error("Invalid completed Practice episode.");
+    if (
+      checked.version === 2 &&
+      (!modern ||
+        ordered.some(
+          (item) =>
+            !checked.problems.some(
+              (fact) => fact.problemId === item.value.problemId,
+            ),
+        ))
+    )
+      throw new Error("Core evidence must belong to an opened problem.");
     for (const fact of checked.problems) {
       const contribution = ordered.find(
         (item) => item.value.problemId === fact.problemId,
       );
+      if (
+        checked.version === 2 &&
+        contribution &&
+        (contribution.value.observation.validSubmissionCountAtSubmit >
+          fact.validSubmissionCount ||
+          !contribution.value.hintLevelsExposedBeforeCheckpoint.every(
+            (level, index) => fact.hintLevelsExposed[index] === level,
+          ))
+      )
+        throw new Error("Core contribution conflicts with problem facts.");
       const checkpoint = contribution?.value.observation ?? null;
       if (
         JSON.stringify(fact.checkpoint) !==
@@ -661,8 +682,7 @@ export async function persistFinishContributions(
       });
       await tx.execute(sql`DELETE FROM practice_completed_episodes
         WHERE learner_id = ${learnerId}
-        AND NOT (mode = 'core' AND episode_facts->'problems'->0->>'outcome' = 'eventually-correct'
-          AND episode_facts->'problems'->0->>'solutionExposed' = 'false')
+        AND NOT COALESCE((${eligibleReviewSource}), false)
         AND session_id NOT IN (SELECT review_source_session_id FROM practice_review_assignments WHERE learner_id = ${learnerId})
         AND session_id IN (
           SELECT session_id FROM practice_completed_episodes
@@ -1019,9 +1039,21 @@ export async function readLearnerProgress(
   });
 }
 
-const eligibleUnassignedReviewSource = sql`mode = 'core'
+const eligibleReviewSource = sql`mode = 'core'
+  AND episode_facts->'problems'->0->>'problemId' = 'coinciding-seats'
   AND episode_facts->'problems'->0->>'outcome' = 'eventually-correct'
   AND episode_facts->'problems'->0->>'solutionExposed' = 'false'
+  AND CASE WHEN jsonb_typeof(episode_facts->'problems') = 'array' THEN
+    CASE episode_facts->>'version'
+      WHEN '1' THEN jsonb_array_length(episode_facts->'problems') = 3
+      WHEN '2' THEN CASE WHEN jsonb_typeof(episode_facts->'plan'->'problemIds') = 'array'
+        THEN jsonb_array_length(episode_facts->'problems') =
+             jsonb_array_length(episode_facts->'plan'->'problemIds')
+        ELSE false END
+      ELSE false END
+    ELSE false END`;
+
+const eligibleUnassignedReviewSource = sql`${eligibleReviewSource}
   AND NOT EXISTS (SELECT 1 FROM practice_review_assignments a
     WHERE a.learner_id = practice_completed_episodes.learner_id
       AND a.review_source_session_id = practice_completed_episodes.session_id)`;

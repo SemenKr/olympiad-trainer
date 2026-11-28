@@ -8,7 +8,10 @@ export function isEligibleReviewSource(mode: unknown, facts: unknown): boolean {
     mode === "core" ? validateCompletedEpisode(mode, facts) : null;
   const carrier = episode?.problems[0];
   return (
-    episode?.problems.length === CORE_EPISODE_PROBLEM_IDS.length &&
+    episode?.problems.length ===
+      (episode?.version === 2
+        ? episode.plan.problemIds.length
+        : CORE_EPISODE_PROBLEM_IDS.length) &&
     carrier?.problemId === "coinciding-seats" &&
     carrier.outcome === "eventually-correct" &&
     !carrier.solutionExposed
