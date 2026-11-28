@@ -6,7 +6,9 @@ import {
   type PracticeSessionResult,
 } from "./two-problem-session-state";
 import {
+  CORE_EPISODE_PROBLEM_IDS,
   packProblemIds,
+  type CorePracticePlan,
   type PackId,
 } from "../application/completed-practice-episode";
 
@@ -21,8 +23,9 @@ export type { PracticeSessionResult };
 export type PracticeSessionState = Readonly<{
   sessionId: string;
   mode?: "pack";
-  problemIds?: readonly [string, string, string];
-  activeProblemIndex: 0 | 1 | 2;
+  problemIds?: readonly string[];
+  plan?: CorePracticePlan;
+  activeProblemIndex: number;
   completedResults: readonly PracticeSessionResult[];
 }>;
 
@@ -45,6 +48,7 @@ export type NoNextPracticeSessionState = Readonly<{
   sessionId: string;
   mode?: "pack";
   status: "no-next";
+  plan?: CorePracticePlan;
   completedResults: readonly PracticeSessionResult[];
 }>;
 
@@ -97,20 +101,26 @@ export function isFixedPracticeSession(
   return !("mode" in state) || state.mode === "pack";
 }
 
+export function practiceSessionLength(state: PracticeSessionState): number {
+  return (
+    state.plan?.problemIds.length ??
+    state.problemIds?.length ??
+    CORE_EPISODE_PROBLEM_IDS.length
+  );
+}
+
 export function advancePracticeSession(
   state: PracticeSessionState,
   result: PracticeSessionResult,
 ): PracticeSessionState | null {
   if (
-    state.activeProblemIndex === 2 ||
+    state.activeProblemIndex >= practiceSessionLength(state) - 1 ||
     state.completedResults.length !== state.activeProblemIndex
   )
     return null;
   return {
-    sessionId: state.sessionId,
-    ...(state.mode === "pack" ? { mode: "pack" as const } : {}),
-    ...(state.problemIds ? { problemIds: state.problemIds } : {}),
-    activeProblemIndex: (state.activeProblemIndex + 1) as 1 | 2,
+    ...state,
+    activeProblemIndex: state.activeProblemIndex + 1,
     completedResults: [...state.completedResults, result],
   };
 }
@@ -127,8 +137,8 @@ export function skipFinalPracticeSession(
   result: PracticeSessionResult,
 ): NoNextPracticeSessionState | null {
   if (
-    state.activeProblemIndex !== 2 ||
-    state.completedResults.length !== 2 ||
+    state.activeProblemIndex !== practiceSessionLength(state) - 1 ||
+    state.completedResults.length !== state.activeProblemIndex ||
     result.taskOutcome !== "skipped"
   )
     return null;
@@ -136,10 +146,7 @@ export function skipFinalPracticeSession(
     sessionId: state.sessionId,
     ...(state.mode === "pack" ? { mode: "pack" as const } : {}),
     status: "no-next",
-    completedResults: [
-      state.completedResults[0],
-      state.completedResults[1],
-      result,
-    ],
+    ...(state.plan ? { plan: state.plan } : {}),
+    completedResults: [...state.completedResults, result],
   };
 }

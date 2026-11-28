@@ -33,6 +33,12 @@ import {
   importLegacyProgress,
   persistFinishContributions,
 } from "./learner-progress-persistence";
+import { CORE_PLAN_V1_PROBLEM_IDS } from "../application/completed-practice-episode";
+import {
+  readRecentPracticeEpisodes,
+  readReviewAvailability,
+  startReview,
+} from "./learner-progress-persistence";
 import { getProgressDb } from "./progress-db";
 import {
   practiceCompletedEpisodes,
@@ -48,6 +54,105 @@ beforeAll(() => {
 describe.skipIf(!testUrl)(
   "PostgreSQL Finish acknowledgement and browser reconciliation",
   () => {
+    it.each([3, 5, 10])(
+      "retains the %i-task plan through a lost response and Review selection",
+      async (length) => {
+        const context = learnerContext(
+          await createTestLearner(
+            createHash("sha256").update(randomBytes(32)).digest("hex"),
+          ),
+        );
+        await importLegacyProgress(context, null);
+        const plan = {
+          version: 1,
+          problemIds: CORE_PLAN_V1_PROBLEM_IDS.slice(0, length),
+        };
+        const problems = plan.problemIds.map((problemId) => ({
+          problemId,
+          outcome: "eventually-correct",
+          skipped: false,
+          validSubmissionCount: 1,
+          hintLevelsExposed: [],
+          solutionExposed: false,
+          checkpoint: null,
+        }));
+        const episode = { mode: "core", facts: { version: 2, plan, problems } };
+        const session = randomUUID();
+        const finish = () =>
+          persistFinishContributions(
+            context,
+            session,
+            [],
+            undefined,
+            episode,
+            2,
+          );
+        const award = await finish();
+        expect(award).toMatchObject({
+          earnedXp: length * 10,
+          totalXp: length * 10,
+        });
+        expect(await finish()).toEqual(award);
+
+        const early = {
+          ...episode,
+          facts: { ...episode.facts, problems: problems.slice(0, 1) },
+        };
+        const earlySession = randomUUID();
+        expect(
+          await persistFinishContributions(
+            context,
+            earlySession,
+            [],
+            undefined,
+            early,
+            2,
+          ),
+        ).toMatchObject({ earnedXp: 10, totalXp: length * 10 + 10 });
+        const differentPlan = {
+          ...early,
+          facts: {
+            ...early.facts,
+            plan: {
+              version: 1,
+              problemIds: CORE_PLAN_V1_PROBLEM_IDS.slice(
+                0,
+                length === 10 ? 5 : 10,
+              ),
+            },
+          },
+        };
+        await expect(
+          persistFinishContributions(
+            context,
+            earlySession,
+            [],
+            undefined,
+            differentPlan,
+            2,
+          ),
+        ).rejects.toThrow();
+        await expect(
+          persistFinishContributions(
+            context,
+            randomUUID(),
+            [],
+            undefined,
+            early,
+          ),
+        ).rejects.toThrow();
+        expect(
+          (await readRecentPracticeEpisodes(context)).map(
+            ({ problems }) => problems.length,
+          ),
+        ).toEqual([1, length]);
+        expect(await readReviewAvailability(context)).toBe(true);
+        const review = await startReview(context);
+        expect(review).toBeTruthy();
+        expect(await startReview(context)).toBe(review);
+      },
+    );
+
     it.each(["lost-response", "local-write"])(
       "replays exact facts after %s, keeping one receipt, episode and XP award",
       async (failure) => {

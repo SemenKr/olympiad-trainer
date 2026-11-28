@@ -24,7 +24,6 @@ import type {
 import {
   finishPractice,
   getPracticeSummary,
-  startPractice,
 } from "../application/practice-state";
 import {
   appendPracticeProgressEvidence,
@@ -36,12 +35,14 @@ import {
 } from "../application/practice-progress-evidence";
 import {
   completedEpisodeFacts,
+  validateCorePracticePlan,
+  type CorePracticePlan,
   PRACTICE_PACKS,
   packProblemIds,
   packIdFromProblemIds,
   packIdFromCompletedProblemIds,
   validateCompletedEpisode,
-  type CompletedPracticeEpisodeFactsV1,
+  type CompletedPracticeEpisodeFacts,
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
 import {
@@ -60,6 +61,7 @@ import {
 } from "./practice-answer-state";
 import { normalizeMultipleChoiceSetAnswer } from "../domain/multiple-choice-set-answer";
 import { PROGRESS_EVIDENCE_STORAGE_KEY } from "./progress-evidence-storage";
+import { isFixedPracticeSession } from "./fixed-practice-session-state";
 import type {
   AdaptiveNoNextPracticeSessionState,
   ActivePracticeSessionState,
@@ -173,8 +175,8 @@ type StoredProblem =
 
 type PracticeSessionSnapshotBase = Readonly<{
   sessionId: string;
-  problemIds: readonly [string, string, string];
-  activeProblemIndex: 0 | 1 | 2;
+  problemIds: readonly string[];
+  activeProblemIndex: number;
   completedResults: readonly PracticeSessionResult[];
   activePractice: ActivePractice;
   reasoningCheckpointObservation?: ReasoningCheckpointObservation;
@@ -183,6 +185,7 @@ type PracticeSessionSnapshotBase = Readonly<{
 type CorePracticeSessionSnapshot = PracticeSessionSnapshotBase &
   Readonly<{
     mode?: "pack";
+    plan?: CorePracticePlan;
     rawAnswer?: string;
     selectedOptionIds?: readonly string[];
   }>;
@@ -438,7 +441,23 @@ function validResult(
 export function validateLatestCompletedResults(
   value: unknown,
   mode?: "review",
+  plan?: CorePracticePlan,
 ): readonly PracticeSessionResult[] | null {
+  if (plan) {
+    return Array.isArray(value) &&
+      value.length > 0 &&
+      value.length <= plan.problemIds.length &&
+      Array.from(value.keys()).every((i) =>
+        validResult(
+          value[i],
+          storedCoreProblem(plan.problemIds[i]),
+          i === value.length - 1,
+          i === value.length - 1,
+        ),
+      )
+      ? value
+      : null;
+  }
   const completedPackId = Array.isArray(value)
     ? packIdFromCompletedProblemIds(
         value.map((result) =>
@@ -590,10 +609,21 @@ function validSelectedOptionIds(
   );
 }
 
+function storedCoreProblem(id: string): StoredProblem {
+  return browserProblemMetadata[id as keyof typeof browserProblemMetadata];
+}
+
+function corePlanOf(
+  state: { readonly plan?: CorePracticePlan } | { readonly mode: string },
+) {
+  return "plan" in state ? state.plan : undefined;
+}
+
 function validateSessionShape(
   value: unknown,
-  length: 2 | 3,
+  length: number,
   mode?: "pack",
+  plan?: CorePracticePlan,
 ): Record<string, unknown> | null {
   const packIds =
     record(value) && mode === "pack"
@@ -611,11 +641,13 @@ function validateSessionShape(
     mode === "pack" ? storedPackProblems(packIds) : null;
   if (mode === "pack" && !selectedPackProblems) return null;
   const sessionProblems: readonly StoredProblem[] =
-    selectedPackProblems ?? problems;
+    selectedPackProblems ??
+    (plan ? plan.problemIds.map(storedCoreProblem) : problems);
   if (record(value) && value.status === "no-next") {
     return exactKeys(value, [
       "sessionId",
       ...(mode === "pack" ? ["mode"] : []),
+      ...(plan ? ["plan"] : []),
       "status",
       "completedResults",
     ]) &&
@@ -665,6 +697,7 @@ function validateSessionShape(
     "sessionId",
     ...(mode === "pack" ? ["mode"] : []),
     "problemIds",
+    ...(plan ? ["plan"] : []),
     "activeProblemIndex",
     "completedResults",
     "activePractice",
@@ -771,10 +804,19 @@ export function validatePracticeSessionSnapshot(
       ? (value as AdaptivePracticeSessionSnapshot)
       : null;
   }
-  return validateSessionShape(
-    value,
-    3,
-  ) as UnfinishedPracticeSessionSnapshot | null;
+  if (record(value) && Object.hasOwn(value, "plan")) {
+    const plan = validateCorePracticePlan(value.plan);
+    return plan
+      ? (validateSessionShape(
+          value,
+          plan.problemIds.length,
+          undefined,
+          plan,
+        ) as UnfinishedPracticeSessionSnapshot | null)
+      : null;
+  }
+  return (validateSessionShape(value, 3) ??
+    validateSessionShape(value, 2)) as UnfinishedPracticeSessionSnapshot | null;
 }
 
 export class UnsupportedPracticeStateError extends Error {
@@ -803,6 +845,8 @@ function knownProblem(id: unknown) {
 
 function futureSnapshot(raw: string | null): boolean {
   const value = parsedRaw(raw);
+  if (record(value) && Object.hasOwn(value, "plan"))
+    return !validatePracticeSessionSnapshot(value);
   if (!isUnsupportedFuturePackSnapshot(value) || !record(value)) return false;
   const results = value.completedResults as Record<string, unknown>[];
   for (const [index, result] of results.entries()) {
@@ -844,6 +888,7 @@ function futureSnapshot(raw: string | null): boolean {
 function futureSummary(raw: string | null): boolean {
   const value = parsedRaw(raw);
   if (validateLatestCompletedSummary(value)) return false;
+  if (record(value) && Object.hasOwn(value, "plan")) return true;
   if (!isUnsupportedFuturePackSummary(value)) return false;
   const results = Array.isArray(value)
     ? value
@@ -917,9 +962,31 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
       )
         throw new CanonicalPersistenceError("conflict");
       if (raw === null) return null;
-      const snapshot = validatePracticeSessionSnapshot(JSON.parse(raw));
-      if (!snapshot) throw new CanonicalPersistenceError("conflict");
-      return { snapshot, raw };
+      const parsed: unknown = JSON.parse(raw);
+      const snapshot = validatePracticeSessionSnapshot(parsed);
+      if (snapshot) return { snapshot, raw };
+      if (
+        requestRaw !== null ||
+        !record(parsed) ||
+        Object.hasOwn(parsed, "sessionId") ||
+        Object.hasOwn(parsed, "plan")
+      )
+        throw new CanonicalPersistenceError("conflict");
+
+      // Handoff retains historical bytes. Admit a valid ID-less draft exactly
+      // once, under the same lease and lock as ordinary session creation.
+      const admitted = validatePracticeSessionSnapshot({
+        sessionId: crypto.randomUUID(),
+        ...parsed,
+      });
+      if (!admitted) throw new CanonicalPersistenceError("conflict");
+      const admittedRaw = JSON.stringify(admitted);
+      return withPracticeSessionLock((draft) => {
+        if (draft.getItem(PRACTICE_SESSION_STORAGE_KEY) !== raw)
+          throw new CanonicalPersistenceError("conflict");
+        draft.setItem(PRACTICE_SESSION_STORAGE_KEY, admittedRaw);
+        return { snapshot: admitted, raw: admittedRaw };
+      }, store);
     })();
   return withPracticeSessionLock((store) => {
     assertNoUnsupportedPracticeStateInsideLock(store);
@@ -1002,22 +1069,7 @@ function readPracticeSessionSnapshotWithRaw(store: Storage): Promise<{
       record(parsed) && !Object.hasOwn(parsed, "sessionId")
         ? { sessionId: crypto.randomUUID(), ...parsed }
         : parsed;
-    const legacy = validateSessionShape(withSessionId, 2);
-    const migrated = legacy
-      ? legacy.status === "no-next"
-        ? {
-            sessionId: legacy.sessionId,
-            problemIds: problems.map((problem) => problem.id),
-            activeProblemIndex: 2,
-            completedResults: legacy.completedResults,
-            activePractice: startPractice(),
-            selectedOptionIds: [],
-          }
-        : {
-            ...legacy,
-            problemIds: problems.map((problem) => problem.id),
-          }
-      : withSessionId;
+    const migrated = withSessionId;
     const validated = validatePracticeSessionSnapshot(migrated);
     if (validated) {
       const migratedRaw = JSON.stringify(migrated);
@@ -1095,7 +1147,9 @@ export async function readVerifiedPracticeSessionSnapshot(
               ? storedPackProblems(snapshot.problemIds)![
                   snapshot.activeProblemIndex
                 ]
-              : problems[snapshot.activeProblemIndex]
+              : storedCoreProblem(
+                  snapshot.problemIds[snapshot.activeProblemIndex],
+                )
           ).id,
           snapshot.reasoningCheckpointObservation,
           getPracticeSummary(finishPractice(snapshot.activePractice)),
@@ -1129,11 +1183,7 @@ function activeSessionSnapshot(
   answer: PracticeAnswerState,
   reasoningCheckpointObservation?: ReasoningCheckpointObservation,
 ): PracticeSessionSnapshot {
-  if (
-    session.mode === "transfer" ||
-    session.mode === "exploration" ||
-    session.mode === "review"
-  )
+  if (!isFixedPracticeSession(session))
     return {
       sessionId: session.sessionId,
       mode: session.mode,
@@ -1152,7 +1202,13 @@ function activeSessionSnapshot(
     problemIds:
       session.mode === "pack"
         ? (session.problemIds ?? packProblemIds(PRACTICE_PACKS[0].id))
-        : [problems[0].id, problems[1].id, problems[2].id],
+        : (session.plan?.problemIds ??
+          session.problemIds ?? [
+            problems[0].id,
+            problems[1].id,
+            problems[2].id,
+          ]),
+    ...(session.plan ? { plan: session.plan } : {}),
     activeProblemIndex: session.activeProblemIndex,
     completedResults: session.completedResults,
     activePractice: answer.practice,
@@ -1168,11 +1224,16 @@ function activeSessionSnapshot(
 function ownsPersistedPracticeSession(
   store: Storage,
   sessionId: string,
+  plan?: CorePracticePlan,
 ): boolean {
   const raw = store.getItem(PRACTICE_SESSION_STORAGE_KEY);
   if (raw === null) return false;
   const persisted = validatePracticeSessionSnapshot(JSON.parse(raw));
-  return persisted?.sessionId === sessionId;
+  return (
+    !!persisted &&
+    persisted.sessionId === sessionId &&
+    JSON.stringify(corePlanOf(persisted)) === JSON.stringify(plan)
+  );
 }
 
 export async function createPracticeSessionSnapshot(
@@ -1229,7 +1290,11 @@ export async function savePracticeSessionSnapshot(
     answer,
     reasoningCheckpointObservation,
   );
-  if (!validSessionId(session.sessionId)) return false;
+  if (
+    !validSessionId(session.sessionId) ||
+    (corePlanOf(session) && !validatePracticeSessionSnapshot(snapshot))
+  )
+    return false;
   try {
     const store = storage ?? captureLearnerStorage();
     return await withPracticeSessionLock((store) => {
@@ -1239,7 +1304,14 @@ export async function savePracticeSessionSnapshot(
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
       )
         return false;
-      if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
+      if (
+        !ownsPersistedPracticeSession(
+          store,
+          session.sessionId,
+          corePlanOf(session),
+        )
+      )
+        return false;
       const raw = JSON.stringify(snapshot);
       store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
       return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
@@ -1264,7 +1336,14 @@ export async function saveNoNextPracticeSessionSnapshot(
         store.getItem(PRACTICE_PROGRESS_FINISH_PENDING_KEY) !== null
       )
         return false;
-      if (!ownsPersistedPracticeSession(store, session.sessionId)) return false;
+      if (
+        !ownsPersistedPracticeSession(
+          store,
+          session.sessionId,
+          corePlanOf(session),
+        )
+      )
+        return false;
       const raw = JSON.stringify(session);
       store.setItem(PRACTICE_SESSION_STORAGE_KEY, raw);
       return store.getItem(PRACTICE_SESSION_STORAGE_KEY) === raw;
@@ -1302,6 +1381,7 @@ export async function clearPracticeSessionSnapshot(
 }
 
 type LatestCompletedSummary = Readonly<{
+  plan?: CorePracticePlan;
   mode?: "review";
   sessionId: string | null;
   results: readonly PracticeSessionResult[];
@@ -1319,14 +1399,19 @@ function validateLatestCompletedSummary(
     !exactKeys(value, [
       "sessionId",
       "results",
+      ...(Object.hasOwn(value, "plan") ? ["plan"] : []),
       ...(Object.hasOwn(value, "mode") ? ["mode"] : []),
     ]) ||
     !validSessionId(value.sessionId)
   )
     return null;
+  const plan = validateCorePracticePlan(value.plan);
+  if (Object.hasOwn(value, "plan") && (!plan || Object.hasOwn(value, "mode")))
+    return null;
   const results = validateLatestCompletedResults(
     value.results,
     value.mode === "review" ? "review" : undefined,
+    plan ?? undefined,
   );
   if (
     Object.hasOwn(value, "mode") &&
@@ -1339,6 +1424,7 @@ function validateLatestCompletedSummary(
     ? {
         sessionId: value.sessionId,
         results,
+        ...(plan ? { plan } : {}),
         ...(value.mode === "review" ? { mode: "review" as const } : {}),
       }
     : null;
@@ -1348,8 +1434,14 @@ function serializeLatestCompletedSummary(
   results: readonly PracticeSessionResult[],
   sessionId: string,
   mode?: "review",
+  plan?: CorePracticePlan,
 ) {
-  return JSON.stringify({ sessionId, results, ...(mode ? { mode } : {}) });
+  return JSON.stringify({
+    sessionId,
+    results,
+    ...(mode ? { mode } : {}),
+    ...(plan ? { plan } : {}),
+  });
 }
 
 export function readLatestCompletedResults(
@@ -1372,6 +1464,7 @@ export async function readVerifiedLatestCompletedResults(
   VerifiedCheckpointData<readonly PracticeSessionResult[] | null> & {
     sessionId?: string | null;
     mode?: "review";
+    plan?: CorePracticePlan;
   }
 > {
   const store = storage ?? captureLearnerStorage();
@@ -1402,6 +1495,7 @@ export async function readVerifiedLatestCompletedResults(
     value: results,
     sessionId: summary?.sessionId ?? null,
     ...(summary?.mode ? { mode: summary.mode } : {}),
+    ...(summary?.plan ? { plan: summary.plan } : {}),
     interpretation:
       interpretations.find(
         (item) => item.learnerLabel === "Как гарантировать результат",
@@ -1420,9 +1514,11 @@ export function saveLatestCompletedResults(
   storage?: Storage,
   sessionId?: string,
   mode?: "review",
+  plan?: CorePracticePlan,
 ): boolean {
   if (
-    !validateLatestCompletedResults(results, mode) ||
+    (plan && (!sessionId || mode || !validateCorePracticePlan(plan))) ||
+    !validateLatestCompletedResults(results, mode, plan) ||
     (sessionId !== undefined && !validSessionId(sessionId))
   )
     return false;
@@ -1433,7 +1529,7 @@ export function saveLatestCompletedResults(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
-        : serializeLatestCompletedSummary(results, sessionId, mode),
+        : serializeLatestCompletedSummary(results, sessionId, mode, plan),
     );
     return true;
   } catch {
@@ -1462,7 +1558,7 @@ export type ServerPracticeFinishPayload = Readonly<{
   sessionId: string;
   contributions: readonly PracticeProgressContribution[];
   episodeMode?: CompletedPracticeEpisodeMode;
-  episodeFacts?: CompletedPracticeEpisodeFactsV1;
+  episodeFacts?: CompletedPracticeEpisodeFacts;
   adaptiveFacts?: Readonly<{
     problemId:
       | "brothers-ages-products"
@@ -1530,7 +1626,12 @@ function readServerPracticeFinishRequest(
     const results = summary?.results;
     if (summary?.sessionId && summary.sessionId !== value.sessionId)
       return null;
-    if (!unfinished || unfinished.sessionId !== value.sessionId || !results)
+    if (
+      !unfinished ||
+      unfinished.sessionId !== value.sessionId ||
+      !results ||
+      JSON.stringify(corePlanOf(unfinished)) !== JSON.stringify(summary?.plan)
+    )
       return null;
     const expected =
       "status" in unfinished
@@ -1538,8 +1639,13 @@ function readServerPracticeFinishRequest(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...(unfinished.mode === "pack"
-                ? { problemIds: unfinished.problemIds }
+              ...(!unfinished.mode || unfinished.mode === "pack"
+                ? {
+                    problemIds: unfinished.problemIds,
+                    ...(corePlanOf(unfinished)
+                      ? { plan: corePlanOf(unfinished) }
+                      : {}),
+                  }
                 : {}),
               ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
@@ -1560,7 +1666,11 @@ function readServerPracticeFinishRequest(
       .filter((entry) => entry !== null);
     const adaptiveFacts = adaptiveFinishFacts(unfinished, results);
     const mode = "mode" in unfinished ? unfinished.mode : "core";
-    const expectedEpisode = completedEpisodeFacts(results);
+    const expectedEpisode = completedEpisodeFacts(
+      results,
+      corePlanOf(unfinished),
+    );
+    if (expectedEpisode.version === 2 && value.version !== 2) return null;
     const legacyBrothersFacts =
       adaptiveFacts?.problemId === "brothers-ages-products"
         ? {
@@ -1685,6 +1795,7 @@ export async function isCurrentPracticeFinish(
         !!validateLatestCompletedResults(
           results,
           session.mode === "review" ? "review" : undefined,
+          corePlanOf(session),
         )
       );
     }
@@ -1710,6 +1821,7 @@ export async function isCurrentPracticeFinish(
         !validateLatestCompletedResults(
           results,
           session.mode === "review" ? "review" : undefined,
+          corePlanOf(session),
         )
       )
         return false;
@@ -1883,6 +1995,8 @@ function readPendingPracticeProgressFinish(
       !unfinished ||
       unfinished.sessionId !== value.sessionId ||
       !completed ||
+      JSON.stringify(corePlanOf(unfinished)) !==
+        JSON.stringify(summary?.plan) ||
       (!serverBacked && (!progressAfter || !hasContribution)) ||
       (serverBacked && value.progressAfter !== value.progressBefore) ||
       ("status" in unfinished
@@ -1890,8 +2004,13 @@ function readPendingPracticeProgressFinish(
         : expectedUnfinishedForFinish(
             {
               sessionId: unfinished.sessionId,
-              ...(unfinished.mode === "pack"
-                ? { problemIds: unfinished.problemIds }
+              ...(!unfinished.mode || unfinished.mode === "pack"
+                ? {
+                    problemIds: unfinished.problemIds,
+                    ...(corePlanOf(unfinished)
+                      ? { plan: corePlanOf(unfinished) }
+                      : {}),
+                  }
                 : {}),
               ...("mode" in unfinished && unfinished.mode !== "pack"
                 ? {
@@ -2139,16 +2258,21 @@ async function completeCanonicalPracticeSession(
               results,
               session.sessionId,
               session.mode === "review" ? "review" : undefined,
+              corePlanOf(session),
             );
             const contributions = results
               .map(getPracticeProgressContribution)
               .filter((x) => x !== null);
             const episodeMode = "mode" in session ? session.mode : "core";
-            const episodeFacts = completedEpisodeFacts(results);
+            const episodeFacts = completedEpisodeFacts(
+              results,
+              corePlanOf(session),
+            );
             if (
               !validateLatestCompletedResults(
                 results,
                 session.mode === "review" ? "review" : undefined,
+                corePlanOf(session),
               ) ||
               !validateCompletedEpisode(episodeMode, episodeFacts) ||
               contributions.length > 2
@@ -2292,6 +2416,7 @@ export async function completeServerBackedPracticeSession(
           results,
           session.sessionId,
           session.mode === "review" ? "review" : undefined,
+          corePlanOf(session),
         );
         const unfinishedBefore = expectedUnfinishedForFinish(
           session,
@@ -2303,11 +2428,15 @@ export async function completeServerBackedPracticeSession(
           .map(getPracticeProgressContribution)
           .filter((entry) => entry !== null);
         const episodeMode = "mode" in session ? session.mode : "core";
-        const episodeFacts = completedEpisodeFacts(results);
+        const episodeFacts = completedEpisodeFacts(
+          results,
+          corePlanOf(session),
+        );
         if (
           !validateLatestCompletedResults(
             results,
             session.mode === "review" ? "review" : undefined,
+            corePlanOf(session),
           ) ||
           !validateCompletedEpisode(episodeMode, episodeFacts) ||
           !unfinishedBefore ||
@@ -2454,6 +2583,7 @@ export async function completeServerBackedPracticeSession(
           store,
           completed.sessionId ?? undefined,
           completed.mode,
+          completed.plan,
         )
       )
         return rollback();
@@ -2708,5 +2838,6 @@ export function getStoredProblemTitle(
     : snapshot.mode === "pack"
       ? storedPackProblems(snapshot.problemIds)![snapshot.activeProblemIndex]
           .title
-      : problems[snapshot.activeProblemIndex].title;
+      : storedCoreProblem(snapshot.problemIds[snapshot.activeProblemIndex])
+          .title;
 }

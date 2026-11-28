@@ -134,7 +134,6 @@ try {
                 new Promise((resolve) => {
                   const q = indexedDB.open(
                     "olympiad-trainer:learner-canonical-v1",
-                    2,
                   );
                   q.onsuccess = () => {
                     const r = q.result

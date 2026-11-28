@@ -45,10 +45,7 @@ try {
     const key = "olympiad-trainer:simulation-pending-v0";
     window.readCanonicalRace = () =>
       new Promise((resolve, reject) => {
-        const request = indexedDB.open(
-          "olympiad-trainer:learner-canonical-v1",
-          2,
-        );
+        const request = indexedDB.open("olympiad-trainer:learner-canonical-v1");
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result,
@@ -115,10 +112,7 @@ try {
   const local = await page.evaluate(
     () =>
       new Promise((resolve, reject) => {
-        const request = indexedDB.open(
-          "olympiad-trainer:learner-canonical-v1",
-          2,
-        );
+        const request = indexedDB.open("olympiad-trainer:learner-canonical-v1");
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result,

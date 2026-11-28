@@ -105,7 +105,7 @@ async function fixture(payloads = {}) {
     window.view = app.ownership.captureLearnerStorage();
     window.readRaw = () =>
       new Promise((resolve, reject) => {
-        const r = indexedDB.open(app.canonical.CANONICAL_DB, 2);
+        const r = indexedDB.open(app.canonical.CANONICAL_DB);
         r.onsuccess = () => {
           const tx = r.result.transaction("learner", "readonly"),
             q = tx.objectStore("learner").get("binding");

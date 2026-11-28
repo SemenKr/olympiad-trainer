@@ -208,7 +208,8 @@ function witness(storage: Storage): string | null {
 }
 async function open(factory: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const r = factory.open(CANONICAL_DB, 2);
+    // Older clients cannot safely mutate snapshots with a versioned Practice plan.
+    const r = factory.open(CANONICAL_DB, 3);
     let settled = false;
     const timer = setTimeout(() => {
       settled = true;

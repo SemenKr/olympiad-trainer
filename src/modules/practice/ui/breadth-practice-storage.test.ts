@@ -101,7 +101,7 @@ const table = {
 };
 
 describe("fixed three-problem persistence", () => {
-  it("migrates a valid two-problem active session and old no-next into the third problem", async () => {
+  it("preserves valid two-problem active and no-next snapshots", async () => {
     const storage = memoryStorage();
     const legacy = {
       sessionId: crypto.randomUUID(),
@@ -114,11 +114,7 @@ describe("fixed three-problem persistence", () => {
     storage.setItem(PRACTICE_SESSION_STORAGE_KEY, JSON.stringify(legacy));
     expect(await readPracticeSessionSnapshot(storage)).toMatchObject({
       sessionId: legacy.sessionId,
-      problemIds: [
-        "coinciding-seats",
-        "guaranteed-sock-pair",
-        "table-impossible-sums",
-      ],
+      problemIds: ["coinciding-seats", "guaranteed-sock-pair"],
       activeProblemIndex: 1,
       rawAnswer: "7",
     });
@@ -139,8 +135,7 @@ describe("fixed three-problem persistence", () => {
       }),
     );
     expect(await readPracticeSessionSnapshot(storage)).toMatchObject({
-      activeProblemIndex: 2,
-      selectedOptionIds: [],
+      status: "no-next",
       completedResults: [first, { taskOutcome: "skipped" }],
     });
   });

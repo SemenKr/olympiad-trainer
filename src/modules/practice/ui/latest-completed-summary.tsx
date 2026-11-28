@@ -18,14 +18,17 @@ import {
 import type { PracticeJourneyFinish } from "../application/practice-journey";
 import {
   packIdFromCompletedProblemIds,
+  type CorePracticePlan,
   type PackId,
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
 
 export function LatestCompletedSummary() {
-  const [results, setResults] = useState<
-    readonly PracticeSessionResult[] | null | undefined
-  >();
+  const [completed, setCompleted] = useState<{
+    results: readonly PracticeSessionResult[] | null;
+    plan?: CorePracticePlan;
+  }>();
+  const results = completed?.results;
   const [interpretation, setInterpretation] =
     useState<ReasoningCheckpointInterpretation | null>(null);
   const [tableInterpretation, setTableInterpretation] =
@@ -51,6 +54,7 @@ export function LatestCompletedSummary() {
           ({
             value,
             sessionId,
+            plan,
             mode: completedMode,
             interpretation: verifiedInterpretation,
             tableInterpretation: verifiedTableInterpretation,
@@ -58,9 +62,9 @@ export function LatestCompletedSummary() {
             if (!active) return;
             setInterpretation(verifiedInterpretation);
             setTableInterpretation(verifiedTableInterpretation ?? null);
-            setResults(value);
+            setCompleted({ results: value, plan });
             const packId =
-              completedMode !== "review" && value
+              !plan && completedMode !== "review" && value
                 ? packIdFromCompletedProblemIds(
                     value.map((result) => result.problemId),
                   )
@@ -137,6 +141,7 @@ export function LatestCompletedSummary() {
       reasoningInterpretation={interpretation}
       tableInterpretation={tableInterpretation}
       results={results}
+      plan={completed?.plan}
       journeyFinish={journeyFinish}
       completedPackIds={completedPackIds}
       mode={mode}
@@ -146,6 +151,7 @@ export function LatestCompletedSummary() {
 
 export function LatestCompletedSummaryContent({
   results,
+  plan,
   headingRef,
   reasoningInterpretation,
   tableInterpretation,
@@ -154,6 +160,7 @@ export function LatestCompletedSummaryContent({
   mode,
 }: {
   results: readonly PracticeSessionResult[] | null;
+  plan?: CorePracticePlan;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
@@ -179,6 +186,7 @@ export function LatestCompletedSummaryContent({
       reasoningInterpretation={reasoningInterpretation}
       tableInterpretation={tableInterpretation}
       results={results}
+      plan={plan}
       journeyFinish={journeyFinish}
       completedPackIds={completedPackIds}
       mode={mode}
