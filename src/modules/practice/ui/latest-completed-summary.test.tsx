@@ -62,6 +62,7 @@ import {
   completeServerBackedPracticeSession,
   createPracticeSessionSnapshot,
   saveNoNextPracticeSessionSnapshot,
+  savePracticeSessionSnapshot,
   saveLatestCompletedResults,
   readVerifiedLatestCompletedResults,
   PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
@@ -69,6 +70,15 @@ import {
 import { createShortNumericAnswerState } from "./short-numeric-answer-state";
 import { installImmediatePracticeSessionLock } from "./practice-session-lock.test-helper";
 import type { PracticeSessionResult } from "./fixed-practice-session-state";
+
+import { CORE_PLAN_V1_PROBLEM_IDS } from "../application/completed-practice-episode";
+import {
+  finishPractice,
+  getPracticeSummary,
+  recordAnswerResult,
+  startPractice,
+} from "../application/practice-state";
+import { browserProblemMetadata } from "./browser-problem-metadata.generated";
 
 const sessionA = "00000000-0000-4000-8000-000000000001";
 const sessionB = "00000000-0000-4000-8000-000000000002";
@@ -145,6 +155,98 @@ async function renderMountedSummary() {
   return text;
 }
 
+describe("versioned core Summary after Finish and reload", () => {
+  const cases = [3, 5, 10].flatMap((length) =>
+    (["early", "full", "skipped"] as const).map((kind) => ({ length, kind })),
+  );
+  it.each(cases)(
+    "$kind Finish of a $length-task plan",
+    async ({ length, kind }) => {
+      const plan = {
+        version: 1 as const,
+        problemIds: CORE_PLAN_V1_PROBLEM_IDS.slice(0, length),
+      };
+      const opened = kind === "full" ? length : 2;
+      const session = {
+        sessionId: sessionA,
+        plan,
+        problemIds: plan.problemIds,
+        activeProblemIndex: 0,
+        completedResults: [],
+      };
+      expect(
+        await createPracticeSessionSnapshot(
+          session,
+          createShortNumericAnswerState(),
+        ),
+      ).toBe(true);
+      const results: PracticeSessionResult[] = plan.problemIds
+        .slice(0, opened)
+        .map((problemId, index) => {
+          const skipped = kind === "skipped" && index === 0;
+          return {
+            problemId,
+            problemTitle: browserProblemMetadata[problemId].title,
+            summary: {
+              outcome: skipped ? "no-valid-submissions" : "eventually-correct",
+              validSubmissionCount: skipped ? 0 : 1,
+              hintExposures: [],
+              solutionExposure: null,
+            },
+            ...(skipped ? { taskOutcome: "skipped" as const } : {}),
+          };
+        });
+      const activeId = plan.problemIds[opened - 1];
+      const choice = activeId === "table-impossible-sums";
+      const answerText = choice ? '["sum-20"]' : "1";
+      const practice = recordAnswerResult(startPractice(), {
+        status: "correct",
+        normalizedAnswer: answerText,
+      });
+      const answer = choice
+        ? {
+            practice,
+            status: "correct" as const,
+            selectedOptionIds: ["sum-20"],
+          }
+        : { practice, status: "correct" as const, rawAnswer: answerText };
+      results[opened - 1] = {
+        ...results[opened - 1],
+        summary: getPracticeSummary(finishPractice(practice)),
+      };
+      const finishing = {
+        ...session,
+        activeProblemIndex: opened - 1,
+        completedResults: results.slice(0, -1),
+      };
+      expect(await savePracticeSessionSnapshot(finishing, answer)).toBe(true);
+      expect(
+        await completeServerBackedPracticeSession(
+          finishing,
+          answer,
+          results,
+          undefined,
+          async () => null,
+        ),
+      ).toBe("completed");
+
+      for (let load = 0; load < 2; load++) {
+        const text = await renderMountedSummary();
+        expect(text).toContain(`Открыто задач: ${opened} из ${length}.`);
+        expect(text).toContain(
+          `Из открытых пропущено: ${kind === "skipped" ? 1 : 0}.`,
+        );
+        expect(text).toContain(`Не открыто: ${length - opened}.`);
+        expect(
+          text?.includes("Все задачи этой тренировки решены самостоятельно."),
+        ).toBe(kind === "full");
+        expect(text?.includes("Задача пропущена")).toBe(kind === "skipped");
+      }
+      expect(readServerLearningPath).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("persisted Summary session identity", () => {
   it.each([sessionA, sessionB])(
     "uses latest B's results and reward when opened with session %s",
@@ -205,6 +307,7 @@ describe("persisted Summary session identity", () => {
     const text = await renderMountedSummary();
     expect(text).toContain("Тренировка завершена");
     expect(text).not.toContain("XP");
+    expect(text).not.toContain("Открыто задач");
     expect(readServerPracticeJourneyFinish).not.toHaveBeenCalled();
     expect(readServerLearningPath).not.toHaveBeenCalled();
   });

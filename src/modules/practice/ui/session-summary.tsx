@@ -10,6 +10,7 @@ import {
   packById,
   packHref,
   packIdFromCompletedProblemIds,
+  type CorePracticePlan,
   type PackId,
   type CompletedPracticeEpisodeMode,
 } from "../application/completed-practice-episode";
@@ -22,6 +23,7 @@ import {
 
 type SessionSummaryProps = Readonly<{
   results: readonly PracticeSessionResult[];
+  plan?: CorePracticePlan;
   reasoningInterpretation?: ReasoningCheckpointInterpretation | null;
   tableInterpretation?: ReasoningCheckpointInterpretation | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
@@ -69,7 +71,10 @@ export function getPracticeResultLabel(
     : "Решено самостоятельно";
 }
 
-function getSuccessOverview(results: readonly PracticeSessionResult[]) {
+function getSuccessOverview(
+  results: readonly PracticeSessionResult[],
+  plannedCount: number,
+) {
   const labels = results.map((result) =>
     getPracticeResultLabel(result.summary, result.taskOutcome),
   );
@@ -80,7 +85,7 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
     (label) => label === "Получилось с подсказкой",
   ).length;
 
-  if (independentCount === results.length && results.length > 1) {
+  if (independentCount === plannedCount && results.length > 1) {
     return "Все задачи этой тренировки решены самостоятельно.";
   }
 
@@ -99,6 +104,7 @@ function getSuccessOverview(results: readonly PracticeSessionResult[]) {
 
 export function SessionSummary({
   results,
+  plan,
   reasoningInterpretation,
   tableInterpretation,
   headingRef,
@@ -116,7 +122,11 @@ export function SessionSummary({
       result.taskOutcome !== "skipped" &&
       result.summary.outcome !== "eventually-correct",
   );
-  const successOverview = getSuccessOverview(results);
+  const plannedCount = plan?.problemIds.length ?? results.length;
+  const skippedCount = results.filter(
+    (result) => result.taskOutcome === "skipped",
+  ).length;
+  const successOverview = getSuccessOverview(results, plannedCount);
 
   const remainingText = remainingResults
     .map((result) =>
@@ -219,6 +229,16 @@ export function SessionSummary({
               Это отдельная попытка знакомой задачи. Она не меняет выводы о
               навыках и выбор следующей полезной задачи.
             </p>
+          ) : null}
+          {plan ? (
+            <section className={styles.section}>
+              <h2>Задачи тренировки</h2>
+              <p>
+                Открыто задач: {results.length} из {plannedCount}.
+              </p>
+              <p>Из открытых пропущено: {skippedCount}.</p>
+              <p>Не открыто: {plannedCount - results.length}.</p>
+            </section>
           ) : null}
           {showSuccessOverview ? (
             <section className={`${styles.section} ${styles.success}`}>

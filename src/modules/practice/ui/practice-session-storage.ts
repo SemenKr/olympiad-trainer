@@ -1464,6 +1464,7 @@ export async function readVerifiedLatestCompletedResults(
   VerifiedCheckpointData<readonly PracticeSessionResult[] | null> & {
     sessionId?: string | null;
     mode?: "review";
+    plan?: CorePracticePlan;
   }
 > {
   const store = storage ?? captureLearnerStorage();
@@ -1494,6 +1495,7 @@ export async function readVerifiedLatestCompletedResults(
     value: results,
     sessionId: summary?.sessionId ?? null,
     ...(summary?.mode ? { mode: summary.mode } : {}),
+    ...(summary?.plan ? { plan: summary.plan } : {}),
     interpretation:
       interpretations.find(
         (item) => item.learnerLabel === "Как гарантировать результат",
@@ -1512,9 +1514,11 @@ export function saveLatestCompletedResults(
   storage?: Storage,
   sessionId?: string,
   mode?: "review",
+  plan?: CorePracticePlan,
 ): boolean {
   if (
-    !validateLatestCompletedResults(results, mode) ||
+    (plan && (!sessionId || mode || !validateCorePracticePlan(plan))) ||
+    !validateLatestCompletedResults(results, mode, plan) ||
     (sessionId !== undefined && !validSessionId(sessionId))
   )
     return false;
@@ -1525,7 +1529,7 @@ export function saveLatestCompletedResults(
       PRACTICE_LATEST_COMPLETED_STORAGE_KEY,
       sessionId === undefined
         ? JSON.stringify(results)
-        : serializeLatestCompletedSummary(results, sessionId, mode),
+        : serializeLatestCompletedSummary(results, sessionId, mode, plan),
     );
     return true;
   } catch {
@@ -2579,6 +2583,7 @@ export async function completeServerBackedPracticeSession(
           store,
           completed.sessionId ?? undefined,
           completed.mode,
+          completed.plan,
         )
       )
         return rollback();
